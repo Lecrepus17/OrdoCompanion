@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Guia Ordem Paranormal",
+    "slug": "guia-ordem-paranormal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "ordemguide",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ordemparanormal.guia"
+    },
+    "android": {
+      "package": "com.ordemparanormal.guia",
+      "softwareKeyboardLayoutMode": "pan"
+    },
+    "androidNavigationBar": {
+      "barStyle": "light-content"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
