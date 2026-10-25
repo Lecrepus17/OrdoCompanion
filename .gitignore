@@ -13,6 +13,8 @@ yarn-debug.*
 yarn-error.*
 .DS_Store
 *.pem
+*.apk
+*.aab
 __pycache__/
 *.pyc
 data/raw_books.json
