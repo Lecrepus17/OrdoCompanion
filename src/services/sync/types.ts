@@ -1,4 +1,5 @@
 import {
+  Campaign,
   CharacterSheet,
   CompendiumEntity,
   CustomWeapon,
@@ -15,6 +16,7 @@ export interface UserDataBackupPayload {
   favorites?: string[];
   savedLists?: SavedList[];
   characters?: CharacterSheet[];
+  campaigns?: Campaign[];
   customWeapons?: CustomWeapon[];
 }
 
@@ -39,6 +41,7 @@ export interface DriveFileInfo {
 
 export interface MergeStats {
   charactersCount: number;
+  campaignsCount?: number;
   weaponsCount: number;
   customEntitiesCount: number;
   favoritesCount: number;

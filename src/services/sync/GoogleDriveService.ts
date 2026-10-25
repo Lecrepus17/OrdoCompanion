@@ -29,10 +29,16 @@ const GOOGLE_DISCOVERY = {
   revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
 };
 
-// Client ID padrão (pode ser sobrescrito pelo usuário nas configurações do app ou via env)
-const DEFAULT_CLIENT_ID =
+// Client IDs padrão para Web e Mobile (podem ser sobrescritos por variáveis de ambiente ou pelo usuário)
+const DEFAULT_CLIENT_ID_WEB =
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
-  '984364023774-ordemparanormal.apps.googleusercontent.com';
+  '556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com';
+
+const DEFAULT_CLIENT_ID_MOBILE =
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID ||
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_MOBILE ||
+  '556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos.apps.googleusercontent.com';
 
 export class GoogleDriveService {
   private static instance: GoogleDriveService;
@@ -58,7 +64,7 @@ export class GoogleDriveService {
         AsyncStorage.getItem(STORAGE_KEYS.CLIENT_ID),
       ]);
 
-      if (savedClientId) {
+      if (savedClientId && !savedClientId.includes('ordemparanormal.apps.googleusercontent.com')) {
         this.customClientId = savedClientId;
       }
 
@@ -91,16 +97,53 @@ export class GoogleDriveService {
   }
 
   public getClientId(): string {
-    return this.customClientId || DEFAULT_CLIENT_ID;
+    if (this.customClientId && !this.customClientId.includes('ordemparanormal.apps.googleusercontent.com')) {
+      return this.customClientId;
+    }
+    return Platform.OS === 'web' ? DEFAULT_CLIENT_ID_WEB : DEFAULT_CLIENT_ID_MOBILE;
   }
 
-  public async setCustomClientId(clientId: string): Promise<void> {
-    this.customClientId = clientId.trim();
-    if (this.customClientId) {
-      await AsyncStorage.setItem(STORAGE_KEYS.CLIENT_ID, this.customClientId);
-    } else {
+  public getRedirectUri(): string {
+    return AuthSession.makeRedirectUri({
+      scheme: 'ordo',
+      preferLocalhost: true,
+    });
+  }
+
+  public isConfigured(): boolean {
+    const cid = this.getClientId();
+    return Boolean(
+      cid &&
+      !cid.includes('ordemparanormal.apps.googleusercontent.com') &&
+      cid.endsWith('.apps.googleusercontent.com')
+    );
+  }
+
+  public async setCustomClientId(clientId: string): Promise<{ valid: boolean; message?: string }> {
+    const cleaned = clientId.trim();
+    if (!cleaned) {
+      this.customClientId = '';
       await AsyncStorage.removeItem(STORAGE_KEYS.CLIENT_ID);
+      return { valid: true };
     }
+
+    if (cleaned.startsWith('http://') || cleaned.startsWith('https://') || cleaned.includes('/')) {
+      return {
+        valid: false,
+        message: 'O Client ID não deve ser um link/URL. Ele deve terminar com .apps.googleusercontent.com',
+      };
+    }
+
+    if (!cleaned.endsWith('.apps.googleusercontent.com')) {
+      return {
+        valid: false,
+        message: 'Formato inválido. O Client ID do Google deve terminar com .apps.googleusercontent.com',
+      };
+    }
+
+    this.customClientId = cleaned;
+    await AsyncStorage.setItem(STORAGE_KEYS.CLIENT_ID, this.customClientId);
+    return { valid: true };
   }
 
   /**
@@ -109,10 +152,15 @@ export class GoogleDriveService {
   public async signIn(): Promise<SyncAuthState> {
     try {
       const clientId = this.getClientId();
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'ordemguide',
-        preferLocalhost: true,
-      });
+      const redirectUri = this.getRedirectUri();
+
+      if (!this.isConfigured()) {
+        this.authState = {
+          isAuthenticated: false,
+          error: `Client ID do Google não configurado. Adicione seu Client ID do Google Cloud Console em "Configuração Avançada de Client ID". Redirect URI: ${redirectUri}`,
+        };
+        return this.authState;
+      }
 
       const request = new AuthSession.AuthRequest({
         clientId,
@@ -120,6 +168,7 @@ export class GoogleDriveService {
         responseType: AuthSession.ResponseType.Token,
         redirectUri,
         prompt: AuthSession.Prompt.SelectAccount,
+        usePKCE: false, // Necessário: Google OAuth rejeita response_type=token com PKCE
       });
 
       const result = await request.promptAsync(GOOGLE_DISCOVERY);

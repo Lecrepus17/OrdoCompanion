@@ -1,15 +1,30 @@
 import './setup';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getServerBaseUrl, getRawPdfUrl, getRenderedPdfPageUrl } from '../src/utils/pdfUrl';
+import {
+  getServerBaseUrl,
+  getCleanPdfUrl,
+  getRawPdfUrl,
+  getRenderedPdfPageUrl,
+  openPdfDocument,
+  downloadPdfDocument,
+} from '../src/utils/pdfUrl';
 
 describe('Utilitários de URLs e Páginas PDF (pdfUrl.ts)', () => {
   it('getServerBaseUrl deve retornar uma URL base válida ou string vazia (em ambiente web)', () => {
     const url = getServerBaseUrl();
     assert.ok(typeof url === 'string');
     if (url.length > 0) {
-      assert.ok(url.startsWith('http://'));
+      assert.ok(url.startsWith('http://') || url.startsWith('https://'));
     }
+  });
+
+  describe('getCleanPdfUrl', () => {
+    it('deve retornar a URL sem fragmento #page= para compatibilidade com celulares', () => {
+      const url = getCleanPdfUrl('Livro base.pdf');
+      assert.ok(url.includes('/pdfs/Livro%20base.pdf'));
+      assert.ok(!url.includes('#page'));
+    });
   });
 
   describe('getRawPdfUrl', () => {
@@ -58,6 +73,30 @@ describe('Utilitários de URLs e Páginas PDF (pdfUrl.ts)', () => {
 
       const urlNeg = getRenderedPdfPageUrl('livro.pdf', -5);
       assert.ok(urlNeg.includes('&page=1'));
+    });
+  });
+
+  describe('openPdfDocument', () => {
+    it('deve ser uma função exportada assíncrona', () => {
+      assert.strictEqual(typeof openPdfDocument, 'function');
+    });
+
+    it('não deve lançar exceção ao ser chamada', async () => {
+      await assert.doesNotReject(async () => {
+        await openPdfDocument('Livro base.pdf', 1);
+      });
+    });
+  });
+
+  describe('downloadPdfDocument', () => {
+    it('deve ser uma função exportada assíncrona', () => {
+      assert.strictEqual(typeof downloadPdfDocument, 'function');
+    });
+
+    it('não deve lançar exceção ao solicitar download direto', async () => {
+      await assert.doesNotReject(async () => {
+        await downloadPdfDocument('Livro base.pdf');
+      });
     });
   });
 });

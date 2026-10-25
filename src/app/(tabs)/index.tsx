@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,12 +12,13 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CATEGORY_LABELS, ThemeColors, useTheme, useThemedStyles } from '../../theme';
-import { EntityCategory, EntityClassFilter, ExcludableType } from '../../types/compendium';
+import { CompendiumEntity, EntityCategory, EntityClassFilter, ExcludableType } from '../../types/compendium';
 import { EntityCard } from '../../components/EntityCard';
 
 const CATEGORIES_ORDER: Array<EntityCategory | 'all'> = [
@@ -161,12 +163,54 @@ export default function CompendiumScreen() {
     listingColumns,
     toggleListingColumns,
     setListingColumns,
+    openManual,
+    favoriteIds,
+    toggleFavorite,
+    rollFormula,
   } = useApp();
   const { width: windowWidth } = useWindowDimensions();
   const cardWidth = listingColumns === 2 ? Math.floor((windowWidth - 28 - 10) / 2) : undefined;
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('@ordocompanion_filters_collapsed')
+      .then((val) => {
+        if (val !== null) {
+          setFiltersCollapsed(val === 'true');
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleFiltersCollapsed = useCallback(() => {
+    setFiltersCollapsed((prev) => {
+      const next = !prev;
+      AsyncStorage.setItem('@ordocompanion_filters_collapsed', String(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const handlePressEntity = useCallback((id: string) => {
+    router.push({ pathname: '/entity/[id]', params: { id } });
+  }, [router]);
+
+  const renderEntityItem = useCallback(
+    ({ item }: { item: CompendiumEntity }) => (
+      <EntityCard
+        entity={item}
+        numColumns={listingColumns}
+        cardWidth={cardWidth}
+        isFavorite={favoriteIds.has(item.id)}
+        onPressItem={handlePressEntity}
+        onToggleFavorite={toggleFavorite}
+        onRollFormula={rollFormula}
+      />
+    ),
+    [listingColumns, cardWidth, favoriteIds, handlePressEntity, toggleFavorite, rollFormula]
+  );
 
   if (!ready) {
     return (
@@ -224,15 +268,35 @@ export default function CompendiumScreen() {
 
   const excludedCount = filters.excludedTypes?.length || 0;
 
-  const hasActiveFilters =
-    filters.query.trim() !== '' ||
+  const isDefaultExclusions =
+    Boolean(filters.excludedTypes) &&
+    filters.excludedTypes!.length === 2 &&
+    filters.excludedTypes!.includes('rules') &&
+    filters.excludedTypes!.includes('missionStories');
+
+  const hasActiveDirectFilters =
     filters.category !== 'all' ||
-    filters.bookId !== 'all' ||
+    (Boolean(filters.classes) && filters.classes!.length > 0) ||
     filters.element !== 'all' ||
+    filters.circle !== 'all';
+
+  const hasModalActiveFilters =
+    filters.bookId !== 'all' ||
     filters.circle !== 'all' ||
     filters.itemCategory !== 'all' ||
     (Boolean(filters.classes) && filters.classes!.length > 0) ||
-    (Boolean(filters.excludedTypes) && filters.excludedTypes!.length > 0) ||
+    !isDefaultExclusions ||
+    filters.onlyFavorites ||
+    filters.onlyCustomOrEdited ||
+    typeof filters.minVd === 'number' ||
+    typeof filters.maxVd === 'number';
+
+  const hasActiveFilters =
+    filters.query.trim() !== '' ||
+    hasActiveDirectFilters ||
+    filters.bookId !== 'all' ||
+    filters.itemCategory !== 'all' ||
+    !isDefaultExclusions ||
     typeof filters.minVd === 'number' ||
     typeof filters.maxVd === 'number' ||
     Boolean(filters.onlyFavorites) ||
@@ -261,19 +325,21 @@ export default function CompendiumScreen() {
         <TouchableOpacity
           style={[
             styles.iconBtn,
-            (filters.bookId !== 'all' ||
-              filters.circle !== 'all' ||
-              filters.itemCategory !== 'all' ||
-              (Boolean(filters.classes) && filters.classes!.length > 0) ||
-              (Boolean(filters.excludedTypes) && filters.excludedTypes!.length > 0) ||
-              filters.onlyFavorites ||
-              filters.onlyCustomOrEdited) &&
-              styles.iconBtnActive,
+            hasModalActiveFilters && styles.iconBtnActive,
           ]}
           onPress={() => setFilterModalVisible(true)}
+          accessibilityLabel="Filtros avançados"
         >
           <Ionicons name="options-outline" size={20} color={colors.text} />
-          {excludedCount > 0 && <View style={styles.filterDotBadge} />}
+          {!isDefaultExclusions && excludedCount > 0 && <View style={styles.filterDotBadge} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => openManual('compendium')}
+          accessibilityLabel="Manual do Compêndio e Filtros"
+        >
+          <Ionicons name="help-circle-outline" size={20} color={colors.primary} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -289,116 +355,121 @@ export default function CompendiumScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Chips de Categoria */}
-      <View style={styles.chipsSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-          {CATEGORIES_ORDER.map((cat) => {
-            const active = filters.category === cat;
-            const info = CATEGORY_LABELS[cat] || CATEGORY_LABELS.all;
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.chip,
-                  active && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-                ]}
-                onPress={() => setFilters((prev) => ({ ...prev, category: cat }))}
-              >
-                <Text style={[styles.chipText, active && { color: colors.primary, fontWeight: '800' }]}>
-                  {info.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* Chips de Classe */}
-      <View style={styles.classChipsSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-          {CLASS_OPTIONS.map((item) => {
-            const isAll = item.id === 'all';
-            const selectedClasses = filters.classes || [];
-            const active = isAll
-              ? selectedClasses.length === 0
-              : selectedClasses.includes(item.id as EntityClassFilter);
-
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.subChip,
-                  active && {
-                    backgroundColor: item.activeBg,
-                    borderColor: item.activeBorder,
-                  },
-                ]}
-                onPress={() => handleToggleClass(item.id)}
-              >
-                <View style={styles.chipInner}>
-                  {active && !isAll && (
-                    <Ionicons name="checkmark" size={12} color={item.activeText} style={{ marginRight: 4 }} />
-                  )}
-                  <Text
+      {/* Seção de Filtros (Chips de Categoria, Classe e Elementos) */}
+      {!filtersCollapsed && (
+        <View style={styles.collapsibleFiltersWrap}>
+          {/* Chips de Categoria */}
+          <View style={styles.chipsSection}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+              {CATEGORIES_ORDER.map((cat) => {
+                const active = filters.category === cat;
+                const info = CATEGORY_LABELS[cat] || CATEGORY_LABELS.all;
+                return (
+                  <TouchableOpacity
+                    key={cat}
                     style={[
-                      styles.subChipText,
-                      active && { color: item.activeText, fontWeight: '800' },
+                      styles.chip,
+                      active && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
                     ]}
+                    onPress={() => setFilters((prev) => ({ ...prev, category: cat }))}
                   >
-                    {item.label}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+                    <Text style={[styles.chipText, active && { color: colors.primary, fontWeight: '800' }]}>
+                      {info.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
 
-      {/* Chips de Elemento Paranormal + Círculo quando Ritual */}
-      <View style={styles.subChipsSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-          {ELEMENTS_ORDER.map((el) => {
-            const active = filters.element === el;
-            return (
-              <TouchableOpacity
-                key={el}
-                style={[
-                  styles.subChip,
-                  active && { backgroundColor: colors.primarySoft, borderColor: colors.accent },
-                ]}
-                onPress={() => setFilters((prev) => ({ ...prev, element: el }))}
-              >
-                <Text style={[styles.subChipText, active && { color: colors.accent, fontWeight: '800' }]}>
-                  {el === 'all' ? 'Todo Elemento' : el}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          {/* Chips de Classe */}
+          <View style={styles.classChipsSection}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+              {CLASS_OPTIONS.map((item) => {
+                const isAll = item.id === 'all';
+                const selectedClasses = filters.classes || [];
+                const active = isAll
+                  ? selectedClasses.length === 0
+                  : selectedClasses.includes(item.id as EntityClassFilter);
 
-          {filters.category === 'ritual' &&
-            [1, 2, 3, 4].map((c) => {
-              const active = filters.circle === c;
-              return (
-                <TouchableOpacity
-                  key={`circle_${c}`}
-                  style={[
-                    styles.subChip,
-                    active && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-                  ]}
-                  onPress={() =>
-                    setFilters((prev) => ({ ...prev, circle: prev.circle === c ? 'all' : c }))
-                  }
-                >
-                  <Text style={[styles.subChipText, active && { color: colors.primary, fontWeight: '800' }]}>
-                    {c}º Círculo
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-        </ScrollView>
-      </View>
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.subChip,
+                      active && {
+                        backgroundColor: item.activeBg,
+                        borderColor: item.activeBorder,
+                      },
+                    ]}
+                    onPress={() => handleToggleClass(item.id)}
+                  >
+                    <View style={styles.chipInner}>
+                      {active && !isAll && (
+                        <Ionicons name="checkmark" size={12} color={item.activeText} style={{ marginRight: 4 }} />
+                      )}
+                      <Text
+                        style={[
+                          styles.subChipText,
+                          active && { color: item.activeText, fontWeight: '800' },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
 
-      {/* Barra de Status de Resultados + Ação Rápida Ocultar Regras/Missões */}
+          {/* Chips de Elemento Paranormal + Círculo quando Ritual */}
+          <View style={styles.subChipsSection}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+              {ELEMENTS_ORDER.map((el) => {
+                const active = filters.element === el;
+                return (
+                  <TouchableOpacity
+                    key={el}
+                    style={[
+                      styles.subChip,
+                      active && { backgroundColor: colors.primarySoft, borderColor: colors.accent },
+                    ]}
+                    onPress={() => setFilters((prev) => ({ ...prev, element: el }))}
+                  >
+                    <Text style={[styles.subChipText, active && { color: colors.accent, fontWeight: '800' }]}>
+                      {el === 'all' ? 'Todo Elemento' : el}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {filters.category === 'ritual' &&
+                [1, 2, 3, 4].map((c) => {
+                  const active = filters.circle === c;
+                  return (
+                    <TouchableOpacity
+                      key={`circle_${c}`}
+                      style={[
+                        styles.subChip,
+                        active && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+                      ]}
+                      onPress={() =>
+                        setFilters((prev) => ({ ...prev, circle: prev.circle === c ? 'all' : c }))
+                      }
+                    >
+                      <Text style={[styles.subChipText, active && { color: colors.primary, fontWeight: '800' }]}>
+                        {c}º Círculo
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Barra de Status de Resultados + Ações Rápidas */}
       <View style={styles.statusRow}>
         <View style={styles.statusTextWrap}>
           <Text style={styles.statusText}>
@@ -412,12 +483,51 @@ export default function CompendiumScreen() {
         </View>
 
         <View style={styles.statusActions}>
+          {/* Botão Ocultar / Mostrar Filtro */}
+          <TouchableOpacity
+            style={[
+              styles.quickHideBtn,
+              filtersCollapsed && styles.quickHideBtnCollapsed,
+              filtersCollapsed && hasActiveDirectFilters && styles.quickHideBtnFilterActive,
+            ]}
+            onPress={toggleFiltersCollapsed}
+            activeOpacity={0.75}
+            accessibilityLabel={filtersCollapsed ? 'Mostrar filtros' : 'Ocultar filtros'}
+          >
+            <Ionicons
+              name={filtersCollapsed ? 'funnel-outline' : 'funnel'}
+              size={13}
+              color={
+                filtersCollapsed
+                  ? (hasActiveDirectFilters ? colors.accent : colors.textMuted)
+                  : colors.primary
+              }
+            />
+            <Text
+              style={[
+                styles.quickHideBtnText,
+                !filtersCollapsed && { color: colors.primary, fontWeight: '700' },
+                filtersCollapsed && hasActiveDirectFilters && { color: colors.accent, fontWeight: '700' },
+              ]}
+            >
+              {filtersCollapsed ? 'Mostrar filtros' : 'Ocultar filtros'}
+            </Text>
+            {filtersCollapsed && hasActiveDirectFilters && (
+              <View style={[styles.filterDotBadgeSmall, { backgroundColor: colors.accent }]} />
+            )}
+          </TouchableOpacity>
+
+          {/* Ação Rápida Ocultar Regras/Missões */}
           <TouchableOpacity
             style={[
               styles.quickHideBtn,
               hasRulesOrStoriesExcluded && styles.quickHideBtnActive,
             ]}
             onPress={handleQuickToggleRulesAndStories}
+            activeOpacity={0.75}
+            accessibilityLabel={
+              hasRulesOrStoriesExcluded ? 'Mostrar regras e missões' : 'Ocultar regras e missões'
+            }
           >
             <Ionicons
               name={hasRulesOrStoriesExcluded ? 'eye-off' : 'eye-outline'}
@@ -468,27 +578,29 @@ export default function CompendiumScreen() {
       </View>
 
       {/* Chips de Conteúdos Ocultados Ativos */}
-      {Boolean(filters.excludedTypes && filters.excludedTypes.length > 0) && (
-        <View style={styles.activeExclusionsBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activeExclusionsScroll}>
-            <Text style={styles.activeExclusionsLabel}>Ocultando:</Text>
-            {filters.excludedTypes!.map((t) => {
-              const opt = EXCLUDABLE_OPTIONS.find((o) => o.id === t);
-              if (!opt) return null;
-              return (
-                <TouchableOpacity
-                  key={`excluded_badge_${t}`}
-                  style={styles.activeExclusionChip}
-                  onPress={() => handleToggleExclude(t)}
-                >
-                  <Ionicons name="close-circle" size={13} color="#F87171" />
-                  <Text style={styles.activeExclusionChipText}>{opt.badgeLabel}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
+      {!filtersCollapsed &&
+        Boolean(filters.excludedTypes && filters.excludedTypes.length > 0) &&
+        !isDefaultExclusions && (
+          <View style={styles.activeExclusionsBar}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activeExclusionsScroll}>
+              <Text style={styles.activeExclusionsLabel}>Ocultando:</Text>
+              {filters.excludedTypes!.map((t) => {
+                const opt = EXCLUDABLE_OPTIONS.find((o) => o.id === t);
+                if (!opt) return null;
+                return (
+                  <TouchableOpacity
+                    key={`excluded_badge_${t}`}
+                    style={styles.activeExclusionChip}
+                    onPress={() => handleToggleExclude(t)}
+                  >
+                    <Ionicons name="close-circle" size={13} color="#F87171" />
+                    <Text style={styles.activeExclusionChipText}>{opt.badgeLabel}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
       {/* Lista de Entidades */}
       <FlatList
@@ -498,17 +610,11 @@ export default function CompendiumScreen() {
         numColumns={listingColumns}
         columnWrapperStyle={listingColumns > 1 ? styles.columnWrapper : undefined}
         contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}
-        initialNumToRender={listingColumns === 2 ? 20 : 16}
-        maxToRenderPerBatch={listingColumns === 2 ? 24 : 20}
-        windowSize={9}
-        renderItem={({ item }) => (
-          <EntityCard
-            entity={item}
-            numColumns={listingColumns}
-            cardWidth={cardWidth}
-            onPress={() => router.push({ pathname: '/entity/[id]', params: { id: item.id } })}
-          />
-        )}
+        initialNumToRender={listingColumns === 2 ? 14 : 10}
+        maxToRenderPerBatch={listingColumns === 2 ? 16 : 12}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS !== 'web'}
+        renderItem={renderEntityItem}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <Ionicons name="folder-open-outline" size={44} color={colors.textMuted} />
@@ -980,6 +1086,23 @@ const createStyles = (colors: ThemeColors) =>
     quickHideBtnTextActive: {
       color: '#FCA5A5',
       fontWeight: '700',
+    },
+    quickHideBtnCollapsed: {
+      backgroundColor: colors.surfaceElevated,
+      borderColor: colors.border,
+    },
+    quickHideBtnFilterActive: {
+      backgroundColor: 'rgba(234, 179, 8, 0.16)',
+      borderColor: '#EAB308',
+    },
+    filterDotBadgeSmall: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginLeft: 2,
+    },
+    collapsibleFiltersWrap: {
+      overflow: 'hidden',
     },
     columnsToggleBtn: {
       flexDirection: 'row',

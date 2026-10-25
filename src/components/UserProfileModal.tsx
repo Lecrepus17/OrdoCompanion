@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import Constants from 'expo-constants';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,10 +20,25 @@ import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { useApp } from '../context/AppContext';
 import { showAlert } from '../utils/alert';
 import { GoogleDriveService } from '../services/sync/GoogleDriveService';
+import {
+  DEFAULT_HIDDEN_TABS,
+  DEFAULT_PINNED_TABS,
+  getTabMetadata,
+} from '../types/compendium';
+import {
+  hideTab,
+  pinTab,
+  reorderPinnedTabs,
+  resetNavigationConfig,
+  resolveNavigationTabs,
+  unhideTab,
+  unpinTab,
+} from '../utils/tabNavigation';
 
 interface UserProfileModalProps {
   visible: boolean;
   onClose: () => void;
+  initialTab?: 'identidade' | 'nuvem' | 'navegacao';
 }
 
 const PREFERRED_CLASSES = [
@@ -31,7 +48,7 @@ const PREFERRED_CLASSES = [
   { id: 'Sobrevivente', name: 'Sobrevivente', icon: 'shield', desc: 'Resiliência e Adaptação' },
 ];
 
-export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onClose }) => {
+export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onClose, initialTab }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
@@ -39,6 +56,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
     userProfile,
     updateUserProfile,
     exportBackupJson,
+    importBackupJson,
     syncStatus,
     syncStatusMessage,
     syncAuthState,
@@ -48,12 +66,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
     autoSyncEnabled,
     setAutoSyncEnabled,
     lastSyncStats,
+    openManual,
+    checkForUpdates,
+    updateInfo,
+    setUpdateModalVisible,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'identidade' | 'nuvem'>('identidade');
+  const [activeTab, setActiveTab] = useState<'identidade' | 'nuvem' | 'navegacao'>(initialTab || 'identidade');
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [nickname, setNickname] = useState('');
-  const [email, setEmail] = useState('');
   const [preferredClass, setPreferredClass] = useState('Combatente');
   const [defaultCampaign, setDefaultCampaign] = useState('');
   const [masterName, setMasterName] = useState('');
@@ -63,18 +85,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   const [listingColumnsChoice, setListingColumnsChoice] = useState<1 | 2>(1);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Estados locais para customização dinâmica da barra inferior
+  const [pinnedTabs, setPinnedTabs] = useState<string[]>(DEFAULT_PINNED_TABS);
+  const [hiddenTabs, setHiddenTabs] = useState<string[]>(DEFAULT_HIDDEN_TABS);
+
   // Estados locais da sincronização com Google Drive
   const [isConnectingDrive, setIsConnectingDrive] = useState(false);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
+  const [showGuideSteps, setShowGuideSteps] = useState(false);
   const [customClientIdInput, setCustomClientIdInput] = useState('');
 
   // Sincroniza estado com o userProfile salvo sempre que o modal abre
   useEffect(() => {
     if (visible && userProfile) {
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
       setPlayerName(userProfile.playerName || '');
       setNickname(userProfile.nickname || '');
-      setEmail(userProfile.email || '');
       setPreferredClass(userProfile.preferredClass || 'Combatente');
       setDefaultCampaign(userProfile.defaultCampaign || '');
       setMasterName(userProfile.masterName || '');
@@ -83,9 +112,69 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       setCloudSyncUrl(userProfile.cloudSyncUrl || '');
       setListingColumnsChoice(userProfile.listingColumns === 2 ? 2 : 1);
       setCustomClientIdInput(GoogleDriveService.getInstance().getClientId());
+
+      const navConfig = userProfile.navigationConfig;
+      setPinnedTabs(
+        navConfig?.pinnedTabs && Array.isArray(navConfig.pinnedTabs)
+          ? navConfig.pinnedTabs
+          : DEFAULT_PINNED_TABS
+      );
+      setHiddenTabs(
+        navConfig?.hiddenTabs && Array.isArray(navConfig.hiddenTabs)
+          ? navConfig.hiddenTabs
+          : DEFAULT_HIDDEN_TABS
+      );
+
       setSaveSuccess(false);
     }
-  }, [visible, userProfile]);
+  }, [visible, userProfile, initialTab]);
+
+  // Rotas conhecidas e resolução dinâmica das abas
+  const allKnownRoutes = useMemo(() => {
+    const base = ['index', 'characters', 'weapons', 'books', 'dice', 'favorites', 'master'];
+    const custom = [...pinnedTabs, ...hiddenTabs];
+    return Array.from(new Set([...base, ...custom]));
+  }, [pinnedTabs, hiddenTabs]);
+
+  const resolvedTabs = useMemo(() => {
+    return resolveNavigationTabs(allKnownRoutes, { pinnedTabs, hiddenTabs });
+  }, [allKnownRoutes, pinnedTabs, hiddenTabs]);
+
+  const handleMovePinned = (fromIndex: number, toIndex: number) => {
+    const next = reorderPinnedTabs(resolvedTabs.pinnedTabs, fromIndex, toIndex);
+    setPinnedTabs(next);
+  };
+
+  const handleUnpin = (tabId: string) => {
+    const next = unpinTab({ pinnedTabs: resolvedTabs.pinnedTabs, hiddenTabs: resolvedTabs.hiddenTabs }, tabId);
+    setPinnedTabs(next.pinnedTabs);
+    setHiddenTabs(next.hiddenTabs);
+  };
+
+  const handlePin = (tabId: string) => {
+    const next = pinTab({ pinnedTabs: resolvedTabs.pinnedTabs, hiddenTabs: resolvedTabs.hiddenTabs }, tabId);
+    setPinnedTabs(next.pinnedTabs);
+    setHiddenTabs(next.hiddenTabs);
+  };
+
+  const handleHide = (tabId: string) => {
+    const next = hideTab({ pinnedTabs: resolvedTabs.pinnedTabs, hiddenTabs: resolvedTabs.hiddenTabs }, tabId);
+    setPinnedTabs(next.pinnedTabs);
+    setHiddenTabs(next.hiddenTabs);
+  };
+
+  const handleUnhide = (tabId: string, addToPinned = false) => {
+    const next = unhideTab({ pinnedTabs: resolvedTabs.pinnedTabs, hiddenTabs: resolvedTabs.hiddenTabs }, tabId, addToPinned);
+    setPinnedTabs(next.pinnedTabs);
+    setHiddenTabs(next.hiddenTabs);
+  };
+
+  const handleResetNavigation = () => {
+    const def = resetNavigationConfig();
+    setPinnedTabs(def.pinnedTabs);
+    setHiddenTabs(def.hiddenTabs);
+    showAlert('Padrão Restaurado', 'A barra inferior foi redefinida para o layout padrão.');
+  };
 
   const handleConnectDrive = async () => {
     setIsConnectingDrive(true);
@@ -127,15 +216,79 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   };
 
   const handleSaveCustomClientId = async () => {
-    await GoogleDriveService.getInstance().setCustomClientId(customClientIdInput);
+    const res = await GoogleDriveService.getInstance().setCustomClientId(customClientIdInput);
+    if (!res.valid) {
+      showAlert('Client ID Inválido', res.message || 'Verifique o formato.');
+      return;
+    }
     showAlert('Configuração Salva', 'Client ID do Google Cloud atualizado com sucesso.');
+  };
+
+  const handleCopyRedirectUri = async () => {
+    try {
+      const uri = GoogleDriveService.getInstance().getRedirectUri();
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(uri);
+        showAlert('Copiado!', `Redirect URI copiado para a área de transferência:\n\n${uri}`);
+      } else {
+        showAlert('Redirect URI', uri);
+      }
+    } catch {
+      showAlert('Erro', 'Não foi possível copiar o Redirect URI.');
+    }
+  };
+
+  const handleCheckUpdatesManually = async () => {
+    setIsCheckingUpdate(true);
+    try {
+      const res = await checkForUpdates(true);
+      if (!res || !res.hasUpdate) {
+        showAlert(
+          'Ordo Companion Atualizado',
+          `Você já está utilizando a versão mais recente do aplicativo (v${Constants.expoConfig?.version || '1.0.0'})!`
+        );
+      }
+    } catch {
+      showAlert(
+        'Verificação de Atualização',
+        'Não foi possível verificar atualizações no momento. Verifique sua conexão com a internet.'
+      );
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
+
+  const handleImportBackup = async () => {
+    let jsonToImport = '';
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+      try {
+        jsonToImport = await navigator.clipboard.readText();
+      } catch {}
+    }
+    if (Platform.OS === 'web' && (!jsonToImport || !jsonToImport.includes('characters'))) {
+      const prompted = typeof window !== 'undefined' ? window.prompt('Cole o JSON do backup completo aqui:') : null;
+      if (prompted) jsonToImport = prompted;
+    }
+    if (!jsonToImport || !jsonToImport.trim()) {
+      showAlert(
+        'Importar Backup',
+        'Copie o JSON do backup gerado para a sua área de transferência antes de tocar em Restaurar Backup.'
+      );
+      return;
+    }
+    try {
+      await importBackupJson(jsonToImport);
+      showAlert('Sucesso', 'Backup restaurado com sucesso! Suas fichas, armas e dados foram atualizados.');
+    } catch {
+      showAlert('Erro no JSON', 'O texto colado não corresponde a um backup JSON válido.');
+    }
   };
 
   const handleSave = async () => {
     await updateUserProfile({
       playerName: playerName.trim(),
       nickname: nickname.trim(),
-      email: email.trim(),
+      email: syncAuthState.userEmail || userProfile?.email || '',
       preferredClass,
       defaultCampaign: defaultCampaign.trim(),
       masterName: masterName.trim(),
@@ -143,6 +296,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       cloudSyncEnabled,
       cloudSyncUrl: cloudSyncUrl.trim(),
       listingColumns: listingColumnsChoice,
+      navigationConfig: {
+        pinnedTabs: resolvedTabs.pinnedTabs,
+        hiddenTabs: resolvedTabs.hiddenTabs,
+      },
     });
 
     setSaveSuccess(true);
@@ -177,76 +334,136 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 14), paddingBottom: Math.max(insets.bottom, 14) }]}>
-          <TouchableWithoutFeedback>
-            <View style={styles.container}>
-              {/* Cabeçalho */}
-              <View style={styles.header}>
-                <View style={styles.headerTitleWrap}>
-                  <View style={styles.iconBadge}>
-                    <Ionicons name="person" size={20} color={colors.primary} />
-                  </View>
-                  <View>
-                    <Text style={styles.title}>Perfil & Identidade do Jogador</Text>
-                    <Text style={styles.subtitle}>Informações gerais e integração em nuvem</Text>
-                  </View>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View
+        style={[
+          styles.overlay,
+          {
+            paddingTop: Math.max(insets.top, 14),
+            paddingBottom: Math.max(insets.bottom, 14),
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+          accessibilityLabel="Fechar Perfil"
+        />
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoid}
+        >
+          <View style={styles.container}>
+            {/* Cabeçalho */}
+            <View style={styles.header}>
+              <View style={styles.headerTitleWrap}>
+                <View style={styles.iconBadge}>
+                  <Ionicons name="person" size={20} color={colors.primary} />
                 </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.title} numberOfLines={1}>Perfil & Identidade do Jogador</Text>
+                  <Text style={styles.subtitle} numberOfLines={1}>Informações gerais e integração em nuvem</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    onClose();
+                    openManual('cloud_sync');
+                  }}
+                  style={styles.closeBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Manual da Nuvem e Perfil"
+                >
+                  <Ionicons name="help-circle-outline" size={20} color={colors.primary} />
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={onClose}
                   style={styles.closeBtn}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Fechar"
                 >
                   <Ionicons name="close" size={22} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
+            </View>
 
-              {/* Navegação de Abas internas */}
-              <View style={styles.tabsNav}>
-                <TouchableOpacity
-                  style={[styles.tabButton, activeTab === 'identidade' && styles.tabButtonActive]}
-                  onPress={() => setActiveTab('identidade')}
-                >
-                  <Ionicons
-                    name="person-circle-outline"
-                    size={16}
-                    color={activeTab === 'identidade' ? colors.primary : colors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.tabButtonText,
-                      activeTab === 'identidade' && styles.tabButtonTextActive,
-                    ]}
-                  >
-                    Identidade & Fichas
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.tabButton, activeTab === 'nuvem' && styles.tabButtonActive]}
-                  onPress={() => setActiveTab('nuvem')}
-                >
-                  <Ionicons
-                    name="cloud-outline"
-                    size={16}
-                    color={activeTab === 'nuvem' ? colors.primary : colors.textMuted}
-                  />
-                  <Text
-                    style={[styles.tabButtonText, activeTab === 'nuvem' && styles.tabButtonTextActive]}
-                  >
-                    Nuvem & Sincronização
-                  </Text>
-                  {cloudSyncEnabled && <View style={styles.cloudActiveDot} />}
-                </TouchableOpacity>
-              </View>
-
-              {/* Conteúdo rolável */}
-              <ScrollView
-                style={styles.bodyScroll}
-                contentContainerStyle={styles.bodyContent}
-                showsVerticalScrollIndicator={false}
+            {/* Navegação de Abas internas */}
+            <View style={styles.tabsNav}>
+              <TouchableOpacity
+                style={[styles.tabButton, activeTab === 'identidade' && styles.tabButtonActive]}
+                onPress={() => setActiveTab('identidade')}
               >
+                <Ionicons
+                  name="person-circle-outline"
+                  size={15}
+                  color={activeTab === 'identidade' ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.tabButtonText,
+                    activeTab === 'identidade' && styles.tabButtonTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  Identidade
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.tabButton, activeTab === 'navegacao' && styles.tabButtonActive]}
+                onPress={() => setActiveTab('navegacao')}
+              >
+                <Ionicons
+                  name="reorder-three-outline"
+                  size={17}
+                  color={activeTab === 'navegacao' ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.tabButtonText,
+                    activeTab === 'navegacao' && styles.tabButtonTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  Barra de Abas
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.tabButton, activeTab === 'nuvem' && styles.tabButtonActive]}
+                onPress={() => setActiveTab('nuvem')}
+              >
+                <Ionicons
+                  name="cloud-outline"
+                  size={15}
+                  color={activeTab === 'nuvem' ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[styles.tabButtonText, activeTab === 'nuvem' && styles.tabButtonTextActive]}
+                  numberOfLines={1}
+                >
+                  Nuvem
+                </Text>
+                {cloudSyncEnabled && <View style={styles.cloudActiveDot} />}
+              </TouchableOpacity>
+            </View>
+
+            {/* Conteúdo rolável */}
+            <ScrollView
+              style={styles.bodyScroll}
+              contentContainerStyle={styles.bodyContent}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+            >
                 {activeTab === 'identidade' ? (
                   <>
                     {/* Alerta de Autofill */}
@@ -293,18 +510,72 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                       </View>
 
                       <View style={styles.inputGroup}>
-                        <Text style={styles.fieldLabel}>E-mail de Vinculação</Text>
-                        <TextInput
-                          style={styles.input}
-                          placeholder="seu.email@exemplo.com"
-                          placeholderTextColor={colors.textMuted}
-                          keyboardType="email-address"
-                          autoCapitalize="none"
-                          value={email}
-                          onChangeText={setEmail}
-                        />
+                        <Text style={styles.fieldLabel}>Vinculação da Conta</Text>
+                        {syncAuthState.isAuthenticated ? (
+                          <TouchableOpacity
+                            style={styles.linkedAccountCard}
+                            onPress={() => setActiveTab('nuvem')}
+                            activeOpacity={0.7}
+                            accessibilityLabel="Conta Google vinculada. Toque para gerenciar na aba Nuvem."
+                          >
+                            <View style={styles.linkedAccountLeft}>
+                              {syncAuthState.userPhoto ? (
+                                <Image
+                                  source={{ uri: syncAuthState.userPhoto }}
+                                  style={styles.linkedAvatar}
+                                />
+                              ) : (
+                                <View style={styles.linkedAvatarPlaceholder}>
+                                  <Ionicons name="logo-google" size={16} color={colors.primary} />
+                                </View>
+                              )}
+                              <View style={{ flex: 1 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                  <Text style={styles.linkedAccountName} numberOfLines={1}>
+                                    {syncAuthState.userName || 'Conta Google'}
+                                  </Text>
+                                  <View style={styles.connectedBadge}>
+                                    <Text style={styles.connectedBadgeText}>Vinculada</Text>
+                                  </View>
+                                </View>
+                                <Text style={styles.linkedAccountEmail} numberOfLines={1}>
+                                  {syncAuthState.userEmail || 'Conectada ao Google Drive'}
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={styles.linkedManageBtn}>
+                              <Text style={styles.linkedManageBtnText}>Gerenciar</Text>
+                              <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                            </View>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.unlinkedAccountCard}
+                            onPress={() => setActiveTab('nuvem')}
+                            activeOpacity={0.7}
+                            accessibilityLabel="Nenhuma conta vinculada. Toque para conectar na aba Nuvem."
+                          >
+                            <View style={styles.unlinkedAccountLeft}>
+                              <View style={styles.unlinkedIconBox}>
+                                <Ionicons name="cloud-offline-outline" size={18} color={colors.textMuted} />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.unlinkedTitle}>Nenhuma conta vinculada</Text>
+                                <Text style={styles.unlinkedSub}>
+                                  Toque para vincular ao Google Drive e ativar backup em nuvem
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={styles.connectLinkBtn}>
+                              <Text style={styles.connectLinkBtnText}>Vincular</Text>
+                              <Ionicons name="arrow-forward" size={13} color={colors.primary} />
+                            </View>
+                          </TouchableOpacity>
+                        )}
                         <Text style={styles.fieldHint}>
-                          Identificador que será utilizado para login e sincronização de dados na nuvem.
+                          {syncAuthState.isAuthenticated
+                            ? 'Conta conectada via Google Drive para sincronização e backup das fichas.'
+                            : 'A vinculação com o Google Drive é gerenciada na aba "Nuvem & Sincronização".'}
                         </Text>
                       </View>
                     </View>
@@ -448,6 +719,340 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                           </TouchableOpacity>
                         </View>
                       </View>
+                    </View>
+
+                    {/* Bloco 6: Sistema & Atualizações */}
+                    <View style={styles.sectionCard}>
+                      <Text style={styles.sectionHeaderTitle}>SISTEMA & ATUALIZAÇÕES</Text>
+
+                      <View style={styles.updateCardContent}>
+                        <View style={styles.updateInfoRow}>
+                          <View style={styles.updateIconCircle}>
+                            <Ionicons name="hardware-chip-outline" size={20} color={colors.primary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.updateAppName}>Ordo Companion</Text>
+                            <Text style={styles.updateVersionText}>
+                              Versão instalada: <Text style={{ fontWeight: '800', color: colors.text }}>v{Constants.expoConfig?.version || '1.0.0'}</Text>
+                            </Text>
+                          </View>
+                          {updateInfo?.hasUpdate && (
+                            <View style={styles.updateAvailablePill}>
+                              <Text style={styles.updateAvailablePillText}>Nova v{updateInfo.latestVersion}</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <Text style={styles.fieldHint}>
+                          Mantenha seu grimório digital sincronizado e atualizado com as últimas regras, suplementos e melhorias da Ordem.
+                        </Text>
+
+                        <TouchableOpacity
+                          style={[styles.checkUpdateButton, { borderColor: colors.primary }]}
+                          onPress={handleCheckUpdatesManually}
+                          disabled={isCheckingUpdate}
+                          activeOpacity={0.8}
+                        >
+                          {isCheckingUpdate ? (
+                            <ActivityIndicator size="small" color={colors.primary} />
+                          ) : (
+                            <>
+                              <Ionicons
+                                name={updateInfo?.hasUpdate ? 'cloud-download-outline' : 'refresh-outline'}
+                                size={18}
+                                color={colors.primary}
+                              />
+                              <Text style={[styles.checkUpdateButtonText, { color: colors.primary }]}>
+                                {updateInfo?.hasUpdate ? 'Ver Nova Atualização' : 'Verificar Atualizações'}
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </>
+                ) : activeTab === 'navegacao' ? (
+                  <>
+                    {/* Aba de Navegação & Abas da Barra Inferior */}
+                    <View style={styles.infoBanner}>
+                      <Ionicons name="reorder-three-outline" size={18} color={colors.primary} />
+                      <Text style={styles.infoBannerText}>
+                        Personalize os botões da barra inferior, defina a ordem de exibição ou oculte telas que não usa (como a aba de Mestre).
+                      </Text>
+                    </View>
+
+                    {/* Bloco 1: Prévia Visual Dinâmica da Barra */}
+                    <View style={styles.sectionCard}>
+                      <View style={styles.navSectionHeaderRow}>
+                        <Text style={styles.sectionHeaderTitle}>PRÉVIA DA BARRA INFERIOR</Text>
+                        <View style={styles.tabCountPill}>
+                          <Text style={styles.tabCountPillText}>{resolvedTabs.pinnedTabs.length} Fixadas</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.fieldHint}>
+                        Assim ficará o rodapé do seu aplicativo com as preferências atuais:
+                      </Text>
+
+                      <View style={styles.previewBarContainer}>
+                        {resolvedTabs.pinnedTabs.map((tabKey) => {
+                          const meta = getTabMetadata(tabKey);
+                          return (
+                            <View key={tabKey} style={styles.previewTabItem}>
+                              <Ionicons name={meta.icon as any} size={16} color={colors.primary} />
+                              <Text style={styles.previewTabLabel} numberOfLines={1}>
+                                {meta.label}
+                              </Text>
+                            </View>
+                          );
+                        })}
+
+                        {resolvedTabs.overflowTabs.length > 0 ? (
+                          <View style={[styles.previewTabItem, styles.previewTabMore]}>
+                            <Ionicons name="apps" size={16} color={colors.textSecondary} />
+                            <Text style={[styles.previewTabLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+                              + Mais ({resolvedTabs.overflowTabs.length})
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+
+                      {resolvedTabs.overflowTabs.length === 0 && (
+                        <View style={styles.previewAllPinnedNotice}>
+                          <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                          <Text style={styles.previewAllPinnedNoticeText}>
+                            Todas as abas ativas estão na barra. O botão Mais foi removido automaticamente!
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Bloco 2: Abas Fixadas na Barra Inferior */}
+                    <View style={styles.sectionCard}>
+                      <View style={styles.navSectionHeaderRow}>
+                        <Text style={styles.sectionHeaderTitle}>
+                          ABAS FIXADAS NA BARRA ({resolvedTabs.pinnedTabs.length})
+                        </Text>
+                      </View>
+                      <Text style={styles.fieldHint}>
+                        Estas telas possuem botões de acesso direto na barra inferior. Use as setas para ajustar a posição de cada ícone.
+                      </Text>
+
+                      <View style={{ gap: 8, marginTop: 8 }}>
+                        {resolvedTabs.pinnedTabs.map((tabKey, idx) => {
+                          const meta = getTabMetadata(tabKey);
+                          const isFirst = idx === 0;
+                          const isLast = idx === resolvedTabs.pinnedTabs.length - 1;
+                          const isOnlyOne = resolvedTabs.pinnedTabs.length <= 1;
+
+                          return (
+                            <View key={tabKey} style={styles.tabConfigCard}>
+                              <View style={styles.tabConfigLeft}>
+                                <View style={styles.tabConfigIconBox}>
+                                  <Ionicons name={meta.icon as any} size={18} color={colors.primary} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <Text style={styles.tabConfigName}>{meta.label}</Text>
+                                    <View style={styles.posBadge}>
+                                      <Text style={styles.posBadgeText}>#{idx + 1}</Text>
+                                    </View>
+                                  </View>
+                                  <Text style={styles.tabConfigDesc} numberOfLines={1}>
+                                    {meta.description}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              <View style={styles.tabConfigActions}>
+                                <TouchableOpacity
+                                  style={[styles.arrowBtn, isFirst && styles.arrowBtnDisabled]}
+                                  onPress={() => !isFirst && handleMovePinned(idx, idx - 1)}
+                                  disabled={isFirst}
+                                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                                  accessibilityLabel="Mover para a esquerda/cima"
+                                >
+                                  <Ionicons
+                                    name="arrow-up"
+                                    size={16}
+                                    color={isFirst ? colors.textMuted : colors.text}
+                                  />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                  style={[styles.arrowBtn, isLast && styles.arrowBtnDisabled]}
+                                  onPress={() => !isLast && handleMovePinned(idx, idx + 1)}
+                                  disabled={isLast}
+                                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                                  accessibilityLabel="Mover para a direita/baixo"
+                                >
+                                  <Ionicons
+                                    name="arrow-down"
+                                    size={16}
+                                    color={isLast ? colors.textMuted : colors.text}
+                                  />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                  style={[styles.actionPillBtn, isOnlyOne && styles.actionPillBtnDisabled]}
+                                  onPress={() => !isOnlyOne && handleUnpin(tabKey)}
+                                  disabled={isOnlyOne}
+                                  accessibilityLabel="Mover para o modal Mais"
+                                >
+                                  <Ionicons
+                                    name="arrow-down-circle-outline"
+                                    size={13}
+                                    color={isOnlyOne ? colors.textMuted : colors.textSecondary}
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.actionPillText,
+                                      { color: isOnlyOne ? colors.textMuted : colors.textSecondary },
+                                    ]}
+                                  >
+                                    P/ Modal
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    {/* Bloco 3: Abas no Menu Mais (Modal) */}
+                    <View style={styles.sectionCard}>
+                      <View style={styles.navSectionHeaderRow}>
+                        <Text style={styles.sectionHeaderTitle}>
+                          ABAS NO MENU MAIS ({resolvedTabs.overflowTabs.length})
+                        </Text>
+                      </View>
+                      <Text style={styles.fieldHint}>
+                        Acessadas tocando no botão "+ Mais" da barra. Quanto mais abas você fixar, menos itens restarão aqui até remover o botão do modal.
+                      </Text>
+
+                      <View style={{ gap: 8, marginTop: 8 }}>
+                        {resolvedTabs.overflowTabs.length === 0 ? (
+                          <View style={styles.emptyTabsBox}>
+                            <Ionicons name="sparkles" size={24} color={colors.primary} />
+                            <Text style={styles.emptyTabsTitle}>Todas as abas ativas estão fixadas na barra!</Text>
+                            <Text style={styles.emptyTabsSub}>
+                              Nenhuma aba restante no modal. O botão Mais foi removido automaticamente da barra.
+                            </Text>
+                          </View>
+                        ) : (
+                          resolvedTabs.overflowTabs.map((tabKey) => {
+                            const meta = getTabMetadata(tabKey);
+
+                            return (
+                              <View key={tabKey} style={styles.tabConfigCard}>
+                                <View style={styles.tabConfigLeft}>
+                                  <View style={[styles.tabConfigIconBox, { backgroundColor: colors.surfaceHighlight }]}>
+                                    <Ionicons name={meta.icon as any} size={18} color={colors.textSecondary} />
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={styles.tabConfigName}>{meta.label}</Text>
+                                    <Text style={styles.tabConfigDesc} numberOfLines={1}>
+                                      {meta.description}
+                                    </Text>
+                                  </View>
+                                </View>
+
+                                <View style={styles.tabConfigActions}>
+                                  <TouchableOpacity
+                                    style={[styles.actionPillBtn, { backgroundColor: colors.primarySoft, borderColor: colors.primary }]}
+                                    onPress={() => handlePin(tabKey)}
+                                    accessibilityLabel="Fixar na barra inferior"
+                                  >
+                                    <Ionicons name="add" size={14} color={colors.primary} />
+                                    <Text style={[styles.actionPillText, { color: colors.primary, fontWeight: '800' }]}>
+                                      Fixar na Barra
+                                    </Text>
+                                  </TouchableOpacity>
+
+                                  <TouchableOpacity
+                                    style={styles.actionPillBtn}
+                                    onPress={() => handleHide(tabKey)}
+                                    accessibilityLabel="Ocultar aba completamente"
+                                  >
+                                    <Ionicons name="eye-off-outline" size={13} color={colors.textMuted} />
+                                    <Text style={[styles.actionPillText, { color: colors.textMuted }]}>
+                                      Ocultar
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            );
+                          })
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Bloco 4: Abas Ocultas */}
+                    <View style={styles.sectionCard}>
+                      <View style={styles.navSectionHeaderRow}>
+                        <Text style={styles.sectionHeaderTitle}>
+                          ABAS OCULTAS ({resolvedTabs.hiddenTabs.length})
+                        </Text>
+                      </View>
+                      <Text style={styles.fieldHint}>
+                        Desativadas do app. Não aparecem na barra inferior nem no menu Mais. Ideal para telas especializadas (ex: Mestre).
+                      </Text>
+
+                      <View style={{ gap: 8, marginTop: 8 }}>
+                        {resolvedTabs.hiddenTabs.length === 0 ? (
+                          <View style={styles.emptyTabsBox}>
+                            <Ionicons name="eye-outline" size={20} color={colors.textMuted} />
+                            <Text style={[styles.emptyTabsSub, { textAlign: 'center' }]}>
+                              Nenhuma aba oculta. Todas as telas disponíveis estão ativas.
+                            </Text>
+                          </View>
+                        ) : (
+                          resolvedTabs.hiddenTabs.map((tabKey) => {
+                            const meta = getTabMetadata(tabKey);
+
+                            return (
+                              <View key={tabKey} style={[styles.tabConfigCard, { opacity: 0.9 }]}>
+                                <View style={styles.tabConfigLeft}>
+                                  <View style={[styles.tabConfigIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
+                                    <Ionicons name="eye-off" size={18} color="#EF4444" />
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={styles.tabConfigName}>{meta.label}</Text>
+                                    <Text style={styles.tabConfigDesc} numberOfLines={1}>
+                                      Oculta da navegação
+                                    </Text>
+                                  </View>
+                                </View>
+
+                                <View style={styles.tabConfigActions}>
+                                  <TouchableOpacity
+                                    style={[styles.actionPillBtn, { backgroundColor: colors.primarySoft, borderColor: colors.primary }]}
+                                    onPress={() => handleUnhide(tabKey, false)}
+                                    accessibilityLabel="Reativar aba no menu Mais"
+                                  >
+                                    <Ionicons name="refresh" size={13} color={colors.primary} />
+                                    <Text style={[styles.actionPillText, { color: colors.primary, fontWeight: '800' }]}>
+                                      Reativar
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            );
+                          })
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Bloco 5: Botão de Restaurar Padrões */}
+                    <View style={{ marginBottom: 12 }}>
+                      <TouchableOpacity
+                        style={styles.resetNavBtn}
+                        onPress={handleResetNavigation}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="refresh-outline" size={16} color={colors.textSecondary} />
+                        <Text style={styles.resetNavBtnText}>Restaurar Layout Padrão da Barra</Text>
+                      </TouchableOpacity>
                     </View>
                   </>
                 ) : (
@@ -678,7 +1283,28 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                       </TouchableOpacity>
 
                       {showAdvancedConfig && (
-                        <View style={{ gap: 10, marginTop: 4 }}>
+                        <View style={{ gap: 12, marginTop: 4 }}>
+                          {/* Redirect URI Informativo */}
+                          <View style={styles.redirectUriBox}>
+                            <Text style={styles.redirectUriLabel}>
+                              Redirect URI Autorizado (Copie e cole no Google Cloud):
+                            </Text>
+                            <View style={styles.redirectUriRow}>
+                              <Text style={styles.redirectUriText} numberOfLines={1} selectable>
+                                {GoogleDriveService.getInstance().getRedirectUri()}
+                              </Text>
+                              <TouchableOpacity
+                                style={styles.copyUriBtn}
+                                onPress={handleCopyRedirectUri}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="copy-outline" size={13} color={colors.primary} />
+                                <Text style={styles.copyUriBtnText}>Copiar</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+
+                          {/* Campo de Client ID */}
                           <View style={styles.inputGroup}>
                             <Text style={styles.fieldLabel}>Custom Google OAuth Client ID</Text>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -699,49 +1325,109 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                               </TouchableOpacity>
                             </View>
                             <Text style={styles.fieldHint}>
-                              Deixe o padrão para usar o app ou configure seu Client ID do Google Cloud Console para build próprio.
+                              Formato: xxxxx.apps.googleusercontent.com. Não insira links de pastas ou URLs do Google Drive aqui.
                             </Text>
                           </View>
+
+                          {/* Toggle do Guia Passo a Passo */}
+                          <TouchableOpacity
+                            style={styles.guideToggleBtn}
+                            onPress={() => setShowGuideSteps(!showGuideSteps)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="help-circle-outline" size={15} color={colors.primary} />
+                            <Text style={styles.guideToggleText}>
+                              {showGuideSteps ? 'Ocultar instruções de configuração' : 'Como obter seu Client ID no Google Cloud'}
+                            </Text>
+                            <Ionicons
+                              name={showGuideSteps ? 'chevron-up' : 'chevron-down'}
+                              size={14}
+                              color={colors.textSecondary}
+                            />
+                          </TouchableOpacity>
+
+                          {showGuideSteps && (
+                            <View style={styles.guideBox}>
+                              <Text style={styles.guideTitle}>Passo a Passo (Google Cloud Console):</Text>
+                              <Text style={styles.guideStep}>
+                                1. Acesse https://console.cloud.google.com e crie um projeto gratuito.
+                              </Text>
+                              <Text style={styles.guideStep}>
+                                2. Vá em "APIs e Serviços" &gt; "Biblioteca" e ative a "Google Drive API".
+                              </Text>
+                              <Text style={styles.guideStep}>
+                                3. Em "Tela de permissão OAuth", escolha "Externo" e cadastre seu e-mail de usuário teste.
+                              </Text>
+                              <Text style={styles.guideStep}>
+                                4. Em "Credenciais" &gt; "Criar Credenciais" &gt; "ID do cliente OAuth", escolha o tipo "Aplicativo da Web".
+                              </Text>
+                              <Text style={styles.guideStep}>
+                                5. Em "URIs de redirecionamento autorizados", cole o Redirect URI exibido acima.
+                              </Text>
+                              <Text style={styles.guideStep}>
+                                6. Copie o Client ID gerado, cole no campo acima e toque em "Salvar".
+                              </Text>
+                            </View>
+                          )}
 
                           <View style={styles.divider} />
                         </View>
                       )}
 
-                      <TouchableOpacity style={styles.exportQuickBtn} onPress={handleExportBackup}>
-                        <Ionicons name="copy-outline" size={16} color={colors.primary} />
-                        <Text style={styles.exportQuickBtnText}>
-                          Copiar Backup JSON Completo para Área de Transferência
+                      {/* Botões Rápidos de Backup Local (Alternativa Rápida) */}
+                      <View style={{ gap: 8 }}>
+                        <Text style={styles.fieldLabel}>Backup e Transferência sem Nuvem</Text>
+                        <View style={styles.backupButtonsRow}>
+                          <TouchableOpacity
+                            style={[styles.exportQuickBtn, { flex: 1 }]}
+                            onPress={handleExportBackup}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                            <Text style={styles.exportQuickBtnText}>Copiar JSON</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.importQuickBtn, { flex: 1 }]}
+                            onPress={handleImportBackup}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="download-outline" size={16} color="#10B981" />
+                            <Text style={styles.importQuickBtnText}>Restaurar JSON</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.fieldHint}>
+                          Transfira suas fichas, armas e dados entre dispositivos copiando e colando o JSON de backup sem precisar de conta de desenvolvedor do Google.
                         </Text>
-                      </TouchableOpacity>
+                      </View>
                     </View>
                   </>
                 )}
               </ScrollView>
 
-              {/* Rodapé de Ações */}
-              <View style={styles.footer}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-                  <Text style={styles.cancelBtnText}>Fechar</Text>
-                </TouchableOpacity>
+            {/* Rodapé de Ações */}
+            <View style={styles.footer}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+                <Text style={styles.cancelBtnText}>Fechar</Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.saveBtn, saveSuccess && styles.saveBtnSuccess]}
-                  onPress={handleSave}
-                >
-                  <Ionicons
-                    name={saveSuccess ? 'checkmark-circle' : 'save'}
-                    size={16}
-                    color="#FFF"
-                  />
-                  <Text style={styles.saveBtnText}>
-                    {saveSuccess ? 'Salvo com Sucesso!' : 'Salvar Informações'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.saveBtn, saveSuccess && styles.saveBtnSuccess]}
+                onPress={handleSave}
+              >
+                <Ionicons
+                  name={saveSuccess ? 'checkmark-circle' : 'save'}
+                  size={16}
+                  color="#FFF"
+                />
+                <Text style={styles.saveBtnText}>
+                  {saveSuccess ? 'Salvo com Sucesso!' : 'Salvar Informações'}
+                </Text>
+              </TouchableOpacity>
             </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -753,12 +1439,19 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: 'rgba(0, 0, 0, 0.72)',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 16,
+      padding: 12,
+    },
+    keyboardAvoid: {
+      width: '100%',
+      maxWidth: 540,
+      height: '88%',
+      maxHeight: 740,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     container: {
       width: '100%',
-      maxWidth: 540,
-      maxHeight: '90%',
+      height: '100%',
       backgroundColor: colors.surface,
       borderRadius: 16,
       borderWidth: 1,
@@ -1086,6 +1779,124 @@ function createStyles(colors: ThemeColors) {
       fontSize: 11,
       color: colors.textSecondary,
     },
+    linkedAccountCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surfaceHighlight,
+      borderWidth: 1,
+      borderColor: 'rgba(16, 185, 129, 0.3)',
+      borderRadius: 10,
+      padding: 10,
+      gap: 8,
+    },
+    linkedAccountLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      flex: 1,
+    },
+    linkedAvatar: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 1.5,
+      borderColor: '#10B981',
+    },
+    linkedAvatarPlaceholder: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    linkedAccountName: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: colors.text,
+      flexShrink: 1,
+    },
+    linkedAccountEmail: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    connectedBadge: {
+      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+      paddingHorizontal: 6,
+      paddingVertical: 1.5,
+      borderRadius: 4,
+    },
+    connectedBadgeText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#10B981',
+    },
+    linkedManageBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      borderRadius: 6,
+      backgroundColor: colors.primarySoft,
+    },
+    linkedManageBtnText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    unlinkedAccountCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surfaceHighlight,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      borderRadius: 10,
+      padding: 10,
+      gap: 8,
+    },
+    unlinkedAccountLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      flex: 1,
+    },
+    unlinkedIconBox: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: colors.surfaceElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    unlinkedTitle: {
+      fontSize: 12.5,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    unlinkedSub: {
+      fontSize: 10.5,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    connectLinkBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      borderRadius: 6,
+      backgroundColor: colors.primarySoft,
+    },
+    connectLinkBtnText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: colors.primary,
+    },
     disconnectBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1234,6 +2045,282 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '800',
       color: colors.primary,
     },
+    importQuickBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 9,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#10B981',
+      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    },
+    importQuickBtnText: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: '#10B981',
+    },
+    backupButtonsRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    redirectUriBox: {
+      backgroundColor: colors.surfaceHighlight,
+      padding: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 6,
+    },
+    redirectUriLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    redirectUriRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    redirectUriText: {
+      flex: 1,
+      fontSize: 11,
+      fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+      color: colors.text,
+    },
+    copyUriBtn: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    copyUriBtnText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    guideToggleBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 4,
+    },
+    guideToggleText: {
+      flex: 1,
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    guideBox: {
+      backgroundColor: colors.surfaceHighlight,
+      borderRadius: 8,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 6,
+    },
+    guideTitle: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: colors.primary,
+      marginBottom: 2,
+    },
+    guideStep: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      lineHeight: 16,
+    },
+    navSectionHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 2,
+    },
+    tabCountPill: {
+      backgroundColor: colors.primarySoft,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    tabCountPillText: {
+      fontSize: 10,
+      fontWeight: '900',
+      color: colors.primary,
+    },
+    previewBarContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+      marginTop: 8,
+      gap: 4,
+    },
+    previewTabItem: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 4,
+    },
+    previewTabMore: {
+      opacity: 0.8,
+      borderLeftWidth: 1,
+      borderLeftColor: colors.border,
+    },
+    previewTabLabel: {
+      fontSize: 9.5,
+      fontWeight: '700',
+      color: colors.primary,
+      marginTop: 2,
+      textAlign: 'center',
+    },
+    previewAllPinnedNotice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+      marginTop: 8,
+      borderWidth: 1,
+      borderColor: 'rgba(16, 185, 129, 0.25)',
+    },
+    previewAllPinnedNoticeText: {
+      color: '#10B981',
+      fontSize: 11,
+      fontWeight: '700',
+      flex: 1,
+    },
+    tabConfigCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 10,
+      gap: 10,
+    },
+    tabConfigLeft: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    tabConfigIconBox: {
+      width: 34,
+      height: 34,
+      borderRadius: 8,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tabConfigName: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    tabConfigDesc: {
+      fontSize: 10.5,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    posBadge: {
+      backgroundColor: colors.surfaceHighlight,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: 4,
+    },
+    posBadgeText: {
+      fontSize: 9,
+      fontWeight: '900',
+      color: colors.textSecondary,
+    },
+    tabConfigActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    arrowBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 6,
+      backgroundColor: colors.surfaceHighlight,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    arrowBtnDisabled: {
+      opacity: 0.35,
+    },
+    actionPillBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.surfaceHighlight,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 9,
+      paddingVertical: 6,
+      borderRadius: 6,
+    },
+    actionPillBtnDisabled: {
+      opacity: 0.35,
+    },
+    actionPillText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    emptyTabsBox: {
+      alignItems: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      backgroundColor: colors.surfaceHighlight,
+      borderRadius: 8,
+      gap: 4,
+    },
+    emptyTabsTitle: {
+      fontSize: 12.5,
+      fontWeight: '800',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    emptyTabsSub: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 15,
+    },
+    resetNavBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceElevated,
+    },
+    resetNavBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
     footer: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1271,6 +2358,64 @@ function createStyles(colors: ThemeColors) {
       color: '#FFF',
       fontSize: 13,
       fontWeight: '800',
+    },
+    updateCardContent: {
+      marginTop: 6,
+      gap: 10,
+    },
+    updateInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    updateIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    updateAppName: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    updateVersionText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    updateAvailablePill: {
+      backgroundColor: colors.primarySoft,
+      borderColor: colors.primary,
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    updateAvailablePillText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    checkUpdateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderWidth: 1,
+      backgroundColor: colors.surfaceElevated,
+      gap: 8,
+      minHeight: 42,
+    },
+    checkUpdateButtonText: {
+      fontSize: 13,
+      fontWeight: '700',
     },
   });
 }

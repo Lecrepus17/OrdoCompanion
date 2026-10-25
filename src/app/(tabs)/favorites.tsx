@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +17,7 @@ import { useApp } from '../../context/AppContext';
 import { ThemeColors, ThemeDefinition, useTheme, useThemedStyles } from '../../theme';
 import { EntityCard } from '../../components/EntityCard';
 import { confirmAction, showAlert } from '../../utils/alert';
+import { CompendiumEntity } from '../../types/compendium';
 
 type SubTab = 'favorites' | 'lists' | 'homebrew' | 'backup' | 'themes';
 
@@ -34,6 +36,9 @@ export default function FavoritesAndListsScreen() {
     listingColumns,
     toggleListingColumns,
     setListingColumns,
+    openManual,
+    toggleFavorite,
+    rollFormula,
   } = useApp();
   const { width: windowWidth } = useWindowDimensions();
   const cardWidth = listingColumns === 2 ? Math.floor((windowWidth - 28 - 10) / 2) : undefined;
@@ -46,6 +51,10 @@ export default function FavoritesAndListsScreen() {
   const [newListDesc, setNewListDesc] = useState('');
   const [backupJsonText, setBackupJsonText] = useState('');
 
+  const handlePressEntity = useCallback((id: string) => {
+    router.push({ pathname: '/entity/[id]', params: { id } });
+  }, [router]);
+
   const favoriteEntities = useMemo(
     () => entities.filter((e) => favoriteIds.has(e.id)),
     [entities, favoriteIds]
@@ -54,6 +63,36 @@ export default function FavoritesAndListsScreen() {
   const customOrEditedEntities = useMemo(
     () => entities.filter((e) => e.isCustom || e.isEdited),
     [entities]
+  );
+
+  const renderFavoriteItem = useCallback(
+    ({ item }: { item: CompendiumEntity }) => (
+      <EntityCard
+        entity={item}
+        numColumns={listingColumns}
+        cardWidth={cardWidth}
+        isFavorite={true}
+        onPressItem={handlePressEntity}
+        onToggleFavorite={toggleFavorite}
+        onRollFormula={rollFormula}
+      />
+    ),
+    [listingColumns, cardWidth, handlePressEntity, toggleFavorite, rollFormula]
+  );
+
+  const renderCustomItem = useCallback(
+    ({ item }: { item: CompendiumEntity }) => (
+      <EntityCard
+        entity={item}
+        numColumns={listingColumns}
+        cardWidth={cardWidth}
+        isFavorite={favoriteIds.has(item.id)}
+        onPressItem={handlePressEntity}
+        onToggleFavorite={toggleFavorite}
+        onRollFormula={rollFormula}
+      />
+    ),
+    [listingColumns, cardWidth, favoriteIds, handlePressEntity, toggleFavorite, rollFormula]
   );
 
   const handleCreateList = async () => {
@@ -125,6 +164,24 @@ export default function FavoritesAndListsScreen() {
             </TouchableOpacity>
           );
         })}
+        <TouchableOpacity
+          style={[
+            styles.tabPill,
+            {
+              backgroundColor: colors.primarySoft,
+              borderColor: colors.primary,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+            },
+          ]}
+          onPress={() => openManual('favorites')}
+        >
+          <Ionicons name="help-circle-outline" size={14} color={colors.primary} />
+          <Text style={[styles.tabPillText, { color: colors.primary, fontWeight: '700' }]}>
+            Manual
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {subTab === 'favorites' && (
@@ -164,14 +221,11 @@ export default function FavoritesAndListsScreen() {
             numColumns={listingColumns}
             columnWrapperStyle={listingColumns > 1 ? styles.columnWrapper : undefined}
             contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}
-            renderItem={({ item }) => (
-              <EntityCard
-                entity={item}
-                numColumns={listingColumns}
-                cardWidth={cardWidth}
-                onPress={() => router.push({ pathname: '/entity/[id]', params: { id: item.id } })}
-              />
-            )}
+            initialNumToRender={listingColumns === 2 ? 14 : 10}
+            maxToRenderPerBatch={listingColumns === 2 ? 16 : 12}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS !== 'web'}
+            renderItem={renderFavoriteItem}
             ListEmptyComponent={
               <View style={styles.emptyBox}>
                 <Ionicons name="bookmark-outline" size={40} color={colors.textMuted} />
@@ -297,14 +351,11 @@ export default function FavoritesAndListsScreen() {
             numColumns={listingColumns}
             columnWrapperStyle={listingColumns > 1 ? styles.columnWrapper : undefined}
             contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}
-            renderItem={({ item }) => (
-              <EntityCard
-                entity={item}
-                numColumns={listingColumns}
-                cardWidth={cardWidth}
-                onPress={() => router.push({ pathname: '/entity/[id]', params: { id: item.id } })}
-              />
-            )}
+            initialNumToRender={listingColumns === 2 ? 14 : 10}
+            maxToRenderPerBatch={listingColumns === 2 ? 16 : 12}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS !== 'web'}
+            renderItem={renderCustomItem}
             ListEmptyComponent={
               <View style={styles.emptyBox}>
                 <Ionicons name="construct-outline" size={40} color={colors.textMuted} />

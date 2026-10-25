@@ -1,4 +1,5 @@
 import {
+  Campaign,
   CharacterSheet,
   CompendiumEntity,
   CustomWeapon,
@@ -67,6 +68,45 @@ export class SmartMergeEngine {
       }
     }
     const mergedCharacters = Array.from(charMap.values());
+
+    // 1.1 Campanhas do Mestre
+    const localCampaigns = local.campaigns || [];
+    const remoteCampaigns = remote.campaigns || [];
+    const campaignMap = new Map<string, Campaign>();
+
+    const allCampaignIds = new Set([
+      ...localCampaigns.map((c) => c.id),
+      ...remoteCampaigns.map((c) => c.id),
+    ]);
+
+    for (const id of allCampaignIds) {
+      const loc = localCampaigns.find((c) => c.id === id);
+      const rem = remoteCampaigns.find((c) => c.id === id);
+
+      if (loc && rem) {
+        const locTime = parseDate(loc.updatedAt);
+        const remTime = parseDate(rem.updatedAt);
+
+        if (remTime > locTime) {
+          campaignMap.set(id, rem);
+          hasLocalChangesToApply = true;
+          conflictsResolved++;
+        } else if (locTime > remTime) {
+          campaignMap.set(id, loc);
+          hasRemoteChangesToUpload = true;
+          conflictsResolved++;
+        } else {
+          campaignMap.set(id, loc);
+        }
+      } else if (loc && !rem) {
+        campaignMap.set(id, loc);
+        hasRemoteChangesToUpload = true;
+      } else if (!loc && rem) {
+        campaignMap.set(id, rem);
+        hasLocalChangesToApply = true;
+      }
+    }
+    const mergedCampaigns = Array.from(campaignMap.values());
 
     // 2. Armas Customizadas
     const localWeapons = local.customWeapons || [];
@@ -287,6 +327,7 @@ export class SmartMergeEngine {
       favorites: mergedFavorites,
       savedLists: mergedSavedLists,
       characters: mergedCharacters,
+      campaigns: mergedCampaigns,
       customWeapons: mergedWeapons,
     };
 
@@ -296,6 +337,7 @@ export class SmartMergeEngine {
       hasRemoteChangesToUpload,
       stats: {
         charactersCount: mergedCharacters.length,
+        campaignsCount: mergedCampaigns.length,
         weaponsCount: mergedWeapons.length,
         customEntitiesCount: mergedCustomEntities.length,
         favoritesCount: mergedFavorites.length,

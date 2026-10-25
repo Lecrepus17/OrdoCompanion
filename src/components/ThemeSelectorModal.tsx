@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemeDefinition, useTheme, useThemedStyles } from '../theme';
+import { useApp } from '../context/AppContext';
 
 interface ThemeSelectorModalProps {
   visible: boolean;
@@ -19,6 +20,7 @@ interface ThemeSelectorModalProps {
 
 export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ visible, onClose }) => {
   const { themeId, setThemeId, availableThemes, colors } = useTheme();
+  const { openManual } = useApp();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
 
@@ -60,9 +62,22 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ visible,
                     <Text style={styles.subtitle}>Personalize a estética do aplicativo</Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="close" size={22} color={colors.textSecondary} />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      openManual('themes');
+                    }}
+                    style={styles.closeBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Manual dos Temas"
+                  >
+                    <Ionicons name="help-circle-outline" size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close" size={22} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Lista de Temas */}

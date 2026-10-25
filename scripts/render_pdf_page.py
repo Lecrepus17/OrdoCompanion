@@ -6,8 +6,10 @@ tanto na Web quanto no Mobile (Android / iOS).
 
 import argparse
 import json
+import os
 import re
 import sys
+import uuid
 from pathlib import Path
 import pymupdf
 
@@ -72,9 +74,19 @@ def render_page(file_arg: str, page_num: int, dpi: int = 150) -> dict:
     if not cache_path.exists() or cache_path.stat().st_size == 0:
         pix = page.get_pixmap(dpi=dpi, alpha=False)
         img_bytes = pix.tobytes("jpeg", jpg_quality=88)
-        temp_path = RENDER_CACHE_DIR / f".tmp_{cache_filename}"
+        temp_path = RENDER_CACHE_DIR / f".tmp_{os.getpid()}_{uuid.uuid4().hex[:8]}_{cache_filename}"
         temp_path.write_bytes(img_bytes)
-        temp_path.replace(cache_path)
+        try:
+            temp_path.replace(cache_path)
+        except OSError:
+            # Em acessos concorrentes no Windows, se outro processo já salvou, limpa o temporário
+            if cache_path.exists() and cache_path.stat().st_size > 0:
+                try:
+                    temp_path.unlink()
+                except Exception:
+                    pass
+            else:
+                raise
         width, height = pix.width, pix.height
     else:
         scale = dpi / 72.0

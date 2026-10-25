@@ -33,12 +33,14 @@ export const DiceToast: React.FC = () => {
             </Text>
             {latestRoll.isCritical && (
               <View style={styles.critBadge}>
-                <Text style={styles.critText}>20 NATURAL!</Text>
+                <Text style={styles.critText}>
+                  {latestRoll.chosenDie === 20 ? '20 NATURAL!' : 'CRÍTICO!'}
+                </Text>
               </View>
             )}
             {latestRoll.isFumble && (
               <View style={[styles.critBadge, { backgroundColor: colors.danger }]}>
-                <Text style={styles.critText}>DESASTRE (1)</Text>
+                <Text style={styles.critText}>DESASTRE!</Text>
               </View>
             )}
           </View>

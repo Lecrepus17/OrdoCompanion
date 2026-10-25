@@ -8,11 +8,14 @@ function randomInt(min: number, max: number): number {
  * Rolagem oficial do sistema Ordem Paranormal RPG:
  * - Se attributeDice >= 1: rola N d20 e escolhe o MAIOR resultado.
  * - Se attributeDice <= 0: rola (2 + |attributeDice|) d20 e escolhe o MENOR resultado.
+ * - Desastre (Fumble): Ocorre apenas se TODOS os dados rolados resultarem em 1 (Regra Oficial p. 16).
+ * - Sucesso Crítico: Ocorre quando o dado escolhido for maior ou igual à Margem de Ameaça (padrão 20).
  */
 export function rollOrdemTest(
   attributeDice: number,
   bonus: number = 0,
-  label: string = 'Teste de Perícia'
+  label: string = 'Teste de Perícia',
+  criticalThreat: number = 20
 ): DiceRollResult {
   const isPenaltyPool = attributeDice <= 0;
   const poolCount = isPenaltyPool ? 2 + Math.abs(attributeDice) : attributeDice;
@@ -32,6 +35,12 @@ export function rollOrdemTest(
     ? `${poolCount}d20 (pior)${signStr}`
     : `${poolCount}d20 (melhor)${signStr}`;
 
+  // Regra Oficial de Ordem Paranormal RPG:
+  // "Desastre: Se todos os dados rolados resultarem em 1, você comete um desastre."
+  const isFumble = diceResults.length > 0 && diceResults.every((d) => d === 1);
+  const effectiveThreat = Math.min(20, Math.max(12, criticalThreat || 20));
+  const isCritical = chosenDie >= effectiveThreat;
+
   return {
     id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     label,
@@ -41,8 +50,8 @@ export function rollOrdemTest(
     chosenDie,
     bonus,
     total,
-    isCritical: chosenDie === 20,
-    isFumble: chosenDie === 1,
+    isCritical,
+    isFumble,
     timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
   };
 }

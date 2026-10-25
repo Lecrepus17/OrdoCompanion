@@ -268,12 +268,17 @@ export type WeaponType = 'Corpo a corpo' | 'Disparo' | 'Fogo';
 export type WeaponProficiency = 'Simples' | 'Tática' | 'Pesada';
 export type WeaponHandedness = 'Uma Mão' | 'Duas Mãos' | 'Leve';
 
+export type ModificationTargetType = 'weapon' | 'ammo';
+
 export interface WeaponModificationDef {
   id: string;
+  canonicalEntityId?: string;
+  shortId?: string;
   name: string;
   categoryIncrease: number;
   description: string;
   appliesTo: 'all' | 'melee' | 'firearm' | 'ranged';
+  targetType?: ModificationTargetType;
   attackBonus?: number;
   damageBonus?: number;
   damageStepIncrease?: number;
@@ -302,6 +307,12 @@ export interface CustomWeapon {
   baseSpaces: number;
   baseCategory: string; // '0' | 'I' | 'II' | 'III' | 'IV'
   
+  // Ammunition / Balas
+  ammoType?: string; // 'Balas curtas' | 'Balas longas' | 'Cartuchos' | 'Flechas' | 'Foguete' | 'Combustível' | 'Nenhuma'
+  baseAmmoCategory?: string; // '0' | 'I' | 'II' | 'III' | 'IV'
+  ammoCategory?: string; // Categoria calculada das balas/munição (ex: '0', 'I', 'II', '—')
+  ammoName?: string; // Nome com modificações (ex: "Balas curtas (Dum Dum)")
+
   // Modificações aplicadas
   modifications: string[]; // IDs de modificações
   customModifications?: Array<{
@@ -309,13 +320,15 @@ export interface CustomWeapon {
     name: string;
     effect: string;
     categoryIncrease: number;
+    targetType?: ModificationTargetType;
   }>;
   
   // Estatísticas finais calculadas
   finalDamage: string;
   finalCritical: string;
   finalRange: string;
-  finalCategory: string;
+  finalCategory: string; // Categoria final da ARMA (apenas mods de arma)
+  weaponCategory?: string; // Alias explícito para categoria da arma
   finalSpaces: number;
   attackBonus: number;
   damageBonus: number;
@@ -341,6 +354,103 @@ export interface DiceRollResult {
   timestamp: string;
 }
 
+export interface TabNavigationConfig {
+  pinnedTabs: string[]; // Chaves das rotas fixadas diretamente na barra inferior, na ordem exata
+  hiddenTabs: string[]; // Chaves das rotas completamente ocultas (não aparecem nem na barra nem no modal)
+}
+
+export interface TabMetadata {
+  id: string;
+  label: string;
+  headerTitle: string;
+  icon: string;
+  description: string;
+}
+
+export const KNOWN_TAB_DEFINITIONS: Record<string, TabMetadata> = {
+  index: {
+    id: 'index',
+    label: 'Compêndio',
+    headerTitle: 'Guia Ordem Paranormal',
+    icon: 'search',
+    description: '1.367 entidades canônicas, rituais, itens, armas e ameaças',
+  },
+  characters: {
+    id: 'characters',
+    label: 'Agentes',
+    headerTitle: 'Fichas de Agentes',
+    icon: 'people',
+    description: 'Criação assistida e fichas automatizadas de agentes',
+  },
+  weapons: {
+    id: 'weapons',
+    label: 'Armaria',
+    headerTitle: 'Armaria & Modificações',
+    icon: 'construct',
+    description: 'Oficina de armas táticas, calibres, acessórios e maldições',
+  },
+  dice: {
+    id: 'dice',
+    label: 'Dados',
+    headerTitle: 'Rolador Ordem Paranormal',
+    icon: 'dice',
+    description: 'Rolagens oficiais com atributos, vantagens e fórmulas livres',
+  },
+  books: {
+    id: 'books',
+    label: 'Livros',
+    headerTitle: 'Acervo de Livros (10 PDFs)',
+    icon: 'library',
+    description: 'Leitor integrado com 1.261 páginas de 10 livros canônicos',
+  },
+  favorites: {
+    id: 'favorites',
+    label: 'Salvos',
+    headerTitle: 'Salvos, Listas & Homebrew',
+    icon: 'bookmarks',
+    description: 'Entidades favoritadas, listas temáticas e homebrews',
+  },
+  master: {
+    id: 'master',
+    label: 'Mestre',
+    headerTitle: 'Central do Mestre & Campanhas',
+    icon: 'skull',
+    description: 'Gestão de campanhas, cenas de investigação, combate e fichas',
+  },
+  table: {
+    id: 'table',
+    label: 'Mesa',
+    headerTitle: 'Mesa Virtual da Ordem',
+    icon: 'radio-outline',
+    description: 'VTT em tempo real com iniciativa, dados compartilhados e visão geral',
+  },
+  oracle: {
+    id: 'oracle',
+    label: 'G.L.I.T.C.H.',
+    headerTitle: 'G.L.I.T.C.H. - Guia Lógico de Interferências Transcendentais do Caos Humano',
+    icon: 'sparkles',
+    description: 'Guia Lógico de Interferências Transcendentais do Caos Humano e Modo Anfitrião',
+  },
+};
+
+export const DEFAULT_PINNED_TABS: string[] = ['index', 'characters', 'master', 'weapons', 'dice'];
+export const DEFAULT_HIDDEN_TABS: string[] = [];
+
+export function getTabMetadata(routeKey: string, customOptions?: { title?: string }): TabMetadata {
+  if (KNOWN_TAB_DEFINITIONS[routeKey]) {
+    return KNOWN_TAB_DEFINITIONS[routeKey];
+  }
+  const cleanName = routeKey.replace(/^[(_)]+|[(_)]+$/g, '');
+  const capitalized = cleanName ? cleanName.charAt(0).toUpperCase() + cleanName.slice(1) : routeKey;
+  return {
+    id: routeKey,
+    label: customOptions?.title || capitalized,
+    headerTitle: customOptions?.title || capitalized,
+    icon: 'apps-outline',
+    description: `Aba ${capitalized}`,
+  };
+}
+
 export interface UserProfile {
   id: string;
   playerName: string;
@@ -356,6 +466,7 @@ export interface UserProfile {
   lastSyncAt?: string;
   updatedAt: string;
   listingColumns?: 1 | 2;
+  navigationConfig?: TabNavigationConfig;
 }
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
@@ -371,4 +482,82 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
   cloudSyncEnabled: false,
   updatedAt: new Date().toISOString(),
   listingColumns: 1,
+  navigationConfig: {
+    pinnedTabs: DEFAULT_PINNED_TABS,
+    hiddenTabs: DEFAULT_HIDDEN_TABS,
+  },
 };
+
+// ==========================================
+// ABA DE MESTRE & GERENCIAMENTO DE CAMPANHAS
+// ==========================================
+
+export interface CampaignClue {
+  id: string;
+  text: string;
+  isFound: boolean;
+}
+
+export interface CampaignStoryScene {
+  id: string;
+  title: string;
+  summary: string;
+  details: string;
+  clues: CampaignClue[];
+  isCompleted?: boolean;
+  order?: number;
+}
+
+export interface CampaignMonster {
+  id: string;
+  name: string;
+  compendiumEntityId?: string; // ID da criatura original do compêndio, caso importada
+  vd: number;
+  pvCurrent: number;
+  pvMax: number;
+  defense: number;
+  disturbingPresence?: string;
+  element?: string;
+  attacks?: string;
+  abilities?: string;
+  notes?: string;
+  isSavedToCompendium?: boolean;
+}
+
+export interface CampaignAgentLink {
+  id: string;
+  sourceType: 'manual_sheet' | 'local_char' | 'shared_code' | 'cloud_sync';
+  characterSheet: CharacterSheet;
+  originalPlayerName?: string;
+  shareCode?: string;
+  linkedAt: string;
+  lastSyncedAt?: string;
+  notes?: string;
+}
+
+export interface CampaignInitiativeEntry {
+  id: string;
+  name: string;
+  type: 'agent' | 'monster' | 'custom';
+  refId?: string; // id do CampaignAgentLink ou CampaignMonster
+  initiative: number;
+  manualOverride?: boolean; // indica se foi digitado manualmente na vida real
+  notes?: string;
+}
+
+export interface Campaign {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  masterNotes?: string;
+  threatLevel?: 'Iniciante' | 'Veterano' | 'Especialista' | 'Elite' | 'Extremo';
+  recommendedRank?: string;
+  stories: CampaignStoryScene[];
+  monsters: CampaignMonster[];
+  agents: CampaignAgentLink[];
+  initiatives: CampaignInitiativeEntry[];
+  currentTurnIndex?: number;
+  createdAt: string;
+  updatedAt: string;
+}

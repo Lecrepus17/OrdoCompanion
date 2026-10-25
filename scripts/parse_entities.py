@@ -1487,15 +1487,47 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
             return True
         return all(w in type_size_tokens for w in words)
 
-    # 8A. Sobrevivendo ao Horror Creatures & Threats (pages 128-167, 219)
+    # 8A. Sobrevivendo ao Horror Creatures & Threats (pages 128-166, 219)
     sh = next((b for b in books if b["id"] == "sobrevivendo_ao_horror"), None)
     if sh:
+        fallback_sh_attrs = {
+            "sepultado": {"AGI": "1", "FOR": "3", "INT": "0", "PRE": "1", "VIG": "3"},
+            "mescla": {"AGI": "3", "FOR": "3", "INT": "1", "PRE": "1", "VIG": "2"},
+            "espectro inesquecido": {"AGI": "2", "FOR": "2", "INT": "1", "PRE": "1", "VIG": "3"},
+            "o uivar": {"AGI": "3", "FOR": "-", "INT": "3", "PRE": "3", "VIG": "1"},
+            "derretido": {"AGI": "1", "FOR": "4", "INT": "0", "PRE": "1", "VIG": "4"},
+            "melancolia": {"AGI": "4", "FOR": "-", "INT": "4", "PRE": "3", "VIG": "1"},
+            "quibungo": {"AGI": "4", "FOR": "4", "INT": "1", "PRE": "3", "VIG": "4"},
+            "profundo": {"AGI": "4", "FOR": "4", "INT": "2", "PRE": "2", "VIG": "2"},
+            "memento mori": {"AGI": "1", "FOR": "1", "INT": "3", "PRE": "3", "VIG": "3"},
+            "rascunho": {"AGI": "2", "FOR": "2", "INT": "5", "PRE": "5", "VIG": "2"},
+            "medusa": {"AGI": "4", "FOR": "3", "INT": "4", "PRE": "5", "VIG": "3"},
+            "amigo imaginário": {"AGI": "5", "FOR": "5", "INT": "3", "PRE": "5", "VIG": "4"},
+            "bêbado local": {"AGI": "1", "FOR": "1", "INT": "0", "PRE": "0", "VIG": "1"},
+            "burocrata corrompido": {"AGI": "1", "FOR": "1", "INT": "2", "PRE": "2", "VIG": "1"},
+            "fazendeiro isolado": {"AGI": "1", "FOR": "2", "INT": "1", "PRE": "2", "VIG": "2"},
+            "investigador": {"AGI": "2", "FOR": "1", "INT": "2", "PRE": "1", "VIG": "2"},
+            "médico forense": {"AGI": "1", "FOR": "1", "INT": "3", "PRE": "1", "VIG": "2"},
+            "religioso": {"AGI": "1", "FOR": "1", "INT": "1", "PRE": "3", "VIG": "2"},
+            "predador sofisticado": {"AGI": "3", "FOR": "2", "INT": "2", "PRE": "1", "VIG": "2"},
+            "caçador de gente": {"AGI": "2", "FOR": "3", "INT": "1", "PRE": "1", "VIG": "3"},
+            "artista da morte": {"AGI": "3", "FOR": "1", "INT": "3", "PRE": "3", "VIG": "1"},
+            "ariranha": {"AGI": "2", "FOR": "1", "INT": "0", "PRE": "1", "VIG": "2"},
+            "cavalo": {"AGI": "1", "FOR": "3", "INT": "0", "PRE": "1", "VIG": "2"},
+            "enxame de tocandiras": {"AGI": "1", "FOR": "0", "INT": "0", "PRE": "1", "VIG": "0"},
+            "gorila": {"AGI": "2", "FOR": "3", "INT": "0", "PRE": "1", "VIG": "3"},
+            "leão": {"AGI": "3", "FOR": "3", "INT": "0", "PRE": "1", "VIG": "2"},
+            "lobo": {"AGI": "3", "FOR": "3", "INT": "0", "PRE": "1", "VIG": "2"},
+            "touro": {"AGI": "1", "FOR": "3", "INT": "0", "PRE": "1", "VIG": "2"},
+            "urso pardo": {"AGI": "1", "FOR": "3", "INT": "0", "PRE": "1", "VIG": "3"},
+            "o terminal": {"AGI": "2", "FOR": "4", "INT": "1", "PRE": "2", "VIG": "4"},
+        }
         sh_creatures_meta = [
             (128, "Sepultado", 20, "Morte", 16, 50, "DT 15 • 2d4 mental"),
-            (130, "Mescla", 80, "Sangue", 21, 180, "DT 20 • 3d6 mental"),
+            (130, "Mescla", 60, "Sangue", 21, 100, "DT 20 • 3d6 mental"),
             (134, "Espectro Inesquecido", 220, "Energia", 27, 400, "DT 35 • 6d8 mental"),
-            (136, "Derretido", 80, "Sangue", 23, 140, "DT 20 • 4d6 mental"),
-            (138, "O Uivar", 100, "Energia", 20, 100, "DT 20 • 4d6 mental"),
+            (136, "O Uivar", 100, "Energia", 20, 100, "DT 20 • 4d6 mental"),
+            (138, "Derretido", 80, "Sangue", 23, 140, "DT 20 • 4d6 mental"),
             (141, "Melancolia", 140, "Conhecimento", 29, 200, "DT 25 • 4d8 mental"),
             (144, "Quibungo", 160, "Sangue", 34, 320, "DT 25 • 4d8 mental"),
             (148, "Profundo", 200, "Energia", 34, 380, "DT 30 • 6d6 mental"),
@@ -1503,28 +1535,31 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
             (152, "Rascunho", 300, "Conhecimento", 45, 700, "DT 35 • 8d6 mental"),
             (154, "Medusa", 320, "Conhecimento", 50, 380, "DT 40 • 9d6 mental"),
             (157, "Amigo Imaginário", 360, "Morte", 56, 850, "DT 40 • 8d8 mental"),
-            (159, "Bêbado Local", 10, "Nenhum", 12, 12, "Nenhuma"),
-            (160, "Burocrata Corrompido", 20, "Nenhum", 14, 20, "Nenhuma"),
-            (160, "Fazendeiro Isolado", 40, "Nenhum", 18, 55, "Nenhuma"),
+            (159, "Bêbado Local", 10, "Nenhum", 12, 6, "Nenhuma"),
+            (159, "Burocrata Corrompido", 10, "Nenhum", 11, 6, "Nenhuma"),
+            (160, "Fazendeiro Isolado", 20, "Nenhum", 14, 22, "Nenhuma"),
             (161, "Investigador", 40, "Nenhum", 18, 50, "Nenhuma"),
             (161, "Médico Forense", 20, "Nenhum", 15, 25, "Nenhuma"),
-            (162, "Religioso", 20, "Nenhum", 14, 30, "Nenhuma"),
-            (162, "Serial Killer: Predador", 60, "Nenhum", 22, 95, "Nenhuma"),
-            (163, "Serial Killer: Caçador", 80, "Nenhum", 23, 80, "Nenhuma"),
-            (164, "Serial Killer: Artista da Morte", 100, "Nenhum", 27, 140, "Nenhuma"),
-            (164, "Ariranha", 20, "Nenhum", 16, 28, "Nenhuma"),
-            (165, "Enxame de Piranhas", 40, "Nenhum", 18, 40, "Nenhuma"),
+            (161, "Religioso", 40, "Nenhum", 17, 40, "Nenhuma"),
+            (162, "Predador Sofisticado", 60, "Nenhum", 20, 70, "Nenhuma"),
+            (163, "Caçador de Gente", 80, "Nenhum", 23, 80, "Nenhuma"),
+            (163, "Artista da Morte", 140, "Nenhum", 27, 150, "Nenhuma"),
+            (164, "Ariranha", 20, "Nenhum", 16, 32, "Nenhuma"),
+            (164, "Cavalo", 10, "Nenhum", 13, 12, "Nenhuma"),
             (165, "Enxame de Tocandiras", 20, "Nenhum", 16, 22, "Nenhuma"),
-            (165, "Escorpião", 10, "Nenhum", 15, 8, "Nenhuma"),
-            (166, "Leão", 60, "Nenhum", 19, 80, "Nenhuma"),
+            (165, "Gorila", 40, "Nenhum", 19, 70, "Nenhuma"),
+            (165, "Leão", 60, "Nenhum", 18, 80, "Nenhuma"),
             (166, "Lobo", 20, "Nenhum", 15, 18, "Nenhuma"),
-            (166, "Touro", 40, "Nenhum", 16, 60, "Nenhuma"),
-            (167, "Urso", 80, "Nenhum", 21, 130, "Nenhuma"),
+            (166, "Touro", 20, "Nenhum", 15, 38, "Nenhuma"),
+            (166, "Urso Pardo", 60, "Nenhum", 19, 90, "Nenhuma"),
             (219, "O Terminal", 240, "Morte", 28, 500, "DT 30 • 8d6 mental"),
         ]
         for pno, cname, vd, el, defesa, pv, presenca in sh_creatures_meta:
             txt = sh["pages"][pno - 1]["text"]
-            seen.add(("sobrevivendo_ao_horror", cname.lower(), vd))
+            # Window text for creatures that share a page
+            low_name = cname.lower()
+            attrs = fallback_sh_attrs.get(low_name, {})
+            seen.add(("sobrevivendo_ao_horror", low_name, vd))
             creatures.append({
                 "id": make_id("creature", "sobrevivendo_ao_horror", f"{cname}_vd{vd}"),
                 "category": "creature",
@@ -1537,7 +1572,7 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
                 "vd": vd,
                 "defense": defesa,
                 "pv": pv,
-                "attributes": {},
+                "attributes": attrs,
                 "disturbingPresence": presenca,
                 "diceFormulas": extract_dice_formulas(txt),
                 "summary": f"VD {vd} | Elemento: {el} | PV: {pv} | Defesa: {defesa}",
@@ -1545,12 +1580,32 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
                 "tags": ["Criatura / Ameaça", el, f"VD {vd}", sh["title"]],
             })
 
-    # Known overrides for pages where the creature's title was on the previous page
+    # Known overrides for pages where the creature's title was on the previous page or stylized
     page_creature_overrides = {
         ("arquivos_secretos_01", 69, 60): "Cleo",
         ("arquivos_secretos_01", 71, 180): "Cristino",
+        ("livro_base", 205, 240): "Zumbi de Sangue Colossal",
+        ("livro_base", 240, 10): "Existido",
         ("livro_base", 254, 400): "A Máscara do Desespero",
         ("livro_base", 278, 400): "O Anfitrião",
+        ("livro_base", 285, 10): "Enxame de Ratos",
+        ("livro_base", 285, 40): "Jacaré",
+    }
+
+    fallback_creature_attrs = {
+        ("livro_base", "a máscara do desespero"): {"AGI": "4", "FOR": "4", "INT": "6", "PRE": "6", "VIG": "5"},
+        ("livro_base", "o anfitrião"): {"AGI": "7", "FOR": "5", "INT": "6", "PRE": "6", "VIG": "5"},
+        ("livro_base", "anomalia"): {"AGI": "-", "FOR": "-", "INT": "6", "PRE": "6", "VIG": "-"},
+        ("arquivos_secretos_02", "jonas aguiar"): {"AGI": "2", "FOR": "3", "INT": "1", "PRE": "1", "VIG": "2"},
+        ("arquivos_secretos_02", "dalmo magno"): {"AGI": "1", "FOR": "4", "INT": "1", "PRE": "1", "VIG": "3"},
+        ("arquivos_secretos_02", "jae-yoon"): {"AGI": "3", "FOR": "2", "INT": "3", "PRE": "1", "VIG": "1"},
+        ("arquivos_secretos_02", "park jae-yoon"): {"AGI": "3", "FOR": "2", "INT": "3", "PRE": "1", "VIG": "1"},
+        ("arquivos_secretos_02", "kemi"): {"AGI": "3", "FOR": "1", "INT": "3", "PRE": "2", "VIG": "1"},
+        ("arquivos_secretos_02", "labirinto"): {"AGI": "1", "FOR": "1", "INT": "3", "PRE": "3", "VIG": "1"},
+        ("arquivos_secretos_02", "juan"): {"AGI": "2", "FOR": "2", "INT": "2", "PRE": "3", "VIG": "1"},
+        ("arquivos_secretos_02", "o sacrifício"): {"AGI": "2", "FOR": "2", "INT": "2", "PRE": "3", "VIG": "1"},
+        ("arquivos_secretos_04", "simulacro"): {"AGI": "1", "FOR": "-", "INT": "1", "PRE": "1", "VIG": "1"},
+        ("arquivos_secretos_05", "memoflígico"): {"AGI": "3", "FOR": "-", "INT": "3", "PRE": "4", "VIG": "2"},
     }
 
     # 8B. Livro Base & Arquivos Secretos Creatures / Threats
@@ -1569,11 +1624,19 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
                 m for m in re.finditer(r"\bVD\s*(\d{1,3})\b", txt)
                 if re.search(r"(?i)\b(?:DEFESA|SENTIDOS|PRESENÇA PERTURBADORA|AÇÕES)\b", txt[max(0, m.start() - 500) : m.end() + 500])
             ]
+            if book_id == "livro_base" and pno == 278:
+                anf_m = re.search(r"VD0413", txt)
+                if anf_m and not any(m.start() == anf_m.start() for m in vd_matches):
+                    vd_matches.append(anf_m)
+
             if not vd_matches:
                 continue
 
             for idx, vd_m in enumerate(vd_matches):
-                vd = int(vd_m.group(1))
+                if vd_m.group(0) == "VD0413":
+                    vd = 400
+                else:
+                    vd = int(vd_m.group(1))
                 prev_end = vd_matches[idx - 1].end() if idx > 0 else 0
                 next_start = vd_matches[idx + 1].start() if (idx + 1) < len(vd_matches) else len(txt)
 
@@ -1581,11 +1644,11 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
                 full_chunk = txt[prev_end : next_start]
                 def_m = re.search(r"(?i)\bDEFESA\s*(\d{1,2})\b", stat_tail) or re.search(r"(?i)\bDEFESA\s*(\d{1,2})\b", full_chunk)
                 pv_m = re.search(r"(?i)\b(?:PONTOS DE VIDA|PV)\s*\n?\s*(\d{1,4})\b", stat_tail) or re.search(r"(?i)\b(?:PONTOS DE VIDA|PV)\s*\n?\s*(\d{1,4})\b", full_chunk)
-                if not def_m and not pv_m:
+                if not def_m and not pv_m and vd != 400:
                     continue
 
-                defesa = int(def_m.group(1)) if def_m else 15
-                pv = int(pv_m.group(1)) if pv_m else 30
+                defesa = int(def_m.group(1)) if def_m else (29 if vd == 400 and book_id == "livro_base" and pno == 278 else 15)
+                pv = int(pv_m.group(1)) if pv_m else (1413 if vd == 400 and book_id == "livro_base" and pno == 278 else 30)
 
                 cname = page_creature_overrides.get((book_id, pno, vd), "")
 
@@ -1662,12 +1725,24 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
                     cname = sec
 
                 cname_clean = smart_title(cname)
+                if cname_clean.lower() == "existido existido":
+                    cname_clean = "Existido"
+                if cname_clean.lower() == "ameaças da realidade":
+                    if vd == 10:
+                        cname_clean = "Enxame de Ratos"
+                    elif vd == 40:
+                        cname_clean = "Jacaré"
+                    else:
+                        continue
+
                 if len(cname_clean) < 2 or cname_clean.isdigit():
                     cname_clean = f"Ameaça ({sec} - pág. {pno})"
 
                 window_around_vd = txt[max(0, vd_m.start() - 120) : min(len(txt), vd_m.end() + 180)]
                 el = normalize_element(window_around_vd)
-                if el == "Nenhum" and book_id == "livro_base":
+                if cname_clean.lower() == "o anfitrião":
+                    el = "Energia"
+                elif el == "Nenhum" and book_id == "livro_base":
                     if "Sangue" in sec:
                         el = "Sangue"
                     elif "Morte" in sec:
@@ -1685,14 +1760,34 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
                 chunk_text = txt[max(prev_end, vd_m.start() - 120) : next_start].strip()
                 if len(chunk_text) < 120:
                     chunk_text = full_chunk.strip()
+
+                # Attribute extraction (horizontal, vertical, and fallback)
                 attrs = {}
-                for attr_code in ("AGI", "FOR", "INT", "PRE", "VIG"):
-                    am = re.search(rf"\b{attr_code}\s*\n?\s*([0-9\-]+)\b", chunk_text)
-                    if am:
-                        attrs[attr_code] = am.group(1)
+                m_horiz = re.search(r"AGI\s*([0-9\-—]+)\s+FOR\s*([0-9\-—]+)\s+INT\s*([0-9\-—]+)\s+PRE\s*([0-9\-—]+)\s+VIG\s*([0-9\-—]+)", txt)
+                if m_horiz:
+                    attrs = {
+                        "AGI": m_horiz.group(1).replace("—", "-"),
+                        "FOR": m_horiz.group(2).replace("—", "-"),
+                        "INT": m_horiz.group(3).replace("—", "-"),
+                        "PRE": m_horiz.group(4).replace("—", "-"),
+                        "VIG": m_horiz.group(5).replace("—", "-"),
+                    }
+                else:
+                    search_scope = chunk_text if len(chunk_text) > 200 else txt
+                    for attr_code in ("AGI", "FOR", "INT", "PRE", "VIG"):
+                        am = re.search(rf"\b{attr_code}\b\s*\n?\s*([0-9\-—]+)\b", search_scope)
+                        if am:
+                            attrs[attr_code] = am.group(1).replace("—", "-")
+
+                fallback_att = fallback_creature_attrs.get((book_id, cname_clean.lower()))
+                if fallback_att and len(attrs) < 5:
+                    attrs = fallback_att
 
                 presenca_m = re.search(r"PRESENÇA PERTURBADORA\s*\n\s*([^\n]+)", chunk_text)
-                presenca = presenca_m.group(1).strip() if presenca_m else "Nenhuma"
+                if cname_clean.lower() == "o anfitrião":
+                    presenca = "DT 35 • 12d6 mental"
+                else:
+                    presenca = presenca_m.group(1).strip() if presenca_m else "Nenhuma"
 
                 creatures.append({
                     "id": make_id("creature", book_id, f"{cname_clean}_vd{vd}"),

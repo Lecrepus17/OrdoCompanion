@@ -1,31 +1,49 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CompendiumEntity } from '../types/compendium';
 import { CATEGORY_LABELS, getElementStyle, ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { useApp } from '../context/AppContext';
 
-interface EntityCardProps {
+export interface EntityCardProps {
   entity: CompendiumEntity;
-  onPress: () => void;
+  onPress?: () => void;
+  onPressItem?: (id: string) => void;
   numColumns?: number;
   cardWidth?: number;
+  isFavorite?: boolean;
+  onToggleFavorite?: (id: string) => void;
+  onRollFormula?: (formula: string, label?: string) => void;
 }
 
-export const EntityCard: React.FC<EntityCardProps> = ({
+export const EntityCardView = React.memo<EntityCardProps>(function EntityCardView({
   entity,
   onPress,
+  onPressItem,
   numColumns = 1,
   cardWidth,
-}) => {
-  const { favoriteIds, toggleFavorite, rollFormula } = useApp();
+  isFavorite = false,
+  onToggleFavorite,
+  onRollFormula,
+}) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
 
-  const isFav = favoriteIds.has(entity.id);
-  const elStyle = getElementStyle(entity.element, colors);
+  const elStyle = useMemo(() => getElementStyle(entity.element, colors), [entity.element, colors]);
   const catInfo = CATEGORY_LABELS[entity.category] || CATEGORY_LABELS.all;
   const isGrid = numColumns > 1;
+
+  const handlePress = useCallback(() => {
+    if (onPressItem) {
+      onPressItem(entity.id);
+    } else if (onPress) {
+      onPress();
+    }
+  }, [onPressItem, onPress, entity.id]);
+
+  const handleToggleFav = useCallback(() => {
+    onToggleFavorite?.(entity.id);
+  }, [onToggleFavorite, entity.id]);
 
   return (
     <TouchableOpacity
@@ -34,7 +52,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
         isGrid && styles.cardGrid,
         cardWidth ? { width: cardWidth } : undefined,
       ]}
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.82}
     >
       <View style={styles.topContent}>
@@ -53,6 +71,8 @@ export const EntityCard: React.FC<EntityCardProps> = ({
                   isGrid && styles.catBadgeTextGrid,
                   { color: catInfo.color },
                 ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {entity.subCategory || catInfo.singular}
               </Text>
@@ -72,15 +92,21 @@ export const EntityCard: React.FC<EntityCardProps> = ({
                     isGrid && styles.elBadgeTextGrid,
                     { color: elStyle.text },
                   ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
                 >
-                  {entity.element}
+                  {isGrid && entity.element.startsWith('Variável') ? 'Variável' : entity.element}
                 </Text>
               </View>
             )}
 
             {entity.isCustom && (
               <View style={[styles.customBadge, isGrid && styles.customBadgeGrid]}>
-                <Text style={[styles.customBadgeText, isGrid && styles.customBadgeTextGrid]}>
+                <Text
+                  style={[styles.customBadgeText, isGrid && styles.customBadgeTextGrid]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
                   HOMEBREW
                 </Text>
               </View>
@@ -99,6 +125,8 @@ export const EntityCard: React.FC<EntityCardProps> = ({
                     isGrid && styles.customBadgeTextGrid,
                     { color: '#FBBF24' },
                   ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
                 >
                   EDITADO
                 </Text>
@@ -107,13 +135,15 @@ export const EntityCard: React.FC<EntityCardProps> = ({
           </View>
 
           <TouchableOpacity
-            onPress={() => toggleFavorite(entity.id)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.favBtn}
+            onPress={handleToggleFav}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel={isFavorite ? 'Remover dos favoritos' : 'Favoritar item'}
           >
             <Ionicons
-              name={isFav ? 'bookmark' : 'bookmark-outline'}
+              name={isFavorite ? 'bookmark' : 'bookmark-outline'}
               size={isGrid ? 18 : 20}
-              color={isFav ? colors.warning : colors.textMuted}
+              color={isFavorite ? colors.warning : colors.textMuted}
             />
           </TouchableOpacity>
         </View>
@@ -151,7 +181,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
                 key={formula}
                 style={[styles.dicePill, isGrid && styles.dicePillGrid]}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                onPress={() => rollFormula(formula, `${entity.name} (${formula})`)}
+                onPress={() => onRollFormula?.(formula, `${entity.name} (${formula})`)}
               >
                 <Ionicons name="dice-outline" size={isGrid ? 11 : 13} color={colors.primary} />
                 <Text style={[styles.dicePillText, isGrid && styles.dicePillTextGrid]}>
@@ -164,7 +194,30 @@ export const EntityCard: React.FC<EntityCardProps> = ({
       </View>
     </TouchableOpacity>
   );
+});
+
+const EntityCardConnected: React.FC<EntityCardProps> = (props) => {
+  const { favoriteIds, toggleFavorite, rollFormula } = useApp();
+  return (
+    <EntityCardView
+      {...props}
+      isFavorite={props.isFavorite !== undefined ? props.isFavorite : favoriteIds.has(props.entity.id)}
+      onToggleFavorite={props.onToggleFavorite || toggleFavorite}
+      onRollFormula={props.onRollFormula || rollFormula}
+    />
+  );
 };
+
+export const EntityCard = React.memo<EntityCardProps>(function EntityCard(props) {
+  if (
+    props.onToggleFavorite !== undefined &&
+    props.isFavorite !== undefined &&
+    props.onRollFormula !== undefined
+  ) {
+    return <EntityCardView {...props} />;
+  }
+  return <EntityCardConnected {...props} />;
+});
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
@@ -187,15 +240,20 @@ const createStyles = (colors: ThemeColors) =>
     headerRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       marginBottom: 6,
+    },
+    favBtn: {
+      paddingLeft: 4,
+      paddingTop: 1,
     },
     badgesWrap: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 6,
       flex: 1,
-      paddingRight: 8,
+      minWidth: 0,
+      paddingRight: 6,
     },
     badgesWrapGrid: {
       gap: 4,
@@ -207,6 +265,7 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 7,
       paddingVertical: 2,
       backgroundColor: colors.surfaceElevated,
+      maxWidth: '100%',
     },
     catBadgeGrid: {
       paddingHorizontal: 5,
@@ -224,6 +283,7 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 6,
       paddingHorizontal: 7,
       paddingVertical: 2,
+      maxWidth: '100%',
     },
     elBadgeGrid: {
       paddingHorizontal: 5,
@@ -241,6 +301,7 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 6,
       paddingHorizontal: 6,
       paddingVertical: 2,
+      maxWidth: '100%',
     },
     customBadgeGrid: {
       paddingHorizontal: 4,
@@ -307,6 +368,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     diceRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: 6,
     },
     diceRowGrid: {

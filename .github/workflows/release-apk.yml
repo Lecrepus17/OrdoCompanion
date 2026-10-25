@@ -1,0 +1,84 @@
+name: Build & Release APK (GitHub Releases)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Tag de versão (ex: v1.1.0)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-verify:
+    name: Validar Tipos e Testes Automatizados
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Executar suíte completa de testes (Testes Unitários + DB)
+        run: npm run test:all
+
+  publish-github-release:
+    name: Criar Release no GitHub
+    needs: test-and-verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Extrair informações de versão do version.json
+        id: release_info
+        run: |
+          VERSION=$(node -p "require('./version.json').version || 'latest'")
+          NAME=$(node -p "require('./version.json').releaseName || 'Ordo Companion v' + require('./version.json').version")
+          NOTES=$(node -p "Array.isArray(require('./version.json').changelog) ? require('./version.json').changelog.map(c => '• ' + c).join('\n') : (require('./version.json').changelog || '')")
+          echo "tag_name=v$VERSION" >> $GITHUB_OUTPUT
+          echo "release_name=$NAME" >> $GITHUB_OUTPUT
+          {
+            echo "notes<<EOF"
+            echo "## 👁️ O que há de novo nesta versão:"
+            echo ""
+            echo "$NOTES"
+            echo ""
+            echo "---"
+            echo "### 📱 Instalação no Celular (Android):"
+            echo "1. Baixe o arquivo **OrdoCompanion.apk** anexado abaixo."
+            echo "2. Abra a notificação de download do celular e toque em **Instalar**."
+            echo "3. Suas fichas e dados locais serão preservados!"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Publicar Release no GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag_name }}
+          name: ${{ steps.release_info.outputs.release_name }}
+          body: ${{ steps.release_info.outputs.notes }}
+          draft: false
+          prerelease: false
+          files: |
+            *.apk
+            dist/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

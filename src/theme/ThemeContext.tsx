@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet } from 'react-native';
 import {
@@ -51,7 +51,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const colors = theme.colors;
   const isDark = theme.isDark;
 
-  const setThemeId = async (id: ThemeId) => {
+  const setThemeId = useCallback(async (id: ThemeId) => {
     const nextTheme = getTheme(id);
     setThemeIdState(nextTheme.id);
     // Sincroniza o objeto COLORS imediatamente
@@ -64,21 +64,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('Erro ao salvar tema:', err);
     }
-  };
+  }, []);
 
   const availableThemes = useMemo(() => getAvailableThemes(), []);
 
+  const contextValue = useMemo<ThemeContextValue>(
+    () => ({
+      theme,
+      themeId,
+      colors,
+      isDark,
+      setThemeId,
+      availableThemes,
+    }),
+    [theme, themeId, colors, isDark, setThemeId, availableThemes]
+  );
+
   return (
-    <ThemeContext.Provider
-      value={{
-        theme,
-        themeId,
-        colors,
-        isDark,
-        setThemeId,
-        availableThemes,
-      }}
-    >
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );
@@ -92,13 +95,30 @@ export function useTheme(): ThemeContextValue {
   return ctx;
 }
 
+// Cache global por tema e fábrica de estilo para evitar recriar StyleSheet em centenas de componentes
+const stylesCache = new Map<string, WeakMap<Function, any>>();
+
 /**
  * Hook para criar e memoizar estilos reativos ao tema ativo.
- * Reexecuta a factory sempre que a paleta de cores mudar.
+ * Compartilha instâncias idênticas entre múltiplos componentes da tela.
  */
 export function useThemedStyles<T extends Record<string, any>>(
   styleFactory: (colors: ThemeColors, isDark: boolean) => T
 ): T {
-  const { colors, isDark } = useTheme();
-  return useMemo(() => styleFactory(colors, isDark), [colors, isDark]);
+  const { colors, isDark, themeId } = useTheme();
+
+  return useMemo(() => {
+    let themeCache = stylesCache.get(themeId);
+    if (!themeCache) {
+      themeCache = new WeakMap();
+      stylesCache.set(themeId, themeCache);
+    }
+
+    let cachedStyles = themeCache.get(styleFactory);
+    if (!cachedStyles) {
+      cachedStyles = styleFactory(colors, isDark);
+      themeCache.set(styleFactory, cachedStyles);
+    }
+    return cachedStyles as T;
+  }, [colors, isDark, themeId, styleFactory]);
 }

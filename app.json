@@ -1,26 +1,39 @@
 {
   "expo": {
-    "name": "Guia Ordem Paranormal",
-    "slug": "guia-ordem-paranormal",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "scheme": "ordemguide",
+    "name": "Ordo Companion",
+    "slug": "ordo-companion",
+    "version": "1.0.0-beta.1",
+    "orientation": "default",
+    "scheme": "ordo",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ordemparanormal.guia"
+      "bundleIdentifier": "com.ordemparanormal.ordo",
+      "icon": "./assets/icon.png"
     },
     "android": {
-      "package": "com.ordemparanormal.guia",
-      "softwareKeyboardLayoutMode": "pan"
+      "package": "com.ordemparanormal.ordo",
+      "versionCode": 1,
+      "softwareKeyboardLayoutMode": "pan",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      }
     },
     "androidNavigationBar": {
       "barStyle": "light-content"
     },
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
@@ -28,6 +41,16 @@
     ],
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "ffae326d-8143-4c02-9e02-11d4bc95a119"
+      }
     }
   }
 }

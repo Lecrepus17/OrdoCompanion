@@ -19,3 +19,9 @@ data/raw_books.json
 data/cache/rendered_pages/
 public/pdfs/
 public/pdfjs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+

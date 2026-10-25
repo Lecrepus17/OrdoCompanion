@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -28,6 +28,18 @@ import {
 import { confirmAction } from '../../utils/alert';
 import { parseCritical } from '../../utils/weapons';
 import PrintSheetModal from '../../components/PrintSheetModal';
+import CreateAgentModal from '../../components/CreateAgentModal';
+import LevelUpModal from '../../components/LevelUpModal';
+import { encodeAgentShareCode, formatAgentSummary } from '../../utils/agentSharing';
+import {
+  OFFICIAL_SKILLS_LIST,
+  SkillDefinition,
+  calculateStatIncreases,
+  getPeRoundLimit,
+  getRitualDt,
+} from '../../utils/progression';
+
+export { OFFICIAL_SKILLS_LIST, SkillDefinition };
 
 const RANKS = [
   'Recruta',
@@ -53,43 +65,7 @@ export const RANK_ITEM_LIMITS = {
   'Agente de Elite': { cat1: 3, cat2: 3, cat3: 3, cat4: 2, credit: 'Ilimitado' as const },
 };
 
-export interface SkillDefinition {
-  name: string;
-  attr: keyof CharacterAttributes;
-  trainedOnly?: boolean;
-  armorPenalty?: boolean;
-}
 
-export const OFFICIAL_SKILLS_LIST: SkillDefinition[] = [
-  { name: 'Acrobacia', attr: 'AGI', armorPenalty: true },
-  { name: 'Adestramento', attr: 'PRE', trainedOnly: true },
-  { name: 'Artes', attr: 'PRE', trainedOnly: true },
-  { name: 'Atletismo', attr: 'FOR' },
-  { name: 'Atualidades', attr: 'INT' },
-  { name: 'Ciências', attr: 'INT', trainedOnly: true },
-  { name: 'Crime', attr: 'AGI', trainedOnly: true, armorPenalty: true },
-  { name: 'Diplomacia', attr: 'PRE' },
-  { name: 'Enganação', attr: 'PRE' },
-  { name: 'Fortitude', attr: 'VIG' },
-  { name: 'Furtividade', attr: 'AGI', armorPenalty: true },
-  { name: 'Iniciativa', attr: 'AGI' },
-  { name: 'Intimidação', attr: 'PRE' },
-  { name: 'Intuição', attr: 'PRE' },
-  { name: 'Investigação', attr: 'INT' },
-  { name: 'Luta', attr: 'FOR' },
-  { name: 'Medicina', attr: 'INT' },
-  { name: 'Ocultismo', attr: 'INT', trainedOnly: true },
-  { name: 'Percepção', attr: 'PRE' },
-  { name: 'Pilotagem', attr: 'AGI', trainedOnly: true },
-  { name: 'Pontaria', attr: 'AGI' },
-  { name: 'Profissão', attr: 'INT', trainedOnly: true },
-  { name: 'Reflexos', attr: 'AGI' },
-  { name: 'Religião', attr: 'PRE', trainedOnly: true },
-  { name: 'Sobrevivência', attr: 'INT' },
-  { name: 'Tática', attr: 'INT', trainedOnly: true },
-  { name: 'Tecnologia', attr: 'INT', trainedOnly: true },
-  { name: 'Vontade', attr: 'PRE' },
-];
 
 function calculateMaxStats(
   className: string,
@@ -144,6 +120,10 @@ export default function CharactersScreen() {
     rollSkillTest,
     rollFormula,
     userProfile,
+    openManual,
+    tableStatus,
+    virtualTable,
+    rollTableInitiative,
   } = useApp();
 
   const [activeCharId, setActiveCharId] = useState<string | null>(null);
@@ -194,36 +174,81 @@ export default function CharactersScreen() {
   const [printModalVisible, setPrintModalVisible] = useState(false);
   const [printingChar, setPrintingChar] = useState<CharacterSheet | null>(null);
 
+  // Share Agent Modal
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [sharingChar, setSharingChar] = useState<CharacterSheet | null>(null);
+  const [copiedCodeToast, setCopiedCodeToast] = useState(false);
+
+  // Assisted Creation & Level Up Modals
+  const [createAgentModalVisible, setCreateAgentModalVisible] = useState(false);
+  const [levelUpModalVisible, setLevelUpModalVisible] = useState(false);
+
   const activeChar = useMemo(
     () => characters.find((c) => c.id === activeCharId) || null,
     [characters, activeCharId]
   );
 
-  const originsList = useMemo(
-    () => entities.filter((e) => e.category === 'origin'),
-    [entities]
-  );
-  const classesList = useMemo(
-    () => entities.filter((e) => e.category === 'class'),
-    [entities]
-  );
-  const tracksList = useMemo(
-    () => entities.filter((e) => e.category === 'track'),
-    [entities]
-  );
-  const compendiumWeapons = useMemo(
-    () => entities.filter((e) => e.category === 'weapon'),
-    [entities]
-  );
-  const equipableEntities = useMemo(
-    () =>
-      entities.filter((e) =>
-        ['ritual', 'power', 'weapon', 'item'].includes(e.category)
-      ),
-    [entities]
-  );
+  const {
+    originsList,
+    classesList,
+    tracksList,
+    ritualsList,
+    powersList,
+    compendiumWeapons,
+    equipableEntities,
+  } = useMemo(() => {
+    const origins: CompendiumEntity[] = [];
+    const classes: CompendiumEntity[] = [];
+    const tracks: CompendiumEntity[] = [];
+    const rituals: CompendiumEntity[] = [];
+    const powers: CompendiumEntity[] = [];
+    const weapons: CompendiumEntity[] = [];
+    const equipables: CompendiumEntity[] = [];
+
+    for (let i = 0; i < entities.length; i++) {
+      const e = entities[i];
+      const cat = e.category;
+      if (cat === 'origin') origins.push(e);
+      else if (cat === 'class') classes.push(e);
+      else if (cat === 'track') tracks.push(e);
+      else if (cat === 'ritual') {
+        rituals.push(e);
+        equipables.push(e);
+      } else if (cat === 'power') {
+        powers.push(e);
+        equipables.push(e);
+      } else if (cat === 'weapon') {
+        weapons.push(e);
+        equipables.push(e);
+      } else if (cat === 'item') {
+        equipables.push(e);
+      }
+    }
+
+    return {
+      originsList: origins,
+      classesList: classes,
+      tracksList: tracks,
+      ritualsList: rituals,
+      powersList: powers,
+      compendiumWeapons: weapons,
+      equipableEntities: equipables,
+    };
+  }, [entities]);
+
+  const handleFinishAssistedAgent = async (sheet: CharacterSheet) => {
+    setCreateAgentModalVisible(false);
+    await upsertCharacter(sheet);
+    setActiveCharId(sheet.id);
+    setActiveTab('geral');
+  };
+
+  const handleApplyLevelUp = async (updated: CharacterSheet) => {
+    await upsertCharacter(updated);
+  };
 
   const handleCreateNewAgent = async () => {
+    setCreateAgentModalVisible(false);
     const defaultOrigin = originsList[0];
     const preferredClassEntity = classesList.find((c) =>
       userProfile?.preferredClass &&
@@ -426,15 +451,28 @@ export default function CharactersScreen() {
     const newInv: CharacterInventoryItem = {
       id: `inv_${Date.now()}`,
       name: weapon.name,
-      category: weapon.finalCategory.split(' ')[0] as any,
+      category: (weapon.finalCategory || weapon.weaponCategory || 'I').split(' ')[0] as any,
       spaces: weapon.finalSpaces,
       details: `Arma (${weapon.finalDamage}, Crítico: ${weapon.finalCritical}) • ${weapon.specialRules}`,
       equipped: true,
     };
 
+    const newItems: CharacterInventoryItem[] = [newInv];
+    if (weapon.ammoCategory && weapon.ammoCategory !== '—' && weapon.weaponType !== 'Corpo a corpo') {
+      const ammoTitle = weapon.ammoName || `${weapon.ammoType || 'Munição'} (${weapon.name})`;
+      newItems.push({
+        id: `inv_ammo_${Date.now()}`,
+        name: ammoTitle,
+        category: (weapon.ammoCategory || '0').split(' ')[0] as any,
+        spaces: 1,
+        details: `Pacote de Munição para ${weapon.name}`,
+        equipped: true,
+      });
+    }
+
     await updateActiveChar({
       attacks: [...existingAttacks, newAttack],
-      inventory: [...existingInventory, newInv],
+      inventory: [...existingInventory, ...newItems],
     });
     setPickerModalType(null);
   };
@@ -481,7 +519,13 @@ export default function CharactersScreen() {
     const skillEntry = activeChar.skills[skillName] || { degree: 0, bonus: 0 };
     const totalBonus = (skillEntry.degree || 0) + (skillEntry.bonus || 0) + (attack.attackBonus || 0);
 
-    rollSkillTest(attrVal, totalBonus, `Ataque: ${attack.name} (${skillName})`);
+    const parsedCrit = parseCritical(attack.critical);
+    rollSkillTest(
+      attrVal,
+      totalBonus,
+      `Ataque: ${attack.name} (${skillName})`,
+      parsedCrit.threat
+    );
   };
 
   const handleRollAttackDamage = (attack: CharacterAttack, isCrit: boolean) => {
@@ -567,21 +611,65 @@ export default function CharactersScreen() {
     );
   }, [activeChar]);
 
+  // Reações de Defesa de Ordem Paranormal (Esquiva = Defesa + Reflexos; Bloqueio RD = Fortitude; Contra-ataque = Luta)
+  const reflexosEntry = activeChar?.skills?.['Reflexos'] || { degree: 0, bonus: 0 };
+  const reflexosBonus = (reflexosEntry.degree || 0) + (reflexosEntry.bonus || 0);
+  const esquivaTotal = totalDefense + reflexosBonus;
+
+  const fortitudeEntry = activeChar?.skills?.['Fortitude'] || { degree: 0, bonus: 0 };
+  const bloqueioRD = (fortitudeEntry.degree || 0) + (fortitudeEntry.bonus || 0);
+
+  const lutaEntry = activeChar?.skills?.['Luta'] || { degree: 0, bonus: 0 };
+  const contraAtaqueBonus = (lutaEntry.degree || 0) + (lutaEntry.bonus || 0);
+
   if (!activeChar) {
     return (
       <View style={styles.container}>
         <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}>
           <View style={styles.topRow}>
-            <View>
+            <View style={{ flex: 1, minWidth: 160, marginRight: 8 }}>
               <Text style={styles.heading}>Fichas de Agentes</Text>
               <Text style={styles.subHeading}>
                 Ficha completa de Ordem Paranormal: Livro Base & Sobrevivendo ao Horror.
               </Text>
             </View>
-            <TouchableOpacity style={styles.newBtn} onPress={handleCreateNewAgent}>
-              <Ionicons name="add" size={20} color="#FFF" />
-              <Text style={styles.newBtnText}>Novo Agente</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <TouchableOpacity
+                style={[
+                  styles.newBtn,
+                  {
+                    backgroundColor: colors.primarySoft,
+                    borderWidth: 1,
+                    borderColor: colors.primary,
+                  },
+                ]}
+                onPress={() => openManual('characters')}
+              >
+                <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
+                <Text style={[styles.newBtnText, { color: colors.primary }]}>Manual</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.newBtn,
+                  {
+                    backgroundColor: colors.surfaceElevated,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={handleCreateNewAgent}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.text} />
+                <Text style={[styles.newBtnText, { color: colors.text }]}>Criar Manual</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.newBtn}
+                onPress={() => setCreateAgentModalVisible(true)}
+              >
+                <Ionicons name="sparkles" size={18} color="#FFF" />
+                <Text style={styles.newBtnText}>Criar Assistido</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {characters.length === 0 ? (
@@ -589,8 +677,38 @@ export default function CharactersScreen() {
               <Ionicons name="person-add-outline" size={48} color={colors.textMuted} />
               <Text style={styles.emptyTitle}>Nenhum agente cadastrado</Text>
               <Text style={styles.emptySub}>
-                Toque em "Novo Agente" para criar sua primeira ficha com suporte a todas as informações oficiais, ataques, armas modificadas, inventário e histórico.
+                Escolha como prefere criar seu agente da Ordem Paranormal:
               </Text>
+
+              <View style={styles.emptyActionsGrid}>
+                <TouchableOpacity
+                  style={styles.emptyActionCard}
+                  onPress={handleCreateNewAgent}
+                >
+                  <View style={[styles.emptyActionIconCircle, { backgroundColor: colors.surfaceHighlight }]}>
+                    <Ionicons name="create-outline" size={24} color={colors.text} />
+                  </View>
+                  <Text style={styles.emptyActionTitle}>Criar Agente Manual</Text>
+                  <Text style={styles.emptyActionDesc}>
+                    Crie a ficha imediatamente com total liberdade para editar tudo: atributos, perícias e os valores máximos de PV, PE e Sanidade.
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.emptyActionCard, { borderColor: colors.primary }]}
+                  onPress={() => setCreateAgentModalVisible(true)}
+                >
+                  <View style={[styles.emptyActionIconCircle, { backgroundColor: colors.primarySoft }]}>
+                    <Ionicons name="sparkles" size={24} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.emptyActionTitle, { color: colors.primary }]}>
+                    Criar Agente Assistido
+                  </Text>
+                  <Text style={styles.emptyActionDesc}>
+                    Guia passo a passo pelas regras oficiais: Origem, Classe, Atributos (4 pontos livres), Perícias e Habilidades de 5% NEX.
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             characters.map((char) => {
@@ -617,6 +735,17 @@ export default function CharactersScreen() {
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <TouchableOpacity
+                        style={styles.cardPrintBtn}
+                        onPress={() => {
+                          setSharingChar(char);
+                          setCopiedCodeToast(false);
+                          setShareModalVisible(true);
+                        }}
+                        accessibilityLabel="Compartilhar Ficha com o Mestre"
+                      >
+                        <Ionicons name="share-social-outline" size={18} color={colors.primary} />
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.cardPrintBtn}
                         onPress={() => {
@@ -684,6 +813,84 @@ export default function CharactersScreen() {
             setPrintingChar(null);
           }}
         />
+
+        {/* Modal de Compartilhamento de Ficha de Agente */}
+        <Modal visible={shareModalVisible} animationType="slide" transparent>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 16 }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18, gap: 12, maxHeight: '85%' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 17, fontWeight: '900', color: colors.text }}>Compartilhar Agente</Text>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
+                    {sharingChar ? formatAgentSummary(sharingChar) : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setShareModalVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close" size={22} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>
+                Envie este código para o Mestre da sua campanha. Ele poderá vincular sua ficha à mesa na <Text style={{ color: colors.primary, fontWeight: '800' }}>Aba de Mestre</Text> colando este código!
+              </Text>
+
+              <View style={{ backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12 }}>
+                <TextInput
+                  style={{ color: colors.text, fontSize: 12, minHeight: 90, textAlignVertical: 'top' }}
+                  multiline
+                  editable={false}
+                  selectTextOnFocus
+                  value={sharingChar ? encodeAgentShareCode(sharingChar) : ''}
+                />
+              </View>
+
+              {copiedCodeToast && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#10B98122', padding: 8, borderRadius: 8 }}>
+                  <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                  <Text style={{ fontSize: 12, color: '#10B981', fontWeight: '800' }}>
+                    Código copiado para a área de transferência!
+                  </Text>
+                </View>
+              )}
+
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 }}
+                  onPress={() => setShareModalVisible(false)}
+                >
+                  <Text style={{ color: colors.textSecondary, fontWeight: '700', fontSize: 13 }}>Fechar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}
+                  onPress={async () => {
+                    if (!sharingChar) return;
+                    const code = encodeAgentShareCode(sharingChar);
+                    try {
+                      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(code);
+                      }
+                    } catch {}
+                    setCopiedCodeToast(true);
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={16} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>Copiar Código</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <CreateAgentModal
+          visible={createAgentModalVisible}
+          onClose={() => setCreateAgentModalVisible(false)}
+          onFinish={handleFinishAssistedAgent}
+          userProfile={userProfile}
+          originsList={originsList}
+          classesList={classesList}
+          ritualsList={ritualsList}
+        />
       </View>
     );
   }
@@ -703,6 +910,31 @@ export default function CharactersScreen() {
 
         <View style={styles.topBarRightActions}>
           <TouchableOpacity
+            style={[
+              styles.recalcBtn,
+              {
+                backgroundColor: colors.primarySoft,
+                borderColor: colors.primary,
+                borderWidth: 1,
+              },
+            ]}
+            onPress={() => setLevelUpModalVisible(true)}
+          >
+            <Ionicons name="sparkles" size={16} color={colors.primary} />
+            <Text style={[styles.recalcBtnText, { color: colors.primary, fontWeight: '800' }]}>
+              +5% NEX (Assistido)
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.recalcBtn}
+            onPress={() => openManual('characters')}
+          >
+            <Ionicons name="help-circle-outline" size={16} color={colors.primary} />
+            <Text style={[styles.recalcBtnText, { color: colors.primary }]}>Manual</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.printHeaderBtn}
             onPress={() => {
               setPrintingChar(activeChar);
@@ -711,6 +943,18 @@ export default function CharactersScreen() {
           >
             <Ionicons name="print-outline" size={16} color="#FFF" />
             <Text style={styles.printHeaderBtnText}>Imprimir Ficha</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.recalcBtn, { backgroundColor: colors.surfaceHighlight }]}
+            onPress={() => {
+              setSharingChar(activeChar);
+              setCopiedCodeToast(false);
+              setShareModalVisible(true);
+            }}
+          >
+            <Ionicons name="share-social-outline" size={16} color={colors.primary} />
+            <Text style={[styles.recalcBtnText, { color: colors.primary }]}>Compartilhar</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.recalcBtn} onPress={handleRecalculateStats}>
@@ -758,6 +1002,57 @@ export default function CharactersScreen() {
         {/* ============================================================ */}
         {activeTab === 'geral' && (
           <>
+            {/* Banner de Sincronização com a Mesa Virtual */}
+            {tableStatus === 'connected' && virtualTable && (
+              <View
+                style={{
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  borderWidth: 1,
+                  borderColor: '#10B981',
+                  borderRadius: 10,
+                  padding: 10,
+                  marginBottom: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <Ionicons name="radio" size={18} color="#10B981" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#10B981', fontWeight: '800', fontSize: 12 }}>
+                      MESA VIRTUAL CONECTADA [{virtualTable.roomId}]
+                    </Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
+                      Rolagens e alterações de PV/PE/SAN sincronizam ao vivo na mesa.
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#10B981',
+                    paddingHorizontal: 8,
+                    paddingVertical: 6,
+                    borderRadius: 6,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                  onPress={() => {
+                    const agi = activeChar.attributes.AGI || 1;
+                    const initEntry = activeChar.skills['Iniciativa'] || { degree: 0, bonus: 0 };
+                    const bonus = (initEntry.degree || 0) + (initEntry.bonus || 0);
+                    const roll = rollSkillTest(agi, bonus, `Iniciativa: ${activeChar.name}`);
+                    rollTableInitiative(roll.total, activeChar.name);
+                  }}
+                >
+                  <Ionicons name="dice" size={14} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>Iniciativa</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Cabeçalho do Personagem */}
             <View style={styles.sectionCard}>
               <View style={styles.row}>
@@ -795,19 +1090,36 @@ export default function CharactersScreen() {
               </View>
 
               <View style={[styles.row, { marginTop: 8 }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>NEX (%)</Text>
-                  <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={String(activeChar.nex)}
-                    onChangeText={(v) => {
-                      const n = Math.min(99, Math.max(0, parseInt(v, 10) || 0));
-                      const peR = Math.max(1, Math.floor(n / 5));
-                      const dt = 10 + peR + activeChar.attributes.PRE;
-                      updateActiveChar({ nex: n, peRound: peR, dtRituals: dt });
-                    }}
-                  />
+                <View style={{ flex: 1.2 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={styles.fieldLabel}>NEX (%)</Text>
+                    <TouchableOpacity
+                      style={styles.nexLevelUpBadge}
+                      onPress={() => setLevelUpModalVisible(true)}
+                    >
+                      <Ionicons name="arrow-up" size={11} color={colors.primary} />
+                      <Text style={styles.nexLevelUpBadgeText}>Subir +5%</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      keyboardType="numeric"
+                      value={String(activeChar.nex)}
+                      onChangeText={(v) => {
+                        const n = Math.min(99, Math.max(0, parseInt(v, 10) || 0));
+                        const peR = Math.max(1, Math.floor(n / 5));
+                        const dt = 10 + peR + activeChar.attributes.PRE;
+                        updateActiveChar({ nex: n, peRound: peR, dtRituals: dt });
+                      }}
+                    />
+                    <TouchableOpacity
+                      style={styles.nexQuickPlusBtn}
+                      onPress={() => setLevelUpModalVisible(true)}
+                    >
+                      <Ionicons name="sparkles" size={16} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>PE / Rodada</Text>
@@ -955,13 +1267,19 @@ export default function CharactersScreen() {
 
             {/* Status Vital: PV, PE, SAN */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Status Vital (PV, PE & Sanidade)</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={styles.sectionTitle}>Status Vital (PV, PE & Sanidade)</Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                  Toque em "Editar Máx" para alterar máximos
+                </Text>
+              </View>
               <StatCounterRow
                 label="PV (Vida)"
                 color="#EF4444"
                 current={activeChar.pvCurrent}
                 max={activeChar.pvMax}
                 onChangeCurrent={(v) => updateActiveChar({ pvCurrent: Math.max(0, v) })}
+                onChangeMax={(v) => updateActiveChar({ pvMax: Math.max(1, v) })}
               />
               <StatCounterRow
                 label="PE (Esforço)"
@@ -969,6 +1287,7 @@ export default function CharactersScreen() {
                 current={activeChar.peCurrent}
                 max={activeChar.peMax}
                 onChangeCurrent={(v) => updateActiveChar({ peCurrent: Math.max(0, v) })}
+                onChangeMax={(v) => updateActiveChar({ peMax: Math.max(1, v) })}
               />
               <StatCounterRow
                 label="SAN (Sanidade)"
@@ -976,7 +1295,128 @@ export default function CharactersScreen() {
                 current={activeChar.sanCurrent}
                 max={activeChar.sanMax}
                 onChangeCurrent={(v) => updateActiveChar({ sanCurrent: Math.max(0, v) })}
+                onChangeMax={(v) => updateActiveChar({ sanMax: Math.max(1, v) })}
               />
+
+              {/* Avisos de Condições Vitais de Ordem Paranormal */}
+              {activeChar.pvCurrent <= 0 && (
+                <View
+                  style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    borderWidth: 1,
+                    borderColor: '#EF4444',
+                    borderRadius: 8,
+                    padding: 8,
+                    marginTop: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 12 }}>
+                      ⚠️ MORRENDO (0 PV)
+                    </Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }}>
+                      Inconsciente! No início de cada rodada, faça teste de Fortitude (DT 20).
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#EF4444',
+                      paddingHorizontal: 8,
+                      paddingVertical: 5,
+                      borderRadius: 6,
+                    }}
+                    onPress={() => {
+                      const fortitudeEntry = activeChar.skills['Fortitude'] || { degree: 0, bonus: 0 };
+                      const fortitudeBonus = (fortitudeEntry.degree || 0) + (fortitudeEntry.bonus || 0);
+                      rollSkillTest(
+                        activeChar.attributes.VIG,
+                        fortitudeBonus,
+                        'Teste de Fortitude (Estabilizar / Morrendo)'
+                      );
+                    }}
+                  >
+                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>
+                      DT 20
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {activeChar.pvCurrent > 0 &&
+                activeChar.pvCurrent <= Math.floor(activeChar.pvMax / 2) && (
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                      borderWidth: 1,
+                      borderColor: '#F59E0B',
+                      borderRadius: 8,
+                      padding: 8,
+                      marginTop: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Ionicons name="water" size={16} color="#F59E0B" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#F59E0B', fontWeight: '800', fontSize: 12 }}>
+                        MACHUCADO (PV ≤ {Math.floor(activeChar.pvMax / 2)})
+                      </Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
+                        Menos da metade da vida. Habilidades de Sangue ativadas.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+              {activeChar.sanCurrent <= 0 && (
+                <View
+                  style={{
+                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                    borderWidth: 1,
+                    borderColor: '#38BDF8',
+                    borderRadius: 8,
+                    padding: 8,
+                    marginTop: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={{ color: '#38BDF8', fontWeight: '800', fontSize: 12 }}>
+                      🧠 ENLOUQUECENDO (0 SAN)
+                    </Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }}>
+                      Sanidade zerada! Faça teste de Vontade no início do seu turno.
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#38BDF8',
+                      paddingHorizontal: 8,
+                      paddingVertical: 5,
+                      borderRadius: 6,
+                    }}
+                    onPress={() => {
+                      const vontadeEntry = activeChar.skills['Vontade'] || { degree: 0, bonus: 0 };
+                      const vontadeBonus = (vontadeEntry.degree || 0) + (vontadeEntry.bonus || 0);
+                      rollSkillTest(
+                        activeChar.attributes.PRE,
+                        vontadeBonus,
+                        'Teste de Vontade (Resistir à Loucura)'
+                      );
+                    }}
+                  >
+                    <Text style={{ color: '#000', fontSize: 11, fontWeight: '800' }}>
+                      Rolar Vontade
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
             {/* Defesa, Proteção & Resistências (Da ficha oficial) */}
@@ -1041,6 +1481,109 @@ export default function CharactersScreen() {
                     10 + AGI ({activeChar.attributes.AGI}) + Equip ({activeChar.defenseEquip || 0}) + Outros ({activeChar.defenseOther || 0})
                   </Text>
                 </View>
+              </View>
+
+              {/* Reações de Defesa de Ordem Paranormal */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 8,
+                  marginTop: 10,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {/* Esquiva */}
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    minWidth: 95,
+                    backgroundColor: colors.surfaceElevated,
+                    borderRadius: 8,
+                    padding: 8,
+                    borderWidth: 1,
+                    borderColor: '#38BDF8',
+                    alignItems: 'center',
+                  }}
+                  onPress={() =>
+                    rollSkillTest(
+                      activeChar.attributes.AGI,
+                      reflexosBonus,
+                      'Teste de Reflexos (Esquiva)'
+                    )
+                  }
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#38BDF8', textTransform: 'uppercase' }}>
+                    Esquiva
+                  </Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text, marginVertical: 2 }}>
+                    {esquivaTotal}
+                  </Text>
+                  <Text style={{ fontSize: 9, color: colors.textSecondary }}>
+                    Defesa + Reflexos (+{reflexosBonus})
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Bloqueio */}
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    minWidth: 95,
+                    backgroundColor: colors.surfaceElevated,
+                    borderRadius: 8,
+                    padding: 8,
+                    borderWidth: 1,
+                    borderColor: '#F59E0B',
+                    alignItems: 'center',
+                  }}
+                  onPress={() =>
+                    rollSkillTest(
+                      activeChar.attributes.VIG,
+                      bloqueioRD,
+                      'Teste de Fortitude (Bloqueio / RD)'
+                    )
+                  }
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#F59E0B', textTransform: 'uppercase' }}>
+                    Bloqueio (RD)
+                  </Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text, marginVertical: 2 }}>
+                    RD {bloqueioRD}
+                  </Text>
+                  <Text style={{ fontSize: 9, color: colors.textSecondary }}>
+                    Reduz dano por Fortitude (+{bloqueioRD})
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Contra-ataque */}
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    minWidth: 95,
+                    backgroundColor: colors.surfaceElevated,
+                    borderRadius: 8,
+                    padding: 8,
+                    borderWidth: 1,
+                    borderColor: '#EF4444',
+                    alignItems: 'center',
+                  }}
+                  onPress={() =>
+                    rollSkillTest(
+                      activeChar.attributes.FOR,
+                      contraAtaqueBonus,
+                      'Teste de Luta (Contra-ataque)'
+                    )
+                  }
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#EF4444', textTransform: 'uppercase' }}>
+                    Contra-ataque
+                  </Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text, marginVertical: 2 }}>
+                    +{contraAtaqueBonus}
+                  </Text>
+                  <Text style={{ fontSize: 9, color: colors.textSecondary }}>
+                    Teste oposto de Luta
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               <View style={[styles.row, { marginTop: 12 }]}>
@@ -1257,6 +1800,8 @@ export default function CharactersScreen() {
                       },
                     ]}
                     onPress={() => cycleSkillDegree(sk.name)}
+                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    accessibilityLabel={`Grau de treino de ${sk.name}: +${degree}`}
                   >
                     <Text style={styles.degreeText}>+{degree}</Text>
                   </TouchableOpacity>
@@ -1265,16 +1810,22 @@ export default function CharactersScreen() {
                   <View style={styles.skillOtherBonusStepper}>
                     <TouchableOpacity
                       onPress={() => updateSkillOtherBonus(sk.name, -1)}
+                      hitSlop={{ top: 12, bottom: 12, left: 10, right: 6 }}
+                      style={{ padding: 4 }}
+                      accessibilityLabel="Diminuir bônus"
                     >
-                      <Ionicons name="remove-circle-outline" size={17} color={colors.textMuted} />
+                      <Ionicons name="remove-circle-outline" size={18} color={colors.textMuted} />
                     </TouchableOpacity>
                     <Text style={styles.skillOtherBonusText}>
                       {bonus >= 0 ? `+${bonus}` : bonus}
                     </Text>
                     <TouchableOpacity
                       onPress={() => updateSkillOtherBonus(sk.name, 1)}
+                      hitSlop={{ top: 12, bottom: 12, left: 6, right: 10 }}
+                      style={{ padding: 4 }}
+                      accessibilityLabel="Aumentar bônus"
                     >
-                      <Ionicons name="add-circle-outline" size={17} color={colors.textMuted} />
+                      <Ionicons name="add-circle-outline" size={18} color={colors.textMuted} />
                     </TouchableOpacity>
                   </View>
 
@@ -1299,9 +1850,12 @@ export default function CharactersScreen() {
                             `${sk.name} (${displayBadge})`
                           )
                         }
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                       >
                         <Ionicons name="dice" size={14} color="#FFF" />
-                        <Text style={styles.skillRollText}>{displayBadge}</Text>
+                        <Text style={styles.skillRollText} numberOfLines={1} adjustsFontSizeToFit>
+                          {displayBadge}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })()}
@@ -1500,6 +2054,33 @@ export default function CharactersScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* Alerta de Sobrecarga (Regra Oficial de Carga Excedida) */}
+            {currentLoad > maxLoad && (
+              <View
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                  borderWidth: 1,
+                  borderColor: '#EF4444',
+                  borderRadius: 8,
+                  padding: 10,
+                  marginTop: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <Ionicons name="warning" size={20} color="#EF4444" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 12 }}>
+                    CONDIÇÃO: SOBRECARREGADO
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }}>
+                    Carga excedida ({currentLoad}/{maxLoad} espaços). Você sofre –2d20 em testes de Força e Agilidade e seu deslocamento é reduzido em 3m.
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Limites de Itens por Categoria da Patente */}
             <View style={styles.itemLimitsGrid}>
@@ -1945,7 +2526,8 @@ export default function CharactersScreen() {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.pickerItemTitle}>{w.name}</Text>
                         <Text style={styles.pickerItemSub}>
-                          Dano: {w.finalDamage} • Crítico: {w.finalCritical} • Cat {w.finalCategory} • {w.specialRules}
+                          Dano: {w.finalDamage} • Crítico: {w.finalCritical} • Cat {w.finalCategory}
+                          {w.ammoCategory && w.ammoCategory !== '—' && w.weaponType !== 'Corpo a corpo' ? ` • Balas Cat ${w.ammoCategory}` : ''} • {w.specialRules}
                         </Text>
                       </View>
                       <Ionicons name="add-circle" size={22} color={colors.primary} />
@@ -2027,6 +2609,96 @@ export default function CharactersScreen() {
           setPrintingChar(null);
         }}
       />
+
+      <CreateAgentModal
+        visible={createAgentModalVisible}
+        onClose={() => setCreateAgentModalVisible(false)}
+        onFinish={handleFinishAssistedAgent}
+        userProfile={userProfile}
+        originsList={originsList}
+        classesList={classesList}
+        ritualsList={ritualsList}
+      />
+
+      <LevelUpModal
+        visible={levelUpModalVisible}
+        character={activeChar}
+        classEntity={classObj}
+        trackEntity={trackObj}
+        allTracksList={tracksList}
+        allPowersList={powersList}
+        allRitualsList={ritualsList}
+        onClose={() => setLevelUpModalVisible(false)}
+        onApplyLevelUp={handleApplyLevelUp}
+      />
+
+      {/* Modal de Compartilhamento de Ficha de Agente */}
+      <Modal visible={shareModalVisible} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 16 }}>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18, gap: 12, maxHeight: '85%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 17, fontWeight: '900', color: colors.text }}>Compartilhar Agente</Text>
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
+                  {sharingChar ? formatAgentSummary(sharingChar) : ''}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShareModalVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>
+              Envie este código para o Mestre da sua campanha. Ele poderá vincular sua ficha à mesa na <Text style={{ color: colors.primary, fontWeight: '800' }}>Aba de Mestre</Text> colando este código!
+            </Text>
+
+            <View style={{ backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12 }}>
+              <TextInput
+                style={{ color: colors.text, fontSize: 12, minHeight: 90, textAlignVertical: 'top' }}
+                multiline
+                editable={false}
+                selectTextOnFocus
+                value={sharingChar ? encodeAgentShareCode(sharingChar) : ''}
+              />
+            </View>
+
+            {copiedCodeToast && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#10B98122', padding: 8, borderRadius: 8 }}>
+                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                <Text style={{ fontSize: 12, color: '#10B981', fontWeight: '800' }}>
+                  Código copiado para a área de transferência!
+                </Text>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+              <TouchableOpacity
+                style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 }}
+                onPress={() => setShareModalVisible(false)}
+              >
+                <Text style={{ color: colors.textSecondary, fontWeight: '700', fontSize: 13 }}>Fechar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}
+                onPress={async () => {
+                  if (!sharingChar) return;
+                  const code = encodeAgentShareCode(sharingChar);
+                  try {
+                    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+                      await navigator.clipboard.writeText(code);
+                    }
+                  } catch {}
+                  setCopiedCodeToast(true);
+                }}
+              >
+                <Ionicons name="copy-outline" size={16} color="#FFF" />
+                <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>Copiar Código</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -2037,29 +2709,109 @@ const StatCounterRow: React.FC<{
   current: number;
   max: number;
   onChangeCurrent: (val: number) => void;
-}> = ({ label, color, current, max, onChangeCurrent }) => {
+  onChangeMax?: (val: number) => void;
+}> = ({ label, color, current, max, onChangeCurrent, onChangeMax }) => {
   const styles = useThemedStyles(createStyles);
+  const [editingMax, setEditingMax] = useState(false);
+  const [maxInputVal, setMaxInputVal] = useState(String(max));
+
+  useEffect(() => {
+    setMaxInputVal(String(max));
+  }, [max]);
+
   return (
     <View style={styles.statCounterWrap}>
-    <Text style={[styles.statCounterLabel, { color }]}>{label}</Text>
-    <View style={styles.statCounterControls}>
-      <TouchableOpacity style={styles.cntBtn} onPress={() => onChangeCurrent(current - 5)}>
-        <Text style={styles.cntBtnText}>-5</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.cntBtn} onPress={() => onChangeCurrent(current - 1)}>
-        <Text style={styles.cntBtnText}>-1</Text>
-      </TouchableOpacity>
-      <Text style={styles.cntVal}>
-        {current} / {max}
-      </Text>
-      <TouchableOpacity style={styles.cntBtn} onPress={() => onChangeCurrent(current + 1)}>
-        <Text style={styles.cntBtnText}>+1</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.cntBtn} onPress={() => onChangeCurrent(current + 5)}>
-        <Text style={styles.cntBtnText}>+5</Text>
-      </TouchableOpacity>
+      <View style={styles.statCounterRowTop}>
+        <Text style={[styles.statCounterLabel, { color }]}>{label}</Text>
+        {onChangeMax && (
+          <TouchableOpacity
+            style={styles.editMaxToggle}
+            onPress={() => setEditingMax(!editingMax)}
+          >
+            <Ionicons name={editingMax ? 'checkmark' : 'pencil'} size={12} color={color} />
+            <Text style={[styles.editMaxToggleText, { color }]}>
+              {editingMax ? 'Concluir' : 'Editar Máx'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.statCounterControls}>
+        <TouchableOpacity style={styles.cntBtn} onPress={() => onChangeCurrent(current - 5)}>
+          <Text style={styles.cntBtnText}>-5</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cntBtn} onPress={() => onChangeCurrent(current - 1)}>
+          <Text style={styles.cntBtnText}>-1</Text>
+        </TouchableOpacity>
+        <Text style={styles.cntVal}>
+          {current} / {max}
+        </Text>
+        <TouchableOpacity style={styles.cntBtn} onPress={() => onChangeCurrent(current + 1)}>
+          <Text style={styles.cntBtnText}>+1</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cntBtn} onPress={() => onChangeCurrent(current + 5)}>
+          <Text style={styles.cntBtnText}>+5</Text>
+        </TouchableOpacity>
+      </View>
+
+      {editingMax && onChangeMax && (
+        <View style={styles.editMaxBox}>
+          <Text style={styles.editMaxLabel}>Valor Máximo Personalizado:</Text>
+          <View style={styles.editMaxControls}>
+            <TouchableOpacity
+              style={styles.cntBtn}
+              onPress={() => {
+                const next = Math.max(1, max - 5);
+                onChangeMax(next);
+                setMaxInputVal(String(next));
+              }}
+            >
+              <Text style={styles.cntBtnText}>-5</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cntBtn}
+              onPress={() => {
+                const next = Math.max(1, max - 1);
+                onChangeMax(next);
+                setMaxInputVal(String(next));
+              }}
+            >
+              <Text style={styles.cntBtnText}>-1</Text>
+            </TouchableOpacity>
+            <TextInput
+              style={styles.editMaxInput}
+              keyboardType="numeric"
+              value={maxInputVal}
+              onChangeText={(txt) => {
+                setMaxInputVal(txt);
+                const n = parseInt(txt, 10);
+                if (!isNaN(n) && n >= 1) onChangeMax(n);
+              }}
+            />
+            <TouchableOpacity
+              style={styles.cntBtn}
+              onPress={() => {
+                const next = max + 1;
+                onChangeMax(next);
+                setMaxInputVal(String(next));
+              }}
+            >
+              <Text style={styles.cntBtnText}>+1</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cntBtn}
+              onPress={() => {
+                const next = max + 5;
+                onChangeMax(next);
+                setMaxInputVal(String(next));
+              }}
+            >
+              <Text style={styles.cntBtnText}>+5</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
-  </View>
   );
 };
 
@@ -2079,6 +2831,7 @@ const createStyles = (colors: ThemeColors) =>
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
+    flexWrap: 'wrap',
   },
   heading: {
     color: colors.text,
@@ -2366,14 +3119,124 @@ const createStyles = (colors: ThemeColors) =>
     fontWeight: '800',
   },
   statCounterWrap: {
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  statCounterRowTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4,
   },
   statCounterLabel: {
     fontWeight: '800',
     fontSize: 13,
+  },
+  editMaxToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: colors.surfaceHighlight,
+  },
+  editMaxToggleText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  editMaxBox: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 8,
+    padding: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 2,
+  },
+  editMaxLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  editMaxControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  editMaxInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  emptyActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 14,
+    width: '100%',
+  },
+  emptyActionCard: {
+    flex: 1,
+    minWidth: 220,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    gap: 6,
+    alignItems: 'center',
+  },
+  emptyActionIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyActionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  emptyActionDesc: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  nexLevelUpBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  nexLevelUpBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  nexQuickPlusBtn: {
+    backgroundColor: colors.primary,
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statCounterControls: {
     flexDirection: 'row',
@@ -2554,6 +3417,7 @@ const createStyles = (colors: ThemeColors) =>
   },
   attackRollsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
     paddingTop: 6,
     borderTopWidth: 1,
@@ -2561,12 +3425,14 @@ const createStyles = (colors: ThemeColors) =>
   },
   rollAttackBtn: {
     flex: 1.2,
+    minWidth: 100,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
     backgroundColor: colors.primary,
     paddingVertical: 7,
+    paddingHorizontal: 8,
     borderRadius: 6,
   },
   rollAttackBtnText: {
@@ -2576,6 +3442,7 @@ const createStyles = (colors: ThemeColors) =>
   },
   rollDamageBtn: {
     flex: 1,
+    minWidth: 85,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2584,6 +3451,7 @@ const createStyles = (colors: ThemeColors) =>
     borderWidth: 1,
     borderColor: colors.primary,
     paddingVertical: 7,
+    paddingHorizontal: 8,
     borderRadius: 6,
   },
   rollDamageBtnText: {
@@ -2593,12 +3461,14 @@ const createStyles = (colors: ThemeColors) =>
   },
   rollCritBtn: {
     flex: 1,
+    minWidth: 85,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
     backgroundColor: '#991B1B',
     paddingVertical: 7,
+    paddingHorizontal: 8,
     borderRadius: 6,
   },
   rollCritBtnText: {
@@ -2638,7 +3508,11 @@ const createStyles = (colors: ThemeColors) =>
     borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 6,
+    minHeight: 32,
+    minWidth: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   degreeText: {
     color: colors.text,

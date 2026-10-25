@@ -1,6 +1,7 @@
 import {
   BookInfo,
   BookPage,
+  Campaign,
   CharacterSheet,
   CompendiumEntity,
   CompendiumFilters,
@@ -39,13 +40,15 @@ export interface IDataRepository {
     snippet: string;
   }>;
 
-  // Favoritos, Listas Salvas, Fichas e Armas Personalizadas
+  // Favoritos, Listas Salvas, Fichas, Campanhas e Armas Personalizadas
   getFavorites(): Promise<string[]>;
   toggleFavorite(entityId: string): Promise<string[]>;
   getSavedLists(): Promise<SavedList[]>;
   saveLists(lists: SavedList[]): Promise<void>;
   getCharacters(): Promise<CharacterSheet[]>;
   saveCharacters(characters: CharacterSheet[]): Promise<void>;
+  getCampaigns(): Promise<Campaign[]>;
+  saveCampaigns(campaigns: Campaign[]): Promise<void>;
   getCustomWeapons(): Promise<CustomWeapon[]>;
   saveCustomWeapons(weapons: CustomWeapon[]): Promise<void>;
 

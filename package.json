@@ -1,24 +1,28 @@
 {
-  "name": "guia-ordem-paranormal",
-  "version": "1.0.0",
+  "name": "ordo-companion",
+  "version": "1.0.0-beta.1",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "start-clean": "npx expo start -c",
     "start-ngrok": " npx expo start --tunnel ngrok",
+    "start-clean-ngrok": " npx expo start -c --tunnel ngrok",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "extract": "python scripts/extract_all.py",
-    "test": "tsx --test tests/*.test.ts",
-    "test:unit": "tsx --test tests/*.test.ts",
+    "test": "tsx --test tests/*.test.ts tests/*.test.tsx",
+    "test:unit": "tsx --test tests/*.test.ts tests/*.test.tsx",
+    "test:front": "tsx --test tests/*.test.tsx",
     "test:db": "python scripts/test_database_integrity.py",
     "test:all": "npm run typecheck && npm run test && npm run test:db",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release": "node scripts/create_release.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.118.0",
     "expo": "~58.0.19",
     "expo-auth-session": "~58.0.14",
     "expo-constants": "~58.0.13",
@@ -39,11 +43,16 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@expo/ngrok": "^4.1.3",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/react-native": "^14.1.0",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.5",
     "@types/react": "~19.3.0",
+    "jsdom": "^29.1.1",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "vitest": "^4.1.12"
   },
+  "license": "GPL-3.0-or-later",
   "private": true
 }

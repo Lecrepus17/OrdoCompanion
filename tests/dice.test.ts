@@ -39,21 +39,33 @@ describe('Sistema de Rolagem de Dados (dice.ts)', () => {
       assert.ok(resNeg3.formulaText.includes('5d20 (pior)-2'));
     });
 
-    it('deve marcar isCritical quando chosenDie for 20 e isFumble quando for 1', () => {
-      // Executa múltiplas vezes para cobrir faixas normais e validar limites
-      for (let i = 0; i < 50; i++) {
-        const res = rollOrdemTest(2, 0);
-        assert.ok(res.chosenDie! >= 1 && res.chosenDie! <= 20);
+    it('deve marcar isCritical quando chosenDie atingir a margem de ameaça', () => {
+      // Teste com margem padrão (20)
+      for (let i = 0; i < 30; i++) {
+        const res = rollOrdemTest(2, 0, 'Teste Normal', 20);
         if (res.chosenDie === 20) {
           assert.strictEqual(res.isCritical, true);
         } else {
           assert.strictEqual(res.isCritical, false);
         }
-        if (res.chosenDie === 1) {
-          assert.strictEqual(res.isFumble, true);
+      }
+
+      // Teste com arma de margem de ameaça 18 (ex: Katana com modificação ou Pistola)
+      for (let i = 0; i < 30; i++) {
+        const res = rollOrdemTest(3, 0, 'Ataque Margem 18', 18);
+        if (res.chosenDie! >= 18) {
+          assert.strictEqual(res.isCritical, true);
         } else {
-          assert.strictEqual(res.isFumble, false);
+          assert.strictEqual(res.isCritical, false);
         }
+      }
+    });
+
+    it('deve marcar desastre (isFumble) apenas quando todos os dados rolados forem 1', () => {
+      for (let i = 0; i < 50; i++) {
+        const res = rollOrdemTest(2, 0);
+        const allOnes = res.diceResults.every((d) => d === 1);
+        assert.strictEqual(res.isFumble, allOnes);
       }
     });
 

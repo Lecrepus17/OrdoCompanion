@@ -3,6 +3,7 @@ import {
   BookInfo,
   BookPage,
   BookWithPages,
+  Campaign,
   CharacterSheet,
   CompendiumEntity,
   CompendiumFilters,
@@ -24,6 +25,7 @@ const STORAGE_KEYS = {
   FAVORITES: '@ordem_paranormal:favorites_v1',
   SAVED_LISTS: '@ordem_paranormal:saved_lists_v1',
   CHARACTERS: '@ordem_paranormal:characters_v1',
+  CAMPAIGNS: '@ordem_paranormal:campaigns_v1',
   CUSTOM_WEAPONS: '@ordem_paranormal:custom_weapons_v1',
   USER_PROFILE: '@ordem_paranormal:user_profile_v1',
 };
@@ -155,6 +157,11 @@ export class OfflineDataRepository implements IDataRepository {
   private editedEntitiesMap: Map<string, CompendiumEntity> = new Map();
   private booksList: BookInfo[] = [];
   private booksPagesMap: Map<string, BookWithPages> = new Map();
+  private bookPagesByNumMap: Map<string, BookPage> = new Map();
+  private pageNormTextCache: WeakMap<BookPage, string> = new WeakMap();
+  private entitySearchTextCache: Map<string, string> = new Map();
+  private entityClassesCache: Map<string, Array<EntityClassFilter>> = new Map();
+  private cachedAllEntities: CompendiumEntity[] | null = null;
   private userProfile: UserProfile = DEFAULT_USER_PROFILE;
   private initialized = false;
 
@@ -177,6 +184,11 @@ export class OfflineDataRepository implements IDataRepository {
     if (pagesData && pagesData.books) {
       for (const [bid, bval] of Object.entries(pagesData.books)) {
         this.booksPagesMap.set(bid, bval);
+        if (bval && Array.isArray(bval.pages)) {
+          for (const page of bval.pages) {
+            this.bookPagesByNumMap.set(`${bid}:${page.pageNumber}`, page);
+          }
+        }
       }
     }
 
@@ -213,7 +225,42 @@ export class OfflineDataRepository implements IDataRepository {
     this.initialized = true;
   }
 
+  private getNormalizedSearchText(ent: CompendiumEntity): string {
+    let cached = this.entitySearchTextCache.get(ent.id);
+    if (cached === undefined) {
+      cached = normalizeText(
+        `${ent.name} ${ent.subCategory} ${ent.element} ${ent.summary} ${ent.description} ${ent.bookTitle} ${(ent.tags || []).join(' ')}`
+      );
+      this.entitySearchTextCache.set(ent.id, cached);
+    }
+    return cached;
+  }
+
+  private getCachedEntityClasses(ent: CompendiumEntity): Array<EntityClassFilter> {
+    let cached = this.entityClassesCache.get(ent.id);
+    if (cached === undefined) {
+      cached = getEntityClasses(ent);
+      this.entityClassesCache.set(ent.id, cached);
+    }
+    return cached;
+  }
+
+  private invalidateEntityCache(id?: string): void {
+    this.cachedAllEntities = null;
+    if (id) {
+      this.entitySearchTextCache.delete(id);
+      this.entityClassesCache.delete(id);
+    } else {
+      this.entitySearchTextCache.clear();
+      this.entityClassesCache.clear();
+    }
+  }
+
   getAllEntities(): CompendiumEntity[] {
+    if (this.cachedAllEntities) {
+      return this.cachedAllEntities;
+    }
+
     const merged: CompendiumEntity[] = [];
 
     // 1. Custom entities first so user creations are easy to spot
@@ -227,6 +274,7 @@ export class OfflineDataRepository implements IDataRepository {
       merged.push(edited ? { ...seedEnt, ...edited, isEdited: true } : seedEnt);
     }
 
+    this.cachedAllEntities = merged;
     return merged;
   }
 
@@ -251,65 +299,82 @@ export class OfflineDataRepository implements IDataRepository {
     const qNorm = normalizeText(filters.query);
     const qTokens = qNorm ? qNorm.split(/\s+/).filter(Boolean) : [];
 
+    const hasCategory = filters.category !== 'all';
+    const hasBookId = filters.bookId !== 'all';
+    const isCustomBook = filters.bookId === 'custom';
+    const hasElement = filters.element !== 'all';
+    const lowerElement = hasElement ? filters.element.toLowerCase() : '';
+    const hasCircle = filters.circle !== 'all';
+    const hasItemCategory = filters.itemCategory !== 'all';
+    const hasClasses = Boolean(filters.classes && filters.classes.length > 0);
+    const hasExclusions = Boolean(filters.excludedTypes && filters.excludedTypes.length > 0);
+    const hasMinVd = typeof filters.minVd === 'number';
+    const hasMaxVd = typeof filters.maxVd === 'number';
+    const onlyFavorites = Boolean(filters.onlyFavorites && favoriteIds);
+    const onlyCustomOrEdited = Boolean(filters.onlyCustomOrEdited);
+    const hasTokens = qTokens.length > 0;
+
     return all.filter((ent) => {
-      if (filters.category !== 'all' && ent.category !== filters.category) {
+      if (hasCategory && ent.category !== filters.category) {
         return false;
       }
 
-      if (filters.bookId !== 'all') {
-        if (filters.bookId === 'custom') {
+      if (hasBookId) {
+        if (isCustomBook) {
           if (!ent.isCustom && !ent.isEdited) return false;
         } else if (ent.bookId !== filters.bookId) {
           return false;
         }
       }
 
-      if (filters.element !== 'all') {
-        if (!ent.element || !ent.element.toLowerCase().includes(filters.element.toLowerCase())) {
+      if (hasElement) {
+        if (!ent.element || !ent.element.toLowerCase().includes(lowerElement)) {
           return false;
         }
       }
 
-      if (filters.circle !== 'all' && ent.category === 'ritual') {
+      if (hasCircle && ent.category === 'ritual') {
         if (ent.circle !== filters.circle) return false;
       }
 
-      if (filters.itemCategory !== 'all' && (ent.category === 'weapon' || ent.category === 'item')) {
+      if (hasItemCategory && (ent.category === 'weapon' || ent.category === 'item')) {
         if (ent.itemCategory !== filters.itemCategory) return false;
       }
 
-      if (filters.classes && filters.classes.length > 0) {
-        const entClasses = getEntityClasses(ent);
-        const matches = filters.classes.some((c) => entClasses.includes(c));
+      if (hasClasses) {
+        const entClasses = this.getCachedEntityClasses(ent);
+        const matches = filters.classes!.some((c) => entClasses.includes(c));
         if (!matches) return false;
       }
 
-      if (filters.excludedTypes && filters.excludedTypes.length > 0) {
-        if (isEntityExcluded(ent, filters.excludedTypes)) return false;
+      if (hasExclusions) {
+        // Se o usuário selecionou explicitamente a aba de uma categoria (ex: 'rule'),
+        // não bloqueia os itens dessa categoria selecionada
+        if (filters.category === 'all' || filters.category !== ent.category) {
+          if (isEntityExcluded(ent, filters.excludedTypes)) return false;
+        }
       }
 
-      if (typeof filters.minVd === 'number' && ent.category === 'creature') {
-        if ((ent.vd ?? 0) < filters.minVd) return false;
+      if (hasMinVd && ent.category === 'creature') {
+        if ((ent.vd ?? 0) < filters.minVd!) return false;
       }
 
-      if (typeof filters.maxVd === 'number' && ent.category === 'creature') {
-        if ((ent.vd ?? 0) > filters.maxVd) return false;
+      if (hasMaxVd && ent.category === 'creature') {
+        if ((ent.vd ?? 0) > filters.maxVd!) return false;
       }
 
-      if (filters.onlyFavorites && favoriteIds) {
-        if (!favoriteIds.has(ent.id)) return false;
+      if (onlyFavorites) {
+        if (!favoriteIds!.has(ent.id)) return false;
       }
 
-      if (filters.onlyCustomOrEdited) {
+      if (onlyCustomOrEdited) {
         if (!ent.isCustom && !ent.isEdited) return false;
       }
 
-      if (qTokens.length > 0) {
-        const searchable = normalizeText(
-          `${ent.name} ${ent.subCategory} ${ent.element} ${ent.summary} ${ent.description} ${ent.bookTitle} ${(ent.tags || []).join(' ')}`
-        );
-        for (const tk of qTokens) {
-          if (!searchable.includes(tk)) return false;
+      if (hasTokens) {
+        const searchable = this.getNormalizedSearchText(ent);
+        for (let i = 0; i < qTokens.length; i++) {
+          if (!searchable.includes(qTokens[i])) return false;
         }
       }
 
@@ -329,6 +394,7 @@ export class OfflineDataRepository implements IDataRepository {
     };
 
     this.customEntitiesMap.set(id, newEntity);
+    this.invalidateEntityCache(id);
     await this.persistCustomEntities();
     return newEntity;
   }
@@ -344,6 +410,7 @@ export class OfflineDataRepository implements IDataRepository {
         updatedAt: new Date().toISOString(),
       };
       this.customEntitiesMap.set(id, updated);
+      this.invalidateEntityCache(id);
       await this.persistCustomEntities();
       return updated;
     }
@@ -361,6 +428,7 @@ export class OfflineDataRepository implements IDataRepository {
       updatedAt: new Date().toISOString(),
     };
     this.editedEntitiesMap.set(id, updatedOfficial);
+    this.invalidateEntityCache(id);
     await this.persistEditedEntities();
     return updatedOfficial;
   }
@@ -368,6 +436,7 @@ export class OfflineDataRepository implements IDataRepository {
   async deleteCustomEntity(id: string): Promise<void> {
     if (this.customEntitiesMap.has(id)) {
       this.customEntitiesMap.delete(id);
+      this.invalidateEntityCache(id);
       await this.persistCustomEntities();
     }
   }
@@ -375,6 +444,7 @@ export class OfflineDataRepository implements IDataRepository {
   async resetEntityToDefault(id: string): Promise<CompendiumEntity | undefined> {
     if (this.editedEntitiesMap.has(id)) {
       this.editedEntitiesMap.delete(id);
+      this.invalidateEntityCache(id);
       await this.persistEditedEntities();
     }
     return this.seedEntitiesMap.get(id);
@@ -394,13 +464,11 @@ export class OfflineDataRepository implements IDataRepository {
   }
 
   getBooks(): BookInfo[] {
-    return sortBooksCanonical(this.booksList);
+    return this.booksList;
   }
 
   getBookPage(bookId: string, pageNumber: number): BookPage | undefined {
-    const book = this.booksPagesMap.get(bookId);
-    if (!book) return undefined;
-    return book.pages.find((p) => p.pageNumber === pageNumber);
+    return this.bookPagesByNumMap.get(`${bookId}:${pageNumber}`);
   }
 
   searchInBookPages(
@@ -428,7 +496,11 @@ export class OfflineDataRepository implements IDataRepository {
       if (bookId !== 'all' && bid !== bookId) continue;
 
       for (const page of book.pages) {
-        const normPage = normalizeText(page.text);
+        let normPage = this.pageNormTextCache.get(page);
+        if (normPage === undefined) {
+          normPage = normalizeText(page.text);
+          this.pageNormTextCache.set(page, normPage);
+        }
         const matchIndex = normPage.indexOf(qNorm);
         if (matchIndex !== -1) {
           const start = Math.max(0, matchIndex - 60);
@@ -497,6 +569,19 @@ export class OfflineDataRepository implements IDataRepository {
     await AsyncStorage.setItem(STORAGE_KEYS.CHARACTERS, JSON.stringify(characters));
   }
 
+  async getCampaigns(): Promise<Campaign[]> {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async saveCampaigns(campaigns: Campaign[]): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
+  }
+
   async getCustomWeapons(): Promise<CustomWeapon[]> {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_WEAPONS);
@@ -523,10 +608,11 @@ export class OfflineDataRepository implements IDataRepository {
   }
 
   async exportUserDataJson(): Promise<string> {
-    const [favorites, savedLists, characters, customWeapons, userProfile] = await Promise.all([
+    const [favorites, savedLists, characters, campaigns, customWeapons, userProfile] = await Promise.all([
       this.getFavorites(),
       this.getSavedLists(),
       this.getCharacters(),
+      this.getCampaigns(),
       this.getCustomWeapons(),
       this.getUserProfile(),
     ]);
@@ -539,6 +625,7 @@ export class OfflineDataRepository implements IDataRepository {
       favorites,
       savedLists,
       characters,
+      campaigns,
       customWeapons,
     };
 
@@ -582,9 +669,15 @@ export class OfflineDataRepository implements IDataRepository {
       await this.saveCharacters(parsed.characters);
     }
 
+    if (Array.isArray(parsed.campaigns)) {
+      await this.saveCampaigns(parsed.campaigns);
+    }
+
     if (Array.isArray(parsed.customWeapons)) {
       await this.saveCustomWeapons(parsed.customWeapons);
     }
+
+    this.invalidateEntityCache();
   }
 }
 

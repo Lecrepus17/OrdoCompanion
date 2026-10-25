@@ -3,12 +3,26 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AppProvider } from '../context/AppContext';
+import * as WebBrowser from 'expo-web-browser';
+import { AppProvider, useApp } from '../context/AppContext';
 import { ThemeProvider, useTheme } from '../theme';
 import { DiceToast } from '../components/DiceToast';
+import { AppManualModal } from '../components/AppManualModal';
+import { UpdateNotificationModal } from '../components/UpdateNotificationModal';
+
+// Trata fechamento e captura de sessão OAuth em popups e navegadores no web/mobile
+WebBrowser.maybeCompleteAuthSession();
 
 function RootLayoutContent() {
   const { colors, theme } = useTheme();
+  const {
+    manualModalVisible,
+    closeManual,
+    manualInitialSection,
+    updateModalVisible,
+    updateInfo,
+    dismissUpdate,
+  } = useApp();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -32,6 +46,16 @@ function RootLayoutContent() {
         />
       </Stack>
       <DiceToast />
+      <AppManualModal
+        visible={manualModalVisible}
+        initialSection={manualInitialSection}
+        onClose={closeManual}
+      />
+      <UpdateNotificationModal
+        visible={updateModalVisible}
+        updateInfo={updateInfo}
+        onDismiss={dismissUpdate}
+      />
     </View>
   );
 }

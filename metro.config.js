@@ -60,6 +60,7 @@ function servePdfWithRange(req, res, pdfPath) {
   const stat = fs.statSync(pdfPath);
   const totalSize = stat.size;
   const fileName = path.basename(pdfPath);
+  const asciiSafeName = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
@@ -69,7 +70,7 @@ function servePdfWithRange(req, res, pdfPath) {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader(
     'Content-Disposition',
-    `inline; filename="${encodeURIComponent(fileName)}"`
+    `inline; filename="${asciiSafeName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
   );
 
   if (req.method === 'OPTIONS') {
@@ -79,12 +80,27 @@ function servePdfWithRange(req, res, pdfPath) {
   }
 
   const range = req.headers.range;
-  if (range) {
-    const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+  if (range && range.startsWith('bytes=')) {
+    const rangeValue = range.replace(/bytes=/, '').trim();
+    let start, end;
 
-    if (isNaN(start) || isNaN(end) || start >= totalSize || end >= totalSize || start > end) {
+    if (rangeValue.startsWith('-')) {
+      // Suffix range: bytes=-65536 (últimos N bytes, muito comum em leitores PDF.js e mobile)
+      const suffixLength = parseInt(rangeValue.slice(1), 10);
+      if (isNaN(suffixLength) || suffixLength <= 0) {
+        res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
+        res.end();
+        return;
+      }
+      start = Math.max(0, totalSize - suffixLength);
+      end = totalSize - 1;
+    } else {
+      const parts = rangeValue.split('-');
+      start = parseInt(parts[0], 10);
+      end = parts[1] && parts[1].length > 0 ? parseInt(parts[1], 10) : totalSize - 1;
+    }
+
+    if (isNaN(start) || isNaN(end) || start < 0 || start >= totalSize || end >= totalSize || start > end) {
       res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
       res.end();
       return;
@@ -171,6 +187,15 @@ config.server = {
 
         // 3. On-demand high-DPI PDF page renderer (/api/pdf-page?file=...&page=...&dpi=...)
         if (pathname === '/api/pdf-page') {
+          if (req.method === 'OPTIONS') {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
+            res.writeHead(204);
+            res.end();
+            return;
+          }
+
           const fileParam = String(parsedUrl.searchParams.get('file') || '');
           const pageNum = Math.max(
             1,

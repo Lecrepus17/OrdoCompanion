@@ -24,7 +24,7 @@ const TRAINING_DEGREES: Array<{ label: string; value: TrainingDegree }> = [
 const QUICK_FORMULAS = ['1d4', '1d6', '1d8', '1d10', '1d12', '2d6', '4d6', '6d6', '2d8+4', '3d10+5'];
 
 export default function DiceScreen() {
-  const { rollSkillTest, rollFormula, rollHistory, clearRollHistory } = useApp();
+  const { rollSkillTest, rollFormula, rollHistory, clearRollHistory, openManual } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 10);
@@ -33,6 +33,7 @@ export default function DiceScreen() {
   const [attrDice, setAttrDice] = useState<number>(2);
   const [training, setTraining] = useState<TrainingDegree>(5);
   const [otherBonus, setOtherBonus] = useState<number>(0);
+  const [critThreat, setCritThreat] = useState<number>(20);
   const [customFormula, setCustomFormula] = useState<string>('4d6+4');
 
   const totalBonus = training + otherBonus;
@@ -41,9 +42,30 @@ export default function DiceScreen() {
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 90 + bottomInset }]}>
       {/* Card 1: Teste de Perícia (Sistema Ordem Paranormal) */}
       <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
-          <Text style={styles.cardTitle}>Teste de Perícia (d20 Ordem Paranormal)</Text>
+        <View style={[styles.cardHeader, { justifyContent: 'space-between' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+            <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
+            <Text style={styles.cardTitle}>Teste de Perícia (d20 Ordem)</Text>
+          </View>
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              paddingHorizontal: 9,
+              paddingVertical: 5,
+              borderRadius: 6,
+              backgroundColor: colors.primarySoft,
+              borderWidth: 1,
+              borderColor: colors.primary,
+            }}
+            onPress={() => openManual('dice')}
+          >
+            <Ionicons name="help-circle-outline" size={16} color={colors.primary} />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
+              Regras
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.subLabel}>
@@ -92,11 +114,12 @@ export default function DiceScreen() {
                 key={delta}
                 style={styles.stepBtn}
                 onPress={() => setOtherBonus((b) => b + delta)}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
               >
                 <Text style={styles.stepBtnText}>{delta > 0 ? `+${delta}` : delta}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.stepBtn} onPress={() => setOtherBonus(0)}>
+            <TouchableOpacity style={styles.stepBtn} onPress={() => setOtherBonus(0)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
               <Text style={[styles.stepBtnText, { color: colors.primary }]}>Zerar</Text>
             </TouchableOpacity>
             <Text style={styles.bonusValue}>
@@ -105,19 +128,38 @@ export default function DiceScreen() {
           </View>
         </View>
 
+        <Text style={styles.subLabel}>Margem de Ameaça (Acerto Crítico):</Text>
+        <View style={styles.rowWrap}>
+          {[20, 19, 18, 17, 16, 15].map((threat) => {
+            const active = critThreat === threat;
+            return (
+              <TouchableOpacity
+                key={threat}
+                style={[styles.numPill, active && styles.numPillActive]}
+                onPress={() => setCritThreat(threat)}
+              >
+                <Text style={[styles.numPillText, active && styles.numPillTextActive]}>
+                  {threat === 20 ? '20 (Padrão)' : `${threat}+`}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <TouchableOpacity
           style={styles.rollMainBtn}
           onPress={() =>
             rollSkillTest(
               attrDice,
               totalBonus,
-              `Teste (${attrDice}d20 ${totalBonus >= 0 ? '+' : ''}${totalBonus})`
+              `Teste (${attrDice}d20 ${totalBonus >= 0 ? '+' : ''}${totalBonus}${critThreat < 20 ? ` • Crít: ${critThreat}` : ''})`,
+              critThreat
             )
           }
         >
           <Ionicons name="dice" size={20} color="#FFF" />
-          <Text style={styles.rollMainBtnText}>
-            Rolar Teste ({attrDice}d20 {totalBonus >= 0 ? '+' : ''}${totalBonus})
+          <Text style={styles.rollMainBtnText} numberOfLines={1} adjustsFontSizeToFit>
+            Rolar Teste ({attrDice}d20 {totalBonus >= 0 ? '+' : ''}{totalBonus}{critThreat < 20 ? ` • ${critThreat}+` : ''})
           </Text>
         </TouchableOpacity>
       </View>
@@ -276,7 +318,10 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
       borderRadius: 8,
       paddingHorizontal: 11,
-      paddingVertical: 7,
+      paddingVertical: 8,
+      minHeight: 34,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     stepBtnText: {
       color: colors.text,

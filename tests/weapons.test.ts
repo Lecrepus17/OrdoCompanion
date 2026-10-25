@@ -8,6 +8,7 @@ import {
   categoryToNumber,
   numberToCategory,
   calculateWeaponStats,
+  getWeaponModsWithCompendium,
   OFFICIAL_WEAPON_MODS,
 } from '../src/utils/weapons';
 
@@ -135,11 +136,11 @@ describe('Sistema de Armas e Modificações (weapons.ts)', () => {
       assert.strictEqual(stats.element, 'Nenhum');
     });
 
-    it('deve aplicar mira laser: reduz margem em 1 (+1 ameaça), +2 em ataque, +1 categoria', () => {
+    it('deve aplicar mira laser: aumenta margem em +2 (reduz dado em 2) e +1 categoria', () => {
       const stats = calculateWeaponStats(baseRifle, ['mira_laser']);
-      // 19 vira 18
-      assert.strictEqual(stats.finalCritical, '18/x3');
-      assert.strictEqual(stats.attackBonus, 2);
+      // 19 vira 17
+      assert.strictEqual(stats.finalCritical, '17/x3');
+      assert.strictEqual(stats.attackBonus, 0);
       assert.strictEqual(stats.finalCategory, 'III');
     });
 
@@ -189,14 +190,113 @@ describe('Sistema de Armas e Modificações (weapons.ts)', () => {
       assert.ok(stats.specialRules.includes('Cano Rajada'));
     });
 
+    it('deve aplicar modificação alongada: concede +2 em ataque e +1 categoria', () => {
+      const stats = calculateWeaponStats(baseRifle, ['alongada']);
+      assert.strictEqual(stats.attackBonus, 2);
+      assert.strictEqual(stats.finalCategory, 'III');
+    });
+
+    it('deve diferenciar categoria da arma e categoria das balas ao aplicar munição dum-dum', () => {
+      // Base rifle é 19/x3, Categoria II, com Balas longas (base Cat I)
+      const stats = calculateWeaponStats(
+        { ...baseRifle, ammoType: 'Balas longas', baseAmmoCategory: 'I' },
+        ['municao_dumdum']
+      );
+      assert.strictEqual(stats.finalCritical, '19/x5');
+      // A arma continua com sua própria categoria (Cat II)
+      assert.strictEqual(stats.finalCategory, 'II');
+      assert.strictEqual(stats.weaponCategory, 'II');
+      // Apenas a munição sobe de categoria (Cat I + 1 = Cat II)
+      assert.strictEqual(stats.ammoCategory, 'II');
+      assert.ok(stats.ammoName.includes('Dum Dum'));
+    });
+
+    it('deve diferenciar modificações na arma e nas balas simultaneamente', () => {
+      // Fuzil Cat II com Alongada (+1 na arma) e Explosiva (+1 na munição Balas longas)
+      const stats = calculateWeaponStats(
+        { ...baseRifle, ammoType: 'Balas longas', baseAmmoCategory: 'I' },
+        ['alongada', 'municao_explosiva']
+      );
+      // Categoria da arma sobe de II para III (devido a Alongada)
+      assert.strictEqual(stats.finalCategory, 'III');
+      assert.strictEqual(stats.weaponCategory, 'III');
+      // Categoria das balas sobe de I para II (devido a Explosiva)
+      assert.strictEqual(stats.ammoCategory, 'II');
+      // Bônus e dano extra aplicados
+      assert.strictEqual(stats.attackBonus, 2);
+      assert.ok(stats.finalDamage.includes('+ 2d6'));
+    });
+
+    it('deve definir categoria de munição como — para armas corpo a corpo', () => {
+      const sword = {
+        damage: '1d8',
+        critical: '19/x2',
+        range: 'Corpo a corpo',
+        spaces: 1,
+        category: 'I',
+        damageType: 'Corte',
+        weaponType: 'Corpo a corpo' as const,
+      };
+      const stats = calculateWeaponStats(sword, ['certeira']);
+      assert.strictEqual(stats.finalCategory, 'II');
+      assert.strictEqual(stats.ammoCategory, '—');
+    });
+
+    it('deve aplicar maldição lancinante oficial (+1d8 Sangue) e predadora (duplica margem)', () => {
+      // Base rifle é 19/x3 (margem 2). Predadora duplica para margem 4 -> 17/x3
+      const stats = calculateWeaponStats(baseRifle, ['maldicao_lancinante', 'maldicao_predadora']);
+      assert.strictEqual(stats.finalCritical, '17/x3');
+      assert.ok(stats.finalDamage.includes('+ 1d8 Sangue'));
+      assert.strictEqual(stats.element, 'Sangue');
+      // Alcance Médio sobe para Longo
+      assert.strictEqual(stats.finalRange, 'Longo');
+    });
+
+    it('deve aceitar tanto ID principal do compêndio quanto ID curto para cálculo de estatísticas', () => {
+      // Usando ID canônico da base: 'item__livro_base__mira_laser'
+      const statsCanonical = calculateWeaponStats(baseRifle, ['item__livro_base__mira_laser']);
+      // Usando ID curto legado: 'mira_laser'
+      const statsShort = calculateWeaponStats(baseRifle, ['mira_laser']);
+
+      assert.strictEqual(statsCanonical.finalCritical, '17/x3');
+      assert.strictEqual(statsShort.finalCritical, '17/x3');
+      assert.strictEqual(statsCanonical.finalCategory, statsShort.finalCategory);
+    });
+
+    it('getWeaponModsWithCompendium deve enriquecer modificações com dados dinâmicos da base sem perder mecânica', () => {
+      const mockEntities: any[] = [
+        {
+          id: 'item__livro_base__mira_laser',
+          name: 'Mira Laser Customizada',
+          description: 'Descrição editada pelo usuário no compêndio',
+          bookTitle: 'Livro Base',
+          element: 'Nenhum',
+        },
+      ];
+
+      const enriched = getWeaponModsWithCompendium(mockEntities);
+      const laserMod = enriched.find((m) => m.id === 'item__livro_base__mira_laser');
+
+      assert.ok(laserMod);
+      assert.strictEqual(laserMod.name, 'Mira Laser Customizada');
+      assert.strictEqual(laserMod.description, 'Descrição editada pelo usuário no compêndio');
+      // Garante que a lógica mecânica permanece intacta
+      assert.strictEqual(laserMod.criticalRangeReduction, 2);
+      assert.strictEqual(laserMod.categoryIncrease, 1);
+    });
+
     it('deve listar todas as modificações oficiais disponíveis no compêndio', () => {
       assert.ok(OFFICIAL_WEAPON_MODS.length >= 20);
-      const modIds = OFFICIAL_WEAPON_MODS.map((m) => m.id);
+      const modIds = OFFICIAL_WEAPON_MODS.map((m) => (m as any).shortId || m.id);
       assert.ok(modIds.includes('mira_laser'));
+      assert.ok(modIds.includes('alongada'));
       assert.ok(modIds.includes('perigosa'));
-      assert.ok(modIds.includes('calibre_grosso'));
-      assert.ok(modIds.includes('maldicao_carniceira'));
+      assert.ok(modIds.includes('ferrolho_automatico'));
+      assert.ok(modIds.includes('visao_de_calor'));
+      assert.ok(modIds.includes('maldicao_lancinante'));
+      assert.ok(modIds.includes('maldicao_predadora'));
       assert.ok(modIds.includes('maldicao_energetica'));
+      assert.ok(modIds.includes('maldicao_vibrante'));
     });
   });
 });

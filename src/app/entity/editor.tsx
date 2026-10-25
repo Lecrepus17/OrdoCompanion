@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CATEGORY_LABELS, ThemeColors, useTheme, useThemedStyles } from '../../theme';
@@ -39,7 +40,7 @@ export default function EntityEditorScreen() {
     editId?: string;
     defaultCategory?: EntityCategory;
   }>();
-  const { getEntityById, createEntity, updateEntity } = useApp();
+  const { getEntityById, createEntity, updateEntity, openManual } = useApp();
 
   const existing = editId ? getEntityById(editId) : undefined;
 
@@ -200,10 +201,33 @@ export default function EntityEditorScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 60 + bottomInset }]}>
-      <Text style={styles.heading}>
-        {existing ? `Editar: ${existing.name}` : 'Novo Registro no Compêndio'}
-      </Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingBottom: 60 + bottomInset }]}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <Text style={styles.heading}>
+          {existing ? `Editar: ${existing.name}` : 'Novo Registro no Compêndio'}
+        </Text>
+        <TouchableOpacity
+          onPress={() => openManual('entity_detail_editor')}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 8,
+            backgroundColor: colors.primarySoft,
+            borderWidth: 1,
+            borderColor: colors.primary,
+          }}
+        >
+          <Ionicons name="help-circle-outline" size={16} color={colors.primary} />
+          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Manual</Text>
+        </TouchableOpacity>
+      </View>
 
       <Text style={styles.label}>Categoria</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsRow}>

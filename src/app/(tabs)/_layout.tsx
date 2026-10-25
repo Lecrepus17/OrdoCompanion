@@ -1,63 +1,124 @@
-import React, { useState } from 'react';
-import { Tabs } from 'expo-router';
+import React, { useMemo, useState } from 'react';
+import { Tabs, usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../theme';
 import { useApp } from '../../context/AppContext';
 import { ThemeSelectorModal } from '../../components/ThemeSelectorModal';
 import { UserProfileModal } from '../../components/UserProfileModal';
+import { CustomBottomTabBar } from '../../components/CustomBottomTabBar';
+import { MoreTabsModal } from '../../components/MoreTabsModal';
+import { resolveNavigationTabs } from '../../utils/tabNavigation';
 
 export default function TabsLayout() {
   const { colors } = useTheme();
-  const { userProfile, syncStatus, syncAuthState } = useApp();
-  const insets = useSafeAreaInsets();
+  const { userProfile, syncStatus, syncAuthState, openManual } = useApp();
+  const pathname = usePathname();
+  const router = useRouter();
+
   const [themeModalVisible, setThemeModalVisible] = useState(false);
   const [userProfileModalVisible, setUserProfileModalVisible] = useState(false);
+  const [userProfileTab, setUserProfileTab] = useState<'identidade' | 'nuvem' | 'navegacao'>('identidade');
+  const [moreModalVisible, setMoreModalVisible] = useState(false);
 
-  // Garante que a barra de abas nunca fique coberta pela navegação virtual (voltar/home/recentes) do Android ou pelo indicador do iOS
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 6);
-  const tabHeight = 56 + bottomInset;
+  const allAvailableRoutes = useMemo(
+    () => ['index', 'characters', 'weapons', 'books', 'dice', 'favorites', 'master', 'table', 'oracle'],
+    []
+  );
+
+  const resolvedTabs = useMemo(() => {
+    return resolveNavigationTabs(allAvailableRoutes, userProfile?.navigationConfig);
+  }, [allAvailableRoutes, userProfile?.navigationConfig]);
+
+  const getSectionFromPathname = (path: string) => {
+    if (path.includes('characters')) return 'characters';
+    if (path.includes('weapons')) return 'weapons';
+    if (path.includes('books')) return 'books';
+    if (path.includes('dice')) return 'dice';
+    if (path.includes('table')) return 'table';
+    if (path.includes('favorites')) return 'favorites';
+    if (path.includes('master')) return 'master';
+    if (path.includes('oracle')) return 'oracle';
+    return 'compendium';
+  };
+
+  // Extrai o nome da rota atual a partir do pathname
+  const activeRouteName = useMemo(() => {
+    const clean = pathname.replace(/^\/(\(tabs\)\/)?/, '').replace(/^\//, '');
+    return clean || 'index';
+  }, [pathname]);
 
   return (
     <>
       <Tabs
+        tabBar={(props) => (
+          <CustomBottomTabBar
+            {...props}
+            pinnedTabs={resolvedTabs.pinnedTabs}
+            overflowTabs={resolvedTabs.overflowTabs}
+            onOpenMoreModal={() => setMoreModalVisible(true)}
+          />
+        )}
         screenOptions={{
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: '800', fontSize: 16 },
-          tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            borderTopWidth: 1,
-            height: tabHeight,
-            paddingBottom: bottomInset,
-            paddingTop: 6,
-            elevation: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-          },
+          headerTitleStyle: { fontWeight: '800', fontSize: 15 },
+          headerTitleContainerStyle: { maxWidth: '54%' },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
-          tabBarLabelStyle: {
-            fontSize: 10.5,
-            fontWeight: '700',
-            marginTop: -2,
-          },
-          tabBarItemStyle: {
-            paddingVertical: 2,
-          },
           headerRight: () => (
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 8,
-                marginRight: 14,
+                gap: 6,
+                marginRight: 10,
               }}
             >
+              {/* Botão de Acesso Rápido ao G.L.I.T.C.H. (IA) */}
+              <TouchableOpacity
+                onPress={() => router.navigate('/(tabs)/oracle' as any)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  paddingHorizontal: 9,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: colors.primarySoft,
+                  borderWidth: 1,
+                  borderColor: colors.primary,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 34,
+                  minHeight: 34,
+                }}
+                accessibilityLabel="G.L.I.T.C.H. - Inteligência Artificial"
+              >
+                <Ionicons name="sparkles" size={17} color={colors.primary} />
+              </TouchableOpacity>
+
+              {/* Botão de Manual / Guia da Tela Atual */}
+              <TouchableOpacity
+                onPress={() => openManual(getSectionFromPathname(pathname))}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  paddingHorizontal: 9,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: colors.primarySoft,
+                  borderWidth: 1,
+                  borderColor: colors.primary,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 34,
+                  minHeight: 34,
+                }}
+                accessibilityLabel="Manual e Guia da Tela Atual"
+              >
+                <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
+              </TouchableOpacity>
+
               {/* Botão de Trocar Tema */}
               <TouchableOpacity
                 onPress={() => setThemeModalVisible(true)}
@@ -71,7 +132,8 @@ export default function TabsLayout() {
                   borderColor: colors.primary,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 5,
+                  justifyContent: 'center',
+                  minWidth: 34,
                   minHeight: 34,
                 }}
                 accessibilityLabel="Trocar Tema"
@@ -79,9 +141,12 @@ export default function TabsLayout() {
                 <Ionicons name="color-palette" size={17} color={colors.primary} />
               </TouchableOpacity>
 
-              {/* Botão de Perfil / Informações Gerais (à direita do botão de seleção de cor) */}
+              {/* Botão de Perfil / Informações Gerais */}
               <TouchableOpacity
-                onPress={() => setUserProfileModalVisible(true)}
+                onPress={() => {
+                  setUserProfileTab('identidade');
+                  setUserProfileModalVisible(true);
+                }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={{
                   paddingHorizontal: 9,
@@ -92,7 +157,8 @@ export default function TabsLayout() {
                   borderColor: userProfile?.playerName ? colors.primary : colors.border,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 5,
+                  justifyContent: 'center',
+                  minWidth: 34,
                   minHeight: 34,
                 }}
                 accessibilityLabel="Informações do Jogador e Perfil"
@@ -185,13 +251,61 @@ export default function TabsLayout() {
             ),
           }}
         />
+        <Tabs.Screen
+          name="master"
+          options={{
+            title: 'Mestre',
+            headerTitle: 'Central do Mestre & Campanhas',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="skull" size={size} color={String(color)} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="table"
+          options={{
+            title: 'Mesa',
+            headerTitle: 'Mesa Virtual da Ordem',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="radio" size={size} color={String(color)} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="oracle"
+          options={{
+            title: 'G.L.I.T.C.H.',
+            headerTitle: 'G.L.I.T.C.H. - Guia Lógico de Interferências Transcendentais do Caos Humano',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="sparkles" size={size} color={String(color)} />
+            ),
+          }}
+        />
       </Tabs>
+
+      {/* Modal Dinâmico de Outras Telas (Mais) */}
+      <MoreTabsModal
+        visible={moreModalVisible}
+        onClose={() => setMoreModalVisible(false)}
+        overflowTabs={resolvedTabs.overflowTabs}
+        activeRouteName={activeRouteName}
+        onSelectTab={(tabKey) => {
+          router.navigate(tabKey === 'index' ? '/' : `/(tabs)/${tabKey}`);
+        }}
+        onOpenCustomize={() => {
+          setUserProfileTab('navegacao');
+          setUserProfileModalVisible(true);
+        }}
+      />
+
       <ThemeSelectorModal
         visible={themeModalVisible}
         onClose={() => setThemeModalVisible(false)}
       />
+
       <UserProfileModal
         visible={userProfileModalVisible}
+        initialTab={userProfileTab}
         onClose={() => setUserProfileModalVisible(false)}
       />
     </>

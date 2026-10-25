@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
+import { useApp } from '../context/AppContext';
 import { CharacterSheet, CompendiumEntity } from '../types/compendium';
 import {
   generateSheetHtml,
@@ -37,6 +38,7 @@ export default function PrintSheetModal({
   onClose,
 }: PrintSheetModalProps) {
   const { colors } = useTheme();
+  const { openManual } = useApp();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const [sheetType, setSheetType] = useState<SheetType>('livro_base');
@@ -101,9 +103,21 @@ export default function PrintSheetModal({
                 {character.name || 'Agente sem nome'} • NEX {character.nex}% • {classEntity?.name || 'Sem Classe'}
               </Text>
             </View>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <Ionicons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() => {
+                  onClose();
+                  openManual('print_sheet');
+                }}
+                accessibilityLabel="Manual de Impressão de Fichas"
+              >
+                <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Config Bar */}
@@ -335,6 +349,7 @@ const createStyles = (colors: ThemeColors) =>
     configGroup: {
       flexDirection: 'row',
       alignItems: 'center',
+      flexWrap: 'wrap',
       gap: 8,
     },
     configLabel: {
@@ -344,11 +359,13 @@ const createStyles = (colors: ThemeColors) =>
     },
     toggleRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       backgroundColor: colors.surface,
       borderRadius: 8,
       padding: 2,
       borderWidth: 1,
       borderColor: colors.border,
+      gap: 2,
     },
     toggleBtn: {
       flexDirection: 'row',

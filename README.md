@@ -1,209 +1,241 @@
-# Guia Ordem Paranormal — Extrator de PDFs & App Multiplataforma (Expo)
+<div align="center">
 
-Aplicativo completo de consulta, filtragem avançada, leitura de capítulos/páginas, gerenciamento de fichas de agentes, construtor de armas customizadas, rolagem de dados oficial e sincronização em nuvem para **Ordem Paranormal RPG**. Construído com **React Native + Expo Router (Android, iOS e Web)** e alimentado por um pipeline automatizado de extração de PDFs em **Python (`PyMuPDF` + OCR Nativo)**.
+  <img src="assets/icon.png" alt="Ordo Companion Logo" width="128" height="128" style="border-radius: 24px;" />
+
+  # Ordo Companion
+  ### Guia Completo, Compêndio e Ficha Interativa para Ordem Paranormal RPG
+
+  [![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://github.com/)
+  [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+  [![Expo](https://img.shields.io/badge/Expo-~58-black.svg?logo=expo)](https://expo.dev)
+  [![React Native](https://img.shields.io/badge/React_Native-0.88-61DAFB.svg?logo=react)](https://reactnative.dev)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6.svg?logo=typescript)](https://www.typescriptlang.org/)
+  [![Tests](https://img.shields.io/badge/Tests-79%20Passing-brightgreen.svg)](tests/)
+  [![Platform](https://img.shields.io/badge/Plataforma-Android%20%7C%20iOS%20%7C%20Web-lightgrey.svg)]()
+
+  <p align="center">
+    Um aplicativo multiplataforma de código aberto (Open Source) para mestres e jogadores de <b>Ordem Paranormal RPG</b>.<br />
+    Conta com compêndio unificado dos 10 suplementos oficiais, construtor de personagens, rolador de dados oficial, exportação de fichas em PDF e sincronização em nuvem.
+  </p>
+
+  <p align="center">
+    <a href="#-principais-funcionalidades">Funcionalidades</a> •
+    <a href="#-como-rodar-no-celular">Rodar no Celular</a> •
+    <a href="#-execução-para-desenvolvedores">Desenvolvimento</a> •
+    <a href="#-testes-automatizados">Testes</a> •
+    <a href="#-contribuindo">Contribuir</a> •
+    <a href="#-licença">Licença</a>
+  </p>
+
+</div>
 
 ---
 
-## 📊 Base de Dados Extraída dos 10 PDFs
+## 👁️ Sobre o Projeto
 
-O pipeline processa todos os **10 livros/suplementos** presentes no repositório:
-- `Livro base.pdf` (322 páginas)
-- `Sobrevivendo-Ao-Horror-v1.pdf` (226 páginas — texto vetorial selecionável nativo e sumário oficial com 62 tópicos)
-- `Arquivos-Secretos-01.pdf` a `Arquivos-Secretos-07.pdf` e `Arquivos-Secretos-09.pdf` (713 páginas somadas)
+O **Ordo Companion** nasceu com o objetivo de centralizar todas as regras, itens, rituais, criaturas e suplementos de Ordem Paranormal em uma interface rápida, moderna, responsiva e acessível tanto no smartphone (Android/iOS) quanto no computador (Navegador Web).
 
-### Estatísticas da Base Unificada (`src/data/seed/`)
-- **1.367 Entidades Estruturadas e Categorizadas**:
-  - **106 Rituais** (1º ao 4º Círculo, Elementos, Execução, Alcance, Alvo/Área, Duração, Resistência, Discente, Verdadeiro e fórmulas de dados)
-  - **59 Origens** (Perícias treinadas, poder de origem e lore)
-  - **4 Classes** (*Combatente*, *Especialista*, *Ocultista* e *Sobrevivente*)
-  - **35 Trilhas** (Todas as 15 trilhas do Livro Base, 12 do Sobrevivendo ao Horror e 8 dos Arquivos Secretos)
-  - **207 Poderes** (Poderes de Classe, Poderes Gerais com pré-requisitos, Poderes Paranormais com Afinidade)
-  - **58 Armas** (Tabela completa com categoria, dano, crítico, alcance, tipo e espaços)
-  - **274 Equipamentos, Modificações, Itens Paranormais, Itens Amaldiçoados, Máscaras, Doenças, Venenos, Veículos e Aliados**
-  - **28 Perícias** (Atributo-base, penalidade de carga, somente treinada, kit e usos)
-  - **37 Condições** (Efeitos mecânicos e categorias de condição)
-  - **186 Criaturas, Ameaças da Realidade e NPCs** (VD, PV, Defesa, Presença Perturbadora, Atributos, Ações e Enigma de Medo)
-  - **373 Regras, Capítulos e Dossiês dos Arquivos Secretos**
-- **1.261 Páginas Integrais Indexadas (`books_pages_seed.json`)**:
-  - Permite clicar em **"Ver no Livro"** dentro de qualquer item do compêndio para ler a página original na íntegra e navegar pelas páginas vizinhas, além de pesquisar qualquer termo nas 1.261 páginas na aba **Livros & PDFs**.
+O projeto é **100% Open Source** e distribuído sob a licença **GNU General Public License v3.0 (GPL-3.0)**. Qualquer pessoa tem a liberdade de inspecionar o código, contribuir com novas melhorias ou criar ferramentas derivadas respeitando os termos da GPL.
 
 ---
 
-## 🚀 Como Executar o Aplicativo (Expo)
+## ✨ Principais Funcionalidades
 
-### 1. Instalar dependências
+### 📖 Compêndio Unificado & Pesquisa nos Livros
+- **10 Livros e Suplementos Processados**: Todos os dados do *Livro Base*, *Sobrevivendo ao Horror* e suplementos dos *Arquivos Secretos (01 a 07 e 09)*.
+- **1.367 Entidades Estruturadas**: Rituais com cálculos de dados, origens, trilhas, poderes gerais e de classe, armas, itens amaldiçoados, equipamentos, condições e ameaças com enigmas de medo.
+- **Leitor "Ver no Livro"**: Visualize a página original do livro oficial indexada na íntegra com navegação de páginas vizinhas e busca em texto completo em 1.261 páginas.
+
+### 📋 Gerenciador de Agentes & Impressão de Fichas
+- **Criação e Edição de Personagens**: Atributos, cálculo automático de perícias, PV, PE, SAN e inventário.
+- **Exportação de Fichas Oficiais em PDF**: Renderizador de alta fidelidade com os modelos oficiais do *Livro Base* (págs. 321–322) e *Sobrevivendo ao Horror* (págs. 222–223) prontos para imprimir ou salvar via `expo-print`.
+
+### ⚔️ Arsenal & Construtor de Armas
+- **Cálculo Automático de Combate**: Modificações de armas (*Mira Laser*, *Alongada*, *Calibre Grosso*, etc.), maldições elementais (*Carniceira*, *Hemofágica*, etc.) e passos de dano oficiais (`1d6` $\to$ `1d8` $\to$ `1d10` $\to$ `1d12` $\to$ `2d8`...).
+
+### 🎲 Rolador de Dados Oficial
+- **Regras Oficiais do Sistema**: Rolagem de $N$ dados pegando o maior para atributos positivos e penalidade ($2 + \|\text{atributo}\|$ dados pegando o menor) para atributos zero ou negativos.
+- **Parser de Fórmulas Livres**: Suporte completo a rolagens complexas (ex.: `4d6+10`, `2d8+1d6+4`, `5d20+20`).
+
+### ☁️ Sincronização Segura & Modo Offline
+- **Google Drive Cloud Sync**: Sincronização em segundo plano na pasta isolada `appDataFolder` do Google Drive pessoal do jogador (privacidade total, custo zero de servidor).
+- **Smart Merge com Resolução de Conflitos**: Fusão automática de fichas e favoritos entre diferentes dispositivos baseada em carimbos de data/hora (`updatedAt`).
+- **100% Funcional Offline**: Armazenamento local robusto via `AsyncStorage` com backup e restauração manual em JSON.
+- **Notificador Automático de Atualizações**: Notifica usuários em versões antigas sobre novas atualizações, exibe notas de lançamento (changelog) e disponibiliza botão de download direto do `.apk` ou página de releases. Consulte [`GUIA_ATUALIZACOES.md`](GUIA_ATUALIZACOES.md) para o guia completo de distribuição.
+
+### 📖 Manual Integrado & Guia Completo do Usuário
+- **Manual de Cada Tela & Funcionalidade**: Modal interativo acessível em qualquer tela pelo botão `?` no cabeçalho ou botões contextuais ("Manual da Ficha", "Manual da Armaria", etc.), com busca de tópicos em tempo real, dicas de mestre e navegação direta.
+- **Documentação Exaustiva no Repositório**: Consulte [`MANUAL_DO_USUARIO.md`](MANUAL_DO_USUARIO.md) para o guia detalhado tela a tela com tabelas mecânicas e passos de uso.
+
+### 🎨 7 Temas Paranormais Imersivos
+- Alternância rápida com um clique entre temas inspirados no universo do RPG:
+  - **Escuridão (Original)**
+  - **Sangue** (*Sentimento & Dor*)
+  - **Morte** (*Lodo & Espiral*)
+  - **Conhecimento** (*Sigilos Dourados & Razão*)
+  - **Energia** (*Caos & Neon Violeta*)
+  - **Medo** (*O Insondável & Abismo*)
+  - **Dossiê Branco** (*Arquivo Investigativo de Alta Legibilidade*)
+
+---
+
+## 📊 Estatísticas da Base de Dados (`src/data/seed/`)
+
+| Categoria | Quantidade | Detalhes |
+| :--- | :---: | :--- |
+| **Rituais** | **106** | 1º ao 4º Círculo, fórmulas, elementos, execuções e aprimoramentos |
+| **Origens** | **59** | Todas as origens oficiais com perícias e poderes |
+| **Classes & Trilhas** | **4 / 35** | Combatente, Especialista, Ocultista e Sobrevivente + 35 Trilhas |
+| **Poderes** | **207** | Poderes de classe, gerais e poderes paranormais com afinidade |
+| **Armas & Modificações** | **58** | Dano, crítico, alcance, espaços e categoria |
+| **Equipamentos & Itens** | **274** | Itens paranormais, amaldiçoados, máscaras, venenos, veículos e aliados |
+| **Perícias & Condições** | **28 / 37** | Grau de treinamento e efeitos mecânicos |
+| **Ameaças & Criaturas** | **186** | VD, PV, Defesa, Presença Perturbadora, Ataques e Enigmas de Medo |
+| **Capítulos & Regras** | **373** | Dossiês, sumários e regras dos Arquivos Secretos |
+| **Páginas Indexadas** | **1.261** | Páginas integrais indexadas para consulta imediata |
+
+---
+
+## 📱 Como Rodar no Celular
+
+### Opção 1: Instantâneo via Expo Go (Sem compilar)
+1. Instale o app **Expo Go** no seu Android ([Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent)) ou iOS ([App Store](https://apps.apple.com/app/expo-go/id982107779)).
+2. No computador, inicie o servidor:
+   ```bash
+   npm start
+   # ou com tunnel se estiver em redes Wi-Fi diferentes:
+   npm run start-ngrok
+   ```
+3. Abra o Expo Go e aponte a câmera para o QR Code exibido no terminal.
+
+### Opção 2: Gerar APK Standalone (Android)
+O repositório já possui configuração pronta no [`eas.json`](eas.json):
 ```bash
-npm install
+npm install -g eas-cli
+eas login
+eas build -p android --profile preview
 ```
-
-### 2. Iniciar o aplicativo
-```bash
-# Iniciar servidor de desenvolvimento Expo
-npm start
-
-# Abrir diretamente na Web (Navegador)
-npm run web
-
-# Abrir no Android / iOS (via Expo Go)
-npm run android
-npm run ios
-```
+Ao final do build na nuvem, você receberá um link e QR Code para baixar o arquivo `.apk` diretamente no seu celular.
 
 ---
 
-## 🧪 Suíte de Testes Unitários e Integridade (79 Testes)
+## 💻 Execução para Desenvolvedores
 
-O sistema conta com uma **suíte robusta de testes unitários automatizados** construída com **TypeScript + `node:test`**, garantindo que futuras atualizações de código, adições de conteúdo ou migrações de bibliotecas **não quebrem** as regras do sistema, cálculos de combate ou dados de usuários.
+### Pré-requisitos
+- [Node.js](https://nodejs.org/) (versão 20 LTS ou superior)
+- [Git](https://git-scm.com/)
+- [Python 3.10+](https://www.python.org/) *(apenas se for rodar o pipeline de extração de PDFs)*
 
-### 📋 Cobertura dos Módulos Testados
+### Passo a Passo
 
-| Suíte de Teste | Arquivo | Testes | O que é validado e protegido contra regressão |
-| :--- | :--- | :---: | :--- |
-| **Sistema de Rolagem de Dados** | [`tests/dice.test.ts`](tests/dice.test.ts) | **9** | Regra oficial de Ordem Paranormal: rola $N$ dados e escolhe o maior se atributo $\ge 1$; regra de penalidade ($2 + \|\text{atributo}\|$ dados pegando o menor) se atributo $\le 0$; detecção de crítico (20) e desastre (1); parser de fórmulas livres (`4d6+10`, `2d8+1d6+4`, `2d10-3`, atalhos de criaturas `5d20+20`). |
-| **Armas, Modificações & Maldições** | [`tests/weapons.test.ts`](tests/weapons.test.ts) | **23** | Parser de críticos (`19/x3`, `x4`, etc.); escala oficial de passos de dano (`1d6` $\to$ `1d8` $\to$ `1d10` $\to$ `1d12` $\to$ `2d8` $\to$ `2d10` $\to$ `2d12`); progressão de alcance; cálculo automático de modificações oficiais (*Mira Laser*, *Calibre Grosso*, *Cruel*, *Perigosa*, *Alongada*, *Silenciador*); maldições elementais (*Carniceira*, *Hemofágica*, *Energética*); modificações caseiras e piso mínimo de espaços. |
-| **Sincronização & Smart Merge** | [`tests/smartMerge.test.ts`](tests/smartMerge.test.ts) | **6** | Resolução inteligente de conflitos em fichas por timestamp individual (`updatedAt` mais recente prevalece); união sem perda de personagens criados em dispositivos diferentes; união de conjuntos de favoritos sem duplicações; fusão de armas customizadas e listas salvas; preservação de estado da nuvem no perfil. |
-| **Repositório Offline & Compêndio** | [`tests/repository.test.ts`](tests/repository.test.ts) | **13** | Normalização de busca sem acentos e sem case sensitivity; ordenação canônica de livros; mapeamento de classes e filtros de exclusão; CRUD de entidades Homebrew; edição de entidades oficiais com marcação `isEdited` e restauração segura para o padrão do seed (`resetEntityToDefault`); persistência local de favoritos e fichas; exportação/importação de backup JSON. |
-| **Sistema de Temas Dinâmicos** | [`tests/themes.test.ts`](tests/themes.test.ts) | **6** | Integridade dos 7 temas oficiais (*Preto*, *Sangue*, *Morte*, *Conhecimento*, *Energia*, *Medo*, *Branco*); contraste de cores e `statusBarStyle`; presença obrigatória dos 7 elementos paranormais (*Sangue*, *Morte*, *Conhecimento*, *Energia*, *Medo*, *Variável*, *Nenhum*) em cada tema; fallback seguro e registro dinâmico de novos temas. |
-| **Impressão & Renderização de Fichas** | [`tests/sheetPrinter.test.ts`](tests/sheetPrinter.test.ts) | **8** | Conferência das 28 perícias oficiais; conversão de graus de treinamento para algarismos romanos (`I`, `II`, `III`); cálculo de bônus numéricos; formatação de referências a páginas (`LB p. 42`, `SH p. 30`, `Origem`, `Trilha`); geração e sanitização segura de HTML contra injeção XSS nos modelos *Livro Base* e *Sobrevivendo ao Horror*. |
-| **Integridade Estrutural da Base** | [`tests/databaseIntegrity.test.ts`](tests/databaseIntegrity.test.ts) | **4** | Verificação em TypeScript dos 10 livros oficiais; unicidade e validade dos IDs de 1.367 entidades; conferência das contagens exatas e mínimas de rituais, origens, trilhas, criaturas, poderes e itens; integridade referencial dos índices de página. |
-| **Utilitários Web & Diálogos** | [`tests/alert.test.ts`](tests/alert.test.ts) & [`tests/pdfUrl.test.ts`](tests/pdfUrl.test.ts) | **10** | Chamadas de confirmação e alerta compatíveis com Web e Mobile; geração de URLs com `#page=N&view=FitH` para PDFs; clamping seguro de DPI (72 a 260) e garantia de número de página positivo na renderização. |
+1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/SEU-USUARIO/OrdoCompanion.git
+   cd OrdoCompanion
+   ```
 
-### 🛠️ Comandos de Execução
+2. **Instale as dependências:**
+   ```bash
+   npm install
+   ```
+
+3. **Inicie o ambiente de desenvolvimento:**
+   ```bash
+   # Iniciar o servidor Expo (menu interativo)
+   npm start
+
+   # Abrir diretamente no navegador (Web)
+   npm run web
+
+   # Abrir no emulador Android
+   npm run android
+
+   # Abrir no simulador iOS
+   npm run ios
+   ```
+
+---
+
+## 🧪 Testes Automatizados
+
+O projeto conta com uma suíte de testes unitários construída em **TypeScript + `node:test`**, garantindo a estabilidade das fórmulas matemáticas, combate, integridade da base e sincronização:
 
 ```bash
-# Executa todos os 79 testes unitários (execução em ~2 segundos)
+# Executa todos os testes unitários (execução em ~2 segundos)
 npm test
 
-# Executa verificação estática de tipos em todo o projeto e testes
+# Valida checagem estática de tipos TypeScript
 npm run typecheck
 
-# Executa a verificação completa (TypeScript + 79 Testes Unitários + Integridade Python)
+# Executa bateria completa (Tipagem + Testes Unitários + Integridade Python)
 npm run test:all
-
-# Executa apenas o teste de integridade da base via Python
-npm run test:db
 ```
 
----
+<details>
+<summary><b>Visualizar Cobertura dos Módulos Testados (79 Testes)</b></summary>
 
-## 🖨️ Exportação e Impressão de Fichas em PDF
-
-O aplicativo conta com um motor completo de geração de fichas pré-preenchidas nos layouts oficiais do RPG:
-
-- **Modelos Suportados**:
-  - **Livro Base** (Páginas 321 e 322 da versão clássica).
-  - **Sobrevivendo ao Horror** (Páginas 222 e 223 com visual estilizado e seções de sobrevivência).
-- **Campos Mapeados Automaticamente**:
-  - Atributos (*AGI*, *FOR*, *INT*, *PRE*, *VIG*).
-  - Tabela completa de perícias com marcação em algarismos romanos (`I`, `II`, `III`) e cálculo do bônus total somado.
-  - Tabela de ataques, armas calculadas, dano, margem de ameaça e alcance.
-  - Rituais aprendidos, círculos, execuções e resistências.
-  - Itens de inventário, peso e categoria.
-  - Habilidades de classe, poderes de origem e trilhas.
-- **Opções de Exportação**:
-  - Pré-visualização da Frente, Verso ou Ambas as páginas.
-  - Botão de **Imprimir / Salvar em PDF** nativo (Web e Mobile via `expo-print`).
+- **Sistema de Rolagem de Dados** (`tests/dice.test.ts`): Regra de atributo positivo/negativo, detecção de crítico/desastre e parser livre de fórmulas.
+- **Armas & Modificações** (`tests/weapons.test.ts`): Parser de margem de ameaça, escala oficial de passos de dano, modificações e maldições.
+- **Sincronização & Smart Merge** (`tests/smartMerge.test.ts`): Resolução de conflitos por timestamp individual e união de dados.
+- **Repositório Offline** (`tests/repository.test.ts`): Busca normalizada, filtros, entidades Homebrew, restauração para o padrão e persistência.
+- **Sistema de Temas** (`tests/themes.test.ts`): Integridade dos 7 temas oficiais e paleta de elementos paranormais.
+- **Impressão de Fichas** (`tests/sheetPrinter.test.ts`): Validação das 28 perícias, algarismos romanos (`I`, `II`, `III`) e sanitização HTML contra XSS.
+- **Integridade da Base** (`tests/databaseIntegrity.test.ts`): Unicidade de IDs e referências dos 10 livros.
+- **Utilitários Web** (`tests/alert.test.ts` / `tests/pdfUrl.test.ts`): Diálogos e compatibilidade multiplataforma.
+</details>
 
 ---
 
-## 📄 Como Adicionar Novos PDFs Automaticamente
+## 📄 Pipeline de Extração de PDFs (`scripts/`)
 
-O projeto conta com um pipeline automatizado em Python que detecta qualquer novo arquivo `.pdf` adicionado na pasta `pdfs/` do projeto:
+Caso você deseje reprocessar os livros ou adicionar novos suplementos na pasta `pdfs/`:
 
-1. Coloque o novo arquivo `.pdf` (ex.: `Arquivos-Secretos-08.pdf` ou `Arquivos-Secretos-10.pdf`) na pasta `pdfs/` deste repositório (arquivos colocados na raiz também são detectados como fallback).
-2. Execute o comando:
+1. Instale os pacotes Python necessários:
+   ```bash
+   pip install pymupdf pillow pytesseract
+   ```
+2. Adicione os novos arquivos `.pdf` na pasta `pdfs/`.
+3. Execute o extrator automatizado com OCR:
    ```bash
    npm run extract
-   # ou diretamente:
-   python scripts/extract_all.py
    ```
-3. O script:
-   - Extrai todas as páginas do novo PDF (e aplica OCR automático em português caso alguma página seja escaneada/imagem).
-   - Detecta automaticamente novos Rituais, Origens, Trilhas, Poderes, Equipamentos/Itens, Criaturas/Ameaças e Seções do Sumário.
-   - Atualiza e valida os arquivos `src/data/seed/compendium_seed.json` e `src/data/seed/books_pages_seed.json` utilizados pelo aplicativo.
-4. Para rodar a verificação de integridade da base:
+4. Verifique a integridade da base gerada:
    ```bash
    npm run test:db
    ```
 
 ---
 
-## ☁️ Arquitetura 100% Offline Pronta para Nuvem
+## 🤝 Contribuindo
 
-Toda a camada de acesso a dados foi construída sobre o contrato [`IDataRepository`](src/repositories/IDataRepository.ts):
-- Atualmente utiliza [`OfflineDataRepository`](src/repositories/OfflineDataRepository.ts), que carrega a base oficial (`src/data/seed/`) em memória e persiste localmente via `AsyncStorage` uma camada de **Delta/Overrides** contendo:
-  - Novos itens criados manualmente pelo usuário (**Homebrew**).
-  - Edições feitas em itens oficiais (mantendo a possibilidade de restaurar o original do PDF a qualquer momento).
-  - Favoritos, Listas Salvas (Grimórios/Missões) e Fichas de Agentes.
-- **Para migrar para Nuvem (Supabase / Firebase) no futuro**:
-  1. Crie `src/repositories/SupabaseDataRepository.ts` implementando `IDataRepository`.
-  2. Use a função `exportUserDataJson()` já disponível na aba **Salvos > Backup JSON** para sincronizar os registros customizados e fichas com as tabelas da nuvem.
+Contribuições da comunidade são muito bem-vindas! Como um projeto de código aberto, você pode ajudar com:
 
----
-
-## 🎨 Sistema de Temas Dinâmicos e Configuráveis
-
-O aplicativo suporta múltiplos temas com persistência automática via `AsyncStorage` e fácil extensão:
-
-### Temas Inclusos (7 Temas Oficiais):
-1. **Preto (Original / Escuridão Paranormal)**: Tema clássico escuro do Ordem Paranormal com acentos carmesins (`#DC2626`).
-2. **Sangue (Sentimento & Dor)**: Atmosfera carmesim profunda e visceral inspirada nas entidades e no fluxo de Sangue (`#E11D48`).
-3. **Morte (Lodo & Tempo)**: Estética monocromática espectral inspirada no lodo negro, na passagem do tempo e nas cinzas da espiral (`#A1A1AA` / `#D4D4D8`).
-4. **Conhecimento (Sigilos & Razão)**: Tons dourados místicos, pergaminho antigo e sigilos esotéricos sobre superfícies de ônix (`#F59E0B`).
-5. **Energia (Caos & Vibração)**: Tons profundos de violeta, ametista e neon elétrico do elemento Energia (`#A855F7`).
-6. **Medo (O Desconhecido & Abismo)**: Imersão abissal com tons de azul marinho profundo, ciano etéreo e o enigma do Medo insondável (`#0284C7`).
-7. **Branco (Dossiê Clínico / Arquivo da Ordem)**: Tema claro de alta legibilidade inspirado em relatórios e pastas de investigação, com contraste adaptado para elementos e ícones.
-
-### Como Trocar de Tema:
-- **Botão Rápido no Topo**: Ícone de paleta de cores (`color-palette`) no canto superior direito de qualquer aba.
-- **Aba Salvos > Temas & Visual**: Gerenciador visual completo com pré-visualização das paletas de cores.
-
-### Como Adicionar Novos Temas Facilmente:
-Em [`src/theme/themes.ts`](src/theme/themes.ts), basta definir um novo objeto `ThemeDefinition` e registrá-lo no dicionário `THEMES`:
-```typescript
-import { registerTheme, ThemeDefinition } from './themes';
-
-export const meuTemaVerde: ThemeDefinition = {
-  id: 'green',
-  name: 'Verde (Lodo / Morte)',
-  subtitle: 'Decadência Paranormal',
-  description: 'Atmosfera com tons esmeralda e detalhes fúnebres.',
-  isDark: true,
-  statusBarStyle: 'light',
-  badgeColor: '#10B981',
-  previewColors: ['#0A120E', '#11221A', '#10B981', '#E6F4EA'],
-  colors: { ... }
-};
-
-registerTheme(meuTemaVerde);
-```
-Todos os componentes utilizam o hook `useTheme()` e `useThemedStyles(createStyles)` que reagem instantaneamente a trocas de tema em tempo real.
+- 🐛 **Reportar Bugs**: Abra uma [Issue](https://github.com/SEU-USUARIO/OrdoCompanion/issues) detalhando o problema.
+- 💡 **Sugerir Funcionalidades**: Conte-nos sua ideia na aba de Issues ou Discussions.
+- 🛠️ **Pull Requests**:
+  1. Faça um Fork do projeto
+  2. Crie sua branch de funcionalidade (`git checkout -b feat/minha-feature`)
+  3. Garanta que os testes estejam passando (`npm run test:all`)
+  4. Faça o commit seguindo Conventional Commits (`git commit -m 'feat: adicionar nova funcionalidade'`)
+  5. Envie a branch (`git push origin feat/minha-feature`)
+  6. Abra um Pull Request
 
 ---
 
-## ☁️ Sincronização em Nuvem (Google Drive Cloud Sync)
+## 📜 Licença
 
-O aplicativo conta com sincronização online integrada com o **Google Drive**:
+Este projeto é um software livre distribuído sob os termos da licença **GNU General Public License v3.0 (GPL-3.0)**. Consulte o arquivo [LICENSE](LICENSE) para obter o texto completo da licença.
 
-- **Pasta Oculta Segura (`appDataFolder`)**: Todos os dados do usuário (fichas de personagens, armas customizadas, homebrews, listas e favoritos) são salvos na área isolada do aplicativo no Google Drive do jogador. Isso evita exclusões acidentais na lixeira comum do Drive.
-- **Custo Zero & Privacidade Total**: Nenhum dado pessoal é mantido em servidores ou bancos de dados centrais de terceiros. A conta Google pessoal do jogador armazena com segurança seu progresso.
-- **Smart Merge Inteligente**: Ao alternar entre o celular (Android) e o computador (Web), o motor de mesclagem compara timestamps (`updatedAt`) individualmente por ficha, unindo favoritos e listas sem perda de dados.
-- **Sincronização Automática**: Salva alterações em segundo plano com debounce assim que o usuário edita fichas ou armas.
-- **Configuração Customizável de Client ID**: Permite usar as credenciais padrão do app ou inserir seu próprio Client ID do Google Cloud Console no modal de Perfil > Nuvem.
+Em resumo, a licença GPL-3.0 garante a todos a liberdade de:
+- Executar o programa para qualquer propósito;
+- Estudar como o programa funciona e adaptá-lo às suas necessidades;
+- Redistribuir cópias para ajudar outros;
+- Melhorar o programa e liberar suas melhorias para o público, desde que qualquer trabalho derivado permaneça livre e sob a mesma licença GPL-3.0.
 
 ---
 
-## 💡 Possíveis Melhorias e Roadmap Futuro
+## ⚠️ Aviso Legal / Disclaimer
 
-Durante o desenvolvimento e análise dos 10 livros, mapeamos as seguintes sugestões de evolução para o projeto:
-
-1. **Rastreador de Iniciativa e Combate para o Mestre (Combat Tracker)**:
-   - Adicionar uma tela onde o Mestre possa selecionar múltiplas Ameaças/Criaturas do Compêndio e Agentes do grupo, controlar a ordem de Iniciativa, aplicar Condições (ex.: *Sangrando*, *Abalado*, *Agarrado*) com cálculo automático de penalidades em `-1d20`/`-2d20` e controlar os PVs de cada monstro na cena.
-2. **Gerador Automático de Missões, Transtornados, Produção do Anfitrião e Mercenários**:
-   - Os PDFs (*Livro Base* pág. 157, *Arquivos Secretos #01* pág. 23, *#04* pág. 48, *#05* pág. 23 e *#09* pág. 14) possuem tabelas de rolagem para gerar missões e cultistas aleatórios. Podemos criar um botão **"Gerar Missão / Cultista Aleatório"** que rola todas as tabelas automaticamente em 1 clique.
-3. **Calculadora Automática de Carga e Limite de Categoria por Patente na Ficha**:
-   - Validar automaticamente na ficha se a soma de espaços dos itens ultrapassa `5 × Força` (aplicando a condição *Sobrecarregado*) e verificar a quantidade máxima de itens de Categoria I, II, III e IV de acordo com a Patente (*Recruta*, *Operador*, *Agente Especial*, *Oficial de Operações*, *Agente de Elite*).
-4. **Rastreador de Cenas de Perseguição e Furtividade (*Sobrevivendo ao Horror*)**:
-   - Widget interativo para controlar os acúmulos de sucessos em cenas de Perseguição e o nível de Visibilidade (`1` a `3`) em cenas de Furtividade introduzidas no suplemento *Sobrevivendo ao Horror*.
-5. **Modo Mesa Compartilhada em Tempo Real (WebSockets / Supabase Realtime)**:
-   - Quando a camada de nuvem for ativada, permitir que os jogadores rolem dados na ficha e o Mestre veja o resultado da rolagem instantaneamente na tela da mesa.
+> **Ordem Paranormal RPG** é uma marca registrada e propriedade intelectual de **Cellbit** e da **Jambô Editora**.
+>
+> Este aplicativo é um projeto de fã, de código aberto e sem fins lucrativos, criado com o objetivo de servir como ferramenta auxiliar para jogadores e mestres durante as sessões de jogo. Todo o crédito pelo universo, ilustrações originais e regras do sistema pertence aos seus respectivos criadores e autores. Apoie a obra oficial adquirindo os livros na [Jambô Editora](https://jamboeditora.com.br/).

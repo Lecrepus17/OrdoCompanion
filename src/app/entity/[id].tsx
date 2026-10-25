@@ -33,13 +33,14 @@ export default function EntityDetailScreen() {
     savedLists,
     toggleEntityInList,
     rollFormula,
+    openManual,
   } = useApp();
 
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const entity = getEntityById(id || '');
   const [pageViewerOpen, setPageViewerOpen] = useState(false);
-  const [viewerMode, setViewerMode] = useState<PdfViewerMode>('pdf_page');
+  const [viewerMode, setViewerMode] = useState<PdfViewerMode>('pdf_scroll');
   const [listModalOpen, setListModalOpen] = useState(false);
 
   if (!entity) {
@@ -56,7 +57,7 @@ export default function EntityDetailScreen() {
   const entityBook = books.find((b) => b.id === entity.bookId) || null;
   const canRestoreDefault = hasOriginalVersion(entity.id);
 
-  const handleOpenPageReader = (mode: PdfViewerMode = 'pdf_page') => {
+  const handleOpenPageReader = (mode: PdfViewerMode = 'pdf_scroll') => {
     setViewerMode(mode);
     setPageViewerOpen(true);
   };
@@ -162,10 +163,18 @@ export default function EntityDetailScreen() {
               <Text style={styles.actionBtnText}>Editar</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => openManual('entity_detail_editor')}
+            >
+              <Ionicons name="help-circle-outline" size={17} color={colors.primary} />
+              <Text style={[styles.actionBtnText, { color: colors.primary }]}>Manual</Text>
+            </TouchableOpacity>
+
             {entity.bookId !== 'custom' && entityBook && (
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnBook]}
-                onPress={() => handleOpenPageReader('pdf_page')}
+                onPress={() => handleOpenPageReader('pdf_scroll')}
               >
                 <Ionicons name="document-attach-outline" size={17} color="#FCA5A5" />
                 <Text style={[styles.actionBtnText, { color: '#FCA5A5' }]}>
@@ -369,7 +378,7 @@ export default function EntityDetailScreen() {
               <View style={styles.contextButtonsRow}>
                 <TouchableOpacity
                   style={styles.openFullPageBtn}
-                  onPress={() => handleOpenPageReader('pdf_page')}
+                  onPress={() => handleOpenPageReader('pdf_scroll')}
                 >
                   <Ionicons name="expand-outline" size={16} color="#FFF" />
                   <Text style={styles.openFullPageBtnText}>Abrir PDF na Pág. {entity.pageNumber}</Text>
@@ -388,7 +397,7 @@ export default function EntityDetailScreen() {
             <TouchableOpacity
               style={styles.pdfPreviewBox}
               activeOpacity={0.88}
-              onPress={() => handleOpenPageReader('pdf_page')}
+              onPress={() => handleOpenPageReader('pdf_scroll')}
             >
               <Image
                 source={{

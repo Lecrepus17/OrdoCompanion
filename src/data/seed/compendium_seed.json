@@ -14040,7 +14040,7 @@
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 147,
-      "element": "Sangue",
+      "element": "Conhecimento",
       "diceFormulas": [
         "4d8",
         "1d4"
@@ -14049,7 +14049,7 @@
       "description": "A arma é letal contra criaturas de um elemento. Quando ataca uma criatura desse elemento, você pode gastar 2 PE. Se fizer isso e acertar o ataque, causa +4d8 pontos de dano. Para determinar o elemento aleatoriamente, role 1d4: 1) Conhecimento; 2) Energia; 3) Morte; 4) Sangue.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Sangue",
+        "Conhecimento",
         "Livro Base",
         "Item"
       ]
@@ -14062,13 +14062,13 @@
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 147,
-      "element": "Sangue",
+      "element": "Conhecimento",
       "diceFormulas": [],
       "summary": "Você pode armazenar na arma um ritual que tenha como alvo um ser ou que afete uma área, gastando os PE como se tivesse conjurado o ritual normalmente.",
       "description": "Você pode armazenar na arma um ritual que tenha como alvo um ser ou que afete uma área, gastando os PE como se tivesse conjurado o ritual normalmente. O ritual não gera efeito na hora; em vez disso, fica guardado no item. Quando acerta um ataque com a arma, você pode descarregar o ritual armazenado como uma ação livre. O alvo do ritual, ou o centro da área dele, é o ser atingido. Uma vez que o ritual seja descarregado, outro pode ser armazenado.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Sangue",
+        "Conhecimento",
         "Livro Base",
         "Item"
       ]
@@ -14081,13 +14081,13 @@
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 148,
-      "element": "Sangue",
+      "element": "Conhecimento",
       "diceFormulas": [],
       "summary": "Você pode gastar uma ação de movimento e 2 PE para imbuir a arma com uma fagulha de sua consciência.",
       "description": "Você pode gastar uma ação de movimento e 2 PE para imbuir a arma com uma fagulha de sua consciência. A arma flutua ao seu lado e, uma vez por rodada, ataca um ser em alcance curto (ou no alcance da arma, o que for maior) a sua escolha, com as mesmas estatísticas que teria se você a estivesse empunhando. Você pode gastar 1 PE no início de cada um de seus turnos para manter esse efeito. Se não o fizer, a arma cai no chão. Você pode usar uma ação de movimento para apanhar a arma no ar caso precise. Soltar a arma para que volte a flutuar para ativar a maldição é uma ação livre.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Sangue",
+        "Conhecimento",
         "Livro Base",
         "Item"
       ]
@@ -14100,13 +14100,13 @@
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 148,
-      "element": "Sangue",
+      "element": "Energia",
       "diceFormulas": [],
       "summary": "Com a capacidade de gerar uma descarga momentânea de Energia, a arma ganha a capacidade de ser arremessada em alcance curto (se já podia ser arremessada, seu alcance aumenta em uma categoria) e causa mais um dado de dano do mesmo tipo quando usada dessa forma.",
       "description": "Com a capacidade de gerar uma descarga momentânea de Energia, a arma ganha a capacidade de ser arremessada em alcance curto (se já podia ser arremessada, seu alcance aumenta em uma categoria) e causa mais um dado de dano do mesmo tipo quando usada dessa forma. Após efetuar um ataque à distância com a arma, ela volta voando para você no mesmo turno. Pegar a arma é uma reação. Somente armas corpo a corpo podem receber essa maldição.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Sangue",
+        "Energia",
         "Livro Base",
         "Item"
       ]
@@ -14119,13 +14119,13 @@
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 148,
-      "element": "Sangue",
+      "element": "Energia",
       "diceFormulas": [],
       "summary": "Você pode gastar 2 PE para transformar a arma (exceto seu cabo ou empunhadura) ou a munição disparada pela arma em Energia pura.",
       "description": "Você pode gastar 2 PE para transformar a arma (exceto seu cabo ou empunhadura) ou a munição disparada pela arma em Energia pura. Até o final da cena, a arma fornece +5 em testes de ataque, ignora resistência a dano e converte todo o dano causado para Energia. Armas de corpo a corpo emanam luz como uma lâmpada; munição toma uma forma plasmática iluminada como feixes de luz.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Sangue",
+        "Energia",
         "Livro Base",
         "Item"
       ]
@@ -14138,13 +14138,13 @@
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 148,
-      "element": "Sangue",
+      "element": "Energia",
       "diceFormulas": [],
       "summary": "A arma vibra constantemente com um fluxo de Energia.",
       "description": "A arma vibra constantemente com um fluxo de Energia. Você recebe a habilidade Ataque Extra, da trilha operações especiais, do combatente. Se já a possui, em vez disso o custo para usá-la diminui em –1 PE.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Sangue",
+        "Energia",
         "Livro Base",
         "Item"
       ]
@@ -14157,13 +14157,13 @@
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 148,
-      "element": "Sangue",
+      "element": "Morte",
       "diceFormulas": [],
       "summary": "A arma drena a entropia de seres, deixando alvos atingidos lentos até o final da cena.",
       "description": "A arma drena a entropia de seres, deixando alvos atingidos lentos até o final da cena. Quando ataca, você pode gastar 2 PE. Se fizer isso e acertar o ataque, o alvo fica imóvel por uma rodada.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Sangue",
+        "Morte",
         "Livro Base",
         "Item"
       ]
@@ -14176,7 +14176,7 @@
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 148,
-      "element": "Sangue",
+      "element": "Morte",
       "diceFormulas": [
         "1d8",
         "2d4"
@@ -14185,7 +14185,7 @@
       "description": "A arma acelera o envelhecimento dos alvos, causando +1d8 pontos de dano de Morte. Quando ataca, você pode gastar 2 PE. Se fizer isso e acertar o ataque, a vítima sofre 2d4 pontos de dano de Morte no início de seus turnos pelas próximas duas rodadas.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Sangue",
+        "Morte",
         "Livro Base",
         "Item"
       ]
@@ -14198,13 +14198,13 @@
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 148,
-      "element": "Sangue",
+      "element": "Morte",
       "diceFormulas": [],
       "summary": "A arma gera uma aura similar a uma fumaça espiralada que desacelera ataques vindos em sua direção, fornecendo +2 de Defesa enquanto estiver empunhada.",
       "description": "A arma gera uma aura similar a uma fumaça espiralada que desacelera ataques vindos em sua direção, fornecendo +2 de Defesa enquanto estiver empunhada. Quando você faz um bloqueio, pode gastar 2 PE. Se fizer isso, recebe um bônus adicional de +5 em Defesa.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Sangue",
+        "Morte",
         "Livro Base",
         "Item"
       ]
@@ -19492,7 +19492,13 @@
       "vd": 20,
       "defense": 16,
       "pv": 50,
-      "attributes": {},
+      "attributes": {
+        "AGI": "1",
+        "FOR": "3",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "3"
+      },
       "disturbingPresence": "DT 15 • 2d4 mental",
       "diceFormulas": [
         "2d4",
@@ -19511,18 +19517,24 @@
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__mescla_vd80",
+      "id": "creature__sobrevivendo_ao_horror__mescla_vd60",
       "category": "creature",
-      "subCategory": "Ameaça (VD 80)",
+      "subCategory": "Ameaça (VD 60)",
       "name": "Mescla",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
       "pageNumber": 130,
       "element": "Sangue",
-      "vd": 80,
+      "vd": 60,
       "defense": 21,
-      "pv": 180,
-      "attributes": {},
+      "pv": 100,
+      "attributes": {
+        "AGI": "3",
+        "FOR": "3",
+        "INT": "1",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "DT 20 • 3d6 mental",
       "diceFormulas": [
         "3d6",
@@ -19534,12 +19546,12 @@
         "3d12",
         "1d12"
       ],
-      "summary": "VD 80 | Elemento: Sangue | PV: 180 | Defesa: 21",
+      "summary": "VD 60 | Elemento: Sangue | PV: 100 | Defesa: 21",
       "description": "já tenha passado com um odor fétido capaz de causar \ndesmaios e vômitos à mera exposição momentânea.\n\nHá relatos daqueles que enxergaram a criatura como \numa silhueta tormentosa voando pelos céus pela propulsão de asas como as de uma mosca gigantesca,\n\nMESCLA\nSANGUE\nVD 60\nAÇÕES\n\n•  CRIATURA •  GRANDE\n\nPRESENÇA PERTURBADORA\n\nDT 20 •  3d6 mental •  NEX 35%+ é imune\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 3d20+10\n\nFARO, VISÃO NO ESCURO\n\nDEFESA 21\n\nFORTITUDE 2d20+5\nREFLEXOS 3d20+10\nVONTADE 1d20+5\n\nPONTOS DE VIDA 100 | Machucado 50\n\nIMUNIDADES Químico\n\nRESISTÊNCIAS Balístico, corte, perfuração 10,\n\nSangue 20\n\nVULNERABILIDADES Morte, fogo e frio\n\nDESLOCAMENTO 12m | 8□\n\nESCALADA 12m | 8□\n\nVOO 9m | 6□\n\nAGI 3   FOR 3   INT 1   PRE 1   VIG 2\n\nPERÍCIAS Acrobacia 3d20+10, Atletismo 3d20+10,\n\nFurtividade 3d20+8\n\nFLUIDOS REPUGNANTES\n\nAlém de serem corrosivos, os fluidos corporais da \nMescla causam enjoo e repugnância. Sempre que \num ser causa dano corpo a corpo ou em alcance \ncurto a criatura, ou sempre que sofre dano de \nSangue dela, o ser fica enjoado por uma rodada \n(Fortitude DT 20 evita).\n\nPERCEPÇÃO MULTIFACETADA\n\nA Mescla não pode ser flanqueada nem surpreendida.\n\nenquanto outros relatam visões de um ser alongado \ncom diversos membros como uma centopeia. Independente do ser que eclode a transformação, a Mescla \né um ser repugnante com as intenções análogas à \naquilo em que se transformou: proliferar e consumir.\n\nPADRÃO ▸  AGREDIR\n\nGARRAS Corpo a corpo x2\nTESTE 3d20+10 | DANO 2d6+5 corte\n\nCUSPE ÁCIDO Distância ⌖  CURTO\nTESTE 3d20+10 | DANO 3d12 Sangue\n\nLIVRE ◆  VOMITAR ÁCIDO\n\nQuando atinge um ser com seus dois ataques \nde garra na mesma ação agredir, a Mescla \nvomita uma grotesca quantidade de substância \ncáustica. A vítima sofre 1d12 pontos de dano \nde Sangue.\n\nREAÇÃO ◆  AGARRÃO\n\nSe a Mescla acertar seus dois ataques de garra \nem um ser na mesma ação agredir, pode tentar \nagarrar o alvo (teste 3d20+12).\n\nCOMPLETA ◆  CAMUFLAGEM SOBRENATURAL\n\nSe não estiver sendo visto por nenhuma \npessoa, a Mescla pode se misturar ao \nambiente, ficando imóvel e alterando sua cor \npara que fique sob camuflagem total e receba \n+10 em Furtividade.\n\nCOMPLETA ◆  INCUBAR OVOS\n\nSe estiver agarrando um ser, a Mescla pode \nusar um ferrão tão fino como uma agulha, \noculto em sua língua, para perfurar a criatura \n(teste de ataque 3d20+10). Se acertar, o ferrão \nincuba 1d4 ovos da Mescla (Fortitude DT 5 +5 \npara cada ovo, evita a incubação). Um alvo \nincubado sofre uma versão modificada da \ndoença Sangue Quente (OPRPG, p. 291), que \ntem um Estágio IV: ao alcançar esse estágio, \numa nova Mescla nasce a partir do corpo da \nvítima, matando-a de dentro para fora.\n\nCOMPLETA ◆  INVESTIDA INSECTOIDE\n\nSe estiver em um local acima de um ser em \nalcance médio, a Mescla salta na direção desse \nser e aterrissa em um espaço adjacente a ele. \nIsso conta como uma investida, mas a Mescla \npode fazer seus dois ataques de garra (ambos \ncom o bônus da investida) contra o alvo.",
       "tags": [
         "Criatura / Ameaça",
         "Sangue",
-        "VD 80",
+        "VD 60",
         "Sobrevivendo ao Horror"
       ]
     },
@@ -19555,7 +19567,13 @@
       "vd": 220,
       "defense": 27,
       "pv": 400,
-      "attributes": {},
+      "attributes": {
+        "AGI": "2",
+        "FOR": "2",
+        "INT": "1",
+        "PRE": "1",
+        "VIG": "3"
+      },
       "disturbingPresence": "DT 35 • 6d8 mental",
       "diceFormulas": [
         "6d8",
@@ -19577,18 +19595,24 @@
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__derretido_vd80",
+      "id": "creature__sobrevivendo_ao_horror__o_uivar_vd100",
       "category": "creature",
-      "subCategory": "Ameaça (VD 80)",
-      "name": "Derretido",
+      "subCategory": "Ameaça (VD 100)",
+      "name": "O Uivar",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
       "pageNumber": 136,
-      "element": "Sangue",
-      "vd": 80,
-      "defense": 23,
-      "pv": 140,
-      "attributes": {},
+      "element": "Energia",
+      "vd": 100,
+      "defense": 20,
+      "pv": 100,
+      "attributes": {
+        "AGI": "3",
+        "FOR": "-",
+        "INT": "3",
+        "PRE": "3",
+        "VIG": "1"
+      },
       "disturbingPresence": "DT 20 • 4d6 mental",
       "diceFormulas": [
         "4d6",
@@ -19598,28 +19622,34 @@
         "1d20",
         "6d6"
       ],
-      "summary": "VD 80 | Elemento: Sangue | PV: 140 | Defesa: 23",
+      "summary": "VD 100 | Elemento: Energia | PV: 100 | Defesa: 20",
       "description": "Alguns pesquisadores paranormais não sabem ao \ncerto se essa manifestação poderia ser categorizada \ncomo uma criatura, preferindo categorizar o Uivar \ncomo uma anomalia climática paranormal, algo incontrolável e irreversível, uma entidade que pode\n\nO UIVAR\nENERGIA\nVD 100\n(Reflexos DT 20 reduz à metade). Coberturas \nfrágeis, como tendas ou toldos, são facilmente \ndestruídas pelo granizo perfurante.\n\n•  CRIATURA •  MÉDIA\n\nPRESENÇA PERTURBADORA\n\nDT 20 •  4d6 mental •  NEX 45%+ é imune\n\nSENTIDOS Percepção 3d20+10 | Iniciativa 3d20+10\n\nPERCEPÇÃO ÀS CEGAS\n\nDEFESA 20\n\nFORTITUDE 1d20+5\nREFLEXOS 3d20+10\nVONTADE 3d20+10\n\nPONTOS DE VIDA 100 | Machucado 50\n\nIMUNIDADES Dano\n\nDESLOCAMENTO Voo 12m | 8□\n\nAGI 3   FOR -   INT 3   PRE 3   VIG 1\n\nALTERAÇÕES CLIMÁTICAS\n\nO Uivar constantemente altera o clima em um \nraio de 90m ao seu redor. A área afetada é tomada \npor frio extremo, além de ser afetada por neblina, \nneve e vento forte (OPRPG, p. 290).\n\nVIBRAÇÕES TÉRMICAS\n\nO Uivar é invisível (veja p. 125) e incorpóreo, além \nde não emitir sons mais altos que o assovio trazido \npelo vento gelado, horas parecendo gritos de horror, horas lembrando os ruídos emitidos por lousa \nsendo arranhada. Um ser que consiga ver a criatura \ntestemunha em seu interior uma silhueta de tamanho Médio, “vazia”, distorcida, curvada e gélida.\n\nAÇÕES\n\nMOVIMENTO ◆  GRANIZO PERFURANTE\n\nO Uivar começa a gerar granizo. Se ele usar \nCongelar na mesma rodada, além dos efeitos \nnormais, todos os seres sem cobertura na área \nsofrem 2d8 pontos de dano de perfuração\n\nser apenas sobrevivida, nunca enfrentada. Porém, \nmesmo contra a onda gélida do caos, há aqueles \ncorajosos (ou loucos) o suficiente para acreditar que \npodem encarar a nevasca de frente.\n\nPADRÃO ◆  CONGELAR\n\nA criatura emana ondas de frio que absorvem o \ncalor e derrubam a temperatura em um raio de \n90m ao seu redor. Qualquer ser dentro da área \nsofre 2d8 pontos de dano de frio (Fortitude DT \n20 reduz à metade). Essa habilidade também \nafeta o cenário, cobrindo o céu de nuvens (se \nfor dia, a iluminação fica como em penumbra; \nse for noite, fica como em escuridão), criando \ncamadas de gelo sobre os objetos (a critério \ndo mestre, testes envolvendo manipular itens \nsofrem –1d20) e gerando granizo, chuva e vendaval \n(OPRPG, p. 290). As alterações no cenário \nduram até o fim da cena ou até o fim da missão, \na critério do mestre.\n\nPADRÃO ◆  BEIJO GÉLIDO\n\nO Uivar aproxima sua forma “vazia” de um \nser em alcance corpo a corpo e suga sua \ntemperatura; a vítima sofre 6d6 pontos de \ndano de Energia, e fica lenta (Fortitude DT \n20 reduz à metade). Um ser reduzido a 0 PV \npor esta habilidade, ou que já esteja com 0 \nPV quando sofrer esse dano, se torna uma \n“estátua de gelo” deturpada. Em termos de \njogo, ele fica petrificado até que a camada \nde gelo sobrenatural seja destruída (20 PV e \nRD 20/fogo). Um ser petrificado dessa forma \nnão pode recuperar pontos de vida, mas não \nestá morrendo. Entretanto, qualquer dano \ncausado à camada de gelo que não seja de \nfogo também fere o ser congelado, fazendo \ncom que ele fique morrendo. Quando \ntransforma um ser em estátua de gelo, o Uivar \nrecupera 20 PV. Destruir uma estátua criada \npelo Uivar faz ele perder 10 PV, mas se o ser \ncongelado também for morto, quem o matou \nsofre 6d6 pontos de dano mental (Vontade DT \n20 reduz à metade).",
       "tags": [
         "Criatura / Ameaça",
-        "Sangue",
-        "VD 80",
+        "Energia",
+        "VD 100",
         "Sobrevivendo ao Horror"
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__o_uivar_vd100",
+      "id": "creature__sobrevivendo_ao_horror__derretido_vd80",
       "category": "creature",
-      "subCategory": "Ameaça (VD 100)",
-      "name": "O Uivar",
+      "subCategory": "Ameaça (VD 80)",
+      "name": "Derretido",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
       "pageNumber": 138,
-      "element": "Energia",
-      "vd": 100,
-      "defense": 20,
-      "pv": 100,
-      "attributes": {},
+      "element": "Sangue",
+      "vd": 80,
+      "defense": 23,
+      "pv": 140,
+      "attributes": {
+        "AGI": "1",
+        "FOR": "4",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "4"
+      },
       "disturbingPresence": "DT 20 • 4d6 mental",
       "diceFormulas": [
         "4d6",
@@ -19628,12 +19658,12 @@
         "6d6",
         "1d6"
       ],
-      "summary": "VD 100 | Elemento: Energia | PV: 100 | Defesa: 20",
+      "summary": "VD 80 | Elemento: Sangue | PV: 140 | Defesa: 23",
       "description": "DERRETIDO\nSANGUE\nVD 80\nMATÉRIA NOCIVA\n\nENERGIA •  CRIATURA •  ENORME\n\nPRESENÇA PERTURBADORA\n\nDT 20 •  4d6 mental •  NEX 40%+ é imune\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nPERCEPÇÃO ÀS CEGAS\n\nDEFESA 23\n\nFORTITUDE 4d20+10\nREFLEXOS 1d20+5\nVONTADE 1d20+5\n\nPONTOS DE VIDA 140 | Machucado 70\n\nIMUNIDADES Balístico, corte, impacto\n\ne perfuração\n\nRESISTÊNCIAS Sangue 20\n\nVULNERABILIDADES Morte, fogo e químico\n\nDESLOCAMENTO 9m | 6□\n\nESCALADA 9m | 6□\n\nAGI 1   FOR 4   INT 0   PRE 1   VIG 4\n\nPERÍCIAS Enganação O, Furtividade O\n\nAMORFO\n\nEsta criatura é uma massa grotesca de Sangue e \noutros pedaços viscosos, com o mínimo de consistência e muita maleabilidade. Apesar de seu \ntamanho, ela não pode ser restringida por obstáculos físicos e é capaz de passar por qualquer \nfresta por onde a água passaria. Por exemplo, ela \npoderia invadir com cômodo fechado se espremendo por baixo da porta, pelo encanamento, \npor frestas na janela etc. Contudo, enquanto está \nse espremendo para atravessar um obstáculo, o \nDerretido fica lento.\n\nLIBERDADE DE ESPAÇO\n\nDesde que continue conectada pelo mínimo cordão \nda nojeira viscosa que compõe o seu corpo, o Derretido não precisa se limitar a regras de espaço ocupado, \npodendo invadir quadrados ocupados por outras \ncriaturas. Da mesma forma, outras criaturas podem \npassar por espaços ocupados pelo Derretido, mas \nesses espaços são considerados terreno difícil.\n\nQualquer ser que entre ou comece seu turno na \nárea ocupada pelo Derretido sofre 6d6 pontos de \ndano de Sangue e fica lento e enjoado por uma \nrodada (Fortitude DT 20 reduz à metade e evita a \ncondição lento). Uma mesma criatura só é afetada \npor essa habilidade uma vez por rodada. A critério do mestre, o Derretido também pode causar \ndano em objetos para abrir caminho.\n\nAÇÕES\n\nPADRÃO ◆  ARRASTAR REPULSIVO\n\nO Derretido envolve objetos e seres com \nsua própria massa amorfa. Até o início do \nseu próximo turno, sempre que se mover, o \nDerretido arrasta consigo seres e objetos em \nsua área a sua escolha (Atletismo DT 20 evita ser \narrastado). Seres arrastados dessa forma sofrem \n4d6 pontos de dano de Sangue e ficam caídos.\n\nPADRÃO ◆  RASTRO CORROSIVO\n\nO Derretido começa a expelir muco corrosivo. \nAté o início do seu próximo turno, sempre \nque se move, ele deixa um rastro corrosivo no \nespaço que percorre. Essa área fica coberta por \nácido e é considerada terreno difícil. Qualquer \nser que entre, ou comece seu turno, na área \ncoberta pelo rastro sofre 1d6 pontos de dano \nde ácido. Uma mesma criatura só sofre esse \ndano uma vez por rodad a.\n\nPADRÃO ◆  SIMULAR CORPO\n\nO Derretido pode moldar seu corpo para que \nsua silhueta se pareça com uma pessoa, animal \nou objeto. Em um ambiente iluminado, é fácil \ndistinguí-lo, mas em penumbra ou escuridão, \nele pode usar essa habilidade para se esconder \nou se disfarçar. Nessa condição, ele recebe +10 \nem testes de Furtividade para esconder-se e de \nEnganação para disfarce.\n\nCOMPLETA ◆  CONSUMIR\n\nO Derretido pode consumir um ser que esteja \nem sua área ocupada, inconsciente e com 0 PV \n(mesmo que não esteja morrendo). Se fizer isso, \nrecupera 20 PV e dissolve a vítima por completo, \ntornando-a parte de seu amálgama grotesco.\n\nCOMPLETA ◆  DESLIZAR NOJENTO\n\nEnquanto não estiver se espremendo em um \nespaço apertado, o Derretido pode acelerar \nseu deslocamento em uma movimentação \nque lembra uma lesma do mar, deslizando e \ndesviando de obstáculos. Ele percorre o triplo do \nseu deslocamento padrão.",
       "tags": [
         "Criatura / Ameaça",
-        "Energia",
-        "VD 100",
+        "Sangue",
+        "VD 80",
         "Sobrevivendo ao Horror"
       ]
     },
@@ -19649,7 +19679,13 @@
       "vd": 140,
       "defense": 29,
       "pv": 200,
-      "attributes": {},
+      "attributes": {
+        "AGI": "4",
+        "FOR": "-",
+        "INT": "4",
+        "PRE": "3",
+        "VIG": "1"
+      },
       "disturbingPresence": "DT 25 • 4d8 mental",
       "diceFormulas": [
         "4d8",
@@ -19678,7 +19714,13 @@
       "vd": 160,
       "defense": 34,
       "pv": 320,
-      "attributes": {},
+      "attributes": {
+        "AGI": "4",
+        "FOR": "4",
+        "INT": "1",
+        "PRE": "3",
+        "VIG": "4"
+      },
       "disturbingPresence": "DT 25 • 4d8 mental",
       "diceFormulas": [
         "4d8",
@@ -19711,7 +19753,13 @@
       "vd": 200,
       "defense": 34,
       "pv": 380,
-      "attributes": {},
+      "attributes": {
+        "AGI": "4",
+        "FOR": "4",
+        "INT": "2",
+        "PRE": "2",
+        "VIG": "2"
+      },
       "disturbingPresence": "DT 30 • 6d6 mental",
       "diceFormulas": [
         "6d6",
@@ -19744,7 +19792,13 @@
       "vd": 260,
       "defense": 44,
       "pv": 650,
-      "attributes": {},
+      "attributes": {
+        "AGI": "1",
+        "FOR": "1",
+        "INT": "3",
+        "PRE": "3",
+        "VIG": "3"
+      },
       "disturbingPresence": "DT 35 • 8d6 mental",
       "diceFormulas": [
         "8d6",
@@ -19775,7 +19829,13 @@
       "vd": 300,
       "defense": 45,
       "pv": 700,
-      "attributes": {},
+      "attributes": {
+        "AGI": "2",
+        "FOR": "2",
+        "INT": "5",
+        "PRE": "5",
+        "VIG": "2"
+      },
       "disturbingPresence": "DT 35 • 8d6 mental",
       "diceFormulas": [
         "7d8",
@@ -19805,7 +19865,13 @@
       "vd": 320,
       "defense": 50,
       "pv": 380,
-      "attributes": {},
+      "attributes": {
+        "AGI": "4",
+        "FOR": "3",
+        "INT": "4",
+        "PRE": "5",
+        "VIG": "3"
+      },
       "disturbingPresence": "DT 40 • 9d6 mental",
       "diceFormulas": [
         "9d6",
@@ -19838,7 +19904,13 @@
       "vd": 360,
       "defense": 56,
       "pv": 850,
-      "attributes": {},
+      "attributes": {
+        "AGI": "5",
+        "FOR": "5",
+        "INT": "3",
+        "PRE": "5",
+        "VIG": "4"
+      },
       "disturbingPresence": "DT 40 • 8d8 mental",
       "diceFormulas": [
         "8d8",
@@ -19869,8 +19941,14 @@
       "element": "Nenhum",
       "vd": 10,
       "defense": 12,
-      "pv": 12,
-      "attributes": {},
+      "pv": 6,
+      "attributes": {
+        "AGI": "1",
+        "FOR": "1",
+        "INT": "0",
+        "PRE": "0",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+5",
@@ -19879,7 +19957,7 @@
         "2d20+5",
         "2d20+10"
       ],
-      "summary": "VD 10 | Elemento: Nenhum | PV: 12 | Defesa: 12",
+      "summary": "VD 10 | Elemento: Nenhum | PV: 6 | Defesa: 12",
       "description": "NOVAS AMEAÇAS DA REALIDADE\n\nNem todas as fontes de terror e medo vêm do Outro \nLado. Muitas vezes é aqui mesmo, em nosso mundo, \nque grandes temores se materializam. De animais \ndomésticos a predadores selvagens, de criminosos \nurbanos a assassinos em série, a Realidade se revela \numa inesgotável fonte de ameaças.\nBÊBADO LOCAL\t\nVD 10\n\nSimpático, falante e sempre cheio de histórias, o bêbado local é aquele sujeito conhecido por todos da \nvizinhança. Alguns são vendedores de pequenas utilidades, como doces ou panos de prato, enquanto outros \nvivem de pequenos serviços e da bondade alheia. \nQualquer que seja sua origem, ele circula pelas ruas, \nsaltando de bar em bar, sempre em busca do próximo \ntrago. Nas pequenas localidades, em especial, muitas \nvezes faz parte do folclore local, e entre uma bebida e \noutra paga por uma alma caridosa, compartilha histórias e fofocas das cercanias. Apesar de nem sempre \ngozar de uma boa reputação, o bêbado local pode ser \numa valiosa fonte de informações para agentes de fora \nda cidade, ou um eficiente espião para aqueles que \nquerem ficar a par dos movimentos de forasteiros.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20\nDEFESA 12\n\nFortitude 1d20+5 | Reflexos 1d20 | Vontade –2d20\n\nPONTOS DE VIDA 6 | Machucado 3\n\nRESISTÊNCIAS | QUÍMICO 1\n\nDESLOCAMENTO 6m | 4□\n\nAGI 1   FOR 1   INT 0   PRE 0   VIG 1\n\nPERÍCIAS Diplomacia 1d20+5\n\nCAUSOS E HISTÓRIAS O bêbado local conhece \nmuitas histórias, passadas e presentes, de sua \nregião. Um personagem recebe +5 em testes de \nInvestigação para interrogar um bêbado local, \ndesde que a DT da informação seja 20 ou menos.\n\nESPIÃO INVOLUNTÁRIO O bêbado local pode \nser empregado como um espião por um NPC \ninteressado em informações locais. Sempre que \num personagem interage com um bêbado local, \ndeve fazer um teste de Intuição ou Vontade (DT \n15). Se falhar, revela inadvertidamente alguma \ninformação relevante; cada informação revelada \nfornece um bônus de +5 que o mestre pode gastar\n\nao longo da missão para aumentar a DT de um teste \nrelacionado à investigação, representando o uso \ndessa informação contra os personagens.\n\nINVISIBILIDADE SOCIAL É fácil não perceber \no bêbado local. Talvez ele se esforce para passar \ndespercebido, ou talvez ignorar sua presença \nseja fácil para pessoas socialmente privilegiadas. \nSe o bêbado não estiver fazendo nenhuma ação \nchamativa, outras pessoas precisam passar em \num teste de Percepção (DT 15) para notar sua \npresença.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nSOCO Corpo a corpo\nTeste 1d20 | Dano 1d3+1 impacto\nBUROCRATA\t\nVD 10\n\nDos serviços públicos aos diversos negócios privados, \na necessidade de organizar procedimentos, normas \ne informações é, muitas vezes, um mal necessário. \nBurocratas são pessoas encarregadas desses procedimentos, e têm como função zelar pela devida execução \nde todos os trâmites organizacionais. Infelizmente, \nmuitas vezes isso pode se revelar um problema quando \no tempo está contra os personagens.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 2d20+5 | Iniciativa –2d20\nDEFESA 11\n\nFortitude 1d20 | Reflexos 1d20 | Vontade 2d20+5\n\nPONTOS DE VIDA 6 | Machucado 3\n\nDESLOCAMENTO 9m | 6□\n\nAGI 1   FOR 1   INT 2   PRE 2   VIG 1\n\nPERÍCIAS Diplomacia 2d20+5,\n\nProfissão (burocrata) 2d20+10\n\nATENDIMENTO PROTOCOLAR A categoria inicial \nde atitude do burocrata com pessoas desconhecidas \né sempre indiferente. Enquanto o burocrata tiver uma \natitude indiferente (ou pior) em relação a uma pessoa, ela sofre –5 em testes baseados em Intelecto e \nPresença contra ele.\n\nBUROCRACIA FRUSTRANTE Lidar com um labirinto \nde regras que não parecem fazer sentido pode frustrar mesmo o mais experiente dos agentes. Sempre",
       "tags": [
         "Criatura / Ameaça",
@@ -19889,18 +19967,60 @@
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__burocrata_corrompido_vd20",
+      "id": "creature__sobrevivendo_ao_horror__burocrata_corrompido_vd10",
+      "category": "creature",
+      "subCategory": "Ameaça (VD 10)",
+      "name": "Burocrata Corrompido",
+      "bookId": "sobrevivendo_ao_horror",
+      "bookTitle": "Sobrevivendo ao Horror",
+      "pageNumber": 159,
+      "element": "Nenhum",
+      "vd": 10,
+      "defense": 11,
+      "pv": 6,
+      "attributes": {
+        "AGI": "1",
+        "FOR": "1",
+        "INT": "2",
+        "PRE": "2",
+        "VIG": "1"
+      },
+      "disturbingPresence": "Nenhuma",
+      "diceFormulas": [
+        "1d20+5",
+        "1d20",
+        "2d20",
+        "2d20+5",
+        "2d20+10"
+      ],
+      "summary": "VD 10 | Elemento: Nenhum | PV: 6 | Defesa: 11",
+      "description": "NOVAS AMEAÇAS DA REALIDADE\n\nNem todas as fontes de terror e medo vêm do Outro \nLado. Muitas vezes é aqui mesmo, em nosso mundo, \nque grandes temores se materializam. De animais \ndomésticos a predadores selvagens, de criminosos \nurbanos a assassinos em série, a Realidade se revela \numa inesgotável fonte de ameaças.\nBÊBADO LOCAL\t\nVD 10\n\nSimpático, falante e sempre cheio de histórias, o bêbado local é aquele sujeito conhecido por todos da \nvizinhança. Alguns são vendedores de pequenas utilidades, como doces ou panos de prato, enquanto outros \nvivem de pequenos serviços e da bondade alheia. \nQualquer que seja sua origem, ele circula pelas ruas, \nsaltando de bar em bar, sempre em busca do próximo \ntrago. Nas pequenas localidades, em especial, muitas \nvezes faz parte do folclore local, e entre uma bebida e \noutra paga por uma alma caridosa, compartilha histórias e fofocas das cercanias. Apesar de nem sempre \ngozar de uma boa reputação, o bêbado local pode ser \numa valiosa fonte de informações para agentes de fora \nda cidade, ou um eficiente espião para aqueles que \nquerem ficar a par dos movimentos de forasteiros.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20\nDEFESA 12\n\nFortitude 1d20+5 | Reflexos 1d20 | Vontade –2d20\n\nPONTOS DE VIDA 6 | Machucado 3\n\nRESISTÊNCIAS | QUÍMICO 1\n\nDESLOCAMENTO 6m | 4□\n\nAGI 1   FOR 1   INT 0   PRE 0   VIG 1\n\nPERÍCIAS Diplomacia 1d20+5\n\nCAUSOS E HISTÓRIAS O bêbado local conhece \nmuitas histórias, passadas e presentes, de sua \nregião. Um personagem recebe +5 em testes de \nInvestigação para interrogar um bêbado local, \ndesde que a DT da informação seja 20 ou menos.\n\nESPIÃO INVOLUNTÁRIO O bêbado local pode \nser empregado como um espião por um NPC \ninteressado em informações locais. Sempre que \num personagem interage com um bêbado local, \ndeve fazer um teste de Intuição ou Vontade (DT \n15). Se falhar, revela inadvertidamente alguma \ninformação relevante; cada informação revelada \nfornece um bônus de +5 que o mestre pode gastar\n\nao longo da missão para aumentar a DT de um teste \nrelacionado à investigação, representando o uso \ndessa informação contra os personagens.\n\nINVISIBILIDADE SOCIAL É fácil não perceber \no bêbado local. Talvez ele se esforce para passar \ndespercebido, ou talvez ignorar sua presença \nseja fácil para pessoas socialmente privilegiadas. \nSe o bêbado não estiver fazendo nenhuma ação \nchamativa, outras pessoas precisam passar em \num teste de Percepção (DT 15) para notar sua \npresença.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nSOCO Corpo a corpo\nTeste 1d20 | Dano 1d3+1 impacto\nBUROCRATA\t\nVD 10\n\nDos serviços públicos aos diversos negócios privados, \na necessidade de organizar procedimentos, normas \ne informações é, muitas vezes, um mal necessário. \nBurocratas são pessoas encarregadas desses procedimentos, e têm como função zelar pela devida execução \nde todos os trâmites organizacionais. Infelizmente, \nmuitas vezes isso pode se revelar um problema quando \no tempo está contra os personagens.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 2d20+5 | Iniciativa –2d20\nDEFESA 11\n\nFortitude 1d20 | Reflexos 1d20 | Vontade 2d20+5\n\nPONTOS DE VIDA 6 | Machucado 3\n\nDESLOCAMENTO 9m | 6□\n\nAGI 1   FOR 1   INT 2   PRE 2   VIG 1\n\nPERÍCIAS Diplomacia 2d20+5,\n\nProfissão (burocrata) 2d20+10\n\nATENDIMENTO PROTOCOLAR A categoria inicial \nde atitude do burocrata com pessoas desconhecidas \né sempre indiferente. Enquanto o burocrata tiver uma \natitude indiferente (ou pior) em relação a uma pessoa, ela sofre –5 em testes baseados em Intelecto e \nPresença contra ele.\n\nBUROCRACIA FRUSTRANTE Lidar com um labirinto \nde regras que não parecem fazer sentido pode frustrar mesmo o mais experiente dos agentes. Sempre",
+      "tags": [
+        "Criatura / Ameaça",
+        "Nenhum",
+        "VD 10",
+        "Sobrevivendo ao Horror"
+      ]
+    },
+    {
+      "id": "creature__sobrevivendo_ao_horror__fazendeiro_isolado_vd20",
       "category": "creature",
       "subCategory": "Ameaça (VD 20)",
-      "name": "Burocrata Corrompido",
+      "name": "Fazendeiro Isolado",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
       "pageNumber": 160,
       "element": "Nenhum",
       "vd": 20,
       "defense": 14,
-      "pv": 20,
-      "attributes": {},
+      "pv": 22,
+      "attributes": {
+        "AGI": "1",
+        "FOR": "2",
+        "INT": "1",
+        "PRE": "2",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20",
@@ -19909,42 +20029,12 @@
         "4d6",
         "1d8"
       ],
-      "summary": "VD 20 | Elemento: Nenhum | PV: 20 | Defesa: 14",
+      "summary": "VD 20 | Elemento: Nenhum | PV: 22 | Defesa: 14",
       "description": "que um personagem falha em um teste baseado em \nIntelecto ou Presença contra o burocrata, perde 1 \nponto de Sanidade.\n\nMOROSIDADE Se o burocrata estiver envolvido em \numa cena onde o tempo seja um fator importante (como \numa investigação com urgência), cada personagem deve \nfazer um teste de Diplomacia (DT 15) ao encontrá-lo pela \nprimeira vez. Se falhar, perde uma rodada envolvido \nem alguma discussão ou procedimento.\n\nPREENCHA O FORMULÁRIO Qualquer que seja \nsua função, o burocrata pode ser uma fonte de informações importantes para os personagens. Desde que \neles preencham o formulário adequado. Interrogar \num burocrata em busca de informações exige uma \nperícia específica, determinada pelo mestre, conforme \nsua área de atuação. Exemplos incluem Artes para a \nrecepcionista de uma galeria de artes, Crime para um \nfuncionário de um tribunal, Religião para o secretário \nde uma igreja etc. Testes de interrogação usando a \nperícia errada falham automaticamente. Os personagens podem tentar adivinhar a perícia adequada ou \ninteragir com o burocrata para descobri-la.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nSOCO Corpo a corpo\nTeste 1d20 | Dano 1d3+1 impacto\nFAZENDEIRO ISOLADO\t VD 20\n\nA vida em uma fazenda não é fácil. Muitas vezes distantes de outras famílias ou da cidade mais próxima, \nas pessoas do campo aprendem a resolver as coisas \ncom as próprias mãos. Alguns se tornam naturalmente desconfiados de estranhos e desconhecidos, \npois sabem que nem sempre podem contar com \najuda nas redondezas. Acostumados a contar apenas \nconsigo e com sua família, se tornam estranhos e \npouco receptivos.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 2d20+5 | Iniciativa 1d20\nDEFESA 16\n\nFortitude 2d20+5 | Reflexos 1d20 | Vontade 2d20+5\n\nPONTOS DE VIDA 16 | Machucado 8\n\nDESLOCAMENTO 9m | 6□\n\nAGI 1   FOR 2   INT 1   PRE 2   VIG 2\n\nPERÍCIAS Profissão (fazendeiro) 2d20+5\n\nDE SOL A SOL O fazendeiro isolado não fica inconsciente por ter seus pontos de vida reduzidos à 0.\n\nHISTÓRIAS DE PESCADOR Sendo uma fonte infinita \nde causos e histórias da região onde vive, o fazendo \npode ajudar os personagens, se estiver disposto. Se \nos personagens compartilharem sua investigação com \no fazendeiro, ele pode, a critério do mestre, fazer um \nteste de revisar o caso (OPRPG, p. 93) usando Profissão (fazendeiro). Se passar, fornece uma pista para \no caso usando sua vivência no mato ou histórias de \nantepassados para explicá-la.\n\nRESILIÊNCIA DO CAMPO Acostumado a resolver \nos perrengues do dia a dia com as próprias mãos e \ncom a paciência exigida pela natureza, o fazendeiro \npode usar Profissão (fazendeiro) no lugar de perícias \nbaseadas em Força ou Presença.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nPANCADA Corpo a corpo\nTeste 2d20+5 | Dano 1d3+5 impacto\n\nPEIXEIRA Corpo a corpo\nTeste 2d20+5, crítico 19 | Dano 1d8+5 corte\n\nESPINGARDA À distância ⌖  CURTO\nTeste 2d20+5, crítico x3 | Dano 4d6 balístico\n\nMOVIMENTO  ◆   ATIÇAR OS CÃES\nO fazendeiro comanda seus cães de guarda para \navançar sobre um alvo em alcance curto. Os animais \ninvestem com ferocidade, cercando o alvo e esperando a melhor oportunidade para atacar. O próximo \nataque que o fazendeiro acertar causa +1d8 pontos \nde dano de perfuração e deixa o alvo caído (Luta DT \n15 evita a condição).\nINVESTIGADOR\t\nVD 40\n\nO investigador é um agente a serviço da lei, especializado em trabalho investigativo, principalmente \nem campo. Ele pode ser um escrivão ou agente da \npolícia civil, um investigador privado de uma empresa de seguros ou de uma grande corporação, ou \num detetive particular, atuando a favor ou contra os \nagentes da Ordem.\n\nPESSOA •  MÉDIA",
       "tags": [
         "Criatura / Ameaça",
         "Nenhum",
         "VD 20",
-        "Sobrevivendo ao Horror"
-      ]
-    },
-    {
-      "id": "creature__sobrevivendo_ao_horror__fazendeiro_isolado_vd40",
-      "category": "creature",
-      "subCategory": "Ameaça (VD 40)",
-      "name": "Fazendeiro Isolado",
-      "bookId": "sobrevivendo_ao_horror",
-      "bookTitle": "Sobrevivendo ao Horror",
-      "pageNumber": 160,
-      "element": "Nenhum",
-      "vd": 40,
-      "defense": 18,
-      "pv": 55,
-      "attributes": {},
-      "disturbingPresence": "Nenhuma",
-      "diceFormulas": [
-        "1d20",
-        "2d20+5",
-        "1d8+5",
-        "4d6",
-        "1d8"
-      ],
-      "summary": "VD 40 | Elemento: Nenhum | PV: 55 | Defesa: 18",
-      "description": "que um personagem falha em um teste baseado em \nIntelecto ou Presença contra o burocrata, perde 1 \nponto de Sanidade.\n\nMOROSIDADE Se o burocrata estiver envolvido em \numa cena onde o tempo seja um fator importante (como \numa investigação com urgência), cada personagem deve \nfazer um teste de Diplomacia (DT 15) ao encontrá-lo pela \nprimeira vez. Se falhar, perde uma rodada envolvido \nem alguma discussão ou procedimento.\n\nPREENCHA O FORMULÁRIO Qualquer que seja \nsua função, o burocrata pode ser uma fonte de informações importantes para os personagens. Desde que \neles preencham o formulário adequado. Interrogar \num burocrata em busca de informações exige uma \nperícia específica, determinada pelo mestre, conforme \nsua área de atuação. Exemplos incluem Artes para a \nrecepcionista de uma galeria de artes, Crime para um \nfuncionário de um tribunal, Religião para o secretário \nde uma igreja etc. Testes de interrogação usando a \nperícia errada falham automaticamente. Os personagens podem tentar adivinhar a perícia adequada ou \ninteragir com o burocrata para descobri-la.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nSOCO Corpo a corpo\nTeste 1d20 | Dano 1d3+1 impacto\nFAZENDEIRO ISOLADO\t VD 20\n\nA vida em uma fazenda não é fácil. Muitas vezes distantes de outras famílias ou da cidade mais próxima, \nas pessoas do campo aprendem a resolver as coisas \ncom as próprias mãos. Alguns se tornam naturalmente desconfiados de estranhos e desconhecidos, \npois sabem que nem sempre podem contar com \najuda nas redondezas. Acostumados a contar apenas \nconsigo e com sua família, se tornam estranhos e \npouco receptivos.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 2d20+5 | Iniciativa 1d20\nDEFESA 16\n\nFortitude 2d20+5 | Reflexos 1d20 | Vontade 2d20+5\n\nPONTOS DE VIDA 16 | Machucado 8\n\nDESLOCAMENTO 9m | 6□\n\nAGI 1   FOR 2   INT 1   PRE 2   VIG 2\n\nPERÍCIAS Profissão (fazendeiro) 2d20+5\n\nDE SOL A SOL O fazendeiro isolado não fica inconsciente por ter seus pontos de vida reduzidos à 0.\n\nHISTÓRIAS DE PESCADOR Sendo uma fonte infinita \nde causos e histórias da região onde vive, o fazendo \npode ajudar os personagens, se estiver disposto. Se \nos personagens compartilharem sua investigação com \no fazendeiro, ele pode, a critério do mestre, fazer um \nteste de revisar o caso (OPRPG, p. 93) usando Profissão (fazendeiro). Se passar, fornece uma pista para \no caso usando sua vivência no mato ou histórias de \nantepassados para explicá-la.\n\nRESILIÊNCIA DO CAMPO Acostumado a resolver \nos perrengues do dia a dia com as próprias mãos e \ncom a paciência exigida pela natureza, o fazendeiro \npode usar Profissão (fazendeiro) no lugar de perícias \nbaseadas em Força ou Presença.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nPANCADA Corpo a corpo\nTeste 2d20+5 | Dano 1d3+5 impacto\n\nPEIXEIRA Corpo a corpo\nTeste 2d20+5, crítico 19 | Dano 1d8+5 corte\n\nESPINGARDA À distância ⌖  CURTO\nTeste 2d20+5, crítico x3 | Dano 4d6 balístico\n\nMOVIMENTO  ◆   ATIÇAR OS CÃES\nO fazendeiro comanda seus cães de guarda para \navançar sobre um alvo em alcance curto. Os animais \ninvestem com ferocidade, cercando o alvo e esperando a melhor oportunidade para atacar. O próximo \nataque que o fazendeiro acertar causa +1d8 pontos \nde dano de perfuração e deixa o alvo caído (Luta DT \n15 evita a condição).\nINVESTIGADOR\t\nVD 40\n\nO investigador é um agente a serviço da lei, especializado em trabalho investigativo, principalmente \nem campo. Ele pode ser um escrivão ou agente da \npolícia civil, um investigador privado de uma empresa de seguros ou de uma grande corporação, ou \num detetive particular, atuando a favor ou contra os \nagentes da Ordem.\n\nPESSOA •  MÉDIA",
-      "tags": [
-        "Criatura / Ameaça",
-        "Nenhum",
-        "VD 40",
         "Sobrevivendo ao Horror"
       ]
     },
@@ -19960,7 +20050,13 @@
       "vd": 40,
       "defense": 18,
       "pv": 50,
-      "attributes": {},
+      "attributes": {
+        "AGI": "2",
+        "FOR": "1",
+        "INT": "2",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "2d20+5",
@@ -19993,7 +20089,13 @@
       "vd": 20,
       "defense": 15,
       "pv": 25,
-      "attributes": {},
+      "attributes": {
+        "AGI": "1",
+        "FOR": "1",
+        "INT": "3",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "2d20+5",
@@ -20015,51 +20117,63 @@
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__religioso_vd20",
+      "id": "creature__sobrevivendo_ao_horror__religioso_vd40",
       "category": "creature",
-      "subCategory": "Ameaça (VD 20)",
+      "subCategory": "Ameaça (VD 40)",
       "name": "Religioso",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
-      "pageNumber": 162,
+      "pageNumber": 161,
       "element": "Nenhum",
-      "vd": 20,
-      "defense": 14,
-      "pv": 30,
-      "attributes": {},
+      "vd": 40,
+      "defense": 17,
+      "pv": 40,
+      "attributes": {
+        "AGI": "1",
+        "FOR": "1",
+        "INT": "1",
+        "PRE": "3",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
-        "1d20+5",
-        "1d20",
-        "3d6",
-        "3d20+10",
         "2d20+5",
+        "1d20",
+        "1d20+5",
         "2d20+10",
-        "1d8+13",
-        "2d8+13"
+        "2d6+6",
+        "1d6",
+        "3d20+5",
+        "1d4+1"
       ],
-      "summary": "VD 20 | Elemento: Nenhum | PV: 30 | Defesa: 14",
-      "description": "PADRÃO ▸  AGREDIR\n\nPANCADA Corpo a corpo\nTeste 1d20+5 | Dano 1d3+1 impacto\n\nPADRÃO ◆  VOZ GUIA\nO religioso é uma figura de orientação e aconselhamento. Uma pessoa em alcance curto e que possa \nouvir o religioso recebe +1d20 em seu próximo teste de \nperícia, desde que feito até o fim da próxima rodada.\n\nPADRÃO ◆  VOZ ACUSADORA\nAs palavras de um religioso podem ser doloridas, \nprincipalmente quando esfregam as falhas, os erros e \nas culpas de alguém em sua própria cara. O religioso \nescolhe uma pessoa em alcance curto e humilha-a \ncom seus defeitos; a vítima sofre 3d6 pontos de dano \nmental e fica alquebrada (Vontade DT 15 reduz à metade e evita a condição).\n\nREAÇÃO ◆  SACRIFÍCIO SAGRADO\nUma vez por rodada, quando sofre dano, o religioso \npode trocar de lugar com um seguidor adjacente, que \nsofre o dano em seu lugar.\nSERIAL KILLER\n\nSerial killers, ou assassinos seriais, são indivíduos \nque cometem diversos homicídios em sequência, \ngeralmente exibindo alguma semelhança entre si, \ncomo as características de suas vítimas ou seu método de assassinato. Estes assassinos possuem diversas motivações, desde patológicas até paranormais. \nFrequentemente metódicos e preparados para evitar \na lei, são oponentes perigosos, mesmo para agentes \nacostumados com ameaças do Outro Lado.\nPREDADOR SOFISTICADO\tVD 60\n\nUm assassino com tendência ao alpinismo social. Ele \ngosta de ter uma vida luxuosa, vivendo e trabalhando \nno topo de arranha-céus, de onde pode observar a \nmediocridade da vida de cima, subestimando tanto \nseus adversários empresariais quanto suas vítimas \ningênuas. É do tipo que prefere mortes limpas e discretas — embora use métodos brutais quando tem \na oportunidade — e usa seu status para que a vítima \nseja dada como desaparecida por muito tempo até \nque se encontre algum resquício de corpo.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 3d20+10 | Iniciativa 2d20+5\nDEFESA 21\n\nFortitude 1d20+5 | Reflexos  2d20+10 | Vontade 3d20+10\n\nPONTOS DE VIDA 60 | Machucado 30\n\nDESLOCAMENTO 9m | 6□\n\nAGI 2   FOR 2   INT 2   PRE 3   VIG 1\n\nPERÍCIAS Diplomacia 3d20+10, Enganação 3d20+10,\n\nIntimidação 3d20+10\n\nESCONDIDO EM PLENA VISTA O ambiente ideal \npara o predador sofisticado caçar é em locais movimentados, como shopping centers ou metrôs. Nesses ambientes, ele pode usar Enganação no lugar de \nFurtividade e não sofre penalidades nem redução no \ndeslocamento por realizar ações chamativas enquanto \nestá furtivo.\n\nRECURSOS ABUNDANTES O dinheiro é um poder \nda Realidade que abre muitas portas. O predador \npode entrar em locais onde normalmente não poderia ou acessar documentos e aparelhos para os quais \nnão teria, além de poder cometer crimes menores \ncomo agredir alguém em um bar sem ser punido \njudicialmente. Para crimes mais graves, a critério do \nmestre, ele pode conseguir algum “bode expiatório” \nque assuma a culpa.\n\nSORRISO SEDUTOR Este assassino é capaz de manipular e atrair suas vítimas com seu carisma e artigos \nde luxo. Uma pessoa que não saiba que o predador é \nna verdade um assassino fica desprevenida contra ele \ne sofre –1d20 em testes contra ele. Essa habilidade não \ndepende apenas de atração romântica; o predador \npode, por exemplo, atrair um acionista, levando-o \npara um quarto de hotel onde prometeu compartilhar \ninformações valiosas.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nNAVALHA Corpo a corpo x2\nTeste 3d20+10, crítico 19/x3 | Dano 1d8+13 corte\n\nMACHADO Corpo a corpo x2\nTeste 3d20+10, crítico x3 | Dano 2d8+13 corte\n\nPISTOLA SILENCIADA À distância x2 ⌖  CURTO\nTeste 3d20+10, crítico x3 | Dano 1d12+13 balístico\n\nLIVRE ◆  ATAQUE FURTIVO\nUma vez por rodada, o predador causa +3d6 pontos \nde dano com ataques corpo a corpo, ou à distância \nem alcance curto, contra alvos desprevenidos ou que \nesteja flanqueando.\n\nPADRÃO ◆  GUARDA-COSTAS\nO predador está sempre cercado por pessoas que \nmanipulou ou comprou com seu dinheiro. Uma \nvez por cena, o predador chama 1d4+1 capangas \n(OPRPG, p. 284) que entram em cena no início da \npróxima rodada.",
+      "summary": "VD 40 | Elemento: Nenhum | PV: 40 | Defesa: 17",
+      "description": "SENTIDOS Percepção 2d20+5 | Iniciativa  2d20+5\nDEFESA 18\n\nFortitude 1d20 | Reflexos  2d20+5 | Vontade 1d20+5\n\nPONTOS DE VIDA 68 | Machucado 34\n\nDESLOCAMENTO 9m | 6□\n\nAGI 2   FOR 1   INT 2   PRE 1   VIG 2\n\nPERÍCIAS Crime 2d20+5, Diplomacia 1d20+5,\n\nFurtividade 2d20+5, Intuição 1d20+5, \nInvestigação 2d20+5\n\nFONTE DE INFORMAÇÕES Um investigador amigável (com uma categoria de atitude amistosa ou prestativa) pode ser uma valiosa fonte de informações. \nUma vez por interlúdio, se puderem consultar um \ninvestigador amigável, os personagens recebem um \nbônus de +5 em uma única ação de revisar caso. Por \nmais amigável que um investigador seja, ele tem suas \npróprias obrigações; o mestre tem a palavra final sobre \na disponibilidade de qualquer investigador que os \npersonagens conheçam.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nSOCO Corpo a corpo\nTeste 2d20+10 | Dano 1d3+1 impacto\n\nREVÓLVER À distância ⌖  CURTO\nTeste 2d20+10, crítico 19/x3 | Dano 2d6+6 balístico\n\nMOVIMENTO ◆  OLHAR DO INVESTIGADOR\nO investigador faz um teste de Investigação (DT 15) \npara observar alguma fraqueza em um ser em alcance \nmédio. Se passar, seus ataques contra esse ser causam \n+1d6 pontos de dano até o fim da cena.\nMÉDICO\t\n VD 20\n\nTreinados para socorrer pessoas, médicos podem \nser a salvação de um grupo de sobreviventes ou de \numa equipe de agentes em campo. Nas mãos de um \nprofissional criminoso ou tomado pelo paranormal, \nentretanto, esse conhecimento pode ser usado para \ncausar dor ou mesmo matar.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 2d20+5 | Iniciativa 1d20\nDEFESA 13\n\nFortitude 1d20+5 | Reflexos 1d20 | Vontade 2d20+5\n\nPONTOS DE VIDA 14 | Machucado 7\n\nDESLOCAMENTO 9m | 6□\n\nAGI 1   FOR 1   INT 2   PRE 2   VIG 1\n\nPERÍCIAS Ciências 2d20+5, Medicina 3d20+5\n\nCONHECIMENTO ANATÔMICO Uma pessoa atingida por um ataque de bisturi do médico fica atordoada \npor uma rodada e sangrando (Fortitude DT 15 evita). \nUma mesma pessoa só pode ser atordoada por esta \nhabilidade uma vez por cena.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nBISTURI Corpo a corpo\nTeste 2d20+5 crítico 18 | Dano 1d4+1 corte\n\nPADRÃO ◆  TRATAR FERIMENTOS\nO médico cura 2d10+2 pontos de vida de si mesmo ou \nde um ser adjacente. Ele só pode usar esta habilidade \numa vez por dia por ser.\nRELIGIOSO \t\nVD 40\n\nQualquer que seja sua fé, um líder religioso é uma \npessoa de grande carisma, capaz de arrebatar a adoração de seus fieis. Religiosos responsáveis usam esse \npoder para ajudar sua congregação, enquanto outros \nmanipulam seus seguidores em busca de riqueza, \ninfluência e, em certos casos, até mesmo como uma \nponte para acessar poder paranormal.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 3d20+5 | Iniciativa 1d20+5\nDEFESA 15\n\nFortitude 1d20 | Reflexos 1d20 | Vontade 3d20+5\n\nPONTOS DE VIDA 32 | Machucado 16\n\nDESLOCAMENTO 9m | 6□\n\nAGI 1   FOR 1   INT 2   PRE 3   VIG 1\n\nPERÍCIAS Diplomacia 3d20+5, Intuição 3d20+5,\n\nReligião 3d20+5\n\nFÉ INABALÁVEL O único poder sobrenatural em \nque o religioso acredita é aquele que emana de sua \ndevoção. Ele recebe +10 em testes de Vontade contra \nefeitos paranormais (incluindo rituais).\n\nPOTÊNCIA DA VOZ Se o religioso tiver acesso a um \nmicrofone ou outro aparelho amplificador de voz, o \nalcance de suas habilidades aumenta em um passo e \na DT para resistir a elas aumenta em +5.\n\nSEGUIDORES Um religioso está sempre acompanhado por 1d4+1 devotos fieis (use a ficha de \niniciados; OPRPG, p. 286), dispostos a qualquer \ncoisa para protegê-lo.\n\nAÇÕES",
       "tags": [
         "Criatura / Ameaça",
         "Nenhum",
-        "VD 20",
+        "VD 40",
         "Sobrevivendo ao Horror"
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__serial_killer_predador_vd60",
+      "id": "creature__sobrevivendo_ao_horror__predador_sofisticado_vd60",
       "category": "creature",
       "subCategory": "Ameaça (VD 60)",
-      "name": "Serial Killer: Predador",
+      "name": "Predador Sofisticado",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
       "pageNumber": 162,
       "element": "Nenhum",
       "vd": 60,
-      "defense": 22,
-      "pv": 95,
-      "attributes": {},
+      "defense": 20,
+      "pv": 70,
+      "attributes": {
+        "AGI": "3",
+        "FOR": "2",
+        "INT": "2",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+5",
@@ -20071,7 +20185,7 @@
         "1d8+13",
         "2d8+13"
       ],
-      "summary": "VD 60 | Elemento: Nenhum | PV: 95 | Defesa: 22",
+      "summary": "VD 60 | Elemento: Nenhum | PV: 70 | Defesa: 20",
       "description": "PADRÃO ▸  AGREDIR\n\nPANCADA Corpo a corpo\nTeste 1d20+5 | Dano 1d3+1 impacto\n\nPADRÃO ◆  VOZ GUIA\nO religioso é uma figura de orientação e aconselhamento. Uma pessoa em alcance curto e que possa \nouvir o religioso recebe +1d20 em seu próximo teste de \nperícia, desde que feito até o fim da próxima rodada.\n\nPADRÃO ◆  VOZ ACUSADORA\nAs palavras de um religioso podem ser doloridas, \nprincipalmente quando esfregam as falhas, os erros e \nas culpas de alguém em sua própria cara. O religioso \nescolhe uma pessoa em alcance curto e humilha-a \ncom seus defeitos; a vítima sofre 3d6 pontos de dano \nmental e fica alquebrada (Vontade DT 15 reduz à metade e evita a condição).\n\nREAÇÃO ◆  SACRIFÍCIO SAGRADO\nUma vez por rodada, quando sofre dano, o religioso \npode trocar de lugar com um seguidor adjacente, que \nsofre o dano em seu lugar.\nSERIAL KILLER\n\nSerial killers, ou assassinos seriais, são indivíduos \nque cometem diversos homicídios em sequência, \ngeralmente exibindo alguma semelhança entre si, \ncomo as características de suas vítimas ou seu método de assassinato. Estes assassinos possuem diversas motivações, desde patológicas até paranormais. \nFrequentemente metódicos e preparados para evitar \na lei, são oponentes perigosos, mesmo para agentes \nacostumados com ameaças do Outro Lado.\nPREDADOR SOFISTICADO\tVD 60\n\nUm assassino com tendência ao alpinismo social. Ele \ngosta de ter uma vida luxuosa, vivendo e trabalhando \nno topo de arranha-céus, de onde pode observar a \nmediocridade da vida de cima, subestimando tanto \nseus adversários empresariais quanto suas vítimas \ningênuas. É do tipo que prefere mortes limpas e discretas — embora use métodos brutais quando tem \na oportunidade — e usa seu status para que a vítima \nseja dada como desaparecida por muito tempo até \nque se encontre algum resquício de corpo.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 3d20+10 | Iniciativa 2d20+5\nDEFESA 21\n\nFortitude 1d20+5 | Reflexos  2d20+10 | Vontade 3d20+10\n\nPONTOS DE VIDA 60 | Machucado 30\n\nDESLOCAMENTO 9m | 6□\n\nAGI 2   FOR 2   INT 2   PRE 3   VIG 1\n\nPERÍCIAS Diplomacia 3d20+10, Enganação 3d20+10,\n\nIntimidação 3d20+10\n\nESCONDIDO EM PLENA VISTA O ambiente ideal \npara o predador sofisticado caçar é em locais movimentados, como shopping centers ou metrôs. Nesses ambientes, ele pode usar Enganação no lugar de \nFurtividade e não sofre penalidades nem redução no \ndeslocamento por realizar ações chamativas enquanto \nestá furtivo.\n\nRECURSOS ABUNDANTES O dinheiro é um poder \nda Realidade que abre muitas portas. O predador \npode entrar em locais onde normalmente não poderia ou acessar documentos e aparelhos para os quais \nnão teria, além de poder cometer crimes menores \ncomo agredir alguém em um bar sem ser punido \njudicialmente. Para crimes mais graves, a critério do \nmestre, ele pode conseguir algum “bode expiatório” \nque assuma a culpa.\n\nSORRISO SEDUTOR Este assassino é capaz de manipular e atrair suas vítimas com seu carisma e artigos \nde luxo. Uma pessoa que não saiba que o predador é \nna verdade um assassino fica desprevenida contra ele \ne sofre –1d20 em testes contra ele. Essa habilidade não \ndepende apenas de atração romântica; o predador \npode, por exemplo, atrair um acionista, levando-o \npara um quarto de hotel onde prometeu compartilhar \ninformações valiosas.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nNAVALHA Corpo a corpo x2\nTeste 3d20+10, crítico 19/x3 | Dano 1d8+13 corte\n\nMACHADO Corpo a corpo x2\nTeste 3d20+10, crítico x3 | Dano 2d8+13 corte\n\nPISTOLA SILENCIADA À distância x2 ⌖  CURTO\nTeste 3d20+10, crítico x3 | Dano 1d12+13 balístico\n\nLIVRE ◆  ATAQUE FURTIVO\nUma vez por rodada, o predador causa +3d6 pontos \nde dano com ataques corpo a corpo, ou à distância \nem alcance curto, contra alvos desprevenidos ou que \nesteja flanqueando.\n\nPADRÃO ◆  GUARDA-COSTAS\nO predador está sempre cercado por pessoas que \nmanipulou ou comprou com seu dinheiro. Uma \nvez por cena, o predador chama 1d4+1 capangas \n(OPRPG, p. 284) que entram em cena no início da \npróxima rodada.",
       "tags": [
         "Criatura / Ameaça",
@@ -20081,10 +20195,10 @@
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__serial_killer_cacador_vd80",
+      "id": "creature__sobrevivendo_ao_horror__cacador_de_gente_vd80",
       "category": "creature",
       "subCategory": "Ameaça (VD 80)",
-      "name": "Serial Killer: Caçador",
+      "name": "Caçador de Gente",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
       "pageNumber": 163,
@@ -20092,7 +20206,13 @@
       "vd": 80,
       "defense": 23,
       "pv": 80,
-      "attributes": {},
+      "attributes": {
+        "AGI": "2",
+        "FOR": "3",
+        "INT": "1",
+        "PRE": "1",
+        "VIG": "3"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+5",
@@ -20114,35 +20234,41 @@
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__serial_killer_artista_da_morte_vd100",
+      "id": "creature__sobrevivendo_ao_horror__artista_da_morte_vd140",
       "category": "creature",
-      "subCategory": "Ameaça (VD 100)",
-      "name": "Serial Killer: Artista da Morte",
+      "subCategory": "Ameaça (VD 140)",
+      "name": "Artista da Morte",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
-      "pageNumber": 164,
+      "pageNumber": 163,
       "element": "Nenhum",
-      "vd": 100,
+      "vd": 140,
       "defense": 27,
-      "pv": 140,
-      "attributes": {},
+      "pv": 150,
+      "attributes": {
+        "AGI": "3",
+        "FOR": "1",
+        "INT": "3",
+        "PRE": "3",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
-        "4d8",
-        "3d20+15",
-        "1d4+17",
-        "7d6",
         "1d20+5",
-        "2d20+5",
+        "2d20+10",
+        "3d20+10",
+        "1d20+10",
         "1d20",
-        "2d4+2"
+        "2d20",
+        "3d20+15",
+        "1d4+15"
       ],
-      "summary": "VD 100 | Elemento: Nenhum | PV: 140 | Defesa: 27",
-      "description": "departamentos de investigação, que muitas vezes \nusam artistas da morte presos como consultores para \na captura de outros.\n\nCENAS IMPREVISÍVEIS A cena de crime deixada por \num artista da morte nunca é fácil de se analisar. Se a \nintenção do artista era fazer parecer um acidente ou \numa morte não relacionada com ele, todos os testes \npara adquirir pistas na cena do crime têm suas DT \naumentadas em +5. Por outro lado, se a intenção do \nartista é deixar sua marca, ele faz da cena uma experiência que perturba a mente humana. Qualquer um \nque veja a cena fica enjoado e se não sair dela imediatamente, sofre 4d8 pontos de dano mental (Vontade \nDT 25 reduz à metade e evita condição).\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nBISTURI Corpo a corpo x2\nTeste 3d20+15, crítico 19/x4 | Dano 1d4+17 corte\n\nLIVRE ◆  ATAQUE FURTIVO\nUma vez por rodada, o artista da morte causa +7d6 \npontos de dano com ataques corpo a corpo, ou à distância em alcance curto, contra alvos desprevenidos \nou que esteja flanqueando.\n\nPADRÃO ◆  DISCURSO ARTÍSTICO\nO artista da morte se volta para todos que possam \nouvi-lo em alcance curto e justifica sua arte mortal \ncom argumentos expressionistas, frases racionais e \napontamentos niilistas que fazem pessoas de mente \nfraca encontrarem alguma justificativa plausível ou \nfrase apaixonante em seu discurso. Pessoas afetadas \nficam sofrem 4d8 pontos de dano mental e ficam alquebradas e frustradas (Vontade DT 25 reduz à metade \ne evita a condição frustrado). Uma mesma pessoa só \npode ser afetada por essa habilidade uma vez por cena.\n\nANIMAIS\n\nEsta seção apresenta novas fichas de animais que \npodem representar perigos para os agentes, no campo \nou na cidade. Alguns destes animais são específicos \nde certas regiões, mas podem ser encontrados fora \nde suas áreas normais como pets exóticos, animais de \ncirco ou de laboratório, ou parte de um ritual complexo a ser executado por cultistas.\nARIRANHA\t\n VD 20\n\nCaracterístico do Pantanal e de partes do Rio Amazonas, este animal de comportamento brincalhão é \num predador corajoso e habilidoso. Vive em bandos \nfamiliares, que se protegem mutuamente, sendo capazes de derrotar oponentes muito maiores.\n\nANIMAL •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 2d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 16\n\nFortitude 1d20 | Reflexos 2d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 32 | Machucado 16\n\nDESLOCAMENTO 12m | 8□, Natação 9m | 6□\n\nAGI 2   FOR 1   INT 0   PRE 1   VIG 2\n\nEVASÃO Quando sofre um ataque que permite um \nteste de Reflexos para reduzir o dano à metade, a \nariranha não sofre dano algum se passar.\n\nTÁTICAS FAMILIARES A ariranha recebe +2 em testes de ataque e rolagens de dano para cada outra \nariranha que esteja atacando o mesmo oponente na \nmesma rodada.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nMORDIDA Corpo a corpo \nTeste 2d20+5 | Dano 2d4+2 corte\nCAVALO \t\nVD 10\n\nMesmo nos dias de hoje, cavalos são empregados em \ndiversas situações. Na cidade, podem ser usados por \nforças policiais ou como animais de esportes e recreação. No campo, servem como meio de transporte e \ntração. Embora geralmente pacatos, são capazes de \ndesferir chutes poderosos com seus cascos.\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 13\n\nFortitude 2d20 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 12 | Machucado 6\n\nDESLOCAMENTO 15m | 10□\n\nAGI 1   FOR 3   INT 0   PRE 1   VIG 2\n\nMONTARIA Um personagem treinado em Adestramento pode usar um cavalo como montaria. Ele conta \ncomo um aliado que aumenta seu deslocamento para \n15 e fornece uma ação extra por rodada (apenas para \nse deslocar).\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nCASCOS Corpo a corpo \nTeste 1d20+5 | Dano 2d4+3 impacto",
+      "summary": "VD 140 | Elemento: Nenhum | PV: 150 | Defesa: 27",
+      "description": "CAÇADOR DE GENTE\t\nVD 80\n\nUm caçador de gente está além da convivência social. \nSeus métodos são brutais e grotescos. Sua sede de \nsangue não pode ser racionalmente controlada. Seus limites para conviver com outras pessoas são pequenos e \nsua natureza apontada como “monstruosa” faz com que \nse isole em casas de campo ou prédios abandonados.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 2d20+10\nDEFESA 23\n\nFortitude 3d20+10 | Reflexos 2d20+10 | Vontade 1d20+5\n\nPONTOS DE VIDA 80 | Machucado 40\n\nDESLOCAMENTO 9m | 6□\n\nAGI 2   FOR 3   INT 1   PRE 1   VIG 3\n\nPERÍCIAS Atletismo 3d20+10, Sobrevivência 1d20+10\n\nABRUTALHADO Caçadores de gente são capazes \nde feitos físicos assustadores e, muitas vezes, considerados sobrenaturais. Um caçador pode usar itens \nque exigem as duas mãos com uma só, além de usar \nobjetos para criaturas de tamanho Grande sem sofrer \npenalidades. Além disso, recebem resistência a dano \n10/paranormal enquanto estão machucados.\n\nÁREA DE CAÇA O caçador de gente sabe ser furtivo \nno ambiente isolado onde se esconde e caça, mesmo \nsendo corpulento e bruto. Determine a área de caça \ndesse assassino (raio de 1km ao redor de sua morada). \nNessa área, ele recebe +1d20 em testes de perícia.\n\nFARO PARA HUMANOS Acostumado a caçar humanos, este assassino recebe +2d20 em testes de Sobrevivência envolvendo pessoas. Além disso, pode \nperceber a presença de humanos pelo olfato, como \nse tivesse faro.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nPANCADA Corpo a corpo x2\nTeste 3d20+15 | Dano 1d4+15 impacto\n\nMACHADO Corpo a corpo x2\nTeste 3d20+15, crítico x3 | Dano 2d8+15 corte\n\nMOTOSSERRA Corpo a corpo x2\nTeste 3d20+15, crítico x4 | Dano 3d6+15 corte\n\nLIVRE ◆  ATAQUE FURTIVO\nUma vez por rodada, o caçador de gente causa +4d6 \npontos de dano com ataques corpo a corpo, ou à distância em alcance curto, contra alvos desprevenidos \nou que esteja flanqueando.\n\nMOVIMENTO ◆  IMPARÁVEL\nO caçador de gente nunca para de caçar. Ele anula \nqualquer efeito que esteja reduzindo seu deslocamento. Se esse efeito tiver outras consequências, elas \ncontinuam se aplicando.\n\nPADRÃO ◆  ASSUSTAR \nO caçador faz um movimento assustador (como gritar, \ngargalhar, fazer sua motosserra roncar…). Ele causa \n4d6 pontos de dano mental em todas as pessoas e \nanimais que possam vê-lo ou ouvi-lo em alcance curto \n(Vontade DT 20 reduz à metade).\n\nPADRÃO ◆  FATALIDADE \nO caçador executa um único ataque de pancada. Se \nacertar, além do dano, o alvo também sofre um ferimento debilitante (p. 105). Um ser só pode ser afetado \npor essa habilidade uma vez por cena.\nARTISTA DA MORTE\t\nVD 140\n\nPara este assassino, a morte é mais do que uma consequência da vida. É uma arte a ser dominada. Interromper o trajeto de uma pessoa nesta Realidade é um \nato técnico, meticuloso e que deve ser experienciado \ncom atenção, tanto por ele quanto pela vítima, além \nde todas as pessoas que irão testemunhar sua obra \nquando verem-na nos jornais. Os artistas da morte não \nsão combatentes, muitas vezes exercendo profissões \ncomuns na sociedade. Seus métodos pedem tempo \ne não podem ser realizados em um local qualquer, \npois até mesmo a cena do crime precisa ser perfeita.\n\nPESSOA •  MÉDIA\n\nSENTIDOS Percepção 3d20+15 | Iniciativa 3d20+15\nDEFESA 27\n\nFortitude 1d20+5 | Reflexos 3d20+15 | Vontade 3d20+15\n\nPONTOS DE VIDA 150 | Machucado 75\n\nDESLOCAMENTO 9m | 6□\n\nAGI 3   FOR 1   INT 3   PRE 3   VIG 1\n\nPERÍCIAS Artes 3d20+15, Enganação 3d20+15,\n\nFurtividade 3d20+15\n\nMATAR É UMA ARTE Este assassino faz de sua matança uma expressão artística que estuda com carinho. \nPara tal, ele pode usar Artes no lugar de qualquer \noutra perícia para testes envolvendo mentes e corpos \nhumanos. Por exemplo, pode usar Artes, em vez de \nMedicina, para fazer uma necrópsia, ou no lugar de \nDiplomacia para persuadir. Além disso, se tiver algumas horas para analisar uma cena de crime ou vítima, \npode substituir testes de Investigação por Artes com \nbônus de +1d20. Essa técnica, mesmo vindo de fontes \nterríveis como assassinos em série, é invejada por",
       "tags": [
         "Criatura / Ameaça",
         "Nenhum",
-        "VD 100",
+        "VD 140",
         "Sobrevivendo ao Horror"
       ]
     },
@@ -20157,8 +20283,14 @@
       "element": "Nenhum",
       "vd": 20,
       "defense": 16,
-      "pv": 28,
-      "attributes": {},
+      "pv": 32,
+      "attributes": {
+        "AGI": "2",
+        "FOR": "1",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "4d8",
@@ -20170,7 +20302,7 @@
         "1d20",
         "2d4+2"
       ],
-      "summary": "VD 20 | Elemento: Nenhum | PV: 28 | Defesa: 16",
+      "summary": "VD 20 | Elemento: Nenhum | PV: 32 | Defesa: 16",
       "description": "departamentos de investigação, que muitas vezes \nusam artistas da morte presos como consultores para \na captura de outros.\n\nCENAS IMPREVISÍVEIS A cena de crime deixada por \num artista da morte nunca é fácil de se analisar. Se a \nintenção do artista era fazer parecer um acidente ou \numa morte não relacionada com ele, todos os testes \npara adquirir pistas na cena do crime têm suas DT \naumentadas em +5. Por outro lado, se a intenção do \nartista é deixar sua marca, ele faz da cena uma experiência que perturba a mente humana. Qualquer um \nque veja a cena fica enjoado e se não sair dela imediatamente, sofre 4d8 pontos de dano mental (Vontade \nDT 25 reduz à metade e evita condição).\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nBISTURI Corpo a corpo x2\nTeste 3d20+15, crítico 19/x4 | Dano 1d4+17 corte\n\nLIVRE ◆  ATAQUE FURTIVO\nUma vez por rodada, o artista da morte causa +7d6 \npontos de dano com ataques corpo a corpo, ou à distância em alcance curto, contra alvos desprevenidos \nou que esteja flanqueando.\n\nPADRÃO ◆  DISCURSO ARTÍSTICO\nO artista da morte se volta para todos que possam \nouvi-lo em alcance curto e justifica sua arte mortal \ncom argumentos expressionistas, frases racionais e \napontamentos niilistas que fazem pessoas de mente \nfraca encontrarem alguma justificativa plausível ou \nfrase apaixonante em seu discurso. Pessoas afetadas \nficam sofrem 4d8 pontos de dano mental e ficam alquebradas e frustradas (Vontade DT 25 reduz à metade \ne evita a condição frustrado). Uma mesma pessoa só \npode ser afetada por essa habilidade uma vez por cena.\n\nANIMAIS\n\nEsta seção apresenta novas fichas de animais que \npodem representar perigos para os agentes, no campo \nou na cidade. Alguns destes animais são específicos \nde certas regiões, mas podem ser encontrados fora \nde suas áreas normais como pets exóticos, animais de \ncirco ou de laboratório, ou parte de um ritual complexo a ser executado por cultistas.\nARIRANHA\t\n VD 20\n\nCaracterístico do Pantanal e de partes do Rio Amazonas, este animal de comportamento brincalhão é \num predador corajoso e habilidoso. Vive em bandos \nfamiliares, que se protegem mutuamente, sendo capazes de derrotar oponentes muito maiores.\n\nANIMAL •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 2d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 16\n\nFortitude 1d20 | Reflexos 2d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 32 | Machucado 16\n\nDESLOCAMENTO 12m | 8□, Natação 9m | 6□\n\nAGI 2   FOR 1   INT 0   PRE 1   VIG 2\n\nEVASÃO Quando sofre um ataque que permite um \nteste de Reflexos para reduzir o dano à metade, a \nariranha não sofre dano algum se passar.\n\nTÁTICAS FAMILIARES A ariranha recebe +2 em testes de ataque e rolagens de dano para cada outra \nariranha que esteja atacando o mesmo oponente na \nmesma rodada.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nMORDIDA Corpo a corpo \nTeste 2d20+5 | Dano 2d4+2 corte\nCAVALO \t\nVD 10\n\nMesmo nos dias de hoje, cavalos são empregados em \ndiversas situações. Na cidade, podem ser usados por \nforças policiais ou como animais de esportes e recreação. No campo, servem como meio de transporte e \ntração. Embora geralmente pacatos, são capazes de \ndesferir chutes poderosos com seus cascos.\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 13\n\nFortitude 2d20 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 12 | Machucado 6\n\nDESLOCAMENTO 15m | 10□\n\nAGI 1   FOR 3   INT 0   PRE 1   VIG 2\n\nMONTARIA Um personagem treinado em Adestramento pode usar um cavalo como montaria. Ele conta \ncomo um aliado que aumenta seu deslocamento para \n15 e fornece uma ação extra por rodada (apenas para \nse deslocar).\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nCASCOS Corpo a corpo \nTeste 1d20+5 | Dano 2d4+3 impacto",
       "tags": [
         "Criatura / Ameaça",
@@ -20180,35 +20312,41 @@
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__enxame_de_piranhas_vd40",
+      "id": "creature__sobrevivendo_ao_horror__cavalo_vd10",
       "category": "creature",
-      "subCategory": "Ameaça (VD 40)",
-      "name": "Enxame de Piranhas",
+      "subCategory": "Ameaça (VD 10)",
+      "name": "Cavalo",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
-      "pageNumber": 165,
+      "pageNumber": 164,
       "element": "Nenhum",
-      "vd": 40,
-      "defense": 18,
-      "pv": 40,
-      "attributes": {},
+      "vd": 10,
+      "defense": 13,
+      "pv": 12,
+      "attributes": {
+        "AGI": "1",
+        "FOR": "3",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
+        "4d8",
+        "3d20+15",
+        "1d4+17",
+        "7d6",
         "1d20+5",
-        "2d20",
-        "1d20",
-        "4d4",
-        "2d4",
         "2d20+5",
-        "3d20+5",
-        "2d20+10"
+        "1d20",
+        "2d4+2"
       ],
-      "summary": "VD 40 | Elemento: Nenhum | PV: 40 | Defesa: 18",
-      "description": "ENXAME DE TOCANDIRAS \tVD 20\n\nTambém chamado de formiga-bala, este pequeno inseto típico da Amazônia é conhecido por sua mordida de \ndor intensa e debilitante. Encontrada principalmente \nna selva amazônica, está presente também em outras \npartes da América do Sul.\n\nANIMAL (ENXAME) •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nVISÃO NA PENUMBRA\n\nDEFESA 16\n\nFortitude –2d20 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 22 | Machucado 11\n\nDESLOCAMENTO 6m | 4□, Escalar 6m | 4□\n\nAGI 1   FOR 0   INT 0   PRE 1   VIG 0\n\nENXAME Um enxame é uma aglomeração de criaturas \nque agem em conjunto. Em termos de regras, pode \nentrar no espaço ocupado por um ser. No fim do seu \nturno, o enxame causa 4d4 pontos de dano de perfuração a qualquer ser em seu espaço, automaticamente. \nUm enxame é imune a manobras de combate e efeitos \nque afetam apenas uma criatura e não causam dano e \nsofre apenas metade do dano de ataques com armas. \nPorém, sofre 50% a mais de dano por efeitos de área.\n\nDOR DEBILITANTE Um ser que sofra dano do enxa-me sofre –1d20 em todos os testes devido à dor profunda \n(Fortitude DT 20 evita). Essa penalidade só pode ser \nremovida com uma ação de interlúdio dormir ou com \na aplicação de uma dose de antídoto.\n\nPOR DENTRO DAS ROUPAS Quando um ser sai \ndo espaço do enxame, leva consigo algumas formigas \nque entram em suas vestes. O ser continua sofrendo \nmetade do dano de Enxame (2d4) até gastar uma ação \nde movimento para se livrar delas.\n\nGORILA\t\n VD 40\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 2d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 19\n\nFortitude 2d20+5 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 70 | Machucado 35\n\nDESLOCAMENTO 9m | 6□, Escalar 9m | 6□\n\nAGI 2   FOR 3   INT 0   PRE 1   VIG 3\n\nPERÍCIAS Atletismo 3d20+5\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nPANCADA Corpo a corpo x2\nTeste 2d20+10 | Dano 1d6+3 impacto\n\nMORDIDA Corpo a corpo\nTeste 2d20+10 | Dano 1d6+4 corte\n\nLIVRE ◆  MORDER\nSe o gorila acerta os dois ataques de pancada em um \nmesmo ser na mesma rodada, ele ataca este ser com \nsua mordida.\nLEÃO \t\nVD 60\n\nO assim chamado “rei das selvas”, o leão é um dos \nmaiores predadores das savanas africanas. Outrora \ncomum em circos no Brasil, ainda pode ser encontrado em abrigos de animais selvagens ou em coleções \n(geralmente ilegais) de animais exóticos.\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+10 | Iniciativa 3d20+10\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 18\n\nFortitude 2d20+5 | Reflexos 3d20+10 | Vontade 2d20+5\n\nPONTOS DE VIDA 80 | Machucado 40\n\nDESLOCAMENTO 15m | 10□\n\nAGI 3   FOR 3   INT 0   PRE 1   VIG 2\n\nPERÍCIAS Atletismo 3d20+10, Furtividade 3d20+8\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nGARRAS Corpo a corpo x2\nTeste 3d20+10, crítico 19 | Dano 1d6+4 corte\n\nMORDIDA Corpo a corpo\nTeste 3d20+10 | Dano 1d8+4 corte",
+      "summary": "VD 10 | Elemento: Nenhum | PV: 12 | Defesa: 13",
+      "description": "departamentos de investigação, que muitas vezes \nusam artistas da morte presos como consultores para \na captura de outros.\n\nCENAS IMPREVISÍVEIS A cena de crime deixada por \num artista da morte nunca é fácil de se analisar. Se a \nintenção do artista era fazer parecer um acidente ou \numa morte não relacionada com ele, todos os testes \npara adquirir pistas na cena do crime têm suas DT \naumentadas em +5. Por outro lado, se a intenção do \nartista é deixar sua marca, ele faz da cena uma experiência que perturba a mente humana. Qualquer um \nque veja a cena fica enjoado e se não sair dela imediatamente, sofre 4d8 pontos de dano mental (Vontade \nDT 25 reduz à metade e evita condição).\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nBISTURI Corpo a corpo x2\nTeste 3d20+15, crítico 19/x4 | Dano 1d4+17 corte\n\nLIVRE ◆  ATAQUE FURTIVO\nUma vez por rodada, o artista da morte causa +7d6 \npontos de dano com ataques corpo a corpo, ou à distância em alcance curto, contra alvos desprevenidos \nou que esteja flanqueando.\n\nPADRÃO ◆  DISCURSO ARTÍSTICO\nO artista da morte se volta para todos que possam \nouvi-lo em alcance curto e justifica sua arte mortal \ncom argumentos expressionistas, frases racionais e \napontamentos niilistas que fazem pessoas de mente \nfraca encontrarem alguma justificativa plausível ou \nfrase apaixonante em seu discurso. Pessoas afetadas \nficam sofrem 4d8 pontos de dano mental e ficam alquebradas e frustradas (Vontade DT 25 reduz à metade \ne evita a condição frustrado). Uma mesma pessoa só \npode ser afetada por essa habilidade uma vez por cena.\n\nANIMAIS\n\nEsta seção apresenta novas fichas de animais que \npodem representar perigos para os agentes, no campo \nou na cidade. Alguns destes animais são específicos \nde certas regiões, mas podem ser encontrados fora \nde suas áreas normais como pets exóticos, animais de \ncirco ou de laboratório, ou parte de um ritual complexo a ser executado por cultistas.\nARIRANHA\t\n VD 20\n\nCaracterístico do Pantanal e de partes do Rio Amazonas, este animal de comportamento brincalhão é \num predador corajoso e habilidoso. Vive em bandos \nfamiliares, que se protegem mutuamente, sendo capazes de derrotar oponentes muito maiores.\n\nANIMAL •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 2d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 16\n\nFortitude 1d20 | Reflexos 2d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 32 | Machucado 16\n\nDESLOCAMENTO 12m | 8□, Natação 9m | 6□\n\nAGI 2   FOR 1   INT 0   PRE 1   VIG 2\n\nEVASÃO Quando sofre um ataque que permite um \nteste de Reflexos para reduzir o dano à metade, a \nariranha não sofre dano algum se passar.\n\nTÁTICAS FAMILIARES A ariranha recebe +2 em testes de ataque e rolagens de dano para cada outra \nariranha que esteja atacando o mesmo oponente na \nmesma rodada.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nMORDIDA Corpo a corpo \nTeste 2d20+5 | Dano 2d4+2 corte\nCAVALO \t\nVD 10\n\nMesmo nos dias de hoje, cavalos são empregados em \ndiversas situações. Na cidade, podem ser usados por \nforças policiais ou como animais de esportes e recreação. No campo, servem como meio de transporte e \ntração. Embora geralmente pacatos, são capazes de \ndesferir chutes poderosos com seus cascos.\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 13\n\nFortitude 2d20 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 12 | Machucado 6\n\nDESLOCAMENTO 15m | 10□\n\nAGI 1   FOR 3   INT 0   PRE 1   VIG 2\n\nMONTARIA Um personagem treinado em Adestramento pode usar um cavalo como montaria. Ele conta \ncomo um aliado que aumenta seu deslocamento para \n15 e fornece uma ação extra por rodada (apenas para \nse deslocar).\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nCASCOS Corpo a corpo \nTeste 1d20+5 | Dano 2d4+3 impacto",
       "tags": [
         "Criatura / Ameaça",
         "Nenhum",
-        "VD 40",
+        "VD 10",
         "Sobrevivendo ao Horror"
       ]
     },
@@ -20224,7 +20362,13 @@
       "vd": 20,
       "defense": 16,
       "pv": 22,
-      "attributes": {},
+      "attributes": {
+        "AGI": "1",
+        "FOR": "0",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "0"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+5",
@@ -20246,18 +20390,24 @@
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__escorpiao_vd10",
+      "id": "creature__sobrevivendo_ao_horror__gorila_vd40",
       "category": "creature",
-      "subCategory": "Ameaça (VD 10)",
-      "name": "Escorpião",
+      "subCategory": "Ameaça (VD 40)",
+      "name": "Gorila",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
       "pageNumber": 165,
       "element": "Nenhum",
-      "vd": 10,
-      "defense": 15,
-      "pv": 8,
-      "attributes": {},
+      "vd": 40,
+      "defense": 19,
+      "pv": 70,
+      "attributes": {
+        "AGI": "2",
+        "FOR": "3",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "3"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+5",
@@ -20269,12 +20419,12 @@
         "3d20+5",
         "2d20+10"
       ],
-      "summary": "VD 10 | Elemento: Nenhum | PV: 8 | Defesa: 15",
+      "summary": "VD 40 | Elemento: Nenhum | PV: 70 | Defesa: 19",
       "description": "ENXAME DE TOCANDIRAS \tVD 20\n\nTambém chamado de formiga-bala, este pequeno inseto típico da Amazônia é conhecido por sua mordida de \ndor intensa e debilitante. Encontrada principalmente \nna selva amazônica, está presente também em outras \npartes da América do Sul.\n\nANIMAL (ENXAME) •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nVISÃO NA PENUMBRA\n\nDEFESA 16\n\nFortitude –2d20 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 22 | Machucado 11\n\nDESLOCAMENTO 6m | 4□, Escalar 6m | 4□\n\nAGI 1   FOR 0   INT 0   PRE 1   VIG 0\n\nENXAME Um enxame é uma aglomeração de criaturas \nque agem em conjunto. Em termos de regras, pode \nentrar no espaço ocupado por um ser. No fim do seu \nturno, o enxame causa 4d4 pontos de dano de perfuração a qualquer ser em seu espaço, automaticamente. \nUm enxame é imune a manobras de combate e efeitos \nque afetam apenas uma criatura e não causam dano e \nsofre apenas metade do dano de ataques com armas. \nPorém, sofre 50% a mais de dano por efeitos de área.\n\nDOR DEBILITANTE Um ser que sofra dano do enxa-me sofre –1d20 em todos os testes devido à dor profunda \n(Fortitude DT 20 evita). Essa penalidade só pode ser \nremovida com uma ação de interlúdio dormir ou com \na aplicação de uma dose de antídoto.\n\nPOR DENTRO DAS ROUPAS Quando um ser sai \ndo espaço do enxame, leva consigo algumas formigas \nque entram em suas vestes. O ser continua sofrendo \nmetade do dano de Enxame (2d4) até gastar uma ação \nde movimento para se livrar delas.\n\nGORILA\t\n VD 40\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 2d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 19\n\nFortitude 2d20+5 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 70 | Machucado 35\n\nDESLOCAMENTO 9m | 6□, Escalar 9m | 6□\n\nAGI 2   FOR 3   INT 0   PRE 1   VIG 3\n\nPERÍCIAS Atletismo 3d20+5\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nPANCADA Corpo a corpo x2\nTeste 2d20+10 | Dano 1d6+3 impacto\n\nMORDIDA Corpo a corpo\nTeste 2d20+10 | Dano 1d6+4 corte\n\nLIVRE ◆  MORDER\nSe o gorila acerta os dois ataques de pancada em um \nmesmo ser na mesma rodada, ele ataca este ser com \nsua mordida.\nLEÃO \t\nVD 60\n\nO assim chamado “rei das selvas”, o leão é um dos \nmaiores predadores das savanas africanas. Outrora \ncomum em circos no Brasil, ainda pode ser encontrado em abrigos de animais selvagens ou em coleções \n(geralmente ilegais) de animais exóticos.\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+10 | Iniciativa 3d20+10\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 18\n\nFortitude 2d20+5 | Reflexos 3d20+10 | Vontade 2d20+5\n\nPONTOS DE VIDA 80 | Machucado 40\n\nDESLOCAMENTO 15m | 10□\n\nAGI 3   FOR 3   INT 0   PRE 1   VIG 2\n\nPERÍCIAS Atletismo 3d20+10, Furtividade 3d20+8\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nGARRAS Corpo a corpo x2\nTeste 3d20+10, crítico 19 | Dano 1d6+4 corte\n\nMORDIDA Corpo a corpo\nTeste 3d20+10 | Dano 1d8+4 corte",
       "tags": [
         "Criatura / Ameaça",
         "Nenhum",
-        "VD 10",
+        "VD 40",
         "Sobrevivendo ao Horror"
       ]
     },
@@ -20285,25 +20435,31 @@
       "name": "Leão",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
-      "pageNumber": 166,
+      "pageNumber": 165,
       "element": "Nenhum",
       "vd": 60,
-      "defense": 19,
+      "defense": 18,
       "pv": 80,
-      "attributes": {},
+      "attributes": {
+        "AGI": "3",
+        "FOR": "3",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
-        "3d20+12",
-        "1d20",
         "1d20+5",
-        "2d20+5",
         "2d20",
-        "2d20+10",
-        "1d6",
-        "1d6+4"
+        "1d20",
+        "4d4",
+        "2d4",
+        "2d20+5",
+        "3d20+5",
+        "2d20+10"
       ],
-      "summary": "VD 60 | Elemento: Nenhum | PV: 80 | Defesa: 19",
-      "description": "LIVRE ◆  AGARRÃO\nSe o leão acertar um ataque de mordida em um \nser Médio ou menor, ele pode tentar agarrar o alvo \n(teste 3d20+12).\n\nCOMPLETA ◆  BOTE\nO leão faz uma investida e ataca com sua mordida e \nsuas garras. Os três ataques recebem o bônus de +1d20 da \ninvestida, mas devem ser feitos contra o mesmo alvo.\nLOBO\t\nVD 20\n\nANIMAL •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFARO, VISÃO NA PESNUMBRA\n\nDEFESA 15\n\nFortitude 2d20+5 | Reflexos 2d20+5 | Vontade 2d20\n\nPONTOS DE VIDA 18 | Machucado 9\n\nDESLOCAMENTO 12m | 8□\n\nAGI 3   FOR 3   INT 0   PRE 1   VIG 2\n\nPERÍCIAS Sobrevivência 2d20+10\n\nTÁTICAS DE ALCATEIA Quando flanqueia um inimigo, o lobo recebe +1d20 no teste de ataque e causa +1d6 \npontos de dano com sua mordida (além do bônus \nnormal por flanquear, para um total de +2d20 no ataque \ne +1d6 no dano).\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nMORDIDA Corpo a corpo \nTeste 2d20+5 | Dano 1d6+4 corte\n\nLIVRE ◆  DERRUBAR\nSe o lobo acerta um ataque de mordida em um ser \nMédio ou menor, pode fazer a manobra derrubar \n(teste 2d20+5).\nTOURO\t\nVD 20\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 15\n\nFortitude 2d20+5 | Reflexos 1d20 | Vontade 1d20\n\nPONTOS DE VIDA 38 | Machucado 19\n\nDESLOCAMENTO 12m | 8□\n\nAGI 1   FOR 3   INT 0   PRE 1   VIG 2\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nCHIFRES Corpo a corpo \nTeste 2d20+5 | Dano 2d6+6 perfuração\n\nCOMPLETA ◆  ATROPELAMENTO\nO touro percorre até o dobro de seu deslocamento \nem linha reta. Quando se move dessa forma, o touro \npode passar pelo espaço ocupado de quaisquer seres \nmenores que ele. Seres nessa linha sofrem 2d6+6 \npontos de dano de impacto e ficam caídos (Reflexos \nDT 15 reduz à metade e evita a condição). Recarga \n(movimento).\nURSO PARDO\t\nVD 60\n\nUm dos mais perigosos ursos, o pardo é um predador \nimponente e poderoso.\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 19\n\nFortitude 3d20+10 | Reflexos 2d20+5 | Vontade 2d20\n\nPONTOS DE VIDA 90 | Machucado 45\n\nRESISTÊNCIAS | BALÍSTICO, CORTE, IMPACTO E\n\nPERFURAÇÃO 2\n\nDESLOCAMENTO 12m | 8□\n\nAGI 1   FOR 3   INT 0   PRE 1   VIG 3\n\nPERÍCIAS Atletismo 3d20+10\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nGARRAS Corpo a corpo x2\nTeste 3d20+10, crítico 19 | Dano 1d6+4 corte\n\nMORDIDA Corpo a corpo\nTeste 3d20+10 | Dano 1d8+4 corte\n\nLIVRE ◆  AGARRÃO\nSe o urso acertar um ataque de mordida em um ser Médio \nou menor, ele pode tentar agarrar o alvo (teste 3d20+12).",
+      "summary": "VD 60 | Elemento: Nenhum | PV: 80 | Defesa: 18",
+      "description": "ENXAME DE TOCANDIRAS \tVD 20\n\nTambém chamado de formiga-bala, este pequeno inseto típico da Amazônia é conhecido por sua mordida de \ndor intensa e debilitante. Encontrada principalmente \nna selva amazônica, está presente também em outras \npartes da América do Sul.\n\nANIMAL (ENXAME) •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nVISÃO NA PENUMBRA\n\nDEFESA 16\n\nFortitude –2d20 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 22 | Machucado 11\n\nDESLOCAMENTO 6m | 4□, Escalar 6m | 4□\n\nAGI 1   FOR 0   INT 0   PRE 1   VIG 0\n\nENXAME Um enxame é uma aglomeração de criaturas \nque agem em conjunto. Em termos de regras, pode \nentrar no espaço ocupado por um ser. No fim do seu \nturno, o enxame causa 4d4 pontos de dano de perfuração a qualquer ser em seu espaço, automaticamente. \nUm enxame é imune a manobras de combate e efeitos \nque afetam apenas uma criatura e não causam dano e \nsofre apenas metade do dano de ataques com armas. \nPorém, sofre 50% a mais de dano por efeitos de área.\n\nDOR DEBILITANTE Um ser que sofra dano do enxa-me sofre –1d20 em todos os testes devido à dor profunda \n(Fortitude DT 20 evita). Essa penalidade só pode ser \nremovida com uma ação de interlúdio dormir ou com \na aplicação de uma dose de antídoto.\n\nPOR DENTRO DAS ROUPAS Quando um ser sai \ndo espaço do enxame, leva consigo algumas formigas \nque entram em suas vestes. O ser continua sofrendo \nmetade do dano de Enxame (2d4) até gastar uma ação \nde movimento para se livrar delas.\n\nGORILA\t\n VD 40\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 2d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 19\n\nFortitude 2d20+5 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 70 | Machucado 35\n\nDESLOCAMENTO 9m | 6□, Escalar 9m | 6□\n\nAGI 2   FOR 3   INT 0   PRE 1   VIG 3\n\nPERÍCIAS Atletismo 3d20+5\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nPANCADA Corpo a corpo x2\nTeste 2d20+10 | Dano 1d6+3 impacto\n\nMORDIDA Corpo a corpo\nTeste 2d20+10 | Dano 1d6+4 corte\n\nLIVRE ◆  MORDER\nSe o gorila acerta os dois ataques de pancada em um \nmesmo ser na mesma rodada, ele ataca este ser com \nsua mordida.\nLEÃO \t\nVD 60\n\nO assim chamado “rei das selvas”, o leão é um dos \nmaiores predadores das savanas africanas. Outrora \ncomum em circos no Brasil, ainda pode ser encontrado em abrigos de animais selvagens ou em coleções \n(geralmente ilegais) de animais exóticos.\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+10 | Iniciativa 3d20+10\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 18\n\nFortitude 2d20+5 | Reflexos 3d20+10 | Vontade 2d20+5\n\nPONTOS DE VIDA 80 | Machucado 40\n\nDESLOCAMENTO 15m | 10□\n\nAGI 3   FOR 3   INT 0   PRE 1   VIG 2\n\nPERÍCIAS Atletismo 3d20+10, Furtividade 3d20+8\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nGARRAS Corpo a corpo x2\nTeste 3d20+10, crítico 19 | Dano 1d6+4 corte\n\nMORDIDA Corpo a corpo\nTeste 3d20+10 | Dano 1d8+4 corte",
       "tags": [
         "Criatura / Ameaça",
         "Nenhum",
@@ -20323,7 +20479,13 @@
       "vd": 20,
       "defense": 15,
       "pv": 18,
-      "attributes": {},
+      "attributes": {
+        "AGI": "3",
+        "FOR": "3",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "3d20+12",
@@ -20345,18 +20507,24 @@
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__touro_vd40",
+      "id": "creature__sobrevivendo_ao_horror__touro_vd20",
       "category": "creature",
-      "subCategory": "Ameaça (VD 40)",
+      "subCategory": "Ameaça (VD 20)",
       "name": "Touro",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
       "pageNumber": 166,
       "element": "Nenhum",
-      "vd": 40,
-      "defense": 16,
-      "pv": 60,
-      "attributes": {},
+      "vd": 20,
+      "defense": 15,
+      "pv": 38,
+      "attributes": {
+        "AGI": "1",
+        "FOR": "3",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "3d20+12",
@@ -20368,36 +20536,51 @@
         "1d6",
         "1d6+4"
       ],
-      "summary": "VD 40 | Elemento: Nenhum | PV: 60 | Defesa: 16",
+      "summary": "VD 20 | Elemento: Nenhum | PV: 38 | Defesa: 15",
       "description": "LIVRE ◆  AGARRÃO\nSe o leão acertar um ataque de mordida em um \nser Médio ou menor, ele pode tentar agarrar o alvo \n(teste 3d20+12).\n\nCOMPLETA ◆  BOTE\nO leão faz uma investida e ataca com sua mordida e \nsuas garras. Os três ataques recebem o bônus de +1d20 da \ninvestida, mas devem ser feitos contra o mesmo alvo.\nLOBO\t\nVD 20\n\nANIMAL •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFARO, VISÃO NA PESNUMBRA\n\nDEFESA 15\n\nFortitude 2d20+5 | Reflexos 2d20+5 | Vontade 2d20\n\nPONTOS DE VIDA 18 | Machucado 9\n\nDESLOCAMENTO 12m | 8□\n\nAGI 3   FOR 3   INT 0   PRE 1   VIG 2\n\nPERÍCIAS Sobrevivência 2d20+10\n\nTÁTICAS DE ALCATEIA Quando flanqueia um inimigo, o lobo recebe +1d20 no teste de ataque e causa +1d6 \npontos de dano com sua mordida (além do bônus \nnormal por flanquear, para um total de +2d20 no ataque \ne +1d6 no dano).\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nMORDIDA Corpo a corpo \nTeste 2d20+5 | Dano 1d6+4 corte\n\nLIVRE ◆  DERRUBAR\nSe o lobo acerta um ataque de mordida em um ser \nMédio ou menor, pode fazer a manobra derrubar \n(teste 2d20+5).\nTOURO\t\nVD 20\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 15\n\nFortitude 2d20+5 | Reflexos 1d20 | Vontade 1d20\n\nPONTOS DE VIDA 38 | Machucado 19\n\nDESLOCAMENTO 12m | 8□\n\nAGI 1   FOR 3   INT 0   PRE 1   VIG 2\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nCHIFRES Corpo a corpo \nTeste 2d20+5 | Dano 2d6+6 perfuração\n\nCOMPLETA ◆  ATROPELAMENTO\nO touro percorre até o dobro de seu deslocamento \nem linha reta. Quando se move dessa forma, o touro \npode passar pelo espaço ocupado de quaisquer seres \nmenores que ele. Seres nessa linha sofrem 2d6+6 \npontos de dano de impacto e ficam caídos (Reflexos \nDT 15 reduz à metade e evita a condição). Recarga \n(movimento).\nURSO PARDO\t\nVD 60\n\nUm dos mais perigosos ursos, o pardo é um predador \nimponente e poderoso.\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 19\n\nFortitude 3d20+10 | Reflexos 2d20+5 | Vontade 2d20\n\nPONTOS DE VIDA 90 | Machucado 45\n\nRESISTÊNCIAS | BALÍSTICO, CORTE, IMPACTO E\n\nPERFURAÇÃO 2\n\nDESLOCAMENTO 12m | 8□\n\nAGI 1   FOR 3   INT 0   PRE 1   VIG 3\n\nPERÍCIAS Atletismo 3d20+10\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nGARRAS Corpo a corpo x2\nTeste 3d20+10, crítico 19 | Dano 1d6+4 corte\n\nMORDIDA Corpo a corpo\nTeste 3d20+10 | Dano 1d8+4 corte\n\nLIVRE ◆  AGARRÃO\nSe o urso acertar um ataque de mordida em um ser Médio \nou menor, ele pode tentar agarrar o alvo (teste 3d20+12).",
       "tags": [
         "Criatura / Ameaça",
         "Nenhum",
-        "VD 40",
+        "VD 20",
         "Sobrevivendo ao Horror"
       ]
     },
     {
-      "id": "creature__sobrevivendo_ao_horror__urso_vd80",
+      "id": "creature__sobrevivendo_ao_horror__urso_pardo_vd60",
       "category": "creature",
-      "subCategory": "Ameaça (VD 80)",
-      "name": "Urso",
+      "subCategory": "Ameaça (VD 60)",
+      "name": "Urso Pardo",
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
-      "pageNumber": 167,
+      "pageNumber": 166,
       "element": "Nenhum",
-      "vd": 80,
-      "defense": 21,
-      "pv": 130,
-      "attributes": {},
+      "vd": 60,
+      "defense": 19,
+      "pv": 90,
+      "attributes": {
+        "AGI": "1",
+        "FOR": "3",
+        "INT": "0",
+        "PRE": "1",
+        "VIG": "3"
+      },
       "disturbingPresence": "Nenhuma",
-      "diceFormulas": [],
-      "summary": "VD 80 | Elemento: Nenhum | PV: 130 | Defesa: 21",
-      "description": "",
+      "diceFormulas": [
+        "3d20+12",
+        "1d20",
+        "1d20+5",
+        "2d20+5",
+        "2d20",
+        "2d20+10",
+        "1d6",
+        "1d6+4"
+      ],
+      "summary": "VD 60 | Elemento: Nenhum | PV: 90 | Defesa: 19",
+      "description": "LIVRE ◆  AGARRÃO\nSe o leão acertar um ataque de mordida em um \nser Médio ou menor, ele pode tentar agarrar o alvo \n(teste 3d20+12).\n\nCOMPLETA ◆  BOTE\nO leão faz uma investida e ataca com sua mordida e \nsuas garras. Os três ataques recebem o bônus de +1d20 da \ninvestida, mas devem ser feitos contra o mesmo alvo.\nLOBO\t\nVD 20\n\nANIMAL •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFARO, VISÃO NA PESNUMBRA\n\nDEFESA 15\n\nFortitude 2d20+5 | Reflexos 2d20+5 | Vontade 2d20\n\nPONTOS DE VIDA 18 | Machucado 9\n\nDESLOCAMENTO 12m | 8□\n\nAGI 3   FOR 3   INT 0   PRE 1   VIG 2\n\nPERÍCIAS Sobrevivência 2d20+10\n\nTÁTICAS DE ALCATEIA Quando flanqueia um inimigo, o lobo recebe +1d20 no teste de ataque e causa +1d6 \npontos de dano com sua mordida (além do bônus \nnormal por flanquear, para um total de +2d20 no ataque \ne +1d6 no dano).\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nMORDIDA Corpo a corpo \nTeste 2d20+5 | Dano 1d6+4 corte\n\nLIVRE ◆  DERRUBAR\nSe o lobo acerta um ataque de mordida em um ser \nMédio ou menor, pode fazer a manobra derrubar \n(teste 2d20+5).\nTOURO\t\nVD 20\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 15\n\nFortitude 2d20+5 | Reflexos 1d20 | Vontade 1d20\n\nPONTOS DE VIDA 38 | Machucado 19\n\nDESLOCAMENTO 12m | 8□\n\nAGI 1   FOR 3   INT 0   PRE 1   VIG 2\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nCHIFRES Corpo a corpo \nTeste 2d20+5 | Dano 2d6+6 perfuração\n\nCOMPLETA ◆  ATROPELAMENTO\nO touro percorre até o dobro de seu deslocamento \nem linha reta. Quando se move dessa forma, o touro \npode passar pelo espaço ocupado de quaisquer seres \nmenores que ele. Seres nessa linha sofrem 2d6+6 \npontos de dano de impacto e ficam caídos (Reflexos \nDT 15 reduz à metade e evita a condição). Recarga \n(movimento).\nURSO PARDO\t\nVD 60\n\nUm dos mais perigosos ursos, o pardo é um predador \nimponente e poderoso.\n\nANIMAL •  GRANDE\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFARO, VISÃO NA PENUMBRA\n\nDEFESA 19\n\nFortitude 3d20+10 | Reflexos 2d20+5 | Vontade 2d20\n\nPONTOS DE VIDA 90 | Machucado 45\n\nRESISTÊNCIAS | BALÍSTICO, CORTE, IMPACTO E\n\nPERFURAÇÃO 2\n\nDESLOCAMENTO 12m | 8□\n\nAGI 1   FOR 3   INT 0   PRE 1   VIG 3\n\nPERÍCIAS Atletismo 3d20+10\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nGARRAS Corpo a corpo x2\nTeste 3d20+10, crítico 19 | Dano 1d6+4 corte\n\nMORDIDA Corpo a corpo\nTeste 3d20+10 | Dano 1d8+4 corte\n\nLIVRE ◆  AGARRÃO\nSe o urso acertar um ataque de mordida em um ser Médio \nou menor, ele pode tentar agarrar o alvo (teste 3d20+12).",
       "tags": [
         "Criatura / Ameaça",
         "Nenhum",
-        "VD 80",
+        "VD 60",
         "Sobrevivendo ao Horror"
       ]
     },
@@ -20413,7 +20596,13 @@
       "vd": 240,
       "defense": 28,
       "pv": 500,
-      "attributes": {},
+      "attributes": {
+        "AGI": "2",
+        "FOR": "4",
+        "INT": "1",
+        "PRE": "2",
+        "VIG": "4"
+      },
       "disturbingPresence": "DT 30 • 8d6 mental",
       "diceFormulas": [
         "8d6",
@@ -20781,10 +20970,10 @@
       ]
     },
     {
-      "id": "creature__livro_base__zumbi_de_sangue_vd240",
+      "id": "creature__livro_base__zumbi_de_sangue_colossal_vd240",
       "category": "creature",
       "subCategory": "Ameaça (VD 240)",
-      "name": "Zumbi de Sangue",
+      "name": "Zumbi de Sangue Colossal",
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 205,
@@ -21398,10 +21587,10 @@
       ]
     },
     {
-      "id": "creature__livro_base__existido_existido_vd10",
+      "id": "creature__livro_base__existido_vd10",
       "category": "creature",
       "subCategory": "Ameaça (VD 10)",
-      "name": "Existido Existido",
+      "name": "Existido",
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 240,
@@ -21710,7 +21899,13 @@
       "vd": 400,
       "defense": 30,
       "pv": 1200,
-      "attributes": {},
+      "attributes": {
+        "AGI": "4",
+        "FOR": "4",
+        "INT": "6",
+        "PRE": "6",
+        "VIG": "5"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "4d20+25",
@@ -21818,8 +22013,11 @@
       "defense": 25,
       "pv": 900,
       "attributes": {
+        "AGI": "-",
+        "FOR": "-",
         "INT": "6",
-        "PRE": "6"
+        "PRE": "6",
+        "VIG": "-"
       },
       "disturbingPresence": "NEX 99% •  DT 30 •  9d6 mental",
       "diceFormulas": [
@@ -22142,6 +22340,41 @@
       ]
     },
     {
+      "id": "creature__livro_base__o_anfitriao_vd400",
+      "category": "creature",
+      "subCategory": "Ameaça (VD 400)",
+      "name": "O Anfitrião",
+      "bookId": "livro_base",
+      "bookTitle": "Livro Base",
+      "pageNumber": 278,
+      "element": "Energia",
+      "vd": 400,
+      "defense": 29,
+      "pv": 1413,
+      "attributes": {
+        "AGI": "7",
+        "FOR": "5",
+        "INT": "6",
+        "PRE": "6",
+        "VIG": "5"
+      },
+      "disturbingPresence": "DT 35 • 12d6 mental",
+      "diceFormulas": [
+        "2d6",
+        "1d6",
+        "8d6",
+        "4d6"
+      ],
+      "summary": "VD 400 | Elemento: Energia | PV: 1413 | Defesa: 29",
+      "description": "algo \nque apenas a manifestação que \nrege as correntes da Realidade, \na Máscara do Desespero, pode \noferecer.\n\n276\n276\n\nVD0413\n\nATO 1\n\nO Anfitrião inicia um combate se dividindo em 5 \nfacetas separadas: Amphitruo, Aeneas, Liber, Silenus e Plautus. Cada um desses possui as mesmas \nestatísticas que O Anfitrião, mas possuem 250 PV \ncada e resistência a dano 20. Além disso, cada um \nsó pode usar habilidades e ataques que tenham \nseu nome. Quando todos forem destruídos, O \nAnfitrião retorna para sua forma única e inicia o \nAto 2 (veja Ato 2).\n\nATO 2\n\nNo segundo Ato, O Anfitrião retorna para sua \nforma única. Ele pode usar todas as habilidades de \nsua ficha, incluindo aquelas de suas cinco facetas, \ne pode executar 3 ações padrão por rodada, desde \nque sejam diferentes.\n\nPOTÊNCIA DE ENERGIA\n\nO modificador da Máscara do Desespero para \ntodos os testes de perícia baseados em Agilidade e \nIntelecto é +25, e para testes baseados nos demais \natributos, é +20.\n\nTRILHA SONORA (ATO 2)\n\nDurante o Ato 2, a trilha sonora d’O Anfitrião toca \nem todo o ambiente. No início de cada um dos tur-nos d’O Anfitrião, cada ser em alcance longo sofre \n2d6 pontos de dano mental.\n\nROLETA MALUCA (ATO 2)\n\nNo começo do turno d’O Anfitrião, cada ser em \nalcance longo sofre um efeito determinado aleatoriamente. Jogue 1d6 para cada ser na área; efeitos \niguais são cumulativos:\n\n• \n1 Sofre -5 na Defesa até o final da cena;\n\n• \n2 Deve usar uma ação completa fazendo coisas \nsem sentido ou sofre 8d6 pontos de dano mental no final do seu turno;\n\n• \n3 Sofre 4d6 pontos de dano de Energia;\n\n• \n4 Sofre -5 em Pontaria até o final da cena;\n\n• \n5 Sofre -5 em Luta até o final da cena;\n\n• \n6 Nada acontece.",
+      "tags": [
+        "Criatura / Ameaça",
+        "Energia",
+        "VD 400",
+        "Livro Base"
+      ]
+    },
+    {
       "id": "creature__livro_base__degolificada_vd320",
       "category": "creature",
       "subCategory": "Ameaça (VD 320)",
@@ -22229,11 +22462,11 @@
       "defense": 15,
       "pv": 22,
       "attributes": {
-        "AGI": "1",
-        "FOR": "0",
+        "AGI": "2",
+        "FOR": "2",
         "INT": "0",
         "PRE": "1",
-        "VIG": "0"
+        "VIG": "2"
       },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
@@ -22288,10 +22521,10 @@
       ]
     },
     {
-      "id": "creature__livro_base__ameacas_da_realidade_vd40",
+      "id": "creature__livro_base__jacare_vd40",
       "category": "creature",
       "subCategory": "Ameaça (VD 40)",
-      "name": "Ameaças da Realidade",
+      "name": "Jacaré",
       "bookId": "livro_base",
       "bookTitle": "Livro Base",
       "pageNumber": 285,
@@ -22301,10 +22534,10 @@
       "pv": 60,
       "attributes": {
         "AGI": "1",
-        "FOR": "3",
+        "FOR": "0",
         "INT": "0",
         "PRE": "1",
-        "VIG": "2"
+        "VIG": "0"
       },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
@@ -22323,43 +22556,6 @@
         "Criatura / Ameaça",
         "Nenhum",
         "VD 40",
-        "Livro Base"
-      ]
-    },
-    {
-      "id": "creature__livro_base__ameacas_da_realidade_vd10",
-      "category": "creature",
-      "subCategory": "Ameaça (VD 10)",
-      "name": "Ameaças da Realidade",
-      "bookId": "livro_base",
-      "bookTitle": "Livro Base",
-      "pageNumber": 285,
-      "element": "Nenhum",
-      "vd": 10,
-      "defense": 14,
-      "pv": 25,
-      "attributes": {
-        "AGI": "1",
-        "FOR": "2",
-        "INT": "0",
-        "PRE": "1",
-        "VIG": "3"
-      },
-      "disturbingPresence": "Nenhuma",
-      "diceFormulas": [
-        "3d20+7",
-        "1d20+5",
-        "3d20+5",
-        "1d20",
-        "2d20+5",
-        "1d8+2"
-      ],
-      "summary": "VD 10 | Elemento: Nenhum | PV: 25 | Defesa: 14",
-      "description": "o jacaré acertar um ataque de mordida em um ser \nMédio ou menor, pode tentar agarrar o alvo (teste \n3d20+7).\nJAVAPORCO\t\nVD 10\n\nResultado do cruzamento de javalis e porcos domésticos, o javaporco se tornou uma verdadeira praga em \nmuitas regiões rurais. Um grupo de agentes investigando uma fazenda ou um esconderijo ermo pode ser \nsurpreendido por estas criaturas vorazes e agressivas.\n\nANIMAL •  MÉDIO\n\nSENTIDOS Percepção 1d20+5 | Iniciativa 1d20+5\n\nFaro, visão na penumbra\n\nDEFESA 14\n\nFortitude 3d20+5 | Reflexos 1d20+5 | Vontade 1d20\n\nPONTOS DE VIDA 25 | Machucado 12\nDESLOCAMENTO 12m | 8□\n\nAGI 1   FOR 2   INT 0   PRE 1   VIG 3\n\nFEROCIDADE Se o javaporco sofrer dano, recebe +1d20 em \ntestes de ataque e causa um dado de dano adicional em todas \nas rolagens de dano até o final da cena.\n\nAÇÕES\nPADRÃO ▸  AGREDIR\n\nMORDIDA Corpo a corpo\nTeste 2d20+5 | Dano 1d8+2 corte\n\nREAÇÃO ◆  MORDIDA FINAL\n\nQuando é reduzido a 0 PV, o javaporco faz um ataque \nde mordida contra um oponente aleatório em seu \nalcance antes de morrer.",
-      "tags": [
-        "Criatura / Ameaça",
-        "Nenhum",
-        "VD 10",
         "Livro Base"
       ]
     },
@@ -22415,11 +22611,11 @@
       "defense": 16,
       "pv": 68,
       "attributes": {
-        "AGI": "2",
-        "FOR": "4",
+        "AGI": "3",
+        "FOR": "3",
         "INT": "0",
         "PRE": "1",
-        "VIG": "3"
+        "VIG": "2"
       },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
@@ -22564,10 +22760,10 @@
       "defense": 13,
       "pv": 15,
       "attributes": {
-        "AGI": "1",
-        "FOR": "3",
-        "INT": "1",
-        "PRE": "1",
+        "AGI": "2",
+        "FOR": "1",
+        "INT": "3",
+        "PRE": "3",
         "VIG": "2"
       },
       "disturbingPresence": "Nenhuma",
@@ -22638,11 +22834,11 @@
       "defense": 28,
       "pv": 145,
       "attributes": {
-        "AGI": "3",
-        "FOR": "3",
-        "INT": "2",
-        "PRE": "2",
-        "VIG": "3"
+        "AGI": "2",
+        "FOR": "2",
+        "INT": "1",
+        "PRE": "1",
+        "VIG": "2"
       },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
@@ -22715,10 +22911,10 @@
       "defense": 19,
       "pv": 20,
       "attributes": {
-        "AGI": "2",
+        "AGI": "4",
         "FOR": "2",
-        "INT": "1",
-        "PRE": "1",
+        "INT": "2",
+        "PRE": "3",
         "VIG": "2"
       },
       "disturbingPresence": "Nenhuma",
@@ -22788,10 +22984,10 @@
       "defense": 28,
       "pv": 70,
       "attributes": {
-        "AGI": "3",
+        "AGI": "2",
         "FOR": "3",
         "INT": "1",
-        "PRE": "1",
+        "PRE": "2",
         "VIG": "3"
       },
       "disturbingPresence": "Nenhuma",
@@ -23431,7 +23627,13 @@
       "vd": 80,
       "defense": 21,
       "pv": 120,
-      "attributes": {},
+      "attributes": {
+        "AGI": "2",
+        "FOR": "3",
+        "INT": "1",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+5",
@@ -23464,7 +23666,13 @@
       "vd": 140,
       "defense": 29,
       "pv": 260,
-      "attributes": {},
+      "attributes": {
+        "AGI": "2",
+        "FOR": "3",
+        "INT": "1",
+        "PRE": "1",
+        "VIG": "2"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+10",
@@ -23497,7 +23705,13 @@
       "vd": 80,
       "defense": 23,
       "pv": 140,
-      "attributes": {},
+      "attributes": {
+        "AGI": "1",
+        "FOR": "4",
+        "INT": "1",
+        "PRE": "1",
+        "VIG": "3"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+5",
@@ -23528,7 +23742,13 @@
       "vd": 140,
       "defense": 31,
       "pv": 280,
-      "attributes": {},
+      "attributes": {
+        "AGI": "1",
+        "FOR": "4",
+        "INT": "1",
+        "PRE": "1",
+        "VIG": "3"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+10",
@@ -23559,7 +23779,13 @@
       "vd": 80,
       "defense": 22,
       "pv": 100,
-      "attributes": {},
+      "attributes": {
+        "AGI": "3",
+        "FOR": "2",
+        "INT": "3",
+        "PRE": "1",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+5",
@@ -23592,7 +23818,13 @@
       "vd": 140,
       "defense": 30,
       "pv": 200,
-      "attributes": {},
+      "attributes": {
+        "AGI": "3",
+        "FOR": "2",
+        "INT": "3",
+        "PRE": "1",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "1d20+10",
@@ -23625,7 +23857,13 @@
       "vd": 80,
       "defense": 23,
       "pv": 90,
-      "attributes": {},
+      "attributes": {
+        "AGI": "3",
+        "FOR": "1",
+        "INT": "3",
+        "PRE": "2",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "2d20+5",
@@ -23658,7 +23896,13 @@
       "vd": 140,
       "defense": 30,
       "pv": 180,
-      "attributes": {},
+      "attributes": {
+        "AGI": "3",
+        "FOR": "1",
+        "INT": "3",
+        "PRE": "2",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "2d20+10",
@@ -23691,7 +23935,13 @@
       "vd": 80,
       "defense": 20,
       "pv": 120,
-      "attributes": {},
+      "attributes": {
+        "AGI": "1",
+        "FOR": "1",
+        "INT": "3",
+        "PRE": "3",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "3d20+5",
@@ -23721,7 +23971,13 @@
       "vd": 140,
       "defense": 28,
       "pv": 240,
-      "attributes": {},
+      "attributes": {
+        "AGI": "1",
+        "FOR": "1",
+        "INT": "3",
+        "PRE": "3",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "3d20+10",
@@ -23948,7 +24204,13 @@
       "vd": 80,
       "defense": 20,
       "pv": 100,
-      "attributes": {},
+      "attributes": {
+        "AGI": "2",
+        "FOR": "2",
+        "INT": "2",
+        "PRE": "3",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "3d20+5",
@@ -23981,7 +24243,13 @@
       "vd": 140,
       "defense": 31,
       "pv": 280,
-      "attributes": {},
+      "attributes": {
+        "AGI": "2",
+        "FOR": "2",
+        "INT": "2",
+        "PRE": "3",
+        "VIG": "1"
+      },
       "disturbingPresence": "Nenhuma",
       "diceFormulas": [
         "3d20+10",
@@ -24799,6 +25067,7 @@
       "pv": 70,
       "attributes": {
         "AGI": "1",
+        "FOR": "-",
         "INT": "1",
         "PRE": "1",
         "VIG": "1"
@@ -25175,6 +25444,7 @@
       "pv": 400,
       "attributes": {
         "AGI": "3",
+        "FOR": "-",
         "INT": "3",
         "PRE": "4",
         "VIG": "2"

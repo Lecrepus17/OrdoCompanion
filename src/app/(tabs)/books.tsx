@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -17,20 +17,21 @@ import { useApp } from '../../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../../theme';
 import { BookInfo } from '../../types/compendium';
 import { PdfViewerModal, PdfViewerMode } from '../../components/PdfViewerModal';
-import { getRawPdfUrl, getRenderedPdfPageUrl } from '../../utils/pdfUrl';
+import { getRawPdfUrl, getRenderedPdfPageUrl, openPdfDocument } from '../../utils/pdfUrl';
 import { sortBooksCanonical } from '../../repositories/OfflineDataRepository';
 
 export default function BooksScreen() {
-  const { books, searchInBookPages } = useApp();
+  const { books, searchInBookPages, openManual } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 10);
   const styles = useThemedStyles(createStyles);
-  const sortedBooks = useMemo(() => sortBooksCanonical(books), [books]);
+  const sortedBooks = books;
+  const booksMap = useMemo(() => new Map(books.map((b) => [b.id, b])), [books]);
   const [pageQuery, setPageQuery] = useState('');
   const [selectedBook, setSelectedBook] = useState<BookInfo | null>(null);
   const [currentPageNo, setCurrentPageNo] = useState(1);
-  const [viewerMode, setViewerMode] = useState<PdfViewerMode>('pdf_page');
+  const [viewerMode, setViewerMode] = useState<PdfViewerMode>('pdf_scroll');
   const [readerOpen, setReaderOpen] = useState(false);
 
   const pageSearchResults = useMemo(() => {
@@ -38,43 +39,78 @@ export default function BooksScreen() {
     return searchInBookPages('all', pageQuery.trim());
   }, [pageQuery, searchInBookPages]);
 
-  const openBookAtPage = (
+  const openBookAtPage = useCallback((
     book: BookInfo,
     pageNo: number,
-    mode: PdfViewerMode = 'pdf_page'
+    mode: PdfViewerMode = 'pdf_scroll'
   ) => {
     setSelectedBook(book);
     setCurrentPageNo(Math.max(1, Math.min(book.pageCount, pageNo)));
     setViewerMode(mode);
     setReaderOpen(true);
-  };
+  }, []);
 
-  const openExternalPdf = (book: BookInfo, pageNo: number = 1) => {
-    const url = getRawPdfUrl(book.fileName, pageNo);
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      Linking.openURL(url).catch(() => {});
-    }
-  };
+  const openExternalPdf = useCallback((book: BookInfo, pageNo: number = 1) => {
+    openPdfDocument(book.fileName, pageNo);
+  }, []);
+
+  const renderSnippetItem = useCallback(({ item }: { item: ReturnType<typeof searchInBookPages>[0] }) => {
+    const bookObj = booksMap.get(item.bookId);
+    return (
+      <TouchableOpacity
+        style={styles.snippetCard}
+        onPress={() => bookObj && openBookAtPage(bookObj, item.pageNumber, 'pdf_scroll')}
+      >
+        <View style={styles.snippetHeader}>
+          <Text style={styles.snippetBook}>{item.bookTitle}</Text>
+          <View style={styles.snippetPageBadge}>
+            <Ionicons name="document-text-outline" size={12} color="#FCA5A5" />
+            <Text style={styles.snippetPage}>Abrir PDF • Pág. {item.pageNumber}</Text>
+          </View>
+        </View>
+        <Text style={styles.snippetSection}>{item.section}</Text>
+        <Text style={styles.snippetText}>{item.snippet}</Text>
+      </TouchableOpacity>
+    );
+  }, [booksMap, openBookAtPage, styles]);
 
   return (
     <View style={styles.container}>
       {/* Busca Textual nas 1.261 Páginas dos Livros */}
-      <View style={styles.searchBarWrap}>
-        <Ionicons name="search" size={18} color={colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Pesquisar trecho nas 1.261 páginas e abrir direto na página do PDF..."
-          placeholderTextColor={colors.textMuted}
-          value={pageQuery}
-          onChangeText={setPageQuery}
-        />
-        {pageQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setPageQuery('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 12, marginBottom: 8 }}>
+        <View style={[styles.searchBarWrap, { flex: 1, marginHorizontal: 0, marginTop: 0, marginBottom: 0 }]}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Pesquisar trecho nas 1.261 páginas..."
+            placeholderTextColor={colors.textMuted}
+            value={pageQuery}
+            onChangeText={setPageQuery}
+          />
+          {pageQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setPageQuery('')}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <TouchableOpacity
+          onPress={() => openManual('books')}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            paddingHorizontal: 10,
+            height: 42,
+            borderRadius: 10,
+            backgroundColor: colors.primarySoft,
+            borderWidth: 1,
+            borderColor: colors.primary,
+          }}
+          accessibilityLabel="Manual dos Livros e PDFs"
+        >
+          <Ionicons name="help-circle-outline" size={17} color={colors.primary} />
+          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Manual</Text>
+        </TouchableOpacity>
       </View>
 
       {pageQuery.trim().length >= 2 ? (
@@ -82,30 +118,16 @@ export default function BooksScreen() {
           data={pageSearchResults}
           keyExtractor={(item, idx) => `${item.bookId}_${item.pageNumber}_${idx}`}
           contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}
+          initialNumToRender={10}
+          maxToRenderPerBatch={15}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS !== 'web'}
           ListHeaderComponent={
             <Text style={styles.resultsHeader}>
               {pageSearchResults.length} ocorrências encontradas — toque para abrir a página real do PDF
             </Text>
           }
-          renderItem={({ item }) => {
-            const bookObj = books.find((b) => b.id === item.bookId);
-            return (
-              <TouchableOpacity
-                style={styles.snippetCard}
-                onPress={() => bookObj && openBookAtPage(bookObj, item.pageNumber, 'pdf_page')}
-              >
-                <View style={styles.snippetHeader}>
-                  <Text style={styles.snippetBook}>{item.bookTitle}</Text>
-                  <View style={styles.snippetPageBadge}>
-                    <Ionicons name="document-text-outline" size={12} color="#FCA5A5" />
-                    <Text style={styles.snippetPage}>Abrir PDF • Pág. {item.pageNumber}</Text>
-                  </View>
-                </View>
-                <Text style={styles.snippetSection}>{item.section}</Text>
-                <Text style={styles.snippetText}>{item.snippet}</Text>
-              </TouchableOpacity>
-            );
-          }}
+          renderItem={renderSnippetItem}
         />
       ) : (
         <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}>
@@ -140,7 +162,7 @@ export default function BooksScreen() {
                   <TouchableOpacity
                     style={styles.coverThumbWrap}
                     activeOpacity={0.85}
-                    onPress={() => openBookAtPage(book, 1, 'pdf_page')}
+                    onPress={() => openBookAtPage(book, 1, 'pdf_scroll')}
                   >
                     <Image
                       source={{ uri: coverThumbUrl }}
@@ -161,7 +183,7 @@ export default function BooksScreen() {
                     <View style={styles.bookActionsRow}>
                       <TouchableOpacity
                         style={styles.readBookBtn}
-                        onPress={() => openBookAtPage(book, 1, 'pdf_page')}
+                        onPress={() => openBookAtPage(book, 1, 'pdf_scroll')}
                       >
                         <Ionicons name="book-outline" size={14} color="#FFF" />
                         <Text style={styles.readBookBtnText}>Ler PDF</Text>
@@ -194,7 +216,7 @@ export default function BooksScreen() {
                         <TouchableOpacity
                           key={`${book.id}_toc_${idx}`}
                           style={styles.tocChip}
-                          onPress={() => openBookAtPage(book, entry.page, 'pdf_page')}
+                          onPress={() => openBookAtPage(book, entry.page, 'pdf_scroll')}
                         >
                           <Text style={styles.tocChipText}>
                             {entry.title} (p. {entry.page})

@@ -1,0 +1,558 @@
+import {
+  CharacterAttributes,
+  CharacterSheet,
+  CompendiumEntity,
+  ParanormalElement,
+} from '../types/compendium';
+
+export interface StatIncreases {
+  pvGain: number;
+  peGain: number;
+  sanGain: number;
+  basePv: number;
+  basePe: number;
+  baseSan: number;
+}
+
+export type AgentRank =
+  | 'Recruta'
+  | 'Operador'
+  | 'Agente Especial'
+  | 'Oficial de Operações'
+  | 'Agente de Elite';
+
+export interface SkillDefinition {
+  name: string;
+  attr: keyof CharacterAttributes;
+  trainedOnly?: boolean;
+  armorPenalty?: boolean;
+}
+
+export const OFFICIAL_SKILLS_LIST: SkillDefinition[] = [
+  { name: 'Acrobacia', attr: 'AGI', armorPenalty: true },
+  { name: 'Adestramento', attr: 'PRE', trainedOnly: true },
+  { name: 'Artes', attr: 'PRE', trainedOnly: true },
+  { name: 'Atletismo', attr: 'FOR' },
+  { name: 'Atualidades', attr: 'INT' },
+  { name: 'Ciências', attr: 'INT', trainedOnly: true },
+  { name: 'Crime', attr: 'AGI', trainedOnly: true, armorPenalty: true },
+  { name: 'Diplomacia', attr: 'PRE' },
+  { name: 'Enganação', attr: 'PRE' },
+  { name: 'Fortitude', attr: 'VIG' },
+  { name: 'Furtividade', attr: 'AGI', armorPenalty: true },
+  { name: 'Iniciativa', attr: 'AGI' },
+  { name: 'Intimidação', attr: 'PRE' },
+  { name: 'Intuição', attr: 'PRE' },
+  { name: 'Investigação', attr: 'INT' },
+  { name: 'Luta', attr: 'FOR' },
+  { name: 'Medicina', attr: 'INT' },
+  { name: 'Ocultismo', attr: 'INT', trainedOnly: true },
+  { name: 'Percepção', attr: 'PRE' },
+  { name: 'Pilotagem', attr: 'AGI', trainedOnly: true },
+  { name: 'Pontaria', attr: 'AGI' },
+  { name: 'Profissão', attr: 'INT', trainedOnly: true },
+  { name: 'Reflexos', attr: 'AGI' },
+  { name: 'Religião', attr: 'PRE', trainedOnly: true },
+  { name: 'Sobrevivência', attr: 'INT' },
+  { name: 'Tática', attr: 'INT', trainedOnly: true },
+  { name: 'Tecnologia', attr: 'INT', trainedOnly: true },
+  { name: 'Vontade', attr: 'PRE' },
+];
+
+export interface NexMilestone {
+  nex: number;
+  title: string;
+  description: string;
+  needsTrackChoice?: boolean;
+  needsClassPower?: boolean;
+  needsAttributeIncrease?: boolean;
+  needsSkillTrainingIncrease?: boolean; // promotion to Veterano (+10) or Expert (+15)
+  skillTrainingTargetDegree?: 10 | 15;
+  skillTrainingQuota?: number;
+  needsAffinityChoice?: boolean;
+  needsRitualChoice?: boolean;
+  maxRitualCircle?: number;
+  trackAbility?: { title: string; description: string };
+  classAbilityUpgrade?: string;
+  recommendedRank?: AgentRank;
+}
+
+/**
+ * Calcula os ganhos de PV, PE e SAN para um avanço de 5% de NEX
+ */
+export function calculateStatIncreases(
+  className: string,
+  attrs: CharacterAttributes
+): StatIncreases {
+  const norm = (className || '').toLowerCase();
+
+  if (norm.includes('combatente')) {
+    return {
+      pvGain: Math.max(1, 4 + attrs.VIG),
+      peGain: Math.max(1, 2 + attrs.PRE),
+      sanGain: 3,
+      basePv: 4,
+      basePe: 2,
+      baseSan: 3,
+    };
+  }
+
+  if (norm.includes('ocultista')) {
+    return {
+      pvGain: Math.max(1, 2 + attrs.VIG),
+      peGain: Math.max(1, 4 + attrs.PRE),
+      sanGain: 5,
+      basePv: 2,
+      basePe: 4,
+      baseSan: 5,
+    };
+  }
+
+  if (norm.includes('sobrevivente')) {
+    return {
+      pvGain: 2,
+      peGain: 1,
+      sanGain: 2,
+      basePv: 2,
+      basePe: 1,
+      baseSan: 2,
+    };
+  }
+
+  // Especialista (padrão)
+  return {
+    pvGain: Math.max(1, 3 + attrs.VIG),
+    peGain: Math.max(1, 3 + attrs.PRE),
+    sanGain: 4,
+    basePv: 3,
+    basePe: 3,
+    baseSan: 4,
+  };
+}
+
+/**
+ * Calcula o limite de PE que um agente pode gastar por rodada com base no seu NEX
+ * Regra: NEX / 5 (mínimo 1)
+ */
+export function getPeRoundLimit(nex: number): number {
+  return Math.max(1, Math.floor(nex / 5));
+}
+
+/**
+ * Calcula a Dificuldade do Teste (DT) de rituais e habilidades
+ * Regra: 10 + limite de PE por rodada + Presença
+ */
+export function getRitualDt(nex: number, pre: number): number {
+  return 10 + getPeRoundLimit(nex) + pre;
+}
+
+/**
+ * Retorna a patente canônica recomendada conforme o patamar de NEX
+ */
+export function getRecommendedRank(nex: number): AgentRank {
+  if (nex >= 95) return 'Agente de Elite';
+  if (nex >= 70) return 'Oficial de Operações';
+  if (nex >= 50) return 'Agente Especial';
+  if (nex >= 20) return 'Operador';
+  return 'Recruta';
+}
+
+/**
+ * Extrai as habilidades de uma trilha por patamar de NEX (10%, 40%, 65%, 99%)
+ */
+export function parseTrackAbilities(
+  trackDescription: string
+): Record<number, { title: string; description: string }> {
+  const result: Record<number, { title: string; description: string }> = {};
+  if (!trackDescription) return result;
+
+  // Regex para blocos no formato: NEX 10% - Título. Descrição...
+  const pattern = /NEX\s*(\d+)%\s*[-–—]\s*([^.\n]+)[.:]?\s*([\s\S]*?)(?=(?:NEX\s*\d+%\s*[-–—]|$))/gi;
+  let match;
+
+  while ((match = pattern.exec(trackDescription)) !== null) {
+    const nexVal = parseInt(match[1], 10);
+    const title = match[2].trim();
+    const desc = match[3].trim();
+    result[nexVal] = { title, description: desc };
+  }
+
+  return result;
+}
+
+/**
+ * Retorna as regras e seleções oficiais para um patamar de NEX específico
+ */
+export function getNexMilestone(
+  className: string,
+  targetNex: number,
+  trackEntity?: CompendiumEntity,
+  currentAttrs?: CharacterAttributes
+): NexMilestone {
+  const norm = (className || '').toLowerCase();
+  const trackAbilities = trackEntity ? parseTrackAbilities(trackEntity.description) : {};
+  const trackAbilityForThisNex = trackAbilities[targetNex];
+  const recRank = getRecommendedRank(targetNex);
+  const intVal = currentAttrs ? currentAttrs.INT : 2;
+
+  // Cota de perícias para promoção de grau (Regras Oficiais: Combatente 1 + Int, Especialista 5 + Int, Ocultista 3 + Int)
+  let veteranoQuota = 1 + Math.max(0, intVal);
+  if (norm.includes('especialista')) {
+    veteranoQuota = 5 + Math.max(0, intVal);
+  } else if (norm.includes('ocultista')) {
+    veteranoQuota = 3 + Math.max(0, intVal);
+  }
+
+  const milestone: NexMilestone = {
+    nex: targetNex,
+    title: `Avanço para NEX ${targetNex}%`,
+    description: '',
+    recommendedRank: recRank,
+  };
+
+  if (trackAbilityForThisNex) {
+    milestone.trackAbility = trackAbilityForThisNex;
+  }
+
+  switch (targetNex) {
+    case 10:
+      milestone.title = 'NEX 10%: Escolha de Trilha';
+      milestone.description =
+        'Você escolhe uma Trilha para seu agente e ganha a primeira habilidade da trilha.';
+      milestone.needsTrackChoice = true;
+      break;
+
+    case 15:
+    case 30:
+    case 45:
+    case 60:
+    case 90:
+      milestone.title = `NEX ${targetNex}%: Poder de Classe`;
+      milestone.description =
+        'Você ganha um Poder de Classe ou pode escolher um Poder Geral / Poder Paranormal.';
+      milestone.needsClassPower = true;
+      break;
+
+    case 20:
+      milestone.title = 'NEX 20%: Aumento de Atributo';
+      milestone.description =
+        'Você recebe +1 em um atributo à sua escolha (máximo 5).';
+      milestone.needsAttributeIncrease = true;
+      break;
+
+    case 25:
+      milestone.title = 'NEX 25%: Aprimoramento de Classe';
+      if (norm.includes('combatente')) {
+        milestone.description =
+          'Ataque Especial aprimorado: pode gastar 3 PE para receber +10 no teste ou dano.';
+        milestone.classAbilityUpgrade = 'Ataque Especial (3 PE / +10)';
+      } else if (norm.includes('especialista')) {
+        milestone.description =
+          'Perito aprimorado: o bônus nas perícias peritas aumenta para +1d8.';
+        milestone.classAbilityUpgrade = 'Perito (+1d8)';
+      } else if (norm.includes('ocultista')) {
+        milestone.description =
+          'Escolhido pelo Outro Lado: você desbloqueia o 2º Círculo de Rituais e aprende 1 novo ritual.';
+        milestone.needsRitualChoice = true;
+        milestone.maxRitualCircle = 2;
+        milestone.classAbilityUpgrade = 'Rituais de 2º Círculo';
+      } else {
+        milestone.description = 'Avanço de estágio e fortalecimento do agente.';
+      }
+      break;
+
+    case 35:
+      milestone.title = 'NEX 35%: Grau de Treinamento';
+      milestone.description =
+        'Suas perícias treinadas avançam para o grau de Veterano (+10).';
+      milestone.needsSkillTrainingIncrease = true;
+      milestone.skillTrainingTargetDegree = 10;
+      milestone.skillTrainingQuota = veteranoQuota;
+      break;
+
+    case 40:
+      milestone.title = 'NEX 40%: Habilidade de Trilha';
+      if (norm.includes('especialista')) {
+        milestone.description =
+          'Você ganha a segunda habilidade de sua Trilha e a habilidade Engenhosidade (ao usar Eclético, pode gastar +2 PE para agir como Veterano).';
+        milestone.classAbilityUpgrade = 'Engenhosidade (Veterano)';
+      } else {
+        milestone.description =
+          'Você ganha a segunda habilidade concedida pela sua Trilha de Classe.';
+      }
+      break;
+
+    case 50:
+      milestone.title = 'NEX 50%: Aumento de Atributo, Versatilidade & Afinidade';
+      milestone.description =
+        'Você recebe +1 em um atributo (máx 5), Versatilidade (um poder de sua classe ou o 1º poder de outra trilha) e escolhe uma Afinidade com um Elemento Paranormal.';
+      milestone.needsAttributeIncrease = true;
+      milestone.needsAffinityChoice = true;
+      milestone.needsClassPower = true;
+      break;
+
+    case 55:
+      milestone.title = 'NEX 55%: Aprimoramento de Classe';
+      if (norm.includes('combatente')) {
+        milestone.description =
+          'Ataque Especial aprimorado: pode gastar 4 PE para receber +15 no teste ou dano.';
+        milestone.classAbilityUpgrade = 'Ataque Especial (4 PE / +15)';
+      } else if (norm.includes('especialista')) {
+        milestone.description =
+          'Perito aprimorado: o bônus nas perícias peritas aumenta para +1d10.';
+        milestone.classAbilityUpgrade = 'Perito (+1d10)';
+      } else if (norm.includes('ocultista')) {
+        milestone.description =
+          'Escolhido pelo Outro Lado: você desbloqueia o 3º Círculo de Rituais e aprende 1 novo ritual.';
+        milestone.needsRitualChoice = true;
+        milestone.maxRitualCircle = 3;
+        milestone.classAbilityUpgrade = 'Rituais de 3º Círculo';
+      }
+      break;
+
+    case 65:
+      milestone.title = 'NEX 65%: Habilidade de Trilha';
+      milestone.description =
+        'Você ganha a terceira habilidade concedida pela sua Trilha de Classe.';
+      break;
+
+    case 70:
+      milestone.title = 'NEX 70%: Grau de Treinamento (Expert)';
+      milestone.description =
+        'Suas perícias de grau Veterano (+10) avançam para o grau de Expert (+15).';
+      milestone.needsSkillTrainingIncrease = true;
+      milestone.skillTrainingTargetDegree = 15;
+      milestone.skillTrainingQuota = veteranoQuota;
+      break;
+
+    case 75:
+      milestone.title = 'NEX 75%: Poder de Classe';
+      if (norm.includes('especialista')) {
+        milestone.description =
+          'Você ganha um Poder de Especialista e aprimora Engenhosidade (ao usar Eclético, pode gastar +4 PE para agir como Expert).';
+        milestone.classAbilityUpgrade = 'Engenhosidade (Expert)';
+      } else {
+        milestone.description =
+          'Você ganha um Poder de Classe ou pode escolher um Poder Geral / Poder Paranormal.';
+      }
+      milestone.needsClassPower = true;
+      break;
+
+    case 80:
+      milestone.title = 'NEX 80%: Aumento de Atributo';
+      milestone.description =
+        'Você recebe +1 em um atributo à sua escolha (máximo 5).';
+      milestone.needsAttributeIncrease = true;
+      break;
+
+    case 85:
+      milestone.title = 'NEX 85%: Aprimoramento de Classe';
+      if (norm.includes('combatente')) {
+        milestone.description =
+          'Ataque Especial aprimorado: pode gastar 5 PE para receber +20 no teste ou dano.';
+        milestone.classAbilityUpgrade = 'Ataque Especial (5 PE / +20)';
+      } else if (norm.includes('especialista')) {
+        milestone.description =
+          'Perito aprimorado: o bônus nas perícias peritas aumenta para +1d12.';
+        milestone.classAbilityUpgrade = 'Perito (+1d12)';
+      } else if (norm.includes('ocultista')) {
+        milestone.description =
+          'Escolhido pelo Outro Lado: você desbloqueia o 4º Círculo de Rituais e aprende 1 novo ritual.';
+        milestone.needsRitualChoice = true;
+        milestone.maxRitualCircle = 4;
+        milestone.classAbilityUpgrade = 'Rituais de 4º Círculo';
+      }
+      break;
+
+    case 95:
+      milestone.title = 'NEX 95%: Aumento de Atributo';
+      milestone.description =
+        'Você recebe +1 em um atributo à sua escolha (máximo 5).';
+      milestone.needsAttributeIncrease = true;
+      break;
+
+    case 99:
+      milestone.title = 'NEX 99%: Habilidade Suprema de Trilha';
+      milestone.description =
+        'Você atinge o ápice paranormal de sua trilha e recebe a habilidade definitiva de NEX 99%.';
+      break;
+
+    default:
+      milestone.title = `NEX ${targetNex}%: Evolução Geral`;
+      milestone.description =
+        'Aumento padrão de pontos vitais, limite de PE por rodada e DT de rituais.';
+      break;
+  }
+
+  return milestone;
+}
+
+/**
+ * Informações de perícias para a criação do agente em 5% NEX
+ */
+export function getClassSkillRules(
+  className: string,
+  intAttr: number
+): {
+  freeChoicesCount: number;
+  mandatorySkills: string[];
+  choiceGroups: Array<{ options: string[]; selectCount: number }>;
+} {
+  const norm = (className || '').toLowerCase();
+  const intBonus = Math.max(0, intAttr);
+
+  if (norm.includes('combatente')) {
+    return {
+      freeChoicesCount: 1 + intBonus,
+      mandatorySkills: [],
+      choiceGroups: [
+        { options: ['Luta', 'Pontaria'], selectCount: 1 },
+        { options: ['Fortitude', 'Reflexos'], selectCount: 1 },
+      ],
+    };
+  }
+
+  if (norm.includes('ocultista')) {
+    return {
+      freeChoicesCount: 3 + intBonus,
+      mandatorySkills: ['Ocultismo', 'Vontade'],
+      choiceGroups: [],
+    };
+  }
+
+  if (norm.includes('sobrevivente')) {
+    return {
+      freeChoicesCount: 2 + intBonus,
+      mandatorySkills: [],
+      choiceGroups: [],
+    };
+  }
+
+  // Especialista
+  return {
+    freeChoicesCount: 7 + intBonus,
+    mandatorySkills: [],
+    choiceGroups: [],
+  };
+}
+
+/**
+ * Retorna as perícias concedidas e escolhas extras de uma origem oficial.
+ * Regra Oficial de Ordem Paranormal: Toda origem concede exatamente 2 perícias treinadas no total.
+ * - Para 55 origens padrão: 2 perícias fixas identificadas no campo trainedSkills.
+ * - Para Amnésico ("Duas à escolha do mestre"): 0 fixas, 2 escolhas livres extras.
+ * - Para Profetizado ("Vontade e mais uma à sua escolha"): 1 fixa ('Vontade'), 1 escolha livre extra.
+ * - Para Ferido por Ritual: 1 fixa ('Ocultismo'), 1 escolha livre extra.
+ * - Para Treinado pela Hell Hunters: 0 fixas, 2 escolhas livres extras.
+ */
+export function getOriginSkillsInfo(trainedSkillsText?: string): {
+  originGrantedSkills: string[];
+  extraOriginChoices: number;
+} {
+  if (!trainedSkillsText) {
+    return { originGrantedSkills: [], extraOriginChoices: 2 };
+  }
+  const text = trainedSkillsText;
+  const list: string[] = [];
+  for (const sk of OFFICIAL_SKILLS_LIST) {
+    const regex = new RegExp(
+      '(?:^|[^a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ])' +
+        sk.name +
+        '(?:[^a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]|$)',
+      'i'
+    );
+    if (regex.test(text)) {
+      list.push(sk.name);
+    }
+  }
+
+  if (list.length === 2) {
+    return { originGrantedSkills: list, extraOriginChoices: 0 };
+  }
+  if (list.length === 1) {
+    return { originGrantedSkills: list, extraOriginChoices: 1 };
+  }
+  if (list.length === 0) {
+    return { originGrantedSkills: [], extraOriginChoices: 2 };
+  }
+
+  // Mais de 2 detectadas (origens com escolhas alternativas no texto de trainedSkills)
+  if (text.toLowerCase().includes('ocultismo e 1 perícia')) {
+    return { originGrantedSkills: ['Ocultismo'], extraOriginChoices: 1 };
+  }
+
+  return { originGrantedSkills: [], extraOriginChoices: 2 };
+}
+
+export interface InitialSkillBudget {
+  originGrantedSkills: string[];
+  extraOriginChoices: number;
+  effectiveMandatorySkills: string[];
+  choiceGroups: Array<{ options: string[]; selectCount: number; isSatisfiedByOrigin: boolean }>;
+  totalFreeChoices: number;
+  totalTrainedExpected: number;
+}
+
+/**
+ * Calcula o orçamento oficial de perícias na criação assistida em NEX 5%.
+ * Garante que a soma total de perícias treinadas respeite exatamente as regras oficiais.
+ */
+export function calculateInitialSkillBudget(
+  className: string,
+  intAttr: number,
+  originTrainedSkillsText?: string,
+  groupExchanges?: Record<number, boolean>
+): InitialSkillBudget {
+  const { originGrantedSkills, extraOriginChoices } = getOriginSkillsInfo(originTrainedSkillsText);
+  const classRules = getClassSkillRules(className, intAttr);
+
+  const effectiveMandatorySkills = classRules.mandatorySkills.filter(
+    (sk) => !originGrantedSkills.includes(sk)
+  );
+  const duplicateMandatoryCount = classRules.mandatorySkills.filter((sk) =>
+    originGrantedSkills.includes(sk)
+  ).length;
+
+  let extraGroupChoices = 0;
+  const choiceGroups = classRules.choiceGroups.map((grp, idx) => {
+    const isSatisfiedByOrigin = grp.options.every((opt) => originGrantedSkills.includes(opt));
+    if (isSatisfiedByOrigin || groupExchanges?.[idx]) {
+      extraGroupChoices += 1;
+    }
+    return {
+      options: grp.options,
+      selectCount: grp.selectCount,
+      isSatisfiedByOrigin,
+    };
+  });
+
+  const totalFreeChoices =
+    classRules.freeChoicesCount +
+    extraOriginChoices +
+    duplicateMandatoryCount +
+    extraGroupChoices;
+
+  const norm = (className || '').toLowerCase();
+  const intVal = Math.max(0, intAttr);
+  let classTotal = 7 + intVal;
+  if (norm.includes('combatente')) {
+    classTotal = 3 + intVal;
+  } else if (norm.includes('ocultista')) {
+    classTotal = 5 + intVal;
+  } else if (norm.includes('sobrevivente')) {
+    classTotal = 2 + intVal;
+  }
+
+  const totalTrainedExpected = 2 + classTotal;
+
+  return {
+    originGrantedSkills,
+    extraOriginChoices,
+    effectiveMandatorySkills,
+    choiceGroups,
+    totalFreeChoices,
+    totalTrainedExpected,
+  };
+}
+
+
