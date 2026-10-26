@@ -8,6 +8,8 @@ describe('Manual do Aplicativo & Guia de Telas (manualData.ts)', () => {
       'overview',
       'compendium',
       'characters',
+      'master',
+      'table',
       'weapons',
       'books',
       'dice',
@@ -17,6 +19,7 @@ describe('Manual do Aplicativo & Guia de Telas (manualData.ts)', () => {
       'themes',
       'print_sheet',
       'rules_combat_tips',
+      'oracle',
     ];
 
     const currentSectionIds = MANUAL_SECTIONS.map((s) => s.id);
@@ -84,6 +87,15 @@ describe('Manual do Aplicativo & Guia de Telas (manualData.ts)', () => {
 
       const modSearch = searchManual('mira laser');
       assert.ok(modSearch.some((s) => s.id === 'weapons' || s.id === 'compendium'));
+
+      const groqSearch = searchManual('groq');
+      assert.ok(groqSearch.some((s) => s.id === 'oracle'), 'Busca por groq deve encontrar a seção do oracle');
+
+      const ollamaSearch = searchManual('ollama');
+      assert.ok(ollamaSearch.some((s) => s.id === 'oracle'), 'Busca por ollama deve encontrar a seção do oracle');
+
+      const tableSearch = searchManual('mesa virtual');
+      assert.ok(tableSearch.some((s) => s.id === 'table'), 'Busca por mesa virtual deve encontrar a seção da mesa');
     });
 
     it('deve ser tolerante a maiúsculas e minúsculas', () => {

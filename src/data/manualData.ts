@@ -36,15 +36,17 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     features: [
       {
         id: 'ov-navigation',
-        title: 'Navegação pelas 6 Abas Principais',
-        badge: 'Interface',
+        title: 'Navegação Completa pelas 9 Telas do Aplicativo',
+        badge: 'Interface & Abas',
         description:
-          'A barra inferior dá acesso direto ao Compêndio, Fichas de Agentes, Armaria, Acervo de Livros, Rolador de Dados e Salvos/Homebrew.',
+          'O OrdoCompanion conta com 9 telas completas: Compêndio Geral, Fichas de Agentes, Armaria & Modificações, Acervo de Livros, Rolador de Dados, Salvos & Homebrew, Central do Mestre, Mesa Virtual (VTT) e G.L.I.T.C.H. (IA). A barra inferior exibe abas fixadas com suporte a personalização.',
         howToUse: [
           'Toque em qualquer ícone da barra de navegação inferior para alternar de tela instantaneamente.',
-          'No topo de qualquer tela, use o botão de Ajuda (ícone de interrogação) para reabrir este manual na seção da tela atual.',
-          'Use o botão de Paleta de Cores para escolher entre 7 temas paranormais imersivos.',
-          'Use o botão de Perfil de Jogador para configurar seus dados e sincronizar com o Google Drive.',
+          'Toque no botão "Mais" (ícone com três pontos) na barra de abas para acessar telas adicionais ou personalizar quais abas ficam fixadas.',
+          'No topo de qualquer tela, use o botão de Acesso Rápido ao G.L.I.T.C.H. (ícone de brilho/faísca roxa) para consultar a IA a qualquer momento.',
+          'Use o botão de Ajuda (ícone de interrogação) no cabeçalho superior para reabrir este manual já posicionado na seção da tela atual.',
+          'Use o botão de Paleta de Cores para escolher entre os 7 temas paranormais imersivos.',
+          'Use o botão de Perfil de Jogador para configurar seus dados, gerenciar abas e sincronizar com o Google Drive.',
         ],
       },
       {
@@ -305,6 +307,17 @@ export const MANUAL_SECTIONS: ManualSection[] = [
           'Escolha o modelo desejado e imprima diretamente ou salve o PDF.',
         ],
       },
+      {
+        id: 'ch-share',
+        title: 'Compartilhamento Portátil via Código de Ficha',
+        badge: 'Portabilidade',
+        description:
+          'Compartilhe seu agente com o mestre ou com outros jogadores gerando um código seguro compactado (ORDO-SHEET), sem necessitar de cadastro ou internet.',
+        howToUse: [
+          'No card do agente ou dentro da ficha, toque em "Compartilhar Ficha" para copiar o código portátil.',
+          'No celular do mestre ou de outro jogador, toque em "Importar Ficha" e cole o código para carregar o personagem com 100% de integridade mecânica.',
+        ],
+      },
     ],
     proTip:
       'Durante as sessões, mantenha a tela da sua ficha aberta e role seus ataques e perícias diretamente tocando no ícone do dado. O resultado aparecerá no Toast do topo e ficará registrado no Histórico!',
@@ -396,6 +409,17 @@ export const MANUAL_SECTIONS: ManualSection[] = [
           'Utilize o botão "Próximo Turno" para avançar a rodada ordenadamente.',
         ],
       },
+      {
+        id: 'mst-vtt',
+        title: 'Integração Direta com a Mesa Virtual (VTT)',
+        badge: 'VTT Ao Vivo',
+        description:
+          'Inicie sessões conectadas em tempo real com os jogadores diretamente a partir da campanha ativa.',
+        howToUse: [
+          'Toque no botão "Mesa VTT" no cabeçalho da Central do Mestre para abrir a sala multiplayer.',
+          'O código da sala (ex: ORD-XXXX) e os monstros da campanha serão vinculados para combate sincronizado.',
+        ],
+      },
     ],
     proTip:
       'Peça a todos os seus jogadores para gerarem o código de compartilhamento de seus agentes no início da campanha; assim você acompanha os PVs e Sanidade de todos os investigadores em uma única tela!',
@@ -410,6 +434,95 @@ export const MANUAL_SECTIONS: ManualSection[] = [
       'turno',
       'vincular agente',
       'combate',
+      'vtt',
+      'mesa virtual',
+    ],
+  },
+  {
+    id: 'table',
+    title: 'Mesa Virtual (VTT) & Sessão Multiplayer',
+    subtitle: 'Conecte mestres e investigadores em tempo real com código de sala ORD-XXXX',
+    icon: 'game-controller-outline',
+    route: '/(tabs)/table',
+    badge: 'Mesa VTT',
+    summary:
+      'A Mesa Virtual conecta jogadores e mestres durante a sessão de RPG em tempo real. Permite acompanhar os pontos vitais da equipe (PV, PE, Sanidade, Defesa), sincronizar combate com iniciativa compartilhada, transmitir rolagens de dados no feed global e apresentar cenas e pistas narrativas.',
+    purpose:
+      'Eliminar a confusão de combates e rolagens em mesas remotas ou presenciais, mantendo todos os participantes sincronizados no mesmo fluxo tático.',
+    features: [
+      {
+        id: 'tb-connect',
+        title: 'Criação de Sala & Entrada de Jogadores (ORD-XXXX)',
+        badge: 'Conexão',
+        description:
+          'Mestres criam salas instantâneas com código de 4 dígitos alfanuméricos (ex: ORD-7821) vinculado à campanha. Jogadores entram informando o código e escolhendo sua ficha de agente.',
+        howToUse: [
+          'Como Mestre: preencha o título da sessão, selecione a campanha e toque em "Criar Mesa como Mestre".',
+          'Como Jogador: digite o código da sala recebido do mestre, selecione seu agente cadastrado e toque em "Entrar na Mesa".',
+          'Modo de Conexão: suporta Simulação Local (para testes na mesma tela) e Conector em Nuvem Supabase Realtime (para múltiplos celulares via internet).',
+        ],
+      },
+      {
+        id: 'tb-party',
+        title: 'Painel da Equipe & Monitor de Status Vitais',
+        badge: 'Equipe',
+        description:
+          'Aba "Equipe" exibe cartões com nome, codinome, classe, NEX, PV Atual/Máx, PE Atual/Máx, Sanidade e Defesa de cada participante conectado.',
+        howToUse: [
+          'Acompanhe as barras coloridas de vida e sanidade dos seus aliados em tempo real.',
+          'Quando um agente chega a 0 PV, o status de "Morrendo" é ativado visualmente para socorro imediato dos médicos do grupo.',
+        ],
+      },
+      {
+        id: 'tb-combat',
+        title: 'Combate & Rastreador de Iniciativa Sincronizado',
+        badge: 'Combate VTT',
+        description:
+          'Ordem de turnos sincronizada para todos os celulares da mesa. Permite que jogadores rolem sua iniciativa e mestres adicionem ameaças e monstros customizados.',
+        howToUse: [
+          'Jogadores tocam em "Rolar Minha Iniciativa" para calcular automaticamente a rolagem com seu bônus de Agilidade/Iniciativa.',
+          'O Mestre pode adicionar monstros tocando em "+ Monstro" com PV e iniciativa específicos.',
+          'O Mestre toca em "Próximo Turno" para avançar a vez do combate, atualizando a tela de todos instantaneamente.',
+        ],
+      },
+      {
+        id: 'tb-rolls',
+        title: 'Feed Global de Rolagens de Dados ao Vivo',
+        badge: 'Rolagens Ao Vivo',
+        description:
+          'Feed com atualização instantânea que exibe cada dado rolado na mesa, indicando quem rolou, qual foi o teste, a fórmula, o resultado final e destaques para Crítico (20) ou Desastre (1).',
+        howToUse: [
+          'Qualquer rolagem feita na ficha, arma ou compêndio é transmitida para a sala ativa.',
+          'Use a barra de rolagem rápida no rodapé do feed para lançar fórmulas instantâneas (ex: 1d20, 3d6+4, 2d8).',
+        ],
+      },
+      {
+        id: 'tb-scenes',
+        title: 'Transmissão de Cenas & Pistas Narrativas',
+        badge: 'Cenas & Pistas',
+        description:
+          'O Mestre pode transmitir o texto da cena atual, pistas investigativas reveladas e documentos para os celulares dos jogadores.',
+        howToUse: [
+          'Na aba "Cenas", o Mestre seleciona o capítulo ou cena e toca em "Transmitir para Jogadores".',
+          'Os jogadores recebem a descrição e pistas para consulta imediata.',
+        ],
+      },
+    ],
+    proTip:
+      'Conecte todos os celulares no início da sessão informando o código ORD-XXXX gerado. Assim, o mestre não precisa ficar perguntando a vida dos agentes e todos veem os dados rolados na hora!',
+    keywords: [
+      'mesa virtual',
+      'vtt',
+      'multiplayer',
+      'tempo real',
+      'sala',
+      'ord-xxxx',
+      'iniciativa',
+      'feed de dados',
+      'party',
+      'equipe',
+      'cenas',
+      'supabase',
     ],
   },
   {
@@ -1195,79 +1308,175 @@ export const MANUAL_SECTIONS: ManualSection[] = [
   {
     id: 'oracle',
     title: 'G.L.I.T.C.H. & Inteligência Artificial Paranormal',
-    subtitle: 'Consultas canônicas aos 10 livros, regras oficiais e Modo Anfitrião',
+    subtitle: 'Consultas canônicas aos 10 livros, múltiplos provedores de IA, Relíquias do Outro Lado e modo offline',
     icon: 'sparkles-outline',
     route: '/(tabs)/oracle',
     badge: 'G.L.I.T.C.H.',
     summary:
-      'G.L.I.T.C.H. (Guia Lógico de Interferências Transcendentais do Caos Humano) é o assistente inteligente com arquitetura RAG (Retrieval-Augmented Generation) que pesquisa nas 1.261 páginas dos 10 livros canônicos, 1.367 entidades e manuais do app com custo zero para o jogador e desenvolvedor.',
+      'O G.L.I.T.C.H. (Guia Lógico de Interferências Transcendentais do Caos Humano) é o assistente inteligente tático do OrdoCompanion. Dotado de arquitetura RAG (Retrieval-Augmented Generation), pesquisa instantaneamente nas 1.261 páginas dos 10 livros canônicos, 1.367 entidades do compêndio e manuais do app. Suporta Google Gemini, Groq Cloud (Llama 3), modelos locais via Ollama (100% offline no PC), OpenRouter e motor offline nativo no celular.',
     purpose:
-      'Tirar dúvidas imediatas sobre o sistema e o aplicativo, citando as páginas exatas dos livros com botões clicáveis e oferecendo o icônico Modo Anfitrião com respostas eletrizantes e caóticas.',
+      'Solucionar dúvidas de regras, custos de PE, rituais, criaturas e operação do app em tempo real durante a sessão, fornecendo botões interativos para saltar diretamente para páginas de livros, rolar dados e ver fichas.',
     features: [
       {
-        id: 'glitch-cost-zero',
-        title: 'Custo Zero & Google Gemini Free Tier',
-        badge: 'Custo Zero',
+        id: 'glitch-providers',
+        title: 'Visão Geral de Provedores de IA & Chaves de Acesso',
+        badge: 'Arquitetura',
         description:
-          'Utiliza o modelo Bring Your Own Key com o plano 100% gratuito do Google AI Studio (sem necessidade de cartão de crédito) ou Groq Cloud. Sua chave é salva exclusivamente no aparelho.',
+          'O OrdoCompanion adota uma arquitetura aberta e flexível de IA. Você pode usar a chave padrão inclusa no app, conectar sua própria chave gratuita do Google Gemini ou Groq Cloud, rodar o Ollama localmente no seu computador sem internet, ou usar o sintetizador offline embutido.',
         howToUse: [
-          'Toque no ícone de engrenagem no topo do chat do G.L.I.T.C.H.',
-          'Toque em "Obter Chave Grátis no Google AI Studio" para gerar sua chave em 30 segundos.',
-          'Cole a chave no campo indicado e toque em "Salvar Configurações".',
+          'No topo do chat do G.L.I.T.C.H., toque no ícone de engrenagem para abrir as Configurações de IA.',
+          'Veja o indicador de status: se o escudo verde estiver visível, a Chave Padrão do Sistema está ativa e você já pode conversar imediatamente.',
+          'Para usar sua própria chave de API com limites dedicados, cole no campo "Chave de API" e salve.',
+          'Se desejar voltar à chave inclusa, toque no botão "Restaurar Padrão" a qualquer momento.',
         ],
       },
       {
-        id: 'glitch-anfitriao',
-        title: 'Modo Anfitrião (Voz do Caos e Energia)',
-        badge: 'Temático',
+        id: 'glitch-gemini',
+        title: 'Google Gemini (Google AI Studio & Modelos Flash)',
+        badge: 'Google Gemini',
         description:
-          'Transforma a IA no Anfitrião (Relíquia de Energia), com linguagem debochada, teatral e frenética de apresentador de show, mantendo precisão matemática e canônica total nas regras.',
+          'Conexão direta com a API oficial do Google Gemini. Oferece alta velocidade, excelente capacidade de raciocínio de regras e um plano gratuito muito generoso no Google AI Studio (sem necessidade de cadastrar cartão de crédito).',
         howToUse: [
-          'No topo do chat, toque no botão "⚡ Modo Anfitrião: LIGADO / DESLIGADO" para alternar instantaneamente.',
-          'Você também pode ativar ou desativar dentro do modal de configurações.',
+          'Abra o modal de configurações e clique em "Obter Chave Grátis no Google AI Studio (30 seg)".',
+          'Faça login com sua conta Google em aistudio.google.com/app/apikey e clique em "Create API Key".',
+          'Cole a chave gerada (iniciada com AIzaSy...) no campo de Chave de API do app.',
+          'Escolha entre os modelos disponíveis: gemini-flash-lite-latest (recomendado para respostas ultra-rápidas), gemini-flash-latest ou gemini-3.8-flash.',
         ],
       },
       {
-        id: 'glitch-rag-citations',
-        title: 'Citações de Páginas e Ações Interativas',
-        badge: 'RAG Interativo',
+        id: 'glitch-groq',
+        title: 'Groq Cloud (Llama 3.3 70B & Velocidade Relâmpago)',
+        badge: 'Groq (Llama 3)',
         description:
-          'As respostas incluem links diretos para abrir o PDF na página referenciada, visualizar cartas do compêndio ou rolar os dados na hora.',
+          'Provedor em nuvem de altíssima performance executando modelos open-source Llama 3 em LPUs (Language Processing Units). Gera respostas completas em fração de segundo com compreensão primorosa do português.',
         howToUse: [
-          'Toque em qualquer botão "📖 Abrir Livro (Pág. X)" para abrir o visualizador de PDF na página exata.',
-          'Toque em "🎲 Rolar [Fórmula]" para rolar o teste de dados automaticamente.',
-          'Toque em "🔍 Ver [Entidade]" para navegar até o registro no compêndio.',
+          'Acesse o console gratuito da Groq em console.groq.com/keys e crie uma conta gratuita com seu Google ou GitHub (sem pedir cartão).',
+          'Clique em "Create API Key" e copie a chave gerada (iniciada com gsk_...).',
+          'Nas configurações do G.L.I.T.C.H., selecione o provedor "Groq Cloud (Llama 3)".',
+          'Cole sua chave gsk_... e selecione o modelo llama-3.3-70b-versatile (ou llama-3.1-8b-instant para testes ultra-leves).',
+          'Toque em "Testar Conexão com a API" para validar e em seguida salve as configurações.',
+        ],
+      },
+      {
+        id: 'glitch-ollama',
+        title: 'Ollama Local: 100% Offline no seu PC (Sem Internet e Sem Chave)',
+        badge: 'Ollama Local',
+        description:
+          'Para quem deseja privacidade absoluta ou jogar em ambientes totalmente sem conexão à internet. O Ollama executa modelos de inteligência artificial diretamente no processador e placa de vídeo do seu computador (Windows, Mac ou Linux).',
+        howToUse: [
+          'Passo 1: Baixe e instale o Ollama gratuitamente no seu computador pelo site oficial (ollama.com).',
+          'Passo 2: Abra o terminal do computador e baixe o modelo desejado digitando: "ollama run llama3.3" (ou "ollama run mistral").',
+          'Passo 3: O Ollama inicia automaticamente o servidor local na porta 11434, disponibilizando o endpoint compatível http://localhost:11434/v1/chat/completions.',
+          'Passo 4: No OrdoCompanion, selecione o endpoint correspondente e digite o nome do modelo (ex: llama3.3).',
+          'Passo 5 (Celular na rede local): Se estiver usando o app pelo celular, substitua "localhost" pelo IP do seu computador na rede Wi-Fi (ex: http://192.168.1.100:11434/v1/chat/completions).',
+          'Vantagens: Nenhuma chave de API necessária, zero custo, zero consumo de dados móveis e privacidade total.',
+        ],
+      },
+      {
+        id: 'glitch-openrouter',
+        title: 'OpenRouter: Acesso a Centenas de Modelos Abertos e Proprietários',
+        badge: 'OpenRouter',
+        description:
+          'Plataforma agregadora que conecta a centenas de inteligências artificiais através de um único endpoint padrão OpenAI-compatível, incluindo modelos gratuitos de alta capacidade.',
+        howToUse: [
+          'Crie uma chave de API em openrouter.ai/keys.',
+          'Nas configurações de IA, informe a chave sk-or-v1-... e selecione ou digite o modelo desejado (ex: meta-llama/llama-3.3-70b-instruct:free).',
+          'Permite testar e comparar modelos diferentes mantendo todo o histórico e RAG do OrdoCompanion.',
         ],
       },
       {
         id: 'glitch-offline',
-        title: 'Funcionamento Offline Integrado',
-        badge: 'Offline',
+        title: 'Modo Offline Local Nativo (Motor Interno do Aplicativo)',
+        badge: 'Offline Nativo',
         description:
-          'Mesmo sem conexão com a internet ou sem chave de API configurada, o sintetizador local responde com dados estruturados dos registros e livros locais.',
+          'Quando você não possui internet, chave de API e nem um computador executando o Ollama, o sintetizador interno do OrdoCompanion responde com precisão às dúvidas sobre regras, entidades e tabelas.',
         howToUse: [
-          'Selecione o provedor "Modo Offline Local" nas configurações para usar o app sem internet.',
+          'Abra as configurações do G.L.I.T.C.H. e selecione o botão "Modo Offline Local (Sem chave)".',
+          'O app utiliza sua base local de 1.367 entidades e 1.261 páginas de regras para responder perguntas frequentes.',
+          'Funciona mesmo no modo avião, em acampamentos ou locais sem qualquer cobertura de rede.',
+        ],
+      },
+      {
+        id: 'glitch-relics',
+        title: 'Voz & Personas das 4 Relíquias do Outro Lado + Ordo Realitas + Aleatório',
+        badge: 'Relíquias',
+        description:
+          'Escolha quem responde às suas perguntas no chat através do seletor horizontal superior. Cada persona possui estilo, tom dramático e teatralidade fiéis ao universo de Ordem Paranormal, mantendo 100% de exatidão matemática e de regras.',
+        howToUse: [
+          'G.L.I.T.C.H. (Ordo Realitas): Operador tático oficial da Ordem. Postura formal, acolhedora e prestativa de um leal colega de equipe, com respostas didáticas e suporte preciso.',
+          '⚡ O Anfitrião (Energia): Showman bombástico, elétrico, irônico e caótico. Trata o RPG como um espetáculo imprevisível.',
+          '👁️ A Magistrada (Conhecimento): Máscara do Desespero, solene, fria, simétrica e justa. Trata cada regra como um mandamento do Equilíbrio.',
+          '⏳ O Deus da Morte (Morte): Coração de Lodo, lento, melancólico, poético e paciente. Conta o tempo com precisão cronométrica.',
+          '🩸 O Diabo (Sangue): Trono de Sangue, visceral, agressivo, voraz e feroz. Exige sangue no combate e exalta dano letal.',
+          '🎲 Aleatório: Sorteia imprevisivelmente uma das 4 Relíquias a cada nova pergunta enviada!',
+          'Regra de Ouro Canônica: Nenhuma persona mente, chuta ou erra regras! A persona altera apenas a dramatização.',
+        ],
+      },
+      {
+        id: 'glitch-agent-context',
+        title: 'Contexto da Ficha de Agente Ativa em Jogo',
+        badge: 'Agente Ativo',
+        description:
+          'Vincule seu agente cadastrado à conversa para que a IA conheça seus status vitais, classe, perícias treinadas, rituais e armas em tempo real.',
+        howToUse: [
+          'No topo do chat, logo abaixo da barra de Relíquias, toque no nome do seu agente (ex: "Arthur", "Dante") ou em "Geral".',
+          'Com a ficha vinculada, faça perguntas personalizadas como: "Posso conjurar este ritual com meus PE atuais?", "Quantos dados e bônus eu rolo no meu tiro com o Fuzil?" ou "Qual minha Esquiva atual?".',
+          'A IA responderá calculando com base no seu NEX, atributos e modificadores reais da ficha.',
+        ],
+      },
+      {
+        id: 'glitch-rag-citations',
+        title: 'Ações Interativas e Clicáveis nas Respostas (RAG)',
+        badge: 'RAG Interativo',
+        description:
+          'As respostas do G.L.I.T.C.H. identificam elementos do sistema e geram botões clicáveis dinâmicos para agilizar a sessão.',
+        howToUse: [
+          'Toque no botão "📖 Abrir [Livro] (Pág. X)" para abrir o visualizador de PDF exatamente na página citada.',
+          'Toque no botão "🔍 Ver [Entidade]" para navegar até o card correspondente no Compêndio Geral.',
+          'Toque no botão "🎲 Rolar [Fórmula]" para disparar a rolagem imediatamente no HUD global de dados.',
+          'Toque no botão "👉 Ir para [Aba]" para saltar diretamente para a tela citada (Armaria, Fichas, etc.).',
+        ],
+      },
+      {
+        id: 'glitch-tools',
+        title: 'Ferramentas Adicionais da Tela do Oráculo',
+        badge: 'Ferramentas',
+        description:
+          'Recursos utilitários para diagnóstico, personalização e navegação fluida durante o uso diário.',
+        howToUse: [
+          'Botão "Testar Conexão com a API": Clique nas configurações para testar sua chave de API e conexão com retorno imediato de sucesso ou diagnóstico de erro.',
+          'Fallback Offline Inteligente: Ative a chave correspondente para que o app mude automaticamente para a base local caso a API retorne erros de cota (429), instabilidade (503) ou falta de sinal.',
+          'Instruções Personalizadas: Campo de texto livre para ditar regras extras para a IA (ex: "Priorize respostas curtas em tópicos", "Estamos jogando campanha nível 0 de Sobreviventes").',
+          'Limpeza de Histórico: Toque no ícone de lixeira no canto superior direito para limpar mensagens e reiniciar a conversa.',
+          'Sugestões Rápidas (Quick Prompts): Toque nos cards de perguntas prontas para tirar dúvidas frequentes de combate, armas de crítico 18/x3 e sanidade.',
+          'Teclado no Web/PC: Pressione Enter para enviar a mensagem (e Shift+Enter para pular de linha).',
         ],
       },
     ],
     proTip:
-      'Vincule seu agente ativo no topo do chat para que o G.L.I.T.C.H. ou o Anfitrião responda levando em conta seu NEX, classe, perícias treinadas e status vitais!',
+      'Ao planejar combates difíceis, selecione seu agente no topo do chat e pergunte: "Quais são as melhores opções táticas e rituais que posso usar no meu turno com meus PE e atributos?". A IA analisará sua ficha completa!',
     keywords: [
       'glitch',
       'ia',
       'inteligencia artificial',
-      'anfitriao',
-      'anfitrião',
-      'energia',
-      'perguntas',
-      'duvidas',
-      'regras',
       'oraculo',
       'oráculo',
-      'chat',
-      'custo zero',
       'gemini',
       'groq',
+      'ollama',
+      'openrouter',
+      'offline',
+      'anfitriao',
+      'anfitrião',
+      'magistrada',
+      'deus da morte',
+      'diabo',
+      'reliquias',
+      'regras',
+      'contexto de ficha',
+      'teste de conexao',
+      'fallback offline',
+      'acoes clicaveis',
     ],
   },
 ];

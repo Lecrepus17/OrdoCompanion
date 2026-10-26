@@ -28,6 +28,7 @@ export class CloudSyncManager {
   private driveService: GoogleDriveService;
   private currentStatus: SyncStatus = 'idle';
   private statusListeners: Set<SyncProgressCallback> = new Set();
+  private reloadListeners: Set<() => void | Promise<void>> = new Set();
   private autoSyncTimer: any = null;
   private isAutoSyncEnabled: boolean = true;
   private lastStats: MergeStats | null = null;
@@ -99,6 +100,21 @@ export class CloudSyncManager {
     this.statusListeners.add(listener);
     listener(this.currentStatus);
     return () => this.statusListeners.delete(listener);
+  }
+
+  public addDataReloadListener(listener: () => void | Promise<void>): () => void {
+    this.reloadListeners.add(listener);
+    return () => this.reloadListeners.delete(listener);
+  }
+
+  private async notifyDataReload(): Promise<void> {
+    for (const listener of this.reloadListeners) {
+      try {
+        await listener();
+      } catch (err) {
+        console.warn('[CloudSyncManager] Erro no listener de recarregamento reativo:', err);
+      }
+    }
   }
 
   private notifyStatus(status: SyncStatus, message?: string) {
@@ -221,6 +237,7 @@ export class CloudSyncManager {
         if (mergeResult.hasLocalChangesToApply) {
           this.notifyStatus('syncing', 'Atualizando armazenamento local...');
           await defaultRepository.importUserDataJson(JSON.stringify(mergedPayload));
+          await this.notifyDataReload();
         } else if (localData.userProfile) {
           // Apenas atualiza o timestamp de sync
           await defaultRepository.saveUserProfile({

@@ -17,8 +17,60 @@ import { useApp } from '../../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../../theme';
 import { BookInfo } from '../../types/compendium';
 import { PdfViewerModal, PdfViewerMode } from '../../components/PdfViewerModal';
-import { getRawPdfUrl, getRenderedPdfPageUrl, openPdfDocument } from '../../utils/pdfUrl';
+import { getRawPdfUrl, getRenderedPdfPageUrl, isPdfServerConfigured, openPdfDocument } from '../../utils/pdfUrl';
 import { sortBooksCanonical } from '../../repositories/OfflineDataRepository';
+
+const BookCoverCard: React.FC<{
+  book: BookInfo;
+  colors: ThemeColors;
+  styles: any;
+  onPress: () => void;
+}> = ({ book, colors, styles, onPress }) => {
+  const [imgError, setImgError] = useState(false);
+  const isServerActive = isPdfServerConfigured();
+  const coverThumbUrl = isServerActive ? getRenderedPdfPageUrl(book.fileName, 1, 90) : '';
+
+  const getBookThemeInfo = () => {
+    const id = book.id.toLowerCase();
+    if (id.includes('horror')) {
+      return { icon: 'skull-outline' as const, accent: '#EF4444', label: 'Suplemento' };
+    }
+    if (id.includes('base')) {
+      return { icon: 'shield-outline' as const, accent: '#F59E0B', label: 'Livro Base' };
+    }
+    return { icon: 'folder-open-outline' as const, accent: '#3B82F6', label: 'Dossiê' };
+  };
+
+  const themeInfo = getBookThemeInfo();
+
+  return (
+    <TouchableOpacity
+      style={styles.coverThumbWrap}
+      activeOpacity={0.85}
+      onPress={onPress}
+    >
+      {coverThumbUrl && !imgError ? (
+        <Image
+          source={{ uri: coverThumbUrl }}
+          style={styles.coverThumbImg}
+          resizeMode="cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <View style={styles.coverFallbackCard}>
+          <Ionicons name={themeInfo.icon} size={24} color={themeInfo.accent} />
+          <Text style={styles.coverFallbackTitle} numberOfLines={2}>
+            {book.title}
+          </Text>
+          <Text style={styles.coverFallbackSub}>{themeInfo.label}</Text>
+        </View>
+      )}
+      <View style={styles.pdfTagCorner}>
+        <Text style={styles.pdfTagCornerText}>PDF</Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export default function BooksScreen() {
   const { books, searchInBookPages, openManual } = useApp();
@@ -31,7 +83,9 @@ export default function BooksScreen() {
   const [pageQuery, setPageQuery] = useState('');
   const [selectedBook, setSelectedBook] = useState<BookInfo | null>(null);
   const [currentPageNo, setCurrentPageNo] = useState(1);
-  const [viewerMode, setViewerMode] = useState<PdfViewerMode>('pdf_scroll');
+  const [viewerMode, setViewerMode] = useState<PdfViewerMode>(() =>
+    isPdfServerConfigured() ? 'pdf_scroll' : 'text'
+  );
   const [readerOpen, setReaderOpen] = useState(false);
 
   const pageSearchResults = useMemo(() => {
@@ -42,30 +96,39 @@ export default function BooksScreen() {
   const openBookAtPage = useCallback((
     book: BookInfo,
     pageNo: number,
-    mode: PdfViewerMode = 'pdf_scroll'
+    mode?: PdfViewerMode
   ) => {
     setSelectedBook(book);
     setCurrentPageNo(Math.max(1, Math.min(book.pageCount, pageNo)));
-    setViewerMode(mode);
+    const defaultMode = mode || (isPdfServerConfigured() ? 'pdf_scroll' : 'text');
+    setViewerMode(defaultMode);
     setReaderOpen(true);
   }, []);
 
   const openExternalPdf = useCallback((book: BookInfo, pageNo: number = 1) => {
+    if (Platform.OS === 'web') {
+      openPdfDocument(book.fileName, pageNo);
+      return;
+    }
+    if (!isPdfServerConfigured()) {
+      openBookAtPage(book, pageNo, 'text');
+      return;
+    }
     openPdfDocument(book.fileName, pageNo);
-  }, []);
+  }, [openBookAtPage]);
 
   const renderSnippetItem = useCallback(({ item }: { item: ReturnType<typeof searchInBookPages>[0] }) => {
     const bookObj = booksMap.get(item.bookId);
     return (
       <TouchableOpacity
         style={styles.snippetCard}
-        onPress={() => bookObj && openBookAtPage(bookObj, item.pageNumber, 'pdf_scroll')}
+        onPress={() => bookObj && openBookAtPage(bookObj, item.pageNumber)}
       >
         <View style={styles.snippetHeader}>
           <Text style={styles.snippetBook}>{item.bookTitle}</Text>
           <View style={styles.snippetPageBadge}>
             <Ionicons name="document-text-outline" size={12} color="#FCA5A5" />
-            <Text style={styles.snippetPage}>Abrir PDF • Pág. {item.pageNumber}</Text>
+            <Text style={styles.snippetPage}>Abrir Livro • Pág. {item.pageNumber}</Text>
           </View>
         </View>
         <Text style={styles.snippetSection}>{item.section}</Text>
@@ -136,16 +199,33 @@ export default function BooksScreen() {
             <View style={styles.pipelineHeader}>
               <Ionicons name="document-attach" size={18} color={colors.primary} />
               <Text style={styles.pipelineTitle}>
-                Visualizador de PDF Integrado + Extração Automática
+                Visualizador de PDF Integrado • 10 Livros
               </Text>
+              <View
+                style={[
+                  styles.bannerServerPill,
+                  { backgroundColor: isPdfServerConfigured() ? 'rgba(16, 185, 129, 0.15)' : colors.surfaceElevated },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.bannerServerDot,
+                    { backgroundColor: isPdfServerConfigured() ? '#10B981' : colors.textMuted },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.bannerServerPillText,
+                    { color: isPdfServerConfigured() ? '#10B981' : colors.textSecondary },
+                  ]}
+                >
+                  {isPdfServerConfigured() ? 'Online' : '100% Offline'}
+                </Text>
+              </View>
             </View>
             <Text style={styles.pipelineDesc}>
-              Todos os <Text style={styles.codeInline}>10 PDFs originais</Text> estão conectados
-              diretamente ao leitor visual com suporte a zoom, sumário interativo, busca interna e
-              renderização em alta definição (PDF.js + PyMuPDF). Para adicionar novos livros, basta
-              colocar o arquivo <Text style={styles.codeInline}>.pdf</Text> na pasta{' '}
-              <Text style={styles.codeInline}>pdfs/</Text> e executar{' '}
-              <Text style={styles.codeInline}>npm run extract</Text>.
+              Todas as 1.261 páginas oficiais estão conectadas diretamente ao leitor integrado com suporte a busca textual,
+              sumário hierárquico e visualização offline. O modo offline carrega instantaneamente no aplicativo sem consumir internet.
             </Text>
           </View>
 
@@ -154,25 +234,16 @@ export default function BooksScreen() {
           </Text>
 
           {sortedBooks.map((book) => {
-            const coverThumbUrl = getRenderedPdfPageUrl(book.fileName, 1, 90);
             return (
               <View key={book.id} style={styles.bookCard}>
                 <View style={styles.bookHeader}>
-                  {/* Miniatura Real da Capa do PDF */}
-                  <TouchableOpacity
-                    style={styles.coverThumbWrap}
-                    activeOpacity={0.85}
-                    onPress={() => openBookAtPage(book, 1, 'pdf_scroll')}
-                  >
-                    <Image
-                      source={{ uri: coverThumbUrl }}
-                      style={styles.coverThumbImg}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.pdfTagCorner}>
-                      <Text style={styles.pdfTagCornerText}>PDF</Text>
-                    </View>
-                  </TouchableOpacity>
+                  {/* Miniatura / Capa Estilizada Oficial */}
+                  <BookCoverCard
+                    book={book}
+                    colors={colors}
+                    styles={styles}
+                    onPress={() => openBookAtPage(book, 1)}
+                  />
 
                   <View style={styles.bookInfoCol}>
                     <Text style={styles.bookTitle}>{book.title}</Text>
@@ -183,7 +254,7 @@ export default function BooksScreen() {
                     <View style={styles.bookActionsRow}>
                       <TouchableOpacity
                         style={styles.readBookBtn}
-                        onPress={() => openBookAtPage(book, 1, 'pdf_scroll')}
+                        onPress={() => openBookAtPage(book, 1)}
                       >
                         <Ionicons name="book-outline" size={14} color="#FFF" />
                         <Text style={styles.readBookBtnText}>Ler PDF</Text>
@@ -194,7 +265,9 @@ export default function BooksScreen() {
                         onPress={() => openExternalPdf(book, 1)}
                       >
                         <Ionicons name="open-outline" size={14} color={colors.text} />
-                        <Text style={styles.secondaryBookBtnText}>Nova Aba</Text>
+                        <Text style={styles.secondaryBookBtnText}>
+                          {Platform.OS === 'web' ? 'Nova Aba' : 'Abrir PDF'}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -216,7 +289,7 @@ export default function BooksScreen() {
                         <TouchableOpacity
                           key={`${book.id}_toc_${idx}`}
                           style={styles.tocChip}
-                          onPress={() => openBookAtPage(book, entry.page, 'pdf_scroll')}
+                          onPress={() => openBookAtPage(book, entry.page)}
                         >
                           <Text style={styles.tocChipText}>
                             {entry.title} (p. {entry.page})
@@ -464,5 +537,46 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textSecondary,
       fontSize: 11,
       fontWeight: '600',
+    },
+    coverFallbackCard: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: colors.surfaceElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 4,
+      gap: 2,
+    },
+    coverFallbackTitle: {
+      color: colors.text,
+      fontSize: 8,
+      fontWeight: '800',
+      textAlign: 'center',
+    },
+    coverFallbackSub: {
+      color: colors.textMuted,
+      fontSize: 7,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    bannerServerPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginLeft: 'auto',
+    },
+    bannerServerDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    bannerServerPillText: {
+      fontSize: 10,
+      fontWeight: '800',
     },
   });

@@ -341,6 +341,15 @@ export class OfflineDataRepository implements IDataRepository {
         if (ent.itemCategory !== filters.itemCategory) return false;
       }
 
+      if (filters.powerType && filters.powerType !== 'all' && ent.category === 'power') {
+        const sub = (ent.subCategory || '').toLowerCase();
+        const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
+        const isParanormal = sub.includes('paranormal') || (!isClass && ent.element && ent.element !== 'Nenhum');
+        if (filters.powerType === 'class' && !isClass) return false;
+        if (filters.powerType === 'paranormal' && !isParanormal) return false;
+        if (filters.powerType === 'general' && (isClass || isParanormal)) return false;
+      }
+
       if (hasClasses) {
         const entClasses = this.getCachedEntityClasses(ent);
         const matches = filters.classes!.some((c) => entClasses.includes(c));
@@ -498,7 +507,10 @@ export class OfflineDataRepository implements IDataRepository {
       for (const page of book.pages) {
         let normPage = this.pageNormTextCache.get(page);
         if (normPage === undefined) {
-          normPage = normalizeText(page.text);
+          normPage = (page.text || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
           this.pageNormTextCache.set(page, normPage);
         }
         const matchIndex = normPage.indexOf(qNorm);

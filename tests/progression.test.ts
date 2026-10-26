@@ -6,6 +6,7 @@ import {
   getRitualDt,
   getRecommendedRank,
   parseTrackAbilities,
+  getTrackDescription,
   getNexMilestone,
   getClassSkillRules,
   getOriginSkillsInfo,
@@ -132,6 +133,33 @@ NEX 99% - Máquina de Matar. Redução em IV, +2 margem de ameaça e passo de da
     });
   });
 
+  describe('getTrackDescription - Extração completa e não truncada da narrativa de trilhas', () => {
+    it('deve extrair a descrição completa de trilhas oficiais sem cortes mid-sentence', () => {
+      const mockTrack: any = {
+        id: 'track_aniquilador',
+        category: 'track',
+        subCategory: 'Trilha de Combatente',
+        name: 'Aniquilador (Combatente)',
+        bookId: 'livro_base',
+        bookTitle: 'Livro Base',
+        pageNumber: 28,
+        element: 'Nenhum',
+        summary: 'Você é treinado para abater alvos com eficiência e',
+        description: 'Você é treinado para abater alvos com eficiência e \nvelocidade. Suas armas são suas melhores amigas.\n\nNEX 10% - A Favorita. Reduz categoria.',
+        tags: ['Trilha'],
+      };
+
+      const desc = getTrackDescription(mockTrack);
+      assert.ok(desc.includes('velocidade. Suas armas são suas melhores amigas.'));
+      assert.ok(!desc.endsWith(' e'));
+    });
+
+    it('deve retornar string vazia para track nula ou indefinida', () => {
+      assert.strictEqual(getTrackDescription(null), '');
+      assert.strictEqual(getTrackDescription(undefined), '');
+    });
+  });
+
   describe('getNexMilestone - Requisitos e regras de cada nível', () => {
     it('deve identificar escolha de trilha em NEX 10%', () => {
       const m = getNexMilestone('Combatente', 10);
@@ -142,6 +170,29 @@ NEX 99% - Máquina de Matar. Redução em IV, +2 margem de ameaça e passo de da
       for (const nex of [15, 30, 45, 60, 75, 90]) {
         const m = getNexMilestone('Especialista', nex);
         assert.strictEqual(m.needsClassPower, true);
+      }
+    });
+
+    it('com regra opcional transcendEvery5Nex: deve habilitar escolha de poder em TODOS os patamares de NEX, permitindo poder de classe + paranormal separado nos marcos oficiais e apenas paranormal nos demais', () => {
+      const allNexSteps = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 99];
+      const officialClassPowerNex = [15, 30, 45, 50, 60, 75, 90];
+
+      for (const nex of allNexSteps) {
+        const m = getNexMilestone('Combatente', nex, undefined, baseAttrs, { transcendEvery5Nex: true });
+        assert.strictEqual(m.canTranscend, true);
+        assert.strictEqual(m.isTranscendRuleActive, true);
+
+        if (!officialClassPowerNex.includes(nex)) {
+          // Em patamares que não concedem poder de classe originalmente: SÓ poder paranormal
+          assert.strictEqual(m.onlyParanormal, true, `NEX ${nex}% deve ter onlyParanormal = true`);
+          assert.strictEqual(m.needsClassPower, false, `NEX ${nex}% não deve conceder poder de classe`);
+          assert.strictEqual(m.canTranscendSeparately, false);
+        } else {
+          // Em patamares oficiais: ganha poder de classe E pode transcender separadamente
+          assert.strictEqual(m.needsClassPower, true, `NEX ${nex}% deve conceder poder de classe`);
+          assert.strictEqual(m.canTranscendSeparately, true, `NEX ${nex}% deve permitir transcender separadamente`);
+          assert.strictEqual(m.onlyParanormal, false, `NEX ${nex}% não deve ser restrito a onlyParanormal`);
+        }
       }
     });
 

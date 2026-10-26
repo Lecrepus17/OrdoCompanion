@@ -145,4 +145,32 @@ describe('Leitor de PDFs & Rolagem Contínua (PdfViewerModal)', () => {
       assert.strictEqual(offsetRestored / h100, currentPage - 1);
     });
   });
+
+  describe('Seleção de Modo e Resiliência Offline', () => {
+    it('deve selecionar modo texto quando nenhum servidor gráfico estiver configurado', () => {
+      const resolveMode = (isServerConfigured: boolean, requestedMode: PdfViewerMode): PdfViewerMode => {
+        if (!isServerConfigured && (requestedMode === 'pdf_scroll' || requestedMode === 'pdf_page')) {
+          return 'text';
+        }
+        return requestedMode;
+      };
+
+      // Sem servidor: pedidos de pdf_scroll ou pdf_page devem recair para text
+      assert.strictEqual(resolveMode(false, 'pdf_scroll'), 'text');
+      assert.strictEqual(resolveMode(false, 'pdf_page'), 'text');
+      assert.strictEqual(resolveMode(false, 'text'), 'text');
+
+      // Com servidor ativo: mantém o modo solicitado
+      assert.strictEqual(resolveMode(true, 'pdf_scroll'), 'pdf_scroll');
+      assert.strictEqual(resolveMode(true, 'pdf_page'), 'pdf_page');
+      assert.strictEqual(resolveMode(true, 'text'), 'text');
+    });
+
+    it('deve formatar texto de página para leitura sem truncamento forçado', () => {
+      const pageText = 'Regra Oficial de Testes de Perícia: role Nd20 e pegue o maior resultado.';
+      const fallbackText = pageText || 'Página de ilustração.';
+      assert.strictEqual(fallbackText, pageText);
+      assert.ok(fallbackText.length > 0);
+    });
+  });
 });

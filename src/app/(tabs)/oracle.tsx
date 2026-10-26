@@ -26,10 +26,11 @@ import {
   ParanormalRelic,
   RELIC_PERSONAS,
 } from '../../types/ai';
-import { sendAiChatMessage } from '../../services/ai/AiClient';
+import { sendAiChatMessage, getEffectiveApiKey } from '../../services/ai/AiClient';
 import { AiChatMessageItem } from '../../components/AiChatMessageItem';
 import { AiConfigModal } from '../../components/AiConfigModal';
 import { PdfViewerModal, PdfViewerMode } from '../../components/PdfViewerModal';
+import { isPdfServerConfigured } from '../../utils/pdfUrl';
 import { BookInfo } from '../../types/compendium';
 
 const QUICK_PROMPTS = [
@@ -81,6 +82,7 @@ export default function OracleScreen() {
   const isMountedRef = useRef(true);
 
   const activeRelic = config.relicPersona || (config.anfitriaoMode ? 'anfitriao' : 'none');
+  const isMissingKey = !getEffectiveApiKey(config) && config.provider !== 'offline';
   const currentRelicMeta = RELIC_PERSONAS[activeRelic] || RELIC_PERSONAS.none;
 
   const activeAgent = useMemo(() => {
@@ -335,10 +337,10 @@ export default function OracleScreen() {
       case 'none':
       default:
         return {
-          emoji: '🔮🤖',
-          title: 'Central de Conhecimento G.L.I.T.C.H.',
+          emoji: '🔮🛡️',
+          title: 'Central de Operações G.L.I.T.C.H. — Ordo Realitas',
           subtitle:
-            'Pergunte qualquer coisa sobre como usar o aplicativo, cálculos de dano, atributos, ou pesquise o conteúdo dos 10 livros canônicos de Ordem Paranormal com citações exatas de páginas!',
+            'Saudações, Agente! Sou o operador de suporte tático da Ordem. Estou à disposição para orientar seus procedimentos de campo, esclarecer regras canônicas dos livros e apoiar você e sua equipe pelo OrdoCompanion.',
         };
     }
   })();
@@ -431,7 +433,7 @@ export default function OracleScreen() {
               style={[
                 styles.headerIconBtn,
                 {
-                  backgroundColor: !config.apiKey && config.provider !== 'offline'
+                  backgroundColor: isMissingKey
                     ? 'rgba(239, 68, 68, 0.15)'
                     : colors.primarySoft,
                 },
@@ -441,7 +443,7 @@ export default function OracleScreen() {
               <Ionicons
                 name="settings-outline"
                 size={16}
-                color={!config.apiKey && config.provider !== 'offline' ? '#EF4444' : colors.primary}
+                color={isMissingKey ? '#EF4444' : colors.primary}
               />
             </TouchableOpacity>
           </View>
@@ -573,7 +575,7 @@ export default function OracleScreen() {
             </Text>
 
             {/* Aviso caso não tenha chave */}
-            {!config.apiKey && config.provider !== 'offline' && (
+            {isMissingKey && (
               <TouchableOpacity
                 onPress={() => setConfigModalVisible(true)}
                 style={styles.keyNotice}
@@ -775,7 +777,7 @@ export default function OracleScreen() {
         visible={readerModalVisible}
         book={selectedBook}
         initialPage={selectedPageNumber}
-        initialMode="pdf_scroll"
+        initialMode={isPdfServerConfigured() ? 'pdf_scroll' : 'text'}
         onClose={() => setReaderModalVisible(false)}
       />
     </KeyboardAvoidingView>

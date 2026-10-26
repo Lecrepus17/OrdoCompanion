@@ -61,6 +61,7 @@ export default function CreateAgentModal({
   // Etapa 2: Origem
   const [originSearch, setOriginSearch] = useState('');
   const [selectedOriginId, setSelectedOriginId] = useState<string>(originsList[0]?.id || '');
+  const [abilityPopupOrigin, setAbilityPopupOrigin] = useState<CompendiumEntity | null>(null);
 
   // Etapa 3: Classe
   const [selectedClassId, setSelectedClassId] = useState<string>(() => {
@@ -100,6 +101,7 @@ export default function CreateAgentModal({
       setPlayer(userProfile?.playerName || '');
       setOriginSearch('');
       setSelectedOriginId(originsList[0]?.id || '');
+      setAbilityPopupOrigin(null);
       if (userProfile?.preferredClass) {
         const match = classesList.find((c) =>
           c.name.toLowerCase().includes(userProfile.preferredClass!.toLowerCase())
@@ -133,6 +135,32 @@ export default function CreateAgentModal({
     () => classesList.find((c) => c.id === selectedClassId) || classesList[0],
     [classesList, selectedClassId]
   );
+
+  // Verifica se a classe selecionada é o Sobrevivente de Sobrevivendo ao Horror
+  const isSobrevivente = useMemo(
+    () => (selectedClass?.name || '').toLowerCase().includes('sobrevivente'),
+    [selectedClass]
+  );
+
+  // Lista de origens ordenadas alfabeticamente para navegação ágil
+  const sortedOrigins = useMemo(() => {
+    return [...originsList].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [originsList]);
+
+  // Origens filtradas por busca abrangente (nome, resumo, perícias, poder, descrição, livro)
+  const filteredOrigins = useMemo(() => {
+    const q = originSearch.trim().toLowerCase();
+    if (!q) return sortedOrigins;
+    return sortedOrigins.filter(
+      (o) =>
+        o.name.toLowerCase().includes(q) ||
+        (o.summary || '').toLowerCase().includes(q) ||
+        (o.trainedSkills || '').toLowerCase().includes(q) ||
+        (o.powerName || '').toLowerCase().includes(q) ||
+        (o.powerDescription || '').toLowerCase().includes(q) ||
+        (o.bookTitle || '').toLowerCase().includes(q)
+    );
+  }, [sortedOrigins, originSearch]);
 
   // Regras de perícia da classe
   const skillRules = useMemo(
@@ -252,16 +280,18 @@ export default function CreateAgentModal({
 
   // Pontos de atributo gastos (iniciando de 1 em cada)
   // Regra Oficial de Ordem Paranormal:
-  // - Começa com 1 em todos os 5 atributos e 4 pontos para distribuir (máx 3 no NEX 5%).
+  // - Combatente, Especialista e Ocultista (NEX 5%): Começam com 1 em todos os 5 atributos e 4 pontos para distribuir (máx 3).
+  // - Sobrevivente (NEX 0% / Estágio 1): Começa com 1 em todos os atributos e recebe 3 pontos para distribuir (máx 3).
   // - O jogador pode reduzir UM atributo para 0 para receber 1 ponto extra para gastar (no máx 1 atributo zerado).
+  const basePoints = isSobrevivente ? 3 : 4;
   const pointsSpent = useMemo(() => {
     return (
       attrs.AGI - 1 + (attrs.FOR - 1) + (attrs.INT - 1) + (attrs.PRE - 1) + (attrs.VIG - 1)
     );
   }, [attrs]);
-  const pointsRemaining = 4 - pointsSpent;
+  const pointsRemaining = basePoints - pointsSpent;
   const hasZeroAttr = useMemo(() => Object.values(attrs).some((v) => v === 0), [attrs]);
-  const totalPoints = 4 + (hasZeroAttr ? 1 : 0);
+  const totalPoints = basePoints + (hasZeroAttr ? 1 : 0);
 
   // Validações por etapa
   const isStep4Valid = freeMode || pointsRemaining === 0;
@@ -418,17 +448,27 @@ export default function CreateAgentModal({
       skillsRecord[sk] = { degree: 5, bonus: 0 };
     });
 
-    // Habilidades automáticas de 5% NEX
+    // Habilidades automáticas de criação
     const abilities: CharacterAbility[] = [];
     const entityIds: string[] = [];
 
-    // Poder da Origem
+    // Poder da Origem (respeitando livro e descrição oficiais do compêndio)
     if (selectedOrigin) {
+      const descLower = (selectedOrigin.powerDescription || '').toLowerCase();
+      const originCost = descLower.includes('gastar 2 pe')
+        ? '2 PE'
+        : descLower.includes('gastar 1 pe')
+        ? '1 PE'
+        : 'Passiva';
+      const originRef = `${selectedOrigin.bookTitle || 'Livro Base'}${
+        selectedOrigin.pageNumber ? ` p. ${selectedOrigin.pageNumber}` : ''
+      }`;
+
       abilities.push({
         id: `ab_origem_${Date.now()}`,
         name: selectedOrigin.powerName || `Poder de ${selectedOrigin.name}`,
-        cost: 'Passiva',
-        originPage: selectedOrigin.name,
+        cost: originCost,
+        originPage: originRef,
         description:
           selectedOrigin.powerDescription ||
           selectedOrigin.summary ||
@@ -438,12 +478,16 @@ export default function CreateAgentModal({
     }
 
     const clsName = (selectedClass?.name || '').toLowerCase();
+    const classBookPage = `${selectedClass?.bookTitle || 'Livro Base'}${
+      selectedClass?.pageNumber ? ` p. ${selectedClass.pageNumber}` : ''
+    }`;
+
     if (clsName.includes('combatente')) {
       abilities.push({
         id: `ab_cls_${Date.now()}`,
         name: 'Ataque Especial (NEX 5%)',
         cost: '2 PE',
-        originPage: 'Combatente p. 26',
+        originPage: classBookPage || 'Livro Base p. 26',
         description:
           'Quando faz um ataque, você pode gastar 2 PE para receber +5 no teste de ataque ou na rolagem de dano.',
         type: 'habilidade',
@@ -453,7 +497,7 @@ export default function CreateAgentModal({
         id: `ab_cls_1_${Date.now()}`,
         name: 'Eclético (NEX 5%)',
         cost: '2 PE',
-        originPage: 'Especialista p. 30',
+        originPage: classBookPage || 'Livro Base p. 30',
         description:
           'Quando faz um teste de uma perícia, você pode gastar 2 PE para receber os benefícios de ser treinado nesta perícia.',
         type: 'habilidade',
@@ -462,7 +506,7 @@ export default function CreateAgentModal({
         id: `ab_cls_2_${Date.now()}`,
         name: `Perito: ${peritoSkills.join(', ') || 'Duas perícias'} (NEX 5%)`,
         cost: '2 PE',
-        originPage: 'Especialista p. 30',
+        originPage: classBookPage || 'Livro Base p. 30',
         description: `Escolha duas perícias treinadas (${peritoSkills.join(', ') || 'à escolha'}). Ao fazer um teste de uma delas, você pode gastar 2 PE para somar +1d6 no resultado.`,
         type: 'habilidade',
       });
@@ -471,7 +515,7 @@ export default function CreateAgentModal({
         id: `ab_cls_${Date.now()}`,
         name: 'Escolhido pelo Outro Lado (NEX 5%)',
         cost: 'Passiva',
-        originPage: 'Ocultista p. 34',
+        originPage: classBookPage || 'Livro Base p. 34',
         description:
           'Você começa com 3 rituais de 1º círculo e aprende um novo ritual a cada avanço de NEX.',
         type: 'habilidade',
@@ -485,7 +529,7 @@ export default function CreateAgentModal({
         id: `ab_cls_${Date.now()}`,
         name: 'Empenho (1º Estágio)',
         cost: '1 PE',
-        originPage: 'Sobrevivendo ao Horror',
+        originPage: classBookPage || 'Sobrevivendo ao Horror p. 31',
         description:
           'Quando faz um teste de perícia, você pode gastar 1 PE para receber +2 nesse teste.',
         type: 'habilidade',
@@ -496,15 +540,17 @@ export default function CreateAgentModal({
       id: `char_${Date.now()}`,
       name: name.trim() || 'Novo Agente',
       player: player.trim(),
-      nex: 5,
+      nex: isSobrevivente ? 0 : 5,
       displacement: '9m',
-      peRound: stats.peRound,
+      peRound: isSobrevivente ? 1 : stats.peRound,
       dtRituals: stats.dtRitual,
       rank: 'Recruta',
       prestige: 0,
       creditLimit: 'Baixo',
       maxLoadBonus: 0,
-      itemLimits: { cat1: 2, cat2: 0, cat3: 0, cat4: 0 },
+      itemLimits: isSobrevivente
+        ? { cat1: 1, cat2: 0, cat3: 0, cat4: 0 }
+        : { cat1: 2, cat2: 0, cat3: 0, cat4: 0 },
       originId: selectedOrigin?.id || '',
       classId: selectedClass?.id || '',
       trackId: '',
@@ -531,6 +577,7 @@ export default function CreateAgentModal({
       objective: '',
       entityIds,
       notes: '',
+      transcendEvery5Nex: false,
       updatedAt: new Date().toISOString(),
     };
 
@@ -632,6 +679,13 @@ export default function CreateAgentModal({
                 </View>
               </View>
 
+              <View style={styles.hintBanner}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
+                <Text style={styles.hintBannerText}>
+                  Toque e segure em qualquer origem para abrir a descrição detalhada da sua habilidade.
+                </Text>
+              </View>
+
               <TextInput
                 style={styles.searchInput}
                 value={originSearch}
@@ -641,42 +695,78 @@ export default function CreateAgentModal({
               />
 
               <View style={{ gap: 8, marginTop: 10 }}>
-                {originsList
-                  .filter((o) =>
-                    !originSearch.trim() ||
-                    o.name.toLowerCase().includes(originSearch.toLowerCase()) ||
-                    (o.summary || '').toLowerCase().includes(originSearch.toLowerCase())
-                  )
-                  .map((orig) => {
-                    const isSelected = orig.id === selectedOriginId;
-                    return (
-                      <TouchableOpacity
-                        key={orig.id}
-                        style={[styles.itemCard, isSelected && styles.itemCardActive]}
-                        onPress={() => setSelectedOriginId(orig.id)}
-                      >
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                {filteredOrigins.map((orig) => {
+                  const isSelected = orig.id === selectedOriginId;
+                  const bookRef = `${orig.bookTitle || 'Livro Base'}${
+                    orig.pageNumber ? ` p. ${orig.pageNumber}` : ''
+                  }`;
+
+                  return (
+                    <TouchableOpacity
+                      key={orig.id}
+                      style={[styles.itemCard, isSelected && styles.itemCardActive]}
+                      onPress={() => setSelectedOriginId(orig.id)}
+                      onLongPress={() => setAbilityPopupOrigin(orig)}
+                      delayLongPress={350}
+                      activeOpacity={0.7}
+                      testID={`origin-card-${orig.id}`}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                           <Text style={[styles.itemCardTitle, isSelected && { color: colors.primary }]}>
                             {orig.name}
                           </Text>
+                          <View style={styles.bookBadge}>
+                            <Text style={styles.bookBadgeText}>{bookRef}</Text>
+                          </View>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <TouchableOpacity
+                            style={styles.originInfoBtn}
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              setAbilityPopupOrigin(orig);
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityLabel={`Ver habilidade de ${orig.name}`}
+                            testID={`origin-info-${orig.id}`}
+                          >
+                            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                          </TouchableOpacity>
                           {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
                         </View>
-                        {!!orig.summary && <Text style={styles.itemCardSummary}>{orig.summary}</Text>}
-                        {!!orig.trainedSkills && (
-                          <View style={styles.badgeRow}>
-                            <Ionicons name="dice-outline" size={13} color={colors.accent} />
-                            <Text style={styles.badgeText}>Perícias: {orig.trainedSkills}</Text>
+                      </View>
+
+                      {!!orig.summary && <Text style={styles.itemCardSummary}>{orig.summary}</Text>}
+
+                      {!!orig.trainedSkills && (
+                        <View style={styles.badgeRow}>
+                          <Ionicons name="dice-outline" size={14} color={colors.accent} />
+                          <Text style={[styles.badgeText, { color: colors.accent, fontWeight: '700' }]}>
+                            Perícias:{' '}
+                            <Text style={{ fontWeight: '400', color: colors.textSecondary }}>
+                              {orig.trainedSkills}
+                            </Text>
+                          </Text>
+                        </View>
+                      )}
+
+                      {(!!orig.powerName || !!orig.powerDescription) && (
+                        <View style={styles.originPowerBox}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons name="flash-outline" size={14} color="#F59E0B" />
+                            <Text style={styles.originPowerTitle}>
+                              Poder: {orig.powerName || 'Habilidade de Origem'}
+                            </Text>
                           </View>
-                        )}
-                        {!!orig.powerName && (
-                          <View style={styles.badgeRow}>
-                            <Ionicons name="flash-outline" size={13} color="#F59E0B" />
-                            <Text style={styles.badgeText}>Poder: {orig.powerName}</Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+                          {!!orig.powerDescription && (
+                            <Text style={styles.originPowerDesc}>{orig.powerDescription}</Text>
+                          )}
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           )}
@@ -700,6 +790,9 @@ export default function CreateAgentModal({
                 {classesList.map((cls) => {
                   const isSelected = cls.id === selectedClassId;
                   const cname = cls.name.toLowerCase();
+                  const bookRef = `${cls.bookTitle || 'Livro Base'}${
+                    cls.pageNumber ? ` p. ${cls.pageNumber}` : ''
+                  }`;
 
                   return (
                     <TouchableOpacity
@@ -708,9 +801,14 @@ export default function CreateAgentModal({
                       onPress={() => setSelectedClassId(cls.id)}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={[styles.classCardTitle, isSelected && { color: colors.primary }]}>
-                          {cls.name}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                          <Text style={[styles.classCardTitle, isSelected && { color: colors.primary }]}>
+                            {cls.name}
+                          </Text>
+                          <View style={styles.bookBadge}>
+                            <Text style={styles.bookBadgeText}>{bookRef}</Text>
+                          </View>
+                        </View>
                         {isSelected && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
                       </View>
                       <Text style={styles.classCardSummary}>{cls.summary}</Text>
@@ -754,9 +852,16 @@ export default function CreateAgentModal({
                         </View>
                       </View>
 
+                      {!!cls.trainedSkills && (
+                        <Text style={styles.classSkillsText}>
+                          <Text style={{ fontWeight: '700', color: colors.text }}>Perícias: </Text>
+                          {cls.trainedSkills}
+                        </Text>
+                      )}
+
                       {!!cls.proficiencies && (
                         <Text style={styles.proficienciesText}>
-                          <Text style={{ fontWeight: '700' }}>Proficiências: </Text>
+                          <Text style={{ fontWeight: '700', color: colors.text }}>Proficiências: </Text>
                           {cls.proficiencies}
                         </Text>
                       )}
@@ -777,7 +882,9 @@ export default function CreateAgentModal({
                 <View style={{ flex: 1 }}>
                   <Text style={styles.stepTitle}>Distribuição de Atributos</Text>
                   <Text style={styles.stepDesc}>
-                    Regra Oficial: Você inicia com 1 em todos os atributos e tem 4 pontos para distribuir (máx 3 no NEX 5%). Você pode reduzir um único atributo para 0 para receber +1 ponto extra para gastar em outro atributo.
+                    {isSobrevivente
+                      ? 'Regra Oficial (Sobrevivente): Você inicia com 1 em todos os atributos e recebe 3 pontos para distribuir (máx 3). Você pode reduzir um único atributo para 0 para receber +1 ponto extra para gastar.'
+                      : 'Regra Oficial: Você inicia com 1 em todos os atributos e tem 4 pontos para distribuir (máx 3 no NEX 5%). Você pode reduzir um único atributo para 0 para receber +1 ponto extra para gastar em outro atributo.'}
                   </Text>
                 </View>
               </View>
@@ -1136,6 +1243,8 @@ export default function CreateAgentModal({
                         </Text>
                         <Text style={styles.skillItemAttr}>
                           {sk.attr}
+                          {sk.trainedOnly ? ' • Somente Treinada' : ''}
+                          {sk.armorPenalty ? ' • Carga' : ''}
                           {isOrigin
                             ? ' • Origem'
                             : isMandatory
@@ -1182,9 +1291,13 @@ export default function CreateAgentModal({
               <View style={styles.stepHeadingRow}>
                 <Ionicons name="sparkles-outline" size={24} color={colors.primary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.stepTitle}>Habilidades & Rituais de 5% NEX</Text>
+                  <Text style={styles.stepTitle}>
+                    {isSobrevivente ? 'Habilidades de Estágio 1' : 'Habilidades & Rituais de 5% NEX'}
+                  </Text>
                   <Text style={styles.stepDesc}>
-                    Personalize as escolhas de 5% NEX da sua classe antes de finalizar a criação do agente.
+                    {isSobrevivente
+                      ? 'Personalize as escolhas de 1º Estágio do seu sobrevivente antes de finalizar a criação.'
+                      : 'Personalize as escolhas de 5% NEX da sua classe antes de finalizar a criação do agente.'}
                   </Text>
                 </View>
               </View>
@@ -1303,17 +1416,84 @@ export default function CreateAgentModal({
 
               {/* RESUMO FINAL */}
               <View style={[styles.vitalsPreview, { marginTop: 18 }]}>
-                <Text style={styles.vitalsTitle}>Resumo do Agente:</Text>
+                <Text style={styles.vitalsTitle}>Resumo do Agente Criado:</Text>
                 <Text style={styles.stepDesc}>
-                  {name} ({player || 'Sem jogador'}) • {selectedClass?.name} • {selectedOrigin?.name} • NEX 5%
+                  {name} ({player || 'Sem jogador'}) • {selectedClass?.name} • {selectedOrigin?.name} •{' '}
+                  {isSobrevivente ? 'NEX 0% (Estágio 1)' : 'NEX 5%'}
                 </Text>
                 <View style={[styles.vitalsRow, { marginTop: 8 }]}>
                   <Text style={{ color: '#EF4444', fontWeight: '700' }}>PV: {stats.pv}</Text>
                   <Text style={{ color: '#F59E0B', fontWeight: '700' }}>PE: {stats.pe}</Text>
                   <Text style={{ color: '#38BDF8', fontWeight: '700' }}>SAN: {stats.san}</Text>
-                  <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>PE/Rod: {stats.peRound}</Text>
-                  <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>DT: {stats.dtRitual}</Text>
+                  <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>
+                    Defesa: {stats.defense}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>
+                    PE/Rod: {isSobrevivente ? 1 : stats.peRound}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>
+                    DT: {stats.dtRitual}
+                  </Text>
                 </View>
+
+                {/* Resumo do Poder da Origem */}
+                {!!selectedOrigin?.powerName && (
+                  <View
+                    style={{
+                      marginTop: 10,
+                      paddingTop: 8,
+                      borderTopWidth: 1,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#F59E0B' }}>
+                      Poder de Origem: {selectedOrigin.powerName}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                      {selectedOrigin.powerDescription || selectedOrigin.summary}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Resumo de Rituais Selecionados */}
+                {selectedClass?.name.toLowerCase().includes('ocultista') &&
+                  selectedRitualIds.length > 0 && (
+                    <View
+                      style={{
+                        marginTop: 10,
+                        paddingTop: 8,
+                        borderTopWidth: 1,
+                        borderColor: colors.border,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
+                        Rituais de 1º Círculo Escolhidos ({selectedRitualIds.length}/3):
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                        {ritualsList
+                          .filter((r) => selectedRitualIds.includes(r.id))
+                          .map((r) => r.name)
+                          .join(', ')}
+                      </Text>
+                    </View>
+                  )}
+
+                {/* Resumo de Perícias Peritas */}
+                {selectedClass?.name.toLowerCase().includes('especialista') &&
+                  peritoSkills.length > 0 && (
+                    <View
+                      style={{
+                        marginTop: 10,
+                        paddingTop: 8,
+                        borderTopWidth: 1,
+                        borderColor: colors.border,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
+                        Perícias de Perito (+1d6): {peritoSkills.join(', ')}
+                      </Text>
+                    </View>
+                  )}
               </View>
             </View>
           )}
@@ -1390,6 +1570,149 @@ export default function CreateAgentModal({
             </TouchableOpacity>
           )}
         </View>
+
+        {/* ======================================================== */}
+        {/* POPUP / MODAL: DETALHES DA HABILIDADE DE ORIGEM          */}
+        {/* ======================================================== */}
+        <Modal
+          visible={!!abilityPopupOrigin}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setAbilityPopupOrigin(null)}
+          statusBarTranslucent
+        >
+          <View style={styles.popupOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setAbilityPopupOrigin(null)}
+            />
+            {abilityPopupOrigin && (
+              <View style={styles.popupCard} testID="origin-ability-popup">
+                {/* Header do Popup */}
+                <View style={styles.popupHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View style={styles.popupIconBadge}>
+                      <Ionicons name="flash" size={20} color="#F59E0B" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.popupOriginName}>{abilityPopupOrigin.name}</Text>
+                      <Text style={styles.popupOriginBook}>
+                        {abilityPopupOrigin.bookTitle || 'Livro Base'}
+                        {abilityPopupOrigin.pageNumber ? ` • pág. ${abilityPopupOrigin.pageNumber}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setAbilityPopupOrigin(null)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.popupCloseBtn}
+                    testID="popup-close-btn"
+                  >
+                    <Ionicons name="close" size={22} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Conteúdo com Scroll */}
+                <ScrollView
+                  style={styles.popupBody}
+                  contentContainerStyle={{ paddingBottom: 16 }}
+                  showsVerticalScrollIndicator={true}
+                >
+                  {/* Bloco de Habilidade / Poder */}
+                  <View style={styles.popupAbilitySection}>
+                    <View style={styles.popupAbilityHeader}>
+                      <Ionicons name="sparkles" size={16} color="#F59E0B" />
+                      <Text style={styles.popupAbilityTitle}>
+                        {abilityPopupOrigin.powerName || 'Habilidade de Origem'}
+                      </Text>
+                      {(() => {
+                        const descLower = (abilityPopupOrigin.powerDescription || '').toLowerCase();
+                        const cost = descLower.includes('gastar 2 pe')
+                          ? '2 PE'
+                          : descLower.includes('gastar 1 pe')
+                          ? '1 PE'
+                          : 'Passivo';
+                        return (
+                          <View style={styles.popupCostBadge}>
+                            <Text style={styles.popupCostBadgeText}>{cost}</Text>
+                          </View>
+                        );
+                      })()}
+                    </View>
+
+                    <Text style={styles.popupAbilityDescription}>
+                      {abilityPopupOrigin.powerDescription ||
+                        abilityPopupOrigin.description ||
+                        'Habilidade especial concedida pela Origem do agente.'}
+                    </Text>
+                  </View>
+
+                  {/* Bloco de Perícias Treinadas */}
+                  {!!abilityPopupOrigin.trainedSkills && (
+                    <View style={styles.popupSkillsSection}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="dice-outline" size={16} color={colors.accent} />
+                        <Text style={styles.popupSectionLabel}>Perícias Treinadas:</Text>
+                      </View>
+                      <Text style={styles.popupSkillsText}>
+                        {abilityPopupOrigin.trainedSkills}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Contexto / Descrição Narrativa da Origem */}
+                  {!!abilityPopupOrigin.description && (
+                    <View style={styles.popupLoreSection}>
+                      <Text style={styles.popupLoreLabel}>Sobre a Origem:</Text>
+                      <Text style={styles.popupLoreText}>
+                        {abilityPopupOrigin.description.split('\n\n')[0]}
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
+
+                {/* Rodapé com Ações */}
+                <View style={styles.popupFooter}>
+                  <TouchableOpacity
+                    style={styles.popupDismissButton}
+                    onPress={() => setAbilityPopupOrigin(null)}
+                    testID="popup-dismiss-btn"
+                  >
+                    <Text style={styles.popupDismissButtonText}>Fechar</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.popupSelectButton,
+                      selectedOriginId === abilityPopupOrigin.id && styles.popupSelectButtonActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedOriginId(abilityPopupOrigin.id);
+                      setAbilityPopupOrigin(null);
+                    }}
+                    testID="popup-select-btn"
+                  >
+                    <Ionicons
+                      name={
+                        selectedOriginId === abilityPopupOrigin.id
+                          ? 'checkmark-circle'
+                          : 'checkmark'
+                      }
+                      size={18}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.popupSelectButtonText}>
+                      {selectedOriginId === abilityPopupOrigin.id
+                        ? 'Origem Selecionada'
+                        : 'Escolher esta Origem'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </Modal>
       </View>
     </Modal>
   );
@@ -1543,6 +1866,38 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 11,
       color: colors.textSecondary,
     },
+    bookBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      backgroundColor: colors.surfaceHighlight,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    bookBadgeText: {
+      fontSize: 10,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    originPowerBox: {
+      marginTop: 8,
+      padding: 10,
+      borderRadius: 6,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: '#F59E0B40',
+    },
+    originPowerTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#F59E0B',
+    },
+    originPowerDesc: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 4,
+      lineHeight: 16,
+    },
     classCard: {
       backgroundColor: colors.surfaceElevated,
       borderRadius: 10,
@@ -1589,10 +1944,16 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.text,
       marginTop: 2,
     },
-    proficienciesText: {
+    classSkillsText: {
       fontSize: 11,
       color: colors.textSecondary,
       marginTop: 8,
+      lineHeight: 16,
+    },
+    proficienciesText: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 6,
     },
     pointsBanner: {
       flexDirection: 'row',
@@ -1896,5 +2257,204 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 12,
       color: '#F59E0B',
       fontWeight: '600',
+    },
+    originInfoBtn: {
+      padding: 4,
+      borderRadius: 6,
+      backgroundColor: colors.surfaceHighlight,
+    },
+    hintBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: colors.surfaceHighlight,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginTop: 4,
+      marginBottom: 10,
+    },
+    hintBannerText: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      flex: 1,
+      lineHeight: 16,
+    },
+    popupOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 16,
+    },
+    popupCard: {
+      width: '100%',
+      maxWidth: 500,
+      maxHeight: '85%',
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: 'hidden',
+    },
+    popupHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.surfaceElevated,
+    },
+    popupIconBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      backgroundColor: '#F59E0B20',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: '#F59E0B50',
+    },
+    popupOriginName: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    popupOriginBook: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    popupCloseBtn: {
+      padding: 6,
+      borderRadius: 8,
+      backgroundColor: colors.surfaceHighlight,
+    },
+    popupBody: {
+      paddingHorizontal: 16,
+      paddingTop: 14,
+    },
+    popupAbilitySection: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 10,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: '#F59E0B50',
+      marginBottom: 12,
+    },
+    popupAbilityHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 8,
+    },
+    popupAbilityTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: '#F59E0B',
+      flex: 1,
+    },
+    popupCostBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 6,
+      backgroundColor: '#F59E0B25',
+      borderWidth: 1,
+      borderColor: '#F59E0B',
+    },
+    popupCostBadgeText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#F59E0B',
+    },
+    popupAbilityDescription: {
+      fontSize: 13,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    popupSkillsSection: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 10,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 12,
+      gap: 6,
+    },
+    popupSectionLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.accent,
+    },
+    popupSkillsText: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    popupLoreSection: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 10,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 12,
+    },
+    popupLoreLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginBottom: 4,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    popupLoreText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 18,
+    },
+    popupFooter: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.surfaceElevated,
+    },
+    popupDismissButton: {
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      backgroundColor: colors.surfaceHighlight,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    popupDismissButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    popupSelectButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      backgroundColor: colors.primary,
+    },
+    popupSelectButtonActive: {
+      backgroundColor: '#10B981',
+    },
+    popupSelectButtonText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#FFFFFF',
     },
   });

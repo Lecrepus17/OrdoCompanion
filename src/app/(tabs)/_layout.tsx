@@ -66,6 +66,7 @@ export default function TabsLayout() {
           headerTitleContainerStyle: { maxWidth: '54%' },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
+          headerLeft: () => null,
           headerRight: () => (
             <View
               style={{

@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  BackHandler,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -42,6 +44,7 @@ import {
 export { OFFICIAL_SKILLS_LIST, SkillDefinition };
 
 const RANKS = [
+  'Civil',
   'Recruta',
   'Operador',
   'Agente Especial',
@@ -58,6 +61,7 @@ const AFFINITIES: ParanormalElement[] = [
 ];
 
 export const RANK_ITEM_LIMITS = {
+  Civil: { cat1: 1, cat2: 0, cat3: 0, cat4: 0, credit: 'Baixo' as const },
   Recruta: { cat1: 2, cat2: 0, cat3: 0, cat4: 0, credit: 'Baixo' as const },
   Operador: { cat1: 3, cat2: 1, cat3: 0, cat4: 0, credit: 'Médio' as const },
   'Agente Especial': { cat1: 3, cat2: 2, cat3: 1, cat4: 0, credit: 'Médio' as const },
@@ -127,6 +131,43 @@ export default function CharactersScreen() {
   } = useApp();
 
   const [activeCharId, setActiveCharId] = useState<string | null>(null);
+
+  // Intercepta botão de retorno físico (Android) e do navegador (Web) para fechar a ficha e voltar à listagem de agentes
+  useEffect(() => {
+    if (!activeCharId) return;
+
+    let sub: any;
+    if (Platform.OS !== 'web' && typeof document === 'undefined') {
+      const onBackPress = () => {
+        setActiveCharId(null);
+        return true;
+      };
+      sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    }
+
+    let popActive = true;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.history.pushState({ screen: 'character-sheet' }, '');
+      const handlePop = () => {
+        if (popActive) {
+          setActiveCharId(null);
+        }
+      };
+      window.addEventListener('popstate', handlePop);
+      return () => {
+        popActive = false;
+        sub?.remove();
+        window.removeEventListener('popstate', handlePop);
+        if (window.history.state?.screen === 'character-sheet') {
+          window.history.back();
+        }
+      };
+    }
+
+    return () => {
+      sub?.remove();
+    };
+  }, [activeCharId]);
   const [activeTab, setActiveTab] = useState<
     'geral' | 'ataques' | 'pericias' | 'habilidades' | 'inventario' | 'descricao'
   >('geral');
@@ -162,6 +203,9 @@ export default function CharactersScreen() {
   const [abOrigin, setAbOrigin] = useState('');
   const [abDesc, setAbDesc] = useState('');
   const [abType, setAbType] = useState<'habilidade' | 'ritual' | 'poder'>('habilidade');
+  const [abSubCategory, setAbSubCategory] = useState<'classe' | 'paranormal' | 'trilha' | 'geral' | 'ritual'>('geral');
+  const [abElement, setAbElement] = useState<string>('Nenhum');
+  const [compendiumFilterTab, setCompendiumFilterTab] = useState<'all' | 'class_powers' | 'paranormal_powers' | 'rituals' | 'items'>('all');
 
   // Manual Inventory Item Modal
   const [itemModalVisible, setItemModalVisible] = useState(false);
@@ -303,6 +347,7 @@ export default function CharactersScreen() {
       objective: '',
       entityIds: [],
       notes: '',
+      transcendEvery5Nex: false,
       updatedAt: new Date().toISOString(),
     };
 
@@ -552,14 +597,24 @@ export default function CharactersScreen() {
   const handleSaveAbility = async () => {
     if (!activeChar || !abName.trim()) return;
     const existing = activeChar.abilities || [];
+    const defaultOrigin =
+      abSubCategory === 'paranormal'
+        ? `Poder Paranormal${abElement !== 'Nenhum' ? ` (${abElement})` : ''}`
+        : abSubCategory === 'classe'
+        ? `Poder de ${classObj?.name || 'Classe'}`
+        : abType === 'ritual'
+        ? `Ritual${abElement !== 'Nenhum' ? ` (${abElement})` : ''}`
+        : 'Habilidade Manual';
+
     const newAb: CharacterAbility = {
       id: `ab_${Date.now()}`,
       name: abName.trim(),
-      cost: abCost.trim(),
-      originPage: abOrigin.trim(),
+      cost: abCost.trim() || 'Passiva',
+      originPage: abOrigin.trim() || defaultOrigin,
       description: abDesc.trim(),
       type: abType,
     };
+    // Adicionar habilidade manual não aumenta NEX
     await updateActiveChar({ abilities: [...existing, newAb] });
     setAbilityModalVisible(false);
   };
@@ -1138,6 +1193,29 @@ export default function CharactersScreen() {
                     style={styles.input}
                     value={activeChar.displacement || '9m'}
                     onChangeText={(v) => updateActiveChar({ displacement: v })}
+                  />
+                </View>
+              </View>
+
+              {/* Regra Opcional da Ficha: Transcender a cada 5% de NEX */}
+              <View style={{ marginTop: 10, padding: 12, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border, borderRadius: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons name="bonfire" size={16} color="#8B5CF6" />
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>
+                        Transcender a cada 5% de NEX
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, lineHeight: 15 }}>
+                      Regra da mesa: permite que este agente escolha um Poder Paranormal (Transcender) a cada avanço de 5% de NEX.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={Boolean(activeChar.transcendEvery5Nex ?? userProfile?.transcendEvery5Nex)}
+                    onValueChange={(val: boolean) => updateActiveChar({ transcendEvery5Nex: val })}
+                    trackColor={{ false: colors.border, true: '#8B5CF6' }}
+                    thumbColor={Boolean(activeChar.transcendEvery5Nex ?? userProfile?.transcendEvery5Nex) ? '#FFF' : colors.textSecondary}
                   />
                 </View>
               </View>
@@ -1928,76 +2006,195 @@ export default function CharactersScreen() {
               </TouchableOpacity>
             </View>
 
-            {(!activeChar.abilities || activeChar.abilities.length === 0) &&
-            activeChar.entityIds.length === 0 ? (
-              <Text style={styles.emptyHint}>
-                Nenhuma habilidade ou ritual adicionado ainda. Toque em "Vincular do Compêndio" ou "Criar Manual".
-              </Text>
-            ) : (
-              <>
-                {activeChar.abilities?.map((ab) => (
-                  <View key={ab.id} style={styles.abilityCard}>
-                    <View style={styles.abilityCardHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.abilityCardName}>{ab.name}</Text>
-                        <Text style={styles.abilityCardOrigin}>
-                          {ab.originPage || ab.type}
+            {(() => {
+              const allAbs = activeChar.abilities || [];
+              const allEids = activeChar.entityIds || [];
+
+              if (allAbs.length === 0 && allEids.length === 0) {
+                return (
+                  <Text style={styles.emptyHint}>
+                    Nenhuma habilidade ou ritual adicionado ainda. Toque em "Vincular do Compêndio" ou "Criar Manual".
+                  </Text>
+                );
+              }
+
+              // Separar itens por categoria oficial
+              type UnifiedAbility = {
+                id: string;
+                name: string;
+                originText: string;
+                cost?: string;
+                description: string;
+                isEntity: boolean;
+                categoryGroup: 'class_power' | 'paranormal_power' | 'ritual' | 'general';
+                element?: string;
+              };
+
+              const unifiedList: UnifiedAbility[] = [];
+
+              allAbs.forEach((ab) => {
+                const orig = (ab.originPage || '').toLowerCase();
+                const nm = ab.name.toLowerCase();
+                let group: 'class_power' | 'paranormal_power' | 'ritual' | 'general' = 'general';
+
+                if (ab.type === 'ritual' || orig.includes('ritual')) {
+                  group = 'ritual';
+                } else if (
+                  orig.includes('paranormal') ||
+                  orig.includes('sangue') ||
+                  orig.includes('morte') ||
+                  orig.includes('conhecimento') ||
+                  orig.includes('energia') ||
+                  nm.includes('transcender')
+                ) {
+                  group = 'paranormal_power';
+                } else if (
+                  ab.type === 'poder' &&
+                  (orig.includes('combatente') || orig.includes('especialista') || orig.includes('ocultista') || orig.includes('classe'))
+                ) {
+                  group = 'class_power';
+                }
+
+                unifiedList.push({
+                  id: ab.id,
+                  name: ab.name,
+                  originText: ab.originPage || ab.type,
+                  cost: ab.cost,
+                  description: ab.description,
+                  isEntity: false,
+                  categoryGroup: group,
+                });
+              });
+
+              allEids.forEach((eid) => {
+                const ent = getEntityById(eid);
+                if (!ent) return;
+                const sub = (ent.subCategory || '').toLowerCase();
+                const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
+                const isParanormal = sub.includes('paranormal') || (!isClass && ent.element && ent.element !== 'Nenhum');
+
+                let group: 'class_power' | 'paranormal_power' | 'ritual' | 'general' = 'general';
+                if (ent.category === 'ritual') {
+                  group = 'ritual';
+                } else if (ent.category === 'power' && isClass) {
+                  group = 'class_power';
+                } else if (ent.category === 'power' && isParanormal) {
+                  group = 'paranormal_power';
+                }
+
+                unifiedList.push({
+                  id: eid,
+                  name: ent.name,
+                  originText: `${ent.subCategory} • ${ent.bookTitle}`,
+                  description: ent.summary || ent.description,
+                  isEntity: true,
+                  categoryGroup: group,
+                  element: ent.element,
+                });
+              });
+
+              const classPowers = unifiedList.filter((x) => x.categoryGroup === 'class_power');
+              const paranormalPowers = unifiedList.filter((x) => x.categoryGroup === 'paranormal_power');
+              const rituals = unifiedList.filter((x) => x.categoryGroup === 'ritual');
+              const generalAbilities = unifiedList.filter((x) => x.categoryGroup === 'general');
+
+              const renderCard = (item: UnifiedAbility) => (
+                <View key={item.id} style={styles.abilityCard}>
+                  <View style={styles.abilityCardHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.abilityCardName}>{item.name}</Text>
+                      <Text style={styles.abilityCardOrigin}>
+                        {item.originText}{item.element && item.element !== 'Nenhum' ? ` • ${item.element}` : ''}
+                      </Text>
+                    </View>
+                    {item.cost ? (
+                      <TouchableOpacity
+                        style={styles.spendPeBtn}
+                        onPress={() => handleSpendAbilityPE(item.cost!, item.name)}
+                      >
+                        <Ionicons name="flash" size={12} color="#F59E0B" />
+                        <Text style={styles.spendPeBtnText}>{item.cost}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (item.isEntity) {
+                          updateActiveChar({
+                            entityIds: activeChar.entityIds.filter((x) => x !== item.id),
+                          });
+                        } else {
+                          updateActiveChar({
+                            abilities: (activeChar.abilities || []).filter((a) => a.id !== item.id),
+                          });
+                        }
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close-circle-outline" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                  {item.description ? (
+                    <Text style={styles.abilityCardDesc}>{item.description}</Text>
+                  ) : null}
+                </View>
+              );
+
+              return (
+                <View style={{ gap: 14 }}>
+                  {/* SEÇÃO 1: PODERES DE CLASSE */}
+                  {classPowers.length > 0 && (
+                    <View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingHorizontal: 2 }}>
+                        <Ionicons name="shield" size={16} color="#F59E0B" />
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>
+                          Poderes de Classe ({classPowers.length})
                         </Text>
                       </View>
-                      {ab.cost ? (
-                        <TouchableOpacity
-                          style={styles.spendPeBtn}
-                          onPress={() => handleSpendAbilityPE(ab.cost, ab.name)}
-                        >
-                          <Ionicons name="flash" size={12} color="#F59E0B" />
-                          <Text style={styles.spendPeBtnText}>{ab.cost}</Text>
-                        </TouchableOpacity>
-                      ) : null}
-                      <TouchableOpacity
-                        onPress={() =>
-                          updateActiveChar({
-                            abilities: (activeChar.abilities || []).filter((a) => a.id !== ab.id),
-                          })
-                        }
-                      >
-                        <Ionicons name="close-circle-outline" size={20} color={colors.textMuted} />
-                      </TouchableOpacity>
+                      <View style={{ gap: 8 }}>{classPowers.map(renderCard)}</View>
                     </View>
-                    {ab.description ? (
-                      <Text style={styles.abilityCardDesc}>{ab.description}</Text>
-                    ) : null}
-                  </View>
-                ))}
+                  )}
 
-                {/* Entidades vinculadas do compêndio */}
-                {activeChar.entityIds.map((eid) => {
-                  const ent = getEntityById(eid);
-                  if (!ent) return null;
-                  return (
-                    <View key={eid} style={styles.abilityCard}>
-                      <View style={styles.abilityCardHeader}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.abilityCardName}>{ent.name}</Text>
-                          <Text style={styles.abilityCardOrigin}>
-                            {ent.subCategory} • {ent.bookTitle}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          onPress={() =>
-                            updateActiveChar({
-                              entityIds: activeChar.entityIds.filter((x) => x !== eid),
-                            })
-                          }
-                        >
-                          <Ionicons name="close-circle-outline" size={20} color={colors.textMuted} />
-                        </TouchableOpacity>
+                  {/* SEÇÃO 2: PODERES PARANORMAIS */}
+                  {paranormalPowers.length > 0 && (
+                    <View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingHorizontal: 2 }}>
+                        <Ionicons name="eye" size={16} color="#8B5CF6" />
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>
+                          Poderes Paranormais ({paranormalPowers.length})
+                        </Text>
                       </View>
-                      <Text style={styles.abilityCardDesc}>{ent.summary || ent.description}</Text>
+                      <View style={{ gap: 8 }}>{paranormalPowers.map(renderCard)}</View>
                     </View>
-                  );
-                })}
-              </>
-            )}
+                  )}
+
+                  {/* SEÇÃO 3: RITUAIS */}
+                  {rituals.length > 0 && (
+                    <View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingHorizontal: 2 }}>
+                        <Ionicons name="sparkles" size={16} color={colors.primary} />
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>
+                          Rituais ({rituals.length})
+                        </Text>
+                      </View>
+                      <View style={{ gap: 8 }}>{rituals.map(renderCard)}</View>
+                    </View>
+                  )}
+
+                  {/* SEÇÃO 4: HABILIDADES DE ORIGEM, TRILHA & GERAIS */}
+                  {generalAbilities.length > 0 && (
+                    <View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingHorizontal: 2 }}>
+                        <Ionicons name="star" size={16} color={colors.accent} />
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>
+                          Habilidades de Origem, Trilha & Gerais ({generalAbilities.length})
+                        </Text>
+                      </View>
+                      <View style={{ gap: 8 }}>{generalAbilities.map(renderCard)}</View>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
           </View>
         )}
 
@@ -2345,6 +2542,94 @@ export default function CharactersScreen() {
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom + 24, 34), gap: 12 }}>
+            {/* Seletor de Categoria */}
+            <View>
+              <Text style={styles.fieldLabel}>Tipo de Habilidade</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                {[
+                  { id: 'trilha', label: 'Habilidade de Trilha', type: 'habilidade' as const },
+                  { id: 'classe', label: 'Poder de Classe', type: 'poder' as const },
+                  { id: 'paranormal', label: 'Poder Paranormal', type: 'poder' as const },
+                  { id: 'ritual', label: 'Ritual', type: 'ritual' as const },
+                ].map((item) => {
+                  const active = abSubCategory === item.id;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.rankPill,
+                        active && (item.id === 'paranormal' ? { backgroundColor: '#8B5CF6', borderColor: '#8B5CF6' } : styles.rankPillActive),
+                      ]}
+                      onPress={() => {
+                        setAbSubCategory(item.id as any);
+                        setAbType(item.type);
+                      }}
+                    >
+                      <Text style={[styles.rankPillText, active && styles.rankPillTextActive]}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Elemento quando Paranormal ou Ritual */}
+            {(abSubCategory === 'paranormal' || abSubCategory === 'ritual') && (
+              <View>
+                <Text style={styles.fieldLabel}>Elemento Paranormal</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {['Sangue', 'Morte', 'Conhecimento', 'Energia', 'Medo'].map((el) => {
+                    const active = abElement === el;
+                    return (
+                      <TouchableOpacity
+                        key={el}
+                        style={[styles.rankPill, active && { backgroundColor: '#8B5CF6', borderColor: '#8B5CF6' }]}
+                        onPress={() => setAbElement(el)}
+                      >
+                        <Text style={[styles.rankPillText, active && styles.rankPillTextActive]}>{el}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Atalho para importar do Compêndio */}
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: colors.surfaceElevated,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: colors.border,
+                alignSelf: 'flex-start',
+              }}
+              onPress={() => {
+                setAbilityModalVisible(false);
+                setPickerSearch('');
+                if (abSubCategory === 'paranormal') {
+                  setCompendiumFilterTab('paranormal_powers');
+                } else if (abSubCategory === 'classe') {
+                  setCompendiumFilterTab('class_powers');
+                } else if (abSubCategory === 'ritual') {
+                  setCompendiumFilterTab('rituals');
+                } else {
+                  setCompendiumFilterTab('all');
+                }
+                setPickerModalType('link_compendium');
+              }}
+            >
+              <Ionicons name="book-outline" size={14} color={colors.primary} />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
+                Ou escolher diretamente do Compêndio
+              </Text>
+            </TouchableOpacity>
+
             <View>
               <Text style={styles.fieldLabel}>Nome</Text>
               <TextInput
@@ -2371,7 +2656,13 @@ export default function CharactersScreen() {
                 <Text style={styles.fieldLabel}>Origem / Página</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ex: NEX 10%, Trilha"
+                  placeholder={
+                    abSubCategory === 'paranormal'
+                      ? 'Poder Paranormal'
+                      : abSubCategory === 'classe'
+                      ? 'Poder de Classe'
+                      : 'Ex: NEX 10%, Trilha'
+                  }
                   placeholderTextColor={colors.textMuted}
                   value={abOrigin}
                   onChangeText={setAbOrigin}
@@ -2498,12 +2789,40 @@ export default function CharactersScreen() {
           </View>
 
           <TextInput
-            style={[styles.input, { margin: 14 }]}
+            style={[styles.input, { margin: 14, marginBottom: pickerModalType === 'link_compendium' ? 6 : 14 }]}
             placeholder="Filtrar por nome..."
             placeholderTextColor={colors.textMuted}
             value={pickerSearch}
             onChangeText={setPickerSearch}
           />
+
+          {pickerModalType === 'link_compendium' && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 14, paddingBottom: 10 }}>
+              {[
+                { id: 'all', label: 'Todos' },
+                { id: 'class_powers', label: 'Poderes de Classe' },
+                { id: 'paranormal_powers', label: 'Poderes Paranormais' },
+                { id: 'rituals', label: 'Rituais' },
+                { id: 'items', label: 'Itens & Armas' },
+              ].map((tab) => {
+                const active = compendiumFilterTab === tab.id;
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    style={[
+                      styles.rankPill,
+                      active && (tab.id === 'paranormal_powers' ? { backgroundColor: '#8B5CF6', borderColor: '#8B5CF6' } : styles.rankPillActive),
+                    ]}
+                    onPress={() => setCompendiumFilterTab(tab.id as any)}
+                  >
+                    <Text style={[styles.rankPillText, active && styles.rankPillTextActive]}>
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: Math.max(insets.bottom + 24, 40), gap: 8 }}>
             {pickerModalType === 'add_weapon_armaria' ? (
@@ -2554,19 +2873,39 @@ export default function CharactersScreen() {
                   </TouchableOpacity>
                 ))
             ) : (
-              (pickerModalType === 'origin'
-                ? originsList
-                : pickerModalType === 'class'
-                ? classesList
-                : pickerModalType === 'track'
-                ? tracksList
-                : equipableEntities
-              )
-                .filter((e) =>
-                  e.name.toLowerCase().includes(pickerSearch.trim().toLowerCase())
-                )
-                .slice(0, 80)
-                .map((item) => (
+              (() => {
+                let baseList =
+                  pickerModalType === 'origin'
+                    ? originsList
+                    : pickerModalType === 'class'
+                    ? classesList
+                    : pickerModalType === 'track'
+                    ? tracksList
+                    : equipableEntities;
+
+                if (pickerModalType === 'link_compendium') {
+                  if (compendiumFilterTab === 'class_powers') {
+                    baseList = baseList.filter((e) => {
+                      const sub = (e.subCategory || '').toLowerCase();
+                      return e.category === 'power' && (sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista'));
+                    });
+                  } else if (compendiumFilterTab === 'paranormal_powers') {
+                    baseList = baseList.filter((e) => {
+                      const sub = (e.subCategory || '').toLowerCase();
+                      const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
+                      return e.category === 'power' && (sub.includes('paranormal') || (!isClass && e.element && e.element !== 'Nenhum'));
+                    });
+                  } else if (compendiumFilterTab === 'rituals') {
+                    baseList = baseList.filter((e) => e.category === 'ritual');
+                  } else if (compendiumFilterTab === 'items') {
+                    baseList = baseList.filter((e) => e.category === 'item' || e.category === 'weapon');
+                  }
+                }
+
+                return baseList
+                  .filter((e) => e.name.toLowerCase().includes(pickerSearch.trim().toLowerCase()))
+                  .slice(0, 80)
+                  .map((item) => (
                   <TouchableOpacity
                     key={item.id}
                     style={styles.pickerItem}
@@ -2592,7 +2931,8 @@ export default function CharactersScreen() {
                       {item.subCategory} • {item.bookTitle} • {item.summary}
                     </Text>
                   </TouchableOpacity>
-                ))
+                ));
+              })()
             )}
           </ScrollView>
         </View>
@@ -2628,6 +2968,7 @@ export default function CharactersScreen() {
         allTracksList={tracksList}
         allPowersList={powersList}
         allRitualsList={ritualsList}
+        userProfile={userProfile}
         onClose={() => setLevelUpModalVisible(false)}
         onApplyLevelUp={handleApplyLevelUp}
       />

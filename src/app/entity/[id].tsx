@@ -90,6 +90,22 @@ export default function EntityDetailScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 60 + bottomInset }]}>
+        {/* Barra superior de retorno explícito */}
+        <TouchableOpacity
+          style={styles.topBackBar}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/');
+            }
+          }}
+          accessibilityLabel="Voltar para a listagem"
+        >
+          <Ionicons name="arrow-back" size={17} color={colors.primary} />
+          <Text style={styles.topBackBarText}>Voltar para a listagem</Text>
+        </TouchableOpacity>
+
         {/* Header Card */}
         <View style={styles.headerCard}>
           <View style={styles.badgeRow}>
@@ -512,6 +528,24 @@ function createStyles(colors: ThemeColors) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    topBackBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 7,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignSelf: 'flex-start',
+      marginBottom: 10,
+    },
+    topBackBarText: {
+      color: colors.primary,
+      fontSize: 13,
+      fontWeight: '800',
     },
     emptyWrap: {
       flex: 1,

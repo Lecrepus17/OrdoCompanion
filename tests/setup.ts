@@ -34,6 +34,7 @@ const globalsToSet: Array<[string, any]> = [
   ['CustomEvent', win.CustomEvent],
   ['Event', win.Event],
   ['MouseEvent', win.MouseEvent],
+  ['PointerEvent', win.PointerEvent],
   ['KeyboardEvent', win.KeyboardEvent],
   ['HTMLInputElement', win.HTMLInputElement],
   ['HTMLTextAreaElement', win.HTMLTextAreaElement],

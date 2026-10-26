@@ -39,6 +39,9 @@ export async function cleanup(): Promise<void> {
     } catch {}
   }
   activeRoots.clear();
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.innerHTML = '';
+  }
   resetMockStorage();
   setMobilePlatform('web');
 }
@@ -132,14 +135,19 @@ export async function renderWithProviders(
   };
 
   const queryByPlaceholder = (placeholder: string | RegExp): HTMLInputElement | null => {
-    const inputs = container.querySelectorAll('input, textarea');
-    for (let i = 0; i < inputs.length; i++) {
-      const input = inputs[i] as HTMLInputElement;
-      const ph = input.getAttribute('placeholder') ?? '';
-      if (typeof placeholder === 'string') {
-        if (ph.includes(placeholder)) return input;
-      } else if (placeholder.test(ph)) {
-        return input;
+    const searchTargets = [container, document.body];
+    for (const target of searchTargets) {
+      if (!target) continue;
+      const inputs = target.querySelectorAll('input, textarea');
+      for (let i = 0; i < inputs.length; i++) {
+        const input = inputs[i] as HTMLInputElement;
+        if (input.isConnected === false) continue;
+        const ph = input.getAttribute('placeholder') || (input as any).placeholder || '';
+        if (typeof placeholder === 'string') {
+          if (ph.includes(placeholder)) return input;
+        } else if (placeholder.test(ph)) {
+          return input;
+        }
       }
     }
     return null;
@@ -152,10 +160,15 @@ export async function renderWithProviders(
   };
 
   const queryByTestId = (testId: string): HTMLElement | null => {
-    return (
-      container.querySelector(`[data-testid="${testId}"]`) ||
-      container.querySelector(`[testID="${testId}"]`)
-    );
+    const searchTargets = [container, document.body];
+    for (const target of searchTargets) {
+      if (!target) continue;
+      const el =
+        target.querySelector(`[data-testid="${testId}"]`) ||
+        target.querySelector(`[testID="${testId}"]`);
+      if (el) return el as HTMLElement;
+    }
+    return null;
   };
 
   return {
@@ -183,6 +196,21 @@ export async function fireClick(element: Element): Promise<void> {
     element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
     element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await new Promise((r) => setTimeout(r, 10));
+  });
+}
+
+export async function fireLongPress(element: Element, durationMs = 450): Promise<void> {
+  await act(async () => {
+    element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    if (typeof PointerEvent !== 'undefined') {
+      element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+    }
+    await new Promise((r) => setTimeout(r, durationMs));
+    element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+    if (typeof PointerEvent !== 'undefined') {
+      element.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true }));
+    }
+    await new Promise((r) => setTimeout(r, 20));
   });
 }
 

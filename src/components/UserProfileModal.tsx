@@ -21,6 +21,12 @@ import { useApp } from '../context/AppContext';
 import { showAlert } from '../utils/alert';
 import { GoogleDriveService } from '../services/sync/GoogleDriveService';
 import {
+  getCustomPdfServerUrl,
+  isPdfServerConfigured,
+  setCustomPdfServerUrl,
+  testPdfServerConnection,
+} from '../utils/pdfUrl';
+import {
   DEFAULT_HIDDEN_TABS,
   DEFAULT_PINNED_TABS,
   getTabMetadata,
@@ -83,6 +89,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   const [cloudSyncEnabled, setCloudSyncEnabled] = useState(false);
   const [cloudSyncUrl, setCloudSyncUrl] = useState('');
   const [listingColumnsChoice, setListingColumnsChoice] = useState<1 | 2>(1);
+  const [transcendEvery5Nex, setTranscendEvery5Nex] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Estados locais para customização dinâmica da barra inferior
@@ -95,6 +102,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
   const [showGuideSteps, setShowGuideSteps] = useState(false);
   const [customClientIdInput, setCustomClientIdInput] = useState('');
+  const [pdfServerInput, setPdfServerInput] = useState('');
+  const [pdfTesting, setPdfTesting] = useState(false);
+  const [pdfTestResult, setPdfTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Sincroniza estado com o userProfile salvo sempre que o modal abre
   useEffect(() => {
@@ -111,7 +121,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       setCloudSyncEnabled(!!userProfile.cloudSyncEnabled);
       setCloudSyncUrl(userProfile.cloudSyncUrl || '');
       setListingColumnsChoice(userProfile.listingColumns === 2 ? 2 : 1);
+      setTranscendEvery5Nex(!!userProfile.transcendEvery5Nex);
       setCustomClientIdInput(GoogleDriveService.getInstance().getClientId());
+      setPdfServerInput(getCustomPdfServerUrl());
+      setPdfTestResult(null);
 
       const navConfig = userProfile.navigationConfig;
       setPinnedTabs(
@@ -224,6 +237,32 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
     showAlert('Configuração Salva', 'Client ID do Google Cloud atualizado com sucesso.');
   };
 
+  const handleResetCustomClientId = async () => {
+    await GoogleDriveService.getInstance().setCustomClientId('');
+    setCustomClientIdInput(GoogleDriveService.getInstance().getClientId());
+    showAlert('Padrão Restaurado', 'O Client ID padrão do sistema foi restaurado com sucesso.');
+  };
+
+  const handleTestPdfServer = async () => {
+    setPdfTesting(true);
+    setPdfTestResult(null);
+    const res = await testPdfServerConnection(pdfServerInput);
+    setPdfTesting(false);
+    setPdfTestResult(res);
+  };
+
+  const handleSavePdfServer = async () => {
+    await setCustomPdfServerUrl(pdfServerInput);
+    showAlert('Servidor Salvo', pdfServerInput.trim() ? 'URL do servidor de PDFs salva com sucesso!' : 'Modo Offline Ativado.');
+  };
+
+  const handleResetPdfServer = async () => {
+    await setCustomPdfServerUrl('');
+    setPdfServerInput('');
+    setPdfTestResult(null);
+    showAlert('Modo Offline Restaurado', 'O aplicativo voltará a utilizar o modo texto offline integrado.');
+  };
+
   const handleCopyRedirectUri = async () => {
     try {
       const uri = GoogleDriveService.getInstance().getRedirectUri();
@@ -296,6 +335,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       cloudSyncEnabled,
       cloudSyncUrl: cloudSyncUrl.trim(),
       listingColumns: listingColumnsChoice,
+      transcendEvery5Nex,
       navigationConfig: {
         pinnedTabs: resolvedTabs.pinnedTabs,
         hiddenTabs: resolvedTabs.hiddenTabs,
@@ -656,6 +696,26 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                           value={notes}
                           onChangeText={setNotes}
                         />
+                      </View>
+
+                      <View style={[styles.inputGroup, { marginTop: 8 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View style={{ flex: 1, paddingRight: 12 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Ionicons name="bonfire-outline" size={16} color={colors.primary} />
+                              <Text style={styles.fieldLabel}>Transcender a cada 5% de NEX</Text>
+                            </View>
+                            <Text style={styles.fieldHint}>
+                              Regra geral da mesa: habilita a escolha de um Poder Paranormal (Transcender) em cada avanço de NEX (+5%) para todos os agentes.
+                            </Text>
+                          </View>
+                          <Switch
+                            value={transcendEvery5Nex}
+                            onValueChange={setTranscendEvery5Nex}
+                            trackColor={{ false: colors.border, true: colors.primary }}
+                            thumbColor={transcendEvery5Nex ? '#FFF' : colors.textSecondary}
+                          />
+                        </View>
                       </View>
                     </View>
 
@@ -1306,7 +1366,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
 
                           {/* Campo de Client ID */}
                           <View style={styles.inputGroup}>
-                            <Text style={styles.fieldLabel}>Custom Google OAuth Client ID</Text>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Text style={styles.fieldLabel}>Custom Google OAuth Client ID</Text>
+                              {GoogleDriveService.getInstance().hasCustomClientId() && (
+                                <TouchableOpacity
+                                  onPress={handleResetCustomClientId}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                                  activeOpacity={0.7}
+                                >
+                                  <Ionicons name="arrow-undo-outline" size={12} color={colors.primary} />
+                                  <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '700' }}>
+                                    Restaurar Padrão
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
                               <TextInput
                                 style={[styles.input, { flex: 1 }]}
@@ -1348,24 +1422,23 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
 
                           {showGuideSteps && (
                             <View style={styles.guideBox}>
-                              <Text style={styles.guideTitle}>Passo a Passo (Google Cloud Console):</Text>
+                              <Text style={styles.guideTitle}>Passo a Passo & Regras de Segurança OAuth 2.0:</Text>
                               <Text style={styles.guideStep}>
-                                1. Acesse https://console.cloud.google.com e crie um projeto gratuito.
+                                1. Acesse https://console.cloud.google.com e crie ou selecione seu projeto gratuito.
                               </Text>
                               <Text style={styles.guideStep}>
                                 2. Vá em "APIs e Serviços" &gt; "Biblioteca" e ative a "Google Drive API".
                               </Text>
                               <Text style={styles.guideStep}>
-                                3. Em "Tela de permissão OAuth", escolha "Externo" e cadastre seu e-mail de usuário teste.
+                                3. IMPORTANTE (Tela de Consentimento): Em "Tela de permissão OAuth", caso o status esteja "Em teste", adicione obrigatoriamente seu e-mail do Google na lista de "Usuários de teste". Caso contrário, o Google bloqueará o login com erro de conformidade OAuth 2.0.
                               </Text>
                               <Text style={styles.guideStep}>
-                                4. Em "Credenciais" &gt; "Criar Credenciais" &gt; "ID do cliente OAuth", escolha o tipo "Aplicativo da Web".
+                                4. Tipo de Cliente no Google Cloud:
+                                {'\n'}• Para Navegador Web: Crie Credenciais &gt; ID do cliente OAuth &gt; "Aplicativo da Web". Em "URIs de redirecionamento autorizados", adicione o Redirect URI exibido acima.
+                                {'\n'}• Para Celular APK (Android): Crie Credenciais &gt; ID do cliente OAuth &gt; "Android". Informe o Pacote "com.ordemparanormal.ordo" e a impressão digital SHA-1 do certificado da sua chave de compilação (EAS ou debug).
                               </Text>
                               <Text style={styles.guideStep}>
-                                5. Em "URIs de redirecionamento autorizados", cole o Redirect URI exibido acima.
-                              </Text>
-                              <Text style={styles.guideStep}>
-                                6. Copie o Client ID gerado, cole no campo acima e toque em "Salvar".
+                                5. Copie o Client ID gerado (.apps.googleusercontent.com), cole no campo acima e toque em "Salvar".
                               </Text>
                             </View>
                           )}
@@ -1400,6 +1473,136 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                           Transfira suas fichas, armas e dados entre dispositivos copiando e colando o JSON de backup sem precisar de conta de desenvolvedor do Google.
                         </Text>
                       </View>
+                    </View>
+
+                    {/* Bloco 4: Servidor de Renderização de PDFs (Alta Resolução) */}
+                    <View style={styles.sectionCard}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <Text style={styles.sectionHeaderTitle}>LEITOR DE PDFS (ALTA RESOLUÇÃO)</Text>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 5,
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                            borderRadius: 10,
+                            backgroundColor: isPdfServerConfigured()
+                              ? 'rgba(16, 185, 129, 0.12)'
+                              : colors.surfaceElevated,
+                            borderWidth: 1,
+                            borderColor: isPdfServerConfigured()
+                              ? 'rgba(16, 185, 129, 0.35)'
+                              : colors.border,
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: 3,
+                              backgroundColor: isPdfServerConfigured() ? '#10B981' : colors.textMuted,
+                            }}
+                          />
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              fontWeight: '800',
+                              color: isPdfServerConfigured() ? '#10B981' : colors.textMuted,
+                            }}
+                          >
+                            {isPdfServerConfigured() ? 'Servidor Ativo' : 'Modo Offline (Texto)'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={styles.fieldHint}>
+                        O aplicativo opera 100% offline em Modo Texto oficial por padrão. Caso queira visualizar as páginas ilustradas dos livros em alta definição, informe o endereço do servidor (ex: http://192.168.1.15:8081).
+                      </Text>
+
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.fieldLabel}>URL do Servidor de PDFs</Text>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <TextInput
+                            style={[styles.input, { flex: 1 }]}
+                            placeholder="http://192.168.1.15:8081"
+                            placeholderTextColor={colors.textMuted}
+                            autoCapitalize="none"
+                            value={pdfServerInput}
+                            onChangeText={setPdfServerInput}
+                          />
+                          <TouchableOpacity
+                            style={[
+                              styles.saveClientBtn,
+                              {
+                                backgroundColor: colors.surfaceElevated,
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                              },
+                            ]}
+                            onPress={handleTestPdfServer}
+                            disabled={pdfTesting}
+                            activeOpacity={0.8}
+                          >
+                            {pdfTesting ? (
+                              <ActivityIndicator size="small" color={colors.primary} />
+                            ) : (
+                              <Text style={[styles.saveClientBtnText, { color: colors.text }]}>Testar</Text>
+                            )}
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.saveClientBtn}
+                            onPress={handleSavePdfServer}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.saveClientBtnText}>Salvar</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {pdfTestResult && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: 10,
+                            borderRadius: 8,
+                            backgroundColor: pdfTestResult.ok ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 1,
+                            borderColor: pdfTestResult.ok ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                          }}
+                        >
+                          <Ionicons
+                            name={pdfTestResult.ok ? 'checkmark-circle' : 'alert-circle'}
+                            size={16}
+                            color={pdfTestResult.ok ? '#10B981' : colors.danger}
+                          />
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: pdfTestResult.ok ? '#10B981' : colors.danger,
+                              flex: 1,
+                              fontWeight: '600',
+                            }}
+                          >
+                            {pdfTestResult.message}
+                          </Text>
+                        </View>
+                      )}
+
+                      {Boolean(pdfServerInput.trim()) && (
+                        <TouchableOpacity
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 2 }}
+                          onPress={handleResetPdfServer}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="arrow-undo-outline" size={13} color={colors.textMuted} />
+                          <Text style={{ fontSize: 11, color: colors.textMuted, fontWeight: '600' }}>
+                            Restaurar Modo Offline Integrado
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </>
                 )}

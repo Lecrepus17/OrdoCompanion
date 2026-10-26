@@ -28,6 +28,7 @@ export interface SyncAuthState {
   userName?: string;
   userPhoto?: string;
   accessToken?: string;
+  refreshToken?: string;
   expiresAt?: number;
   error?: string;
 }

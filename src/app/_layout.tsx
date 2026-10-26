@@ -1,7 +1,8 @@
 import React from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { AppProvider, useApp } from '../context/AppContext';
@@ -14,6 +15,7 @@ import { UpdateNotificationModal } from '../components/UpdateNotificationModal';
 WebBrowser.maybeCompleteAuthSession();
 
 function RootLayoutContent() {
+  const router = useRouter();
   const { colors, theme } = useTheme();
   const {
     manualModalVisible,
@@ -38,11 +40,51 @@ function RootLayoutContent() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="entity/[id]"
-          options={{ title: 'Detalhes do Registro', presentation: 'card' }}
+          options={{
+            title: 'Detalhes do Registro',
+            presentation: 'card',
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => {
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.replace('/');
+                  }
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ paddingRight: 12, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                accessibilityLabel="Voltar"
+              >
+                <Ionicons name="arrow-back" size={22} color={colors.text} />
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>Voltar</Text>
+              </TouchableOpacity>
+            ),
+          }}
         />
         <Stack.Screen
           name="entity/editor"
-          options={{ title: 'Criar / Editar Registro', presentation: 'modal' }}
+          options={{
+            title: 'Criar / Editar Registro',
+            presentation: 'modal',
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => {
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.replace('/');
+                  }
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ paddingRight: 12, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                accessibilityLabel="Voltar"
+              >
+                <Ionicons name="arrow-back" size={22} color={colors.text} />
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>Voltar</Text>
+              </TouchableOpacity>
+            ),
+          }}
         />
       </Stack>
       <DiceToast />

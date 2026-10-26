@@ -136,6 +136,7 @@ export interface CompendiumFilters {
   element: string | 'all';
   circle: number | 'all';
   itemCategory: string | 'all';
+  powerType?: 'all' | 'class' | 'paranormal' | 'general';
   classes?: EntityClassFilter[];
   excludedTypes?: ExcludableType[];
   minVd?: number;
@@ -200,12 +201,20 @@ export interface CharacterSkillEntry {
   customName?: string;
 }
 
+export type CharacterRank =
+  | 'Civil'
+  | 'Recruta'
+  | 'Operador'
+  | 'Agente Especial'
+  | 'Oficial de Operações'
+  | 'Agente de Elite';
+
 export interface CharacterSheet {
   id: string;
   name: string;
   player: string;
   nex: number; // e.g., 5 to 99
-  rank: 'Recruta' | 'Operador' | 'Agente Especial' | 'Oficial de Operações' | 'Agente de Elite';
+  rank: CharacterRank;
   originId: string;
   classId: string;
   trackId: string;
@@ -260,6 +269,7 @@ export interface CharacterSheet {
   objective?: string;
   
   entityIds: string[]; // Linked rituals, powers, weapons, items from compendium
+  transcendEvery5Nex?: boolean; // Permite escolher poder paranormal a cada subida de NEX (a cada 5)
   notes: string;
   updatedAt: string;
 }
@@ -466,6 +476,7 @@ export interface UserProfile {
   lastSyncAt?: string;
   updatedAt: string;
   listingColumns?: 1 | 2;
+  transcendEvery5Nex?: boolean;
   navigationConfig?: TabNavigationConfig;
 }
 
@@ -482,6 +493,7 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
   cloudSyncEnabled: false,
   updatedAt: new Date().toISOString(),
   listingColumns: 1,
+  transcendEvery5Nex: false,
   navigationConfig: {
     pinnedTabs: DEFAULT_PINNED_TABS,
     hiddenTabs: DEFAULT_HIDDEN_TABS,

@@ -70,12 +70,12 @@ export function generateOfflineResponse(
 
     case 'none':
     default:
-      greeting = `**[MODO OFFLINE — G.L.I.T.C.H.]**\n*Operando através dos registros locais armazenados no dispositivo (sem conexão externa).*`;
+      greeting = `**[MODO OFFLINE — G.L.I.T.C.H.]**\n*Saudações, Agente. Os protocolos locais da Ordo Realitas estão operacionais. Mesmo sem conexão externa com a central, estou a postos para prestar suporte tático e esclarecer procedimentos de campo.*`;
       manualIntroHeader = `### 📋 Guia de Uso no Aplicativo:`;
       compendiumIntroHeader = `### 🔍 Registros do Compêndio Encontrados:`;
       bookIntroHeader = `### 📖 Trechos Oficiais nos Livros de Regras:`;
-      tipPrefix = `💡 **Dica Tática:**`;
-      notFoundText = `*Nenhum registro específico foi localizado com esses termos nos manuais ou livros locais. Tente pesquisar por palavras-chave mais diretas (ex: "cicatrização", "teste de sanidade", "modificações de armas").*`;
+      tipPrefix = `🛡️ **Orientação da Ordem:**`;
+      notFoundText = `*Agente, não localizei registros para este termo nos arquivos locais da Ordem. Experimente consultar termos específicos como rituais, perícias ou armas.*`;
       footer = `*(Para análises completas geradas por IA, você pode configurar uma chave gratuita do Google Gemini no botão de configurações acima).*`;
       break;
   }

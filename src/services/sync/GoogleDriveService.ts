@@ -72,15 +72,32 @@ export class GoogleDriveService {
         const parsed: SyncAuthState = JSON.parse(savedAuth);
         // Verifica se o token expirou
         if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
-          // Token expirado
-          this.authState = {
-            isAuthenticated: false,
-            userEmail: parsed.userEmail,
-            userName: parsed.userName,
-            userPhoto: parsed.userPhoto,
-            error: 'Sessão expirada. Reconecte o Google Drive.',
-          };
-          await this.persistAuthState();
+          if (parsed.refreshToken) {
+            // Tenta renovar a sessão em segundo plano usando o refresh_token
+            this.authState = parsed;
+            try {
+              await this.ensureValidToken();
+            } catch {
+              this.authState = {
+                isAuthenticated: false,
+                userEmail: parsed.userEmail,
+                userName: parsed.userName,
+                userPhoto: parsed.userPhoto,
+                error: 'Sessão expirada. Reconecte o Google Drive.',
+              };
+              await this.persistAuthState();
+            }
+          } else {
+            // Sem refresh token, requer reconexão
+            this.authState = {
+              isAuthenticated: false,
+              userEmail: parsed.userEmail,
+              userName: parsed.userName,
+              userPhoto: parsed.userPhoto,
+              error: 'Sessão expirada. Reconecte o Google Drive.',
+            };
+            await this.persistAuthState();
+          }
         } else {
           this.authState = parsed;
         }
@@ -106,6 +123,7 @@ export class GoogleDriveService {
   public getRedirectUri(): string {
     return AuthSession.makeRedirectUri({
       scheme: 'ordo',
+      path: 'oauthredirect',
       preferLocalhost: true,
     });
   }
@@ -117,6 +135,13 @@ export class GoogleDriveService {
       !cid.includes('ordemparanormal.apps.googleusercontent.com') &&
       cid.endsWith('.apps.googleusercontent.com')
     );
+  }
+
+  /**
+   * Retorna se um Client ID customizado pelo usuário está ativo atualmente.
+   */
+  public hasCustomClientId(): boolean {
+    return Boolean(this.customClientId);
   }
 
   public async setCustomClientId(clientId: string): Promise<{ valid: boolean; message?: string }> {
@@ -148,6 +173,9 @@ export class GoogleDriveService {
 
   /**
    * Dispara o fluxo de autenticação OAuth2 do Google
+   * Em conformidade com a política moderna do Google (RFC 8252 / PKCE):
+   * - Utiliza response_type=code com PKCE ativado (obrigatório pelo Google)
+   * - Troca o código pelo access_token e refresh_token via exchangeCodeAsync
    */
   public async signIn(): Promise<SyncAuthState> {
     try {
@@ -165,17 +193,48 @@ export class GoogleDriveService {
       const request = new AuthSession.AuthRequest({
         clientId,
         scopes: DRIVE_SCOPES,
-        responseType: AuthSession.ResponseType.Token,
+        responseType: AuthSession.ResponseType.Code,
         redirectUri,
         prompt: AuthSession.Prompt.SelectAccount,
-        usePKCE: false, // Necessário: Google OAuth rejeita response_type=token com PKCE
+        usePKCE: true,
+        extraParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       });
 
       const result = await request.promptAsync(GOOGLE_DISCOVERY);
 
-      if (result.type === 'success' && result.params.access_token) {
-        const accessToken = result.params.access_token;
-        const expiresIn = parseInt(result.params.expires_in || '3600', 10);
+      if (result.type === 'success') {
+        let accessToken = result.params.access_token;
+        let refreshToken: string | undefined;
+        let expiresIn = parseInt(result.params.expires_in || '3600', 10);
+
+        // Se recebeu o código de autorização (Fluxo PKCE padrão), realiza a troca pelo token
+        if (result.params.code) {
+          const tokenResponse = await AuthSession.exchangeCodeAsync(
+            {
+              clientId,
+              code: result.params.code,
+              redirectUri,
+              extraParams: {
+                code_verifier: request.codeVerifier || '',
+              },
+            },
+            GOOGLE_DISCOVERY
+          );
+
+          accessToken = tokenResponse.accessToken;
+          refreshToken = tokenResponse.refreshToken;
+          if (tokenResponse.expiresIn) {
+            expiresIn = tokenResponse.expiresIn;
+          }
+        }
+
+        if (!accessToken) {
+          throw new Error('Nenhum token de acesso retornado pelo Google.');
+        }
+
         const expiresAt = Date.now() + expiresIn * 1000;
 
         // Busca dados do perfil do usuário no Google
@@ -184,6 +243,7 @@ export class GoogleDriveService {
         this.authState = {
           isAuthenticated: true,
           accessToken,
+          refreshToken,
           expiresAt,
           userEmail: userInfo.email,
           userName: userInfo.name,
@@ -198,9 +258,13 @@ export class GoogleDriveService {
           error: 'Conexão cancelada pelo usuário.',
         };
       } else {
+        const errorDetail =
+          (result as any)?.error?.message ||
+          (result as any)?.params?.error_description ||
+          (result as any)?.params?.error;
         return {
           ...this.authState,
-          error: 'Falha na autenticação do Google.',
+          error: errorDetail ? `Google OAuth: ${errorDetail}` : 'Falha na autenticação do Google.',
         };
       }
     } catch (err: any) {
@@ -214,15 +278,62 @@ export class GoogleDriveService {
   }
 
   /**
+   * Garante a validade do token de acesso, renovando-o automaticamente se expirado
+   */
+  public async ensureValidToken(): Promise<string> {
+    if (!this.authState.isAuthenticated || !this.authState.accessToken) {
+      throw new Error('Google Drive não está autenticado.');
+    }
+
+    if (this.authState.expiresAt && Date.now() > this.authState.expiresAt) {
+      if (this.authState.refreshToken) {
+        try {
+          const refreshed = await AuthSession.refreshAsync(
+            {
+              clientId: this.getClientId(),
+              refreshToken: this.authState.refreshToken,
+            },
+            GOOGLE_DISCOVERY
+          );
+
+          this.authState.accessToken = refreshed.accessToken;
+          if (refreshed.refreshToken) {
+            this.authState.refreshToken = refreshed.refreshToken;
+          }
+          const expiresIn = refreshed.expiresIn || 3600;
+          this.authState.expiresAt = Date.now() + expiresIn * 1000;
+          await this.persistAuthState();
+          return this.authState.accessToken;
+        } catch (refreshErr) {
+          console.warn('[GoogleDriveService] Falha ao renovar token com refresh_token:', refreshErr);
+          this.authState.isAuthenticated = false;
+          await this.persistAuthState();
+          throw new Error('Sessão expirada. Reconecte o Google Drive.');
+        }
+      }
+      throw new Error('Sessão expirada. Reconecte o Google Drive.');
+    }
+
+    return this.authState.accessToken;
+  }
+
+  /**
    * Desconecta e limpa as credenciais salvas
    */
   public async signOut(): Promise<void> {
     try {
       if (this.authState.accessToken) {
-        // Tenta revogar o token no Google
         try {
           await fetch(
             `${GOOGLE_DISCOVERY.revocationEndpoint}?token=${this.authState.accessToken}`,
+            { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+          );
+        } catch {}
+      }
+      if (this.authState.refreshToken) {
+        try {
+          await fetch(
+            `${GOOGLE_DISCOVERY.revocationEndpoint}?token=${this.authState.refreshToken}`,
             { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
           );
         } catch {}
@@ -253,7 +364,7 @@ export class GoogleDriveService {
    * Localiza o arquivo de backup na pasta oculta do app (appDataFolder)
    */
   public async findBackupFile(): Promise<DriveFileInfo | null> {
-    const token = this.getValidToken();
+    const token = await this.ensureValidToken();
     const query = encodeURIComponent(`name = '${BACKUP_FILE_NAME}' and trashed = false`);
     const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime,size)&q=${query}`;
 
@@ -283,7 +394,7 @@ export class GoogleDriveService {
    * Baixa o conteúdo do backup remoto do Google Drive
    */
   public async downloadBackup(fileId: string): Promise<UserDataBackupPayload> {
-    const token = this.getValidToken();
+    const token = await this.ensureValidToken();
     const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
 
     const res = await fetch(url, {
@@ -305,7 +416,7 @@ export class GoogleDriveService {
     payload: UserDataBackupPayload,
     existingFileId?: string
   ): Promise<DriveFileInfo> {
-    const token = this.getValidToken();
+    const token = await this.ensureValidToken();
     const jsonStr = JSON.stringify(payload, null, 2);
 
     let targetFileId = existingFileId;

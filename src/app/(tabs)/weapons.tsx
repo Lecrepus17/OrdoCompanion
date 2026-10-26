@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  BackHandler,
+  Platform,
   Modal,
   ScrollView,
   StyleSheet,
@@ -67,6 +69,56 @@ export default function WeaponsScreen() {
   const [baseWeaponSearch, setBaseWeaponSearch] = useState('');
   const [equipModalWeapon, setEquipModalWeapon] = useState<CustomWeapon | null>(null);
   const [includeAmmoInEquip, setIncludeAmmoInEquip] = useState(true);
+
+  // Intercepta botão de retorno físico (Android) e do navegador (Web) para fechar modais internos da Armaria
+  useEffect(() => {
+    const isAnyModalOpen = editorVisible || baseWeaponPickerVisible || equipModalWeapon !== null;
+    if (!isAnyModalOpen) return;
+
+    const handleBack = () => {
+      if (baseWeaponPickerVisible) {
+        setBaseWeaponPickerVisible(false);
+        return true;
+      }
+      if (editorVisible) {
+        setEditorVisible(false);
+        return true;
+      }
+      if (equipModalWeapon !== null) {
+        setEquipModalWeapon(null);
+        return true;
+      }
+      return false;
+    };
+
+    let sub: any;
+    if (Platform.OS !== 'web' && typeof document === 'undefined') {
+      sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+    }
+
+    let popActive = true;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'weapons-modal' }, '');
+      const handlePop = () => {
+        if (popActive) {
+          handleBack();
+        }
+      };
+      window.addEventListener('popstate', handlePop);
+      return () => {
+        popActive = false;
+        sub?.remove();
+        window.removeEventListener('popstate', handlePop);
+        if (window.history.state?.modal === 'weapons-modal') {
+          window.history.back();
+        }
+      };
+    }
+
+    return () => {
+      sub?.remove();
+    };
+  }, [editorVisible, baseWeaponPickerVisible, equipModalWeapon]);
 
   // Editor form state
   const [editingWeaponId, setEditingWeaponId] = useState<string | null>(null);
@@ -703,8 +755,14 @@ export default function WeaponsScreen() {
       >
         <View style={styles.modalContainer}>
           <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 14) }]}>
-            <TouchableOpacity onPress={() => setEditorVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close" size={24} color={colors.text} />
+            <TouchableOpacity
+              onPress={() => setEditorVisible(false)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ flexDirection: 'row', alignItems: 'center' }}
+              accessibilityLabel="Voltar para a Armaria"
+            >
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+              <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700', marginLeft: 4 }}>Voltar</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
               {editingWeaponId ? 'Modificar Arma' : 'Nova Arma Customizada'}
@@ -1207,8 +1265,14 @@ export default function WeaponsScreen() {
       >
         <View style={styles.modalContainer}>
           <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 14) }]}>
-            <TouchableOpacity onPress={() => setBaseWeaponPickerVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close" size={24} color={colors.text} />
+            <TouchableOpacity
+              onPress={() => setBaseWeaponPickerVisible(false)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ flexDirection: 'row', alignItems: 'center' }}
+              accessibilityLabel="Voltar para o Editor"
+            >
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+              <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700', marginLeft: 4 }}>Voltar</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Escolher Arma Base</Text>
             <View style={{ width: 40 }} />

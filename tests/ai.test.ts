@@ -151,6 +151,22 @@ describe('G.L.I.T.C.H. - Extração de Palavras-Chave e RAG (AiKnowledgeRetrieva
     // A Magistrada (Conhecimento) é dourado
     assert.equal(RELIC_PERSONAS.magistrada.color, '#EAB308');
     assert.equal(RELIC_PERSONAS.magistrada.element, 'Conhecimento');
+
+    // G.L.I.T.C.H. (none) deve ser formal, amigável e membro da Ordem
+    assert.equal(RELIC_PERSONAS.none.element, 'Ordo Realitas');
+    assert.ok(RELIC_PERSONAS.none.description.includes('Ordem'));
+    assert.ok(RELIC_PERSONAS.none.description.includes('formal'));
+    assert.ok(RELIC_PERSONAS.none.description.includes('acolhedora') || RELIC_PERSONAS.none.description.includes('cortês'));
+  });
+
+  test('retrieveAiKnowledge deve conter a Diretriz Suprema de Veracidade Canônica e Proibição Total de Alucinação', () => {
+    const knowledge = retrieveAiKnowledge('qual o custo do ritual de cicatrização?', DEFAULT_AI_CONFIG);
+    assert.ok(knowledge.systemPrompt.includes('DIRETRIZ SUPREMA DE VERACIDADE CANÔNICA (PROIBIÇÃO TOTAL DE ALUCINAÇÃO)'));
+    assert.ok(knowledge.systemPrompt.includes('NUNCA GERE INFORMAÇÕES FALSAS EM HIPÓTESE NENHUMA!'));
+    assert.ok(knowledge.systemPrompt.includes('Rituais só vão até o 4º Círculo'));
+    assert.ok(knowledge.systemPrompt.includes('[CRIAÇÃO CASEIRA / HOMEBREW]'));
+    assert.ok(knowledge.systemPrompt.includes('REGRA ABSOLUTA DE PROTOCOLO DO G.L.I.T.C.H.'));
+    assert.ok(knowledge.systemPrompt.includes('Que a Realidade não se curve!'));
   });
 });
 

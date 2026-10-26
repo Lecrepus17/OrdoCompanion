@@ -32,9 +32,9 @@ export const RELIC_PERSONAS: Record<ParanormalRelic, RelicPersonaMetadata> = {
     emoji: '🔮',
     color: '#6366F1',
     accentBg: 'rgba(99, 102, 241, 0.12)',
-    roleTag: 'IA TÁTICA DA ORDO',
+    roleTag: 'SUPORTE TÁTICO DA ORDEM',
     tagline: 'Guia Lógico de Interferências Transcendentais',
-    description: 'Tom analítico, militar e objetivo da Ordo Realitas. Respostas didáticas e táticas.',
+    description: 'Comunicação formal, cortês e acolhedora de um colega da Ordem. Presta suporte tático leal, preciso e encorajador aos agentes em campo.',
   },
   anfitriao: {
     id: 'anfitriao',

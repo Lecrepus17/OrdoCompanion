@@ -3,6 +3,7 @@ import test, { describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import BooksScreen from '../src/app/(tabs)/books';
+import { PdfViewerModal } from '../src/components/PdfViewerModal';
 import {
   renderWithProviders,
   cleanup,
@@ -58,6 +59,34 @@ describe('Frontend - Tela de Biblioteca e Leitor de PDFs (books.tsx)', () => {
 
     // O modal do visualizador de PDF deve abrir
     assert.ok(queryByText(/Página|Capítulos|Visualizador/i));
+  });
+
+  test('PdfViewerModal deve exibir o botão de retorno "Voltar" com seta e acionar onClose ao ser clicado', async () => {
+    let closed = false;
+    const mockBook = {
+      id: 'livro_base',
+      title: 'Livro Base',
+      fileName: 'Livro base.pdf',
+      pageCount: 322,
+      toc: [],
+    };
+
+    const { getByText } = await renderWithProviders(
+      <PdfViewerModal
+        visible={true}
+        onClose={() => {
+          closed = true;
+        }}
+        book={mockBook}
+        initialPage={1}
+      />
+    );
+
+    const backBtn = getByText('Voltar');
+    assert.ok(backBtn, 'Deve exibir o botão "Voltar" no cabeçalho do leitor de PDF');
+
+    await fireClick(backBtn);
+    assert.strictEqual(closed, true, 'Deve acionar onClose para retornar à listagem dos livros');
   });
 
   test('deve filtrar ocorrências em páginas ao digitar no campo de busca', async () => {

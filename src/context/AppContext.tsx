@@ -199,6 +199,7 @@ const DEFAULT_FILTERS: CompendiumFilters = {
   element: 'all',
   circle: 'all',
   itemCategory: 'all',
+  powerType: 'all',
   classes: [],
   excludedTypes: ['rules', 'missionStories'],
   onlyFavorites: false,
@@ -280,6 +281,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     let unsubscribeStatus: (() => void) | undefined;
+    let unsubscribeDataReload: (() => void) | undefined;
 
     (async () => {
       await defaultRepository.initialize();
@@ -317,6 +319,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLastSyncStats(cloudSyncManager.getLastStats());
       });
 
+      // Recarrega o estado reativo caso a sincronização na nuvem importe novos dados remotos
+      unsubscribeDataReload = cloudSyncManager.addDataReloadListener(async () => {
+        await reloadFromRepository();
+      });
+
       // Inicializa escutas da Mesa Virtual
       virtualTableManager.loadSavedConfig().then(setTableConfig);
 
@@ -340,6 +347,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return () => {
       if (unsubscribeStatus) unsubscribeStatus();
+      if (unsubscribeDataReload) unsubscribeDataReload();
     };
   }, []);
 

@@ -65,6 +65,10 @@ export interface NexMilestone {
   description: string;
   needsTrackChoice?: boolean;
   needsClassPower?: boolean;
+  canTranscend?: boolean;
+  isTranscendRuleActive?: boolean;
+  canTranscendSeparately?: boolean; // Regra opcional: em marcos de classe oficiais, ganha poder de classe E pode transcender separadamente
+  onlyParanormal?: boolean; // Regra opcional: nesta subida SÓ é permitido escolher Poder Paranormal (não pode ser poder de classe)
   needsAttributeIncrease?: boolean;
   needsSkillTrainingIncrease?: boolean; // promotion to Veterano (+10) or Expert (+15)
   skillTrainingTargetDegree?: 10 | 15;
@@ -158,6 +162,21 @@ export function getRecommendedRank(nex: number): AgentRank {
 }
 
 /**
+ * Extrai a introdução narrativa completa de uma trilha do compêndio, sem cortes
+ */
+export function getTrackDescription(track?: CompendiumEntity | null): string {
+  if (!track) return '';
+  const desc = track.description || '';
+  if (desc) {
+    const parts = desc.split(/(?:NEX\s*)?\b\d+%\s*[-–—]/i);
+    if (parts && parts[0] && parts[0].trim().length > 10) {
+      return parts[0].replace(/\s+/g, ' ').trim();
+    }
+  }
+  return (track.summary || desc || '').replace(/\s+/g, ' ').trim();
+}
+
+/**
  * Extrai as habilidades de uma trilha por patamar de NEX (10%, 40%, 65%, 99%)
  */
 export function parseTrackAbilities(
@@ -166,8 +185,8 @@ export function parseTrackAbilities(
   const result: Record<number, { title: string; description: string }> = {};
   if (!trackDescription) return result;
 
-  // Regex para blocos no formato: NEX 10% - Título. Descrição...
-  const pattern = /NEX\s*(\d+)%\s*[-–—]\s*([^.\n]+)[.:]?\s*([\s\S]*?)(?=(?:NEX\s*\d+%\s*[-–—]|$))/gi;
+  // Regex para blocos no formato: NEX 10% - Título. Descrição... (ou 10% - Título)
+  const pattern = /(?:NEX\s*)?(\d+)%\s*[-–—]\s*([^.\n]+)[.:]?\s*([\s\S]*?)(?=(?:(?:NEX\s*)?\d+%\s*[-–—]|$))/gi;
   let match;
 
   while ((match = pattern.exec(trackDescription)) !== null) {
@@ -187,7 +206,8 @@ export function getNexMilestone(
   className: string,
   targetNex: number,
   trackEntity?: CompendiumEntity,
-  currentAttrs?: CharacterAttributes
+  currentAttrs?: CharacterAttributes,
+  options?: { transcendEvery5Nex?: boolean }
 ): NexMilestone {
   const norm = (className || '').toLowerCase();
   const trackAbilities = trackEntity ? parseTrackAbilities(trackEntity.description) : {};
@@ -384,6 +404,40 @@ export function getNexMilestone(
       break;
   }
 
+  const officialClassPowerNex = [15, 30, 45, 50, 60, 75, 90];
+  const hasOfficialClassPower = officialClassPowerNex.includes(targetNex);
+
+  if (options?.transcendEvery5Nex) {
+    milestone.isTranscendRuleActive = true;
+    milestone.canTranscend = true;
+
+    if (hasOfficialClassPower) {
+      // Nos patamares oficiais: ganha o Poder de Classe E escolhe o Poder Paranormal SEPARADAMENTE
+      milestone.needsClassPower = true;
+      milestone.canTranscendSeparately = true;
+      milestone.onlyParanormal = false;
+      milestone.description = milestone.description
+        ? `${milestone.description} (Regra Opcional Ativa: Você ganha o Poder de Classe oficial e pode escolher um Poder Paranormal separadamente).`
+        : 'Você ganha o Poder de Classe oficial e, pela regra opcional, pode escolher um Poder Paranormal separadamente.';
+    } else {
+      // Nos patamares não-oficiais de classe: SÓ pode escolher Poder Paranormal (não pode ser poder de classe)
+      milestone.needsClassPower = false;
+      milestone.canTranscendSeparately = false;
+      milestone.onlyParanormal = true;
+      milestone.description = milestone.description
+        ? `${milestone.description} (Regra Opcional: Você pode Transcender escolhendo um Poder Paranormal; poderes de classe não são permitidos nesta subida).`
+        : 'Regra Opcional Ativa: Você pode Transcender escolhendo um Poder Paranormal nesta subida (poderes de classe não são permitidos).';
+    }
+  } else {
+    // Regra desativada: apenas os patamares oficiais ganham poder (podendo ser poder de classe ou paranormal)
+    milestone.canTranscendSeparately = false;
+    milestone.onlyParanormal = false;
+    if (hasOfficialClassPower) {
+      milestone.needsClassPower = true;
+      milestone.canTranscend = true;
+    }
+  }
+
   return milestone;
 }
 
@@ -422,7 +476,7 @@ export function getClassSkillRules(
 
   if (norm.includes('sobrevivente')) {
     return {
-      freeChoicesCount: 2 + intBonus,
+      freeChoicesCount: 1 + intBonus,
       mandatorySkills: [],
       choiceGroups: [],
     };
@@ -477,7 +531,10 @@ export function getOriginSkillsInfo(trainedSkillsText?: string): {
   }
 
   // Mais de 2 detectadas (origens com escolhas alternativas no texto de trainedSkills)
-  if (text.toLowerCase().includes('ocultismo e 1 perícia')) {
+  if (
+    text.toLowerCase().includes('ocultismo e 1 perícia') ||
+    text.toLowerCase().includes('ocultismo e uma perícia')
+  ) {
     return { originGrantedSkills: ['Ocultismo'], extraOriginChoices: 1 };
   }
 
@@ -540,7 +597,7 @@ export function calculateInitialSkillBudget(
   } else if (norm.includes('ocultista')) {
     classTotal = 5 + intVal;
   } else if (norm.includes('sobrevivente')) {
-    classTotal = 2 + intVal;
+    classTotal = 1 + intVal;
   }
 
   const totalTrainedExpected = 2 + classTotal;

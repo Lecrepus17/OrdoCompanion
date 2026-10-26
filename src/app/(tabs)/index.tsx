@@ -38,6 +38,13 @@ const CATEGORIES_ORDER: Array<EntityCategory | 'all'> = [
 
 const ELEMENTS_ORDER = ['all', 'Sangue', 'Morte', 'Conhecimento', 'Energia', 'Medo'];
 
+const POWER_TYPE_OPTIONS: Array<{ id: 'all' | 'class' | 'paranormal' | 'general'; label: string; icon: string }> = [
+  { id: 'all', label: 'Todos os Poderes', icon: 'flash' },
+  { id: 'class', label: 'Poderes de Classe', icon: 'shield' },
+  { id: 'paranormal', label: 'Poderes Paranormais', icon: 'eye' },
+  { id: 'general', label: 'Poderes Gerais', icon: 'star' },
+];
+
 interface ClassOption {
   id: EntityClassFilter | 'all';
   label: string;
@@ -423,9 +430,36 @@ export default function CompendiumScreen() {
             </ScrollView>
           </View>
 
-          {/* Chips de Elemento Paranormal + Círculo quando Ritual */}
+          {/* Chips de Elemento Paranormal + Círculo quando Ritual + Tipo de Poder */}
           <View style={styles.subChipsSection}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+              {filters.category === 'power' &&
+                POWER_TYPE_OPTIONS.map((opt) => {
+                  const active = (filters.powerType || 'all') === opt.id;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[
+                        styles.subChip,
+                        active && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+                      ]}
+                      onPress={() =>
+                        setFilters((prev) => ({ ...prev, powerType: opt.id }))
+                      }
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons
+                          name={opt.icon as any}
+                          size={12}
+                          color={active ? colors.primary : colors.textMuted}
+                        />
+                        <Text style={[styles.subChipText, active && { color: colors.primary, fontWeight: '800' }]}>
+                          {opt.label}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               {ELEMENTS_ORDER.map((el) => {
                 const active = filters.element === el;
                 return (
