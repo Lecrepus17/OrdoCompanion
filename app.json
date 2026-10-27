@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ordo Companion",
     "slug": "ordo-companion",
-    "version": "1.0.0-beta.1",
+    "version": "1.0.1",
     "orientation": "default",
     "scheme": "ordo",
     "userInterfaceStyle": "dark",
