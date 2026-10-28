@@ -40,11 +40,12 @@ import {
   unhideTab,
   unpinTab,
 } from '../utils/tabNavigation';
+import { SupportCenterView } from './SupportCenterView';
 
 interface UserProfileModalProps {
   visible: boolean;
   onClose: () => void;
-  initialTab?: 'identidade' | 'nuvem' | 'navegacao';
+  initialTab?: 'identidade' | 'nuvem' | 'navegacao' | 'suporte';
 }
 
 const PREFERRED_CLASSES = [
@@ -78,7 +79,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
     setUpdateModalVisible,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'identidade' | 'nuvem' | 'navegacao'>(initialTab || 'identidade');
+  const [activeTab, setActiveTab] = useState<'identidade' | 'nuvem' | 'navegacao' | 'suporte'>(initialTab || 'identidade');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -144,7 +145,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
 
   // Rotas conhecidas e resolução dinâmica das abas
   const allKnownRoutes = useMemo(() => {
-    const base = ['index', 'characters', 'weapons', 'books', 'dice', 'favorites', 'master'];
+    const base = ['index', 'characters', 'weapons', 'books', 'dice', 'favorites', 'master', 'table', 'oracle', 'support'];
     const custom = [...pinnedTabs, ...hiddenTabs];
     return Array.from(new Set([...base, ...custom]));
   }, [pinnedTabs, hiddenTabs]);
@@ -495,6 +496,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                 </Text>
                 {cloudSyncEnabled && <View style={styles.cloudActiveDot} />}
               </TouchableOpacity>
+
+              <TouchableOpacity
+                testID="profile-tab-suporte"
+                style={[styles.tabButton, activeTab === 'suporte' && styles.tabButtonActive]}
+                onPress={() => setActiveTab('suporte')}
+              >
+                <Ionicons
+                  name="bug-outline"
+                  size={15}
+                  color={activeTab === 'suporte' ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[styles.tabButtonText, activeTab === 'suporte' && styles.tabButtonTextActive]}
+                  numberOfLines={1}
+                >
+                  Suporte
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Conteúdo rolável */}
@@ -828,6 +847,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                             </>
                           )}
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                          testID="profile-open-support-shortcut"
+                          style={[
+                            styles.checkUpdateButton,
+                            {
+                              borderColor: colors.border,
+                              backgroundColor: colors.surfaceElevated,
+                              marginTop: 6,
+                            },
+                          ]}
+                          onPress={() => setActiveTab('suporte')}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="bug-outline" size={17} color={colors.primary} />
+                          <Text style={[styles.checkUpdateButtonText, { color: colors.text }]}>
+                            Reportar Erro ou Falar com o Suporte
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                   </>
@@ -1115,7 +1153,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                       </TouchableOpacity>
                     </View>
                   </>
-                ) : (
+                ) : activeTab === 'nuvem' ? (
                   <>
                     {/* Aba Nuvem / Google Drive */}
                     {/* Bloco 1: Status e Conexão da Conta Google Drive */}
@@ -1605,7 +1643,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                       )}
                     </View>
                   </>
-                )}
+                ) : activeTab === 'suporte' ? (
+                  <SupportCenterView embedded activeRoute="user_profile_modal" />
+                ) : null}
               </ScrollView>
 
             {/* Rodapé de Ações */}

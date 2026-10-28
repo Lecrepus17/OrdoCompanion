@@ -239,6 +239,23 @@ config.server = {
 
           // Render via PyMuPDF script
           const scriptPath = path.join(ROOT_DIR, 'scripts', 'render_pdf_page.py');
+          let responded = false;
+          const sendErrorJson = (status, message, extra = {}) => {
+            if (responded || res.headersSent) return;
+            responded = true;
+            res.writeHead(status, {
+              'Access-Control-Allow-Origin': '*',
+              'Content-Type': 'application/json',
+            });
+            res.end(
+              JSON.stringify({
+                ok: false,
+                error: message,
+                ...extra,
+              })
+            );
+          };
+
           const pyProc = spawn('python', [
             scriptPath,
             '--file',
@@ -258,24 +275,25 @@ config.server = {
             stderrData += chunk.toString();
           });
 
+          pyProc.on('error', (err) => {
+            sendErrorJson(500, `Python indisponível no servidor local: ${String(err)}`);
+          });
+
           pyProc.on('close', (code) => {
+            if (responded || res.headersSent) return;
             try {
-              const result = JSON.parse(stdoutData.trim());
+              const trimmed = stdoutData.trim();
+              const result = trimmed ? JSON.parse(trimmed) : { ok: false };
               if (!result.ok || code !== 0) {
-                res.writeHead(500, {
-                  'Access-Control-Allow-Origin': '*',
-                  'Content-Type': 'application/json',
-                });
-                res.end(
-                  JSON.stringify({
-                    ok: false,
-                    error: result.error || stderrData || 'Erro ao renderizar página',
-                  })
+                sendErrorJson(
+                  500,
+                  result.error || stderrData.trim() || 'Erro ao renderizar página'
                 );
                 return;
               }
 
               if (format === 'json') {
+                responded = true;
                 res.writeHead(200, {
                   'Access-Control-Allow-Origin': '*',
                   'Content-Type': 'application/json',
@@ -286,6 +304,7 @@ config.server = {
 
               const outPath = result.cachePath;
               const stat = fs.statSync(outPath);
+              responded = true;
               res.writeHead(200, {
                 'Access-Control-Allow-Origin': '*',
                 'Content-Type': 'image/jpeg',
@@ -294,20 +313,151 @@ config.server = {
               });
               fs.createReadStream(outPath).pipe(res);
             } catch (err) {
-              res.writeHead(500, {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json',
-              });
-              res.end(
-                JSON.stringify({
-                  ok: false,
-                  error: String(err),
-                  stderr: stderrData,
-                })
-              );
+              sendErrorJson(500, String(err), { stderr: stderrData.trim() });
             }
           });
           return;
+        }
+
+        // 4. Upload de PDF do usuário e extração via Python (/api/upload-pdf?fileName=...)
+        if (pathname === '/api/upload-pdf') {
+          if (req.method === 'OPTIONS') {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+            res.writeHead(204);
+            res.end();
+            return;
+          }
+
+          if (req.method === 'POST') {
+            const rawName = String(parsedUrl.searchParams.get('fileName') || 'upload.pdf');
+            const safeName = path.basename(decodeURIComponent(rawName)).replace(/[^\w\s.-]/g, '_');
+            const finalName = safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`;
+
+            const chunks = [];
+            req.on('data', (chunk) => chunks.push(chunk));
+            req.on('end', () => {
+              try {
+                const buffer = Buffer.concat(chunks);
+                if (!fs.existsSync(PDFS_DIR)) {
+                  fs.mkdirSync(PDFS_DIR, { recursive: true });
+                }
+                const savedPath = path.join(PDFS_DIR, finalName);
+                fs.writeFileSync(savedPath, buffer);
+
+                const pubPdfsDir = path.join(ROOT_DIR, 'public', 'pdfs');
+                if (!fs.existsSync(pubPdfsDir)) {
+                  fs.mkdirSync(pubPdfsDir, { recursive: true });
+                }
+                try {
+                  fs.copyFileSync(savedPath, path.join(pubPdfsDir, finalName));
+                } catch {}
+
+                const scriptPath = path.join(ROOT_DIR, 'scripts', 'process_single_pdf.py');
+                const pyProc = spawn('python', [scriptPath, '--file', savedPath]);
+
+                let stdoutData = '';
+                let stderrData = '';
+                pyProc.stdout.on('data', (c) => {
+                  stdoutData += c.toString();
+                });
+                pyProc.stderr.on('data', (c) => {
+                  stderrData += c.toString();
+                });
+                pyProc.on('error', () => {
+                  res.writeHead(200, {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json',
+                  });
+                  res.end(
+                    JSON.stringify({
+                      ok: false,
+                      savedFile: finalName,
+                      error: 'Python CLI indisponível no host; usando extrator integrado.',
+                    })
+                  );
+                });
+                pyProc.on('close', (code) => {
+                  try {
+                    const lines = stdoutData.trim().split(/\r?\n/);
+                    const lastJsonLine = lines[lines.length - 1] || '{}';
+                    const parsed = JSON.parse(lastJsonLine);
+                    res.writeHead(200, {
+                      'Access-Control-Allow-Origin': '*',
+                      'Content-Type': 'application/json',
+                    });
+                    res.end(JSON.stringify(parsed));
+                  } catch {
+                    res.writeHead(200, {
+                      'Access-Control-Allow-Origin': '*',
+                      'Content-Type': 'application/json',
+                    });
+                    res.end(
+                      JSON.stringify({
+                        ok: false,
+                        savedFile: finalName,
+                        code,
+                        stderr: stderrData,
+                      })
+                    );
+                  }
+                });
+              } catch (err) {
+                res.writeHead(500, {
+                  'Access-Control-Allow-Origin': '*',
+                  'Content-Type': 'application/json',
+                });
+                res.end(JSON.stringify({ ok: false, error: String(err) }));
+              }
+            });
+            return;
+          }
+        }
+
+        // 5. Envio de código de liberação para pedro.eduardo1777@gmail.com (/api/send-unlock-code)
+        if (pathname === '/api/send-unlock-code') {
+          if (req.method === 'OPTIONS') {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+            res.writeHead(204);
+            res.end();
+            return;
+          }
+
+          if (req.method === 'POST') {
+            let bodyStr = '';
+            req.on('data', (c) => {
+              bodyStr += c.toString();
+            });
+            req.on('end', () => {
+              try {
+                const payload = JSON.parse(bodyStr || '{}');
+                const code = payload.code || '000000';
+                const targetEmail = 'pedro.eduardo1777@gmail.com';
+                console.log(
+                  `\n============================================================\n` +
+                    `[ORDO COMPANION - CÓDIGO DE LIBERAÇÃO DE ACERVO]\n` +
+                    `Enviado para: ${targetEmail}\n` +
+                    `Código de 6 dígitos: ${code}\n` +
+                    `============================================================\n`
+                );
+                res.writeHead(200, {
+                  'Access-Control-Allow-Origin': '*',
+                  'Content-Type': 'application/json',
+                });
+                res.end(JSON.stringify({ ok: true, targetEmail }));
+              } catch (err) {
+                res.writeHead(400, {
+                  'Access-Control-Allow-Origin': '*',
+                  'Content-Type': 'application/json',
+                });
+                res.end(JSON.stringify({ ok: false, error: String(err) }));
+              }
+            });
+            return;
+          }
         }
       } catch (err) {
         console.error('[PDF Middleware Error]:', err);

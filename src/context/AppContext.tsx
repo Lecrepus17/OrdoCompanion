@@ -40,6 +40,9 @@ import { virtualTableManager } from '../services/virtualTable/VirtualTableManage
 import { TableConnectionStatus } from '../services/virtualTable/IVirtualTableConnector';
 import { UpdateCheckResult } from '../services/updates/types';
 import { updateCheckerService } from '../services/updates/UpdateCheckerService';
+import { RecordPreviewRequest } from '../types/recordPreview';
+import { OFFICIAL_SKILLS_LIST, SkillDefinition } from '../utils/progression';
+import { RecordPreviewModal } from '../components/RecordPreviewModal';
 
 interface AppContextValue {
   ready: boolean;
@@ -190,6 +193,19 @@ interface AppContextValue {
   setUpdateModalVisible: (visible: boolean) => void;
   checkForUpdates: (forceCheck?: boolean) => Promise<UpdateCheckResult | null>;
   dismissUpdate: () => Promise<void>;
+
+  // Modal Global de Inspeção Rápida (Long Press / Botão Info)
+  recordPreview: RecordPreviewRequest | null;
+  openRecordPreview: (request: RecordPreviewRequest) => void;
+  closeRecordPreview: () => void;
+  openEntityPreview: (
+    entityOrId: CompendiumEntity | string,
+    options?: Omit<RecordPreviewRequest, 'target'>
+  ) => void;
+  openSkillPreview: (
+    skillNameOrDef: string | SkillDefinition,
+    options?: Omit<RecordPreviewRequest, 'target'>
+  ) => void;
 }
 
 const DEFAULT_FILTERS: CompendiumFilters = {
@@ -970,6 +986,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const getBookPageCallback = useCallback((b: string, p: number) => defaultRepository.getBookPage(b, p), []);
   const searchInBookPagesCallback = useCallback((b: string | 'all', q: string) => defaultRepository.searchInBookPages(b, q), []);
 
+  // Estado do Modal Global de Inspeção Rápida (Long Press / Botão Info)
+  const [recordPreview, setRecordPreview] = useState<RecordPreviewRequest | null>(null);
+
+  const openRecordPreview = useCallback((request: RecordPreviewRequest) => {
+    setRecordPreview(request);
+  }, []);
+
+  const closeRecordPreview = useCallback(() => {
+    setRecordPreview(null);
+  }, []);
+
+  const openEntityPreview = useCallback(
+    (
+      entityOrId: CompendiumEntity | string,
+      options?: Omit<RecordPreviewRequest, 'target'>
+    ) => {
+      const entity =
+        typeof entityOrId === 'string' ? getEntityById(entityOrId) : entityOrId;
+      if (!entity) return;
+      setRecordPreview({
+        target: { kind: 'entity', entity },
+        ...options,
+      });
+    },
+    [getEntityById]
+  );
+
+  const openSkillPreview = useCallback(
+    (
+      skillNameOrDef: string | SkillDefinition,
+      options?: Omit<RecordPreviewRequest, 'target'>
+    ) => {
+      const skillDef: SkillDefinition =
+        typeof skillNameOrDef === 'string'
+          ? OFFICIAL_SKILLS_LIST.find(
+              (s) => s.name.toLowerCase() === skillNameOrDef.trim().toLowerCase()
+            ) || { name: skillNameOrDef, attr: 'INT' }
+          : skillNameOrDef;
+      const lower = skillDef.name.toLowerCase();
+      const entity = entities.find(
+        (e) => e.category === 'skill' && e.name.toLowerCase() === lower
+      );
+      if (entity) {
+        setRecordPreview({
+          target: { kind: 'entity', entity },
+          ...options,
+        });
+      } else {
+        setRecordPreview({
+          target: { kind: 'skill_def', skill: skillDef },
+          ...options,
+        });
+      }
+    },
+    [entities]
+  );
+
   const contextValue = useMemo<AppContextValue>(
     () => ({
       ready,
@@ -1065,6 +1138,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUpdateModalVisible,
       checkForUpdates,
       dismissUpdate,
+      recordPreview,
+      openRecordPreview,
+      closeRecordPreview,
+      openEntityPreview,
+      openSkillPreview,
     }),
     [
       ready,
@@ -1158,12 +1236,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUpdateModalVisible,
       checkForUpdates,
       dismissUpdate,
+      recordPreview,
+      openRecordPreview,
+      closeRecordPreview,
+      openEntityPreview,
+      openSkillPreview,
     ]
   );
 
   return (
     <AppContext.Provider value={contextValue}>
       {children}
+      <RecordPreviewModal request={recordPreview} onClose={closeRecordPreview} />
     </AppContext.Provider>
   );
 };

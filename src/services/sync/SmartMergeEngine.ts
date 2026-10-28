@@ -1,12 +1,14 @@
 import {
+  BookWithPages,
   Campaign,
   CharacterSheet,
   CompendiumEntity,
   CustomWeapon,
   SavedList,
+  UnlockedBookRecord,
   UserProfile,
 } from '../../types/compendium';
-import { MergeResult, UserDataBackupPayload } from './types';
+import { DriveStoredPdfRef, MergeResult, UserDataBackupPayload } from './types';
 
 /**
  * Converte timestamp ISO para millisegundos com fallback seguro
@@ -318,12 +320,95 @@ export class SmartMergeEngine {
       };
     }
 
+    // 8. Livros Desbloqueados (União de Conjuntos - Nunca perde acesso a um livro já desbloqueado)
+    const localUnlocked = local.unlockedBooks || {};
+    const remoteUnlocked = remote.unlockedBooks || {};
+    const mergedUnlockedBooks: Record<string, UnlockedBookRecord> = {};
+    const allUnlockedIds = new Set([
+      ...Object.keys(localUnlocked),
+      ...Object.keys(remoteUnlocked),
+    ]);
+
+    for (const bid of allUnlockedIds) {
+      const loc = localUnlocked[bid];
+      const rem = remoteUnlocked[bid];
+      if (loc && rem) {
+        const locTime = parseDate(loc.unlockedAt);
+        const remTime = parseDate(rem.unlockedAt);
+        const base = remTime > locTime ? rem : loc;
+        mergedUnlockedBooks[bid] = {
+          ...base,
+          driveFileId: loc.driveFileId || rem.driveFileId,
+          localPdfStored: Boolean(loc.localPdfStored || rem.localPdfStored),
+        };
+        if (!loc.driveFileId && rem.driveFileId) {
+          hasLocalChangesToApply = true;
+        }
+        if (loc.driveFileId && !rem.driveFileId) {
+          hasRemoteChangesToUpload = true;
+        }
+      } else if (loc && !rem) {
+        mergedUnlockedBooks[bid] = loc;
+        hasRemoteChangesToUpload = true;
+      } else if (!loc && rem) {
+        mergedUnlockedBooks[bid] = rem;
+        hasLocalChangesToApply = true;
+      }
+    }
+
+    // 9. Livros e Entidades Dinâmicos (Extraídos via Python de PDFs não registrados)
+    const localDynBooks = local.dynamicBooks || [];
+    const remoteDynBooks = remote.dynamicBooks || [];
+    const dynBookMap = new Map<string, BookWithPages>();
+    for (const b of remoteDynBooks) {
+      if (b && b.id) dynBookMap.set(b.id, b);
+    }
+    for (const b of localDynBooks) {
+      if (b && b.id) {
+        if (!dynBookMap.has(b.id)) hasRemoteChangesToUpload = true;
+        dynBookMap.set(b.id, b);
+      }
+    }
+    if (dynBookMap.size > localDynBooks.length) {
+      hasLocalChangesToApply = true;
+    }
+    const mergedDynamicBooks = Array.from(dynBookMap.values());
+
+    const localDynEnts = local.dynamicEntities || [];
+    const remoteDynEnts = remote.dynamicEntities || [];
+    const dynEntMap = new Map<string, CompendiumEntity>();
+    for (const e of remoteDynEnts) {
+      if (e && e.id) dynEntMap.set(e.id, e);
+    }
+    for (const e of localDynEnts) {
+      if (e && e.id) {
+        if (!dynEntMap.has(e.id)) hasRemoteChangesToUpload = true;
+        dynEntMap.set(e.id, e);
+      }
+    }
+    if (dynEntMap.size > localDynEnts.length) {
+      hasLocalChangesToApply = true;
+    }
+    const mergedDynamicEntities = Array.from(dynEntMap.values());
+
+    // 10. Referências de Arquivos PDF salvos no Google Drive
+    const localDrivePdfs = local.drivePdfFiles || {};
+    const remoteDrivePdfs = remote.drivePdfFiles || {};
+    const mergedDrivePdfs: Record<string, DriveStoredPdfRef> = {
+      ...remoteDrivePdfs,
+      ...localDrivePdfs,
+    };
+
     const mergedPayload: UserDataBackupPayload = {
       exportedAt: nowIso,
-      version: '1.0.0',
+      version: '1.1.0',
       userProfile: mergedProfile,
       customEntities: mergedCustomEntities,
       editedEntities: mergedEdited,
+      unlockedBooks: mergedUnlockedBooks,
+      dynamicBooks: mergedDynamicBooks,
+      dynamicEntities: mergedDynamicEntities,
+      drivePdfFiles: mergedDrivePdfs,
       favorites: mergedFavorites,
       savedLists: mergedSavedLists,
       characters: mergedCharacters,
@@ -342,6 +427,9 @@ export class SmartMergeEngine {
         customEntitiesCount: mergedCustomEntities.length,
         favoritesCount: mergedFavorites.length,
         listsCount: mergedSavedLists.length,
+        unlockedBooksCount: Object.keys(mergedUnlockedBooks).length,
+        dynamicBooksCount: mergedDynamicBooks.length,
+        pdfsSyncedCount: Object.keys(mergedDrivePdfs).length,
         conflictsResolved,
       },
     };

@@ -74,6 +74,32 @@ if (!(globalThis as unknown as { expo?: unknown }).expo) {
 // Storage Map & localStorage polyfill
 const storageMap = new Map<string, string>();
 
+const DEFAULT_TEST_UNLOCKED_BOOKS = [
+  'livro_base',
+  'sobrevivendo_ao_horror',
+  'arquivos_secretos_01',
+  'arquivos_secretos_02',
+  'arquivos_secretos_03',
+  'arquivos_secretos_04',
+  'arquivos_secretos_05',
+  'arquivos_secretos_06',
+  'arquivos_secretos_07',
+  'arquivos_secretos_09',
+];
+
+export function seedDefaultUnlockedBooksForTest(): void {
+  storageMap.set(
+    '@ordem_paranormal:unlocked_books_v1',
+    JSON.stringify(DEFAULT_TEST_UNLOCKED_BOOKS)
+  );
+}
+
+export function clearUnlockedBooksForTest(): void {
+  storageMap.delete('@ordem_paranormal:unlocked_books_v1');
+}
+
+seedDefaultUnlockedBooksForTest();
+
 const mockLocalStorage = {
   getItem: (key: string): string | null => {
     return storageMap.has(key) ? storageMap.get(key)! : null;
@@ -306,6 +332,7 @@ try {
 
 export function resetMockStorage(): void {
   storageMap.clear();
+  seedDefaultUnlockedBooksForTest();
   clearMockAlerts();
   mockRouter.reset();
 }

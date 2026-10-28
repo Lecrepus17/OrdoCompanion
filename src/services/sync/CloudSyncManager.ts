@@ -1,5 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { defaultRepository } from '../../repositories/OfflineDataRepository';
+import {
+  cacheUnlockedBooksOffline,
+  localPdfStorage,
+} from '../pdf/PdfAccessService';
 import { GoogleDriveService } from './GoogleDriveService';
 import { SmartMergeEngine } from './SmartMergeEngine';
 import {
@@ -168,6 +172,117 @@ export class CloudSyncManager {
   }
 
   /**
+   * Envia imediatamente o binário de um PDF para o Google Drive próprio do usuário (caso esteja autenticado)
+   * e vincula o driveFileId ao livro desbloqueado.
+   */
+  public async uploadPdfToUserDriveIfConnected(
+    bookId: string,
+    fileName: string,
+    pdfBytes?: Uint8Array
+  ): Promise<string | undefined> {
+    const auth = this.driveService.getAuthState();
+    if (!auth.isAuthenticated) return undefined;
+
+    try {
+      const bytesToUpload = pdfBytes || (await localPdfStorage.getPdfBytes(bookId));
+      if (!bytesToUpload || bytesToUpload.length === 0) return undefined;
+
+      const recMap = defaultRepository.getUnlockedBooksRecordMap();
+      const existingDriveId = recMap[bookId]?.driveFileId;
+      const driveInfo = await this.driveService.uploadPdfToDrive(
+        bookId,
+        fileName,
+        bytesToUpload,
+        existingDriveId
+      );
+      if (driveInfo?.id) {
+        await defaultRepository.unlockBook(bookId, {
+          driveFileId: driveInfo.id,
+          localPdfStored: true,
+        });
+        return driveInfo.id;
+      }
+    } catch (e) {
+      console.warn('[CloudSyncManager] Aviso ao salvar PDF no Google Drive do usuário:', e);
+    }
+    return undefined;
+  }
+
+  /**
+   * Sincroniza os arquivos .pdf entre o armazenamento offline local (LocalPdfStorage)
+   * e a pasta appDataFolder do Google Drive do usuário.
+   */
+  private async syncPdfBinariesWithDrive(): Promise<number> {
+    let syncedCount = 0;
+    try {
+      const driveFiles = await this.driveService.listDrivePdfFiles();
+      const driveByBookId = new Map<string, string>();
+      for (const df of driveFiles) {
+        const m = df.name.match(/^ordo_pdf__(.+)\.pdf$/i);
+        if (m && m[1]) {
+          driveByBookId.set(m[1], df.id);
+        }
+      }
+
+      const unlockedMap = defaultRepository.getUnlockedBooksRecordMap();
+      const allUnlockedIds = Object.keys(unlockedMap);
+
+      // Garante cache offline para todos os livros desbloqueados
+      if (allUnlockedIds.length > 0) {
+        await cacheUnlockedBooksOffline(allUnlockedIds);
+      }
+
+      for (const bookId of allUnlockedIds) {
+        const rec = unlockedMap[bookId];
+        const remoteDriveId = rec?.driveFileId || driveByBookId.get(bookId);
+        const localBytes = await localPdfStorage.getPdfBytes(bookId);
+
+        if (localBytes && localBytes.length > 0 && !remoteDriveId) {
+          // Temos o PDF localmente, mas ainda não está no Google Drive do usuário -> faz upload!
+          const uploaded = await this.driveService.uploadPdfToDrive(
+            bookId,
+            rec?.fileName || `${bookId}.pdf`,
+            localBytes
+          );
+          if (uploaded?.id) {
+            await defaultRepository.unlockBook(bookId, {
+              driveFileId: uploaded.id,
+              localPdfStored: true,
+            });
+            syncedCount++;
+          }
+        } else if ((!localBytes || localBytes.length === 0) && remoteDriveId) {
+          // O PDF está salvo no Google Drive do usuário, mas ainda não foi baixado neste aparelho -> baixa para offline!
+          try {
+            const downloadedBytes = await this.driveService.downloadPdfFromDrive(remoteDriveId);
+            if (downloadedBytes && downloadedBytes.length > 0) {
+              await localPdfStorage.savePdfOffline(
+                bookId,
+                rec?.fileName || `${bookId}.pdf`,
+                downloadedBytes,
+                rec?.sha256
+              );
+              await defaultRepository.unlockBook(bookId, {
+                driveFileId: remoteDriveId,
+                localPdfStored: true,
+              });
+              syncedCount++;
+            }
+          } catch {}
+        } else if (remoteDriveId && !rec?.driveFileId) {
+          await defaultRepository.unlockBook(bookId, {
+            driveFileId: remoteDriveId,
+            localPdfStored: true,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[CloudSyncManager] Aviso durante sincronização de arquivos PDF no Drive:', e);
+    }
+    return syncedCount;
+  }
+
+  /**
    * Executa a sincronização completa entre dados locais e Google Drive
    */
   public async syncNow(options?: { quiet?: boolean }): Promise<SyncExecutionResult> {
@@ -252,6 +367,14 @@ export class CloudSyncManager {
           this.notifyStatus('syncing', 'Enviando alterações para o Google Drive...');
           await this.driveService.uploadBackup(mergedPayload, remoteFile.id);
         }
+      }
+
+      // 3. Sincroniza também os arquivos PDF (.pdf) entre o Google Drive do usuário e o armazenamento offline
+      this.notifyStatus('syncing', 'Sincronizando PDFs offline com o Google Drive...');
+      const pdfsSynced = await this.syncPdfBinariesWithDrive();
+      if (pdfsSynced > 0) {
+        stats.pdfsSyncedCount = (stats.pdfsSyncedCount || 0) + pdfsSynced;
+        await this.notifyDataReload();
       }
 
       const nowIso = new Date().toISOString();

@@ -18,11 +18,11 @@ export default function TabsLayout() {
 
   const [themeModalVisible, setThemeModalVisible] = useState(false);
   const [userProfileModalVisible, setUserProfileModalVisible] = useState(false);
-  const [userProfileTab, setUserProfileTab] = useState<'identidade' | 'nuvem' | 'navegacao'>('identidade');
+  const [userProfileTab, setUserProfileTab] = useState<'identidade' | 'nuvem' | 'navegacao' | 'suporte'>('identidade');
   const [moreModalVisible, setMoreModalVisible] = useState(false);
 
   const allAvailableRoutes = useMemo(
-    () => ['index', 'characters', 'weapons', 'books', 'dice', 'favorites', 'master', 'table', 'oracle'],
+    () => ['index', 'characters', 'weapons', 'books', 'dice', 'favorites', 'master', 'table', 'oracle', 'support'],
     []
   );
 
@@ -39,6 +39,7 @@ export default function TabsLayout() {
     if (path.includes('favorites')) return 'favorites';
     if (path.includes('master')) return 'master';
     if (path.includes('oracle')) return 'oracle';
+    if (path.includes('support')) return 'support';
     return 'compendium';
   };
 
@@ -279,6 +280,16 @@ export default function TabsLayout() {
             headerTitle: 'G.L.I.T.C.H. - Guia Lógico de Interferências Transcendentais do Caos Humano',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="sparkles" size={size} color={String(color)} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="support"
+          options={{
+            title: 'Suporte',
+            headerTitle: 'Suporte, Feedback & Relato de Erros',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="bug-outline" size={size} color={String(color)} />
             ),
           }}
         />

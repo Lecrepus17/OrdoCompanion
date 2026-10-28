@@ -40,6 +40,7 @@ import {
   getPeRoundLimit,
   getRitualDt,
 } from '../../utils/progression';
+import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
 
 export { OFFICIAL_SKILLS_LIST, SkillDefinition };
 
@@ -128,6 +129,9 @@ export default function CharactersScreen() {
     tableStatus,
     virtualTable,
     rollTableInitiative,
+    openRecordPreview,
+    openEntityPreview,
+    openSkillPreview,
   } = useApp();
 
   const [activeCharId, setActiveCharId] = useState<string | null>(null);
@@ -772,6 +776,19 @@ export default function CharactersScreen() {
               const trk = getEntityById(char.trackId);
               const def = 10 + char.attributes.AGI + (char.defenseEquip || 0) + (char.defenseOther || 0);
 
+              const openCharPreview = () =>
+                openRecordPreview({
+                  target: { kind: 'character', character: char },
+                  primaryAction: {
+                    label: 'Abrir Ficha Completa',
+                    icon: 'open-outline',
+                    onPress: () => {
+                      setActiveCharId(char.id);
+                      setActiveTab('geral');
+                    },
+                  },
+                });
+
               return (
                 <TouchableOpacity
                   key={char.id}
@@ -780,6 +797,9 @@ export default function CharactersScreen() {
                     setActiveCharId(char.id);
                     setActiveTab('geral');
                   }}
+                  onLongPress={openCharPreview}
+                  delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                  testID={`char-card-${char.id}`}
                 >
                   <View style={styles.charCardTop}>
                     <View style={{ flex: 1 }}>
@@ -790,6 +810,17 @@ export default function CharactersScreen() {
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <TouchableOpacity
+                        style={styles.cardPrintBtn}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          openCharPreview();
+                        }}
+                        accessibilityLabel="Inspecionar Ficha"
+                        testID={`char-info-${char.id}`}
+                      >
+                        <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.cardPrintBtn}
                         onPress={() => {
@@ -1265,6 +1296,21 @@ export default function CharactersScreen() {
                     setPickerSearch('');
                     setPickerModalType('origin');
                   }}
+                  onLongPress={() => {
+                    if (originObj) {
+                      openEntityPreview(originObj, {
+                        primaryAction: {
+                          label: 'Trocar Origem',
+                          icon: 'swap-horizontal-outline',
+                          onPress: () => {
+                            setPickerSearch('');
+                            setPickerModalType('origin');
+                          },
+                        },
+                      });
+                    }
+                  }}
+                  delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                 >
                   <Text style={styles.fieldLabel}>Origem</Text>
                   <Text style={styles.selectorValue}>{originObj?.name || 'Escolher Origem'}</Text>
@@ -1276,6 +1322,21 @@ export default function CharactersScreen() {
                     setPickerSearch('');
                     setPickerModalType('class');
                   }}
+                  onLongPress={() => {
+                    if (classObj) {
+                      openEntityPreview(classObj, {
+                        primaryAction: {
+                          label: 'Trocar Classe',
+                          icon: 'swap-horizontal-outline',
+                          onPress: () => {
+                            setPickerSearch('');
+                            setPickerModalType('class');
+                          },
+                        },
+                      });
+                    }
+                  }}
+                  delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                 >
                   <Text style={styles.fieldLabel}>Classe</Text>
                   <Text style={styles.selectorValue}>{classObj?.name || 'Escolher Classe'}</Text>
@@ -1287,6 +1348,21 @@ export default function CharactersScreen() {
                     setPickerSearch('');
                     setPickerModalType('track');
                   }}
+                  onLongPress={() => {
+                    if (trackObj) {
+                      openEntityPreview(trackObj, {
+                        primaryAction: {
+                          label: 'Trocar Trilha',
+                          icon: 'swap-horizontal-outline',
+                          onPress: () => {
+                            setPickerSearch('');
+                            setPickerModalType('track');
+                          },
+                        },
+                      });
+                    }
+                  }}
+                  delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                 >
                   <Text style={styles.fieldLabel}>Trilha</Text>
                   <Text style={styles.selectorValue}>{trackObj?.name || 'Escolher Trilha'}</Text>
@@ -1749,75 +1825,106 @@ export default function CharactersScreen() {
                 </Text>
               </View>
             ) : (
-              activeChar.attacks.map((atk) => (
-                <View key={atk.id} style={styles.attackCard}>
-                  <View style={styles.attackCardHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.attackCardName}>{atk.name}</Text>
-                      <Text style={styles.attackCardSub}>
-                        Teste: {atk.test} • Alcance: {atk.range}
+              activeChar.attacks.map((atk) => {
+                const openAttackPreview = () =>
+                  openRecordPreview({
+                    target: {
+                      kind: 'character_attack',
+                      attack: atk,
+                      customWeapon: atk.customWeaponId
+                        ? customWeapons.find((w) => w.id === atk.customWeaponId)
+                        : undefined,
+                    },
+                  });
+                return (
+                  <TouchableOpacity
+                    key={atk.id}
+                    style={styles.attackCard}
+                    activeOpacity={0.92}
+                    onLongPress={openAttackPreview}
+                    delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                    testID={`sheet-attack-${atk.id}`}
+                  >
+                    <View style={styles.attackCardHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.attackCardName}>{atk.name}</Text>
+                        <Text style={styles.attackCardSub}>
+                          Teste: {atk.test} • Alcance: {atk.range}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            openAttackPreview();
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          testID={`sheet-attack-info-${atk.id}`}
+                        >
+                          <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() =>
+                            updateActiveChar({
+                              attacks: (activeChar.attacks || []).filter((a) => a.id !== atk.id),
+                            })
+                          }
+                        >
+                          <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={styles.attackStatsRow}>
+                      <View style={styles.statPill}>
+                        <Text style={styles.statLabel}>DANO</Text>
+                        <Text style={styles.statValue}>{atk.damage}</Text>
+                      </View>
+                      <View style={styles.statPill}>
+                        <Text style={styles.statLabel}>CRÍTICO</Text>
+                        <Text style={styles.statValue}>{atk.critical}</Text>
+                      </View>
+                      <View style={styles.statPill}>
+                        <Text style={styles.statLabel}>ALCANCE</Text>
+                        <Text style={styles.statValue}>{atk.range}</Text>
+                      </View>
+                    </View>
+
+                    {atk.special ? (
+                      <Text style={styles.attackSpecialText}>
+                        Especial: {atk.special}
                       </Text>
+                    ) : null}
+
+                    {/* Rolagens do Ataque */}
+                    <View style={styles.attackRollsRow}>
+                      <TouchableOpacity
+                        style={styles.rollAttackBtn}
+                        onPress={() => handleRollAttackTest(atk)}
+                      >
+                        <Ionicons name="dice" size={15} color="#FFF" />
+                        <Text style={styles.rollAttackBtnText}>Testar Ataque</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.rollDamageBtn}
+                        onPress={() => handleRollAttackDamage(atk, false)}
+                      >
+                        <Ionicons name="flash-outline" size={14} color="#FFF" />
+                        <Text style={styles.rollDamageBtnText}>Dano ({atk.damage})</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.rollCritBtn}
+                        onPress={() => handleRollAttackDamage(atk, true)}
+                      >
+                        <Ionicons name="flame" size={14} color="#FFF" />
+                        <Text style={styles.rollCritBtnText}>Crítico ({atk.critical})</Text>
+                      </TouchableOpacity>
                     </View>
-                    <TouchableOpacity
-                      onPress={() =>
-                        updateActiveChar({
-                          attacks: (activeChar.attacks || []).filter((a) => a.id !== atk.id),
-                        })
-                      }
-                    >
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.attackStatsRow}>
-                    <View style={styles.statPill}>
-                      <Text style={styles.statLabel}>DANO</Text>
-                      <Text style={styles.statValue}>{atk.damage}</Text>
-                    </View>
-                    <View style={styles.statPill}>
-                      <Text style={styles.statLabel}>CRÍTICO</Text>
-                      <Text style={styles.statValue}>{atk.critical}</Text>
-                    </View>
-                    <View style={styles.statPill}>
-                      <Text style={styles.statLabel}>ALCANCE</Text>
-                      <Text style={styles.statValue}>{atk.range}</Text>
-                    </View>
-                  </View>
-
-                  {atk.special ? (
-                    <Text style={styles.attackSpecialText}>
-                      Especial: {atk.special}
-                    </Text>
-                  ) : null}
-
-                  {/* Rolagens do Ataque */}
-                  <View style={styles.attackRollsRow}>
-                    <TouchableOpacity
-                      style={styles.rollAttackBtn}
-                      onPress={() => handleRollAttackTest(atk)}
-                    >
-                      <Ionicons name="dice" size={15} color="#FFF" />
-                      <Text style={styles.rollAttackBtnText}>Testar Ataque</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.rollDamageBtn}
-                      onPress={() => handleRollAttackDamage(atk, false)}
-                    >
-                      <Ionicons name="flash-outline" size={14} color="#FFF" />
-                      <Text style={styles.rollDamageBtnText}>Dano ({atk.damage})</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.rollCritBtn}
-                      onPress={() => handleRollAttackDamage(atk, true)}
-                    >
-                      <Ionicons name="flame" size={14} color="#FFF" />
-                      <Text style={styles.rollCritBtnText}>Crítico ({atk.critical})</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))
+                  </TouchableOpacity>
+                );
+              })
             )}
           </View>
         )}
@@ -1830,7 +1937,7 @@ export default function CharactersScreen() {
             <View>
               <Text style={styles.sectionTitle}>Perícias de Ordem Paranormal</Text>
               <Text style={styles.subHeading}>
-                Toque no grau de treino (+0, +5, +10, +15) e ajuste bônus de equipamentos (+/-).
+                Toque no grau de treino (+0, +5, +10, +15) e ajuste bônus de equipamentos (+/-). Segure na perícia para ver detalhes.
               </Text>
             </View>
 
@@ -1842,14 +1949,30 @@ export default function CharactersScreen() {
               const attrVal = activeChar.attributes[sk.attr];
 
               return (
-                <View key={sk.name} style={styles.skillOfficialRow}>
+                <TouchableOpacity
+                  key={sk.name}
+                  style={styles.skillOfficialRow}
+                  activeOpacity={0.85}
+                  onLongPress={() => openSkillPreview(sk)}
+                  delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                  testID={`sheet-skill-${sk.name}`}
+                >
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.skillOfficialName}>
-                      {sk.name}
-                      {sk.trainedOnly ? '*' : ''}
-                      {sk.armorPenalty ? '+' : ''}
-                      <Text style={styles.skillAttr}> ({sk.attr})</Text>
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Text style={styles.skillOfficialName}>
+                        {sk.name}
+                        {sk.trainedOnly ? '*' : ''}
+                        {sk.armorPenalty ? '+' : ''}
+                        <Text style={styles.skillAttr}> ({sk.attr})</Text>
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => openSkillPreview(sk)}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        testID={`sheet-skill-info-${sk.name}`}
+                      >
+                        <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
                     {sk.name === 'Profissão' ? (
                       <TextInput
                         style={styles.skillCustomInput}
@@ -1937,7 +2060,7 @@ export default function CharactersScreen() {
                       </TouchableOpacity>
                     );
                   })()}
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -2098,46 +2221,95 @@ export default function CharactersScreen() {
               const rituals = unifiedList.filter((x) => x.categoryGroup === 'ritual');
               const generalAbilities = unifiedList.filter((x) => x.categoryGroup === 'general');
 
-              const renderCard = (item: UnifiedAbility) => (
-                <View key={item.id} style={styles.abilityCard}>
-                  <View style={styles.abilityCardHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.abilityCardName}>{item.name}</Text>
-                      <Text style={styles.abilityCardOrigin}>
-                        {item.originText}{item.element && item.element !== 'Nenhum' ? ` • ${item.element}` : ''}
-                      </Text>
-                    </View>
-                    {item.cost ? (
+              const renderCard = (item: UnifiedAbility) => {
+                const openAbilityPreview = () => {
+                  if (item.isEntity) {
+                    openEntityPreview(item.id);
+                  } else {
+                    openRecordPreview({
+                      target: {
+                        kind: 'character_ability',
+                        ability: {
+                          id: item.id,
+                          name: item.name,
+                          cost: item.cost || '',
+                          originPage: item.originText,
+                          description: item.description,
+                          type:
+                            item.categoryGroup === 'ritual'
+                              ? 'ritual'
+                              : item.categoryGroup === 'general'
+                              ? 'habilidade'
+                              : 'poder',
+                        },
+                      },
+                    });
+                  }
+                };
+
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.abilityCard}
+                    activeOpacity={0.85}
+                    onPress={openAbilityPreview}
+                    onLongPress={openAbilityPreview}
+                    delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                    testID={`sheet-ability-${item.id}`}
+                  >
+                    <View style={styles.abilityCardHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.abilityCardName}>{item.name}</Text>
+                        <Text style={styles.abilityCardOrigin}>
+                          {item.originText}{item.element && item.element !== 'Nenhum' ? ` • ${item.element}` : ''}
+                        </Text>
+                      </View>
+                      {item.cost ? (
+                        <TouchableOpacity
+                          style={styles.spendPeBtn}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            handleSpendAbilityPE(item.cost!, item.name);
+                          }}
+                        >
+                          <Ionicons name="flash" size={12} color="#F59E0B" />
+                          <Text style={styles.spendPeBtnText}>{item.cost}</Text>
+                        </TouchableOpacity>
+                      ) : null}
                       <TouchableOpacity
-                        style={styles.spendPeBtn}
-                        onPress={() => handleSpendAbilityPE(item.cost!, item.name)}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          openAbilityPreview();
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        testID={`sheet-ability-info-${item.id}`}
                       >
-                        <Ionicons name="flash" size={12} color="#F59E0B" />
-                        <Text style={styles.spendPeBtnText}>{item.cost}</Text>
+                        <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
                       </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          if (item.isEntity) {
+                            updateActiveChar({
+                              entityIds: activeChar.entityIds.filter((x) => x !== item.id),
+                            });
+                          } else {
+                            updateActiveChar({
+                              abilities: (activeChar.abilities || []).filter((a) => a.id !== item.id),
+                            });
+                          }
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close-circle-outline" size={20} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                    {item.description ? (
+                      <Text style={styles.abilityCardDesc}>{item.description}</Text>
                     ) : null}
-                    <TouchableOpacity
-                      onPress={() => {
-                        if (item.isEntity) {
-                          updateActiveChar({
-                            entityIds: activeChar.entityIds.filter((x) => x !== item.id),
-                          });
-                        } else {
-                          updateActiveChar({
-                            abilities: (activeChar.abilities || []).filter((a) => a.id !== item.id),
-                          });
-                        }
-                      }}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="close-circle-outline" size={20} color={colors.textMuted} />
-                    </TouchableOpacity>
-                  </View>
-                  {item.description ? (
-                    <Text style={styles.abilityCardDesc}>{item.description}</Text>
-                  ) : null}
-                </View>
-              );
+                  </TouchableOpacity>
+                );
+              };
 
               return (
                 <View style={{ gap: 14 }}>
@@ -2322,30 +2494,55 @@ export default function CharactersScreen() {
                 Inventário vazio. Adicione itens ou vincule armas da Armaria.
               </Text>
             ) : (
-              activeChar.inventory.map((it) => (
-                <View key={it.id} style={styles.invItemRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.invItemName}>
-                      {it.name} <Text style={styles.invItemCat}>(Cat {it.category})</Text>
-                    </Text>
-                    {it.details ? (
-                      <Text style={styles.invItemDetails}>{it.details}</Text>
-                    ) : null}
-                  </View>
-                  <View style={styles.invSpacesBadge}>
-                    <Text style={styles.invSpacesText}>{it.spaces} esp.</Text>
-                  </View>
+              activeChar.inventory.map((it) => {
+                const openInvPreview = () =>
+                  openRecordPreview({
+                    target: { kind: 'character_inventory', item: it },
+                  });
+                return (
                   <TouchableOpacity
-                    onPress={() =>
-                      updateActiveChar({
-                        inventory: (activeChar.inventory || []).filter((x) => x.id !== it.id),
-                      })
-                    }
+                    key={it.id}
+                    style={styles.invItemRow}
+                    activeOpacity={0.85}
+                    onPress={openInvPreview}
+                    onLongPress={openInvPreview}
+                    delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                    testID={`sheet-inv-${it.id}`}
                   >
-                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.invItemName}>
+                        {it.name} <Text style={styles.invItemCat}>(Cat {it.category})</Text>
+                      </Text>
+                      {it.details ? (
+                        <Text style={styles.invItemDetails}>{it.details}</Text>
+                      ) : null}
+                    </View>
+                    <View style={styles.invSpacesBadge}>
+                      <Text style={styles.invSpacesText}>{it.spaces} esp.</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        openInvPreview();
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                      testID={`sheet-inv-info-${it.id}`}
+                    >
+                      <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        updateActiveChar({
+                          inventory: (activeChar.inventory || []).filter((x) => x.id !== it.id),
+                        });
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                    </TouchableOpacity>
                   </TouchableOpacity>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         )}
@@ -2836,42 +3033,87 @@ export default function CharactersScreen() {
               ) : (
                 customWeapons
                   .filter((w) => w.name.toLowerCase().includes(pickerSearch.toLowerCase()))
-                  .map((w) => (
-                    <TouchableOpacity
-                      key={w.id}
-                      style={styles.pickerItem}
-                      onPress={() => handleAddWeaponFromArmaria(w)}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.pickerItemTitle}>{w.name}</Text>
-                        <Text style={styles.pickerItemSub}>
-                          Dano: {w.finalDamage} • Crítico: {w.finalCritical} • Cat {w.finalCategory}
-                          {w.ammoCategory && w.ammoCategory !== '—' && w.weaponType !== 'Corpo a corpo' ? ` • Balas Cat ${w.ammoCategory}` : ''} • {w.specialRules}
-                        </Text>
-                      </View>
-                      <Ionicons name="add-circle" size={22} color={colors.primary} />
-                    </TouchableOpacity>
-                  ))
+                  .map((w) => {
+                    const openArmariaPreview = () =>
+                      openRecordPreview({
+                        target: { kind: 'custom_weapon', weapon: w },
+                        primaryAction: {
+                          label: 'Equipar na Ficha',
+                          onPress: () => handleAddWeaponFromArmaria(w),
+                        },
+                      });
+                    return (
+                      <TouchableOpacity
+                        key={w.id}
+                        style={styles.pickerItem}
+                        onPress={() => handleAddWeaponFromArmaria(w)}
+                        onLongPress={openArmariaPreview}
+                        delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pickerItemTitle}>{w.name}</Text>
+                          <Text style={styles.pickerItemSub}>
+                            Dano: {w.finalDamage} • Crítico: {w.finalCritical} • Cat {w.finalCategory}
+                            {w.ammoCategory && w.ammoCategory !== '—' && w.weaponType !== 'Corpo a corpo' ? ` • Balas Cat ${w.ammoCategory}` : ''} • {w.specialRules}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openArmariaPreview();
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                          <Ionicons name="add-circle" size={22} color={colors.primary} />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
               )
             ) : pickerModalType === 'add_weapon_compendium' ? (
               compendiumWeapons
                 .filter((w) => w.name.toLowerCase().includes(pickerSearch.toLowerCase()))
                 .slice(0, 80)
-                .map((w) => (
-                  <TouchableOpacity
-                    key={w.id}
-                    style={styles.pickerItem}
-                    onPress={() => handleAddWeaponFromCompendium(w)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.pickerItemTitle}>{w.name}</Text>
-                      <Text style={styles.pickerItemSub}>
-                        {w.subCategory} • Dano: {w.damage} • Crítico: {w.critical} • Cat {w.itemCategory || '0'}
-                      </Text>
-                    </View>
-                    <Ionicons name="add-circle" size={22} color={colors.primary} />
-                  </TouchableOpacity>
-                ))
+                .map((w) => {
+                  const openCompWeaponPreview = () =>
+                    openEntityPreview(w, {
+                      primaryAction: {
+                        label: 'Equipar na Ficha',
+                        onPress: () => handleAddWeaponFromCompendium(w),
+                      },
+                    });
+                  return (
+                    <TouchableOpacity
+                      key={w.id}
+                      style={styles.pickerItem}
+                      onPress={() => handleAddWeaponFromCompendium(w)}
+                      onLongPress={openCompWeaponPreview}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.pickerItemTitle}>{w.name}</Text>
+                        <Text style={styles.pickerItemSub}>
+                          {w.subCategory} • Dano: {w.damage} • Crítico: {w.critical} • Cat {w.itemCategory || '0'}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            openCompWeaponPreview();
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                        <Ionicons name="add-circle" size={22} color={colors.primary} />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
             ) : (
               (() => {
                 let baseList =
@@ -2905,11 +3147,8 @@ export default function CharactersScreen() {
                 return baseList
                   .filter((e) => e.name.toLowerCase().includes(pickerSearch.trim().toLowerCase()))
                   .slice(0, 80)
-                  .map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.pickerItem}
-                    onPress={async () => {
+                  .map((item) => {
+                    const selectPickerItem = async () => {
                       if (pickerModalType === 'origin') {
                         await updateActiveChar({ originId: item.id });
                       } else if (pickerModalType === 'class') {
@@ -2924,14 +3163,47 @@ export default function CharactersScreen() {
                         }
                       }
                       setPickerModalType(null);
-                    }}
-                  >
-                    <Text style={styles.pickerItemTitle}>{item.name}</Text>
-                    <Text style={styles.pickerItemSub}>
-                      {item.subCategory} • {item.bookTitle} • {item.summary}
-                    </Text>
-                  </TouchableOpacity>
-                ));
+                    };
+
+                    const openPickerPreview = () =>
+                      openEntityPreview(item, {
+                        primaryAction: {
+                          label:
+                            pickerModalType === 'link_compendium'
+                              ? 'Vincular à Ficha'
+                              : 'Escolher este Registro',
+                          onPress: () => {
+                            void selectPickerItem();
+                          },
+                        },
+                      });
+
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.pickerItem}
+                        onPress={selectPickerItem}
+                        onLongPress={openPickerPreview}
+                        delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pickerItemTitle}>{item.name}</Text>
+                          <Text style={styles.pickerItemSub}>
+                            {item.subCategory} • {item.bookTitle} • {item.summary}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            openPickerPreview();
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    );
+                  });
               })()
             )}
           </ScrollView>

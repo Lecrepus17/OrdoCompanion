@@ -415,13 +415,25 @@ export default function EntityDetailScreen() {
               activeOpacity={0.88}
               onPress={() => handleOpenPageReader('pdf_scroll')}
             >
-              <Image
-                source={{
-                  uri: getRenderedPdfPageUrl(entityBook.fileName, entity.pageNumber, 120),
-                }}
-                style={styles.pdfPreviewImage}
-                resizeMode="contain"
-              />
+              {getRenderedPdfPageUrl(entityBook.fileName, entity.pageNumber, 120) ? (
+                <Image
+                  source={{
+                    uri: getRenderedPdfPageUrl(entityBook.fileName, entity.pageNumber, 120),
+                  }}
+                  style={styles.pdfPreviewImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={{ alignItems: 'center', justifyContent: 'center', padding: 20, gap: 8 }}>
+                  <Ionicons name="book-outline" size={38} color={colors.primary} />
+                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800', textAlign: 'center' }}>
+                    {entity.bookTitle} • Página {entity.pageNumber}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center' }}>
+                    Toque para ler a página completa no leitor integrado
+                  </Text>
+                </View>
+              )}
               <View style={styles.pdfPreviewFooterBadge}>
                 <Ionicons name="search-outline" size={14} color="#FFF" />
                 <Text style={styles.pdfPreviewFooterText}>

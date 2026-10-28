@@ -18,6 +18,7 @@ import { ThemeColors, ThemeDefinition, useTheme, useThemedStyles } from '../../t
 import { EntityCard } from '../../components/EntityCard';
 import { confirmAction, showAlert } from '../../utils/alert';
 import { CompendiumEntity } from '../../types/compendium';
+import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
 
 type SubTab = 'favorites' | 'lists' | 'homebrew' | 'backup' | 'themes';
 
@@ -39,6 +40,7 @@ export default function FavoritesAndListsScreen() {
     openManual,
     toggleFavorite,
     rollFormula,
+    openEntityPreview,
   } = useApp();
   const { width: windowWidth } = useWindowDimensions();
   const cardWidth = listingColumns === 2 ? Math.floor((windowWidth - 28 - 10) / 2) : undefined;
@@ -300,11 +302,26 @@ export default function FavoritesAndListsScreen() {
                       onPress={() =>
                         router.push({ pathname: '/entity/[id]', params: { id: ent.id } })
                       }
+                      onLongPress={() =>
+                        openEntityPreview(ent, { showOpenFullEntityButton: true })
+                      }
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                     >
-                      <Text style={styles.listItemName}>{ent.name}</Text>
-                      <Text style={styles.listItemMeta}>
-                        {ent.category} • {ent.element || 'Geral'}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.listItemName}>{ent.name}</Text>
+                        <Text style={styles.listItemMeta}>
+                          {ent.category} • {ent.element || 'Geral'}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          openEntityPreview(ent, { showOpenFullEntityButton: true });
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                      </TouchableOpacity>
                     </TouchableOpacity>
                   );
                 })

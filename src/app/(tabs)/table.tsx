@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../../theme';
 import { TableParticipant, TableRollEvent, TableInitiativeItem } from '../../types/virtualTable';
+import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
 import { showAlert } from '../../utils/alert';
 
 type TableTab = 'party' | 'combat' | 'rolls' | 'scenes';
@@ -48,6 +49,7 @@ export default function TableScreen() {
     rollSkillTest,
     rollFormula,
     userProfile,
+    openRecordPreview,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<TableTab>('party');
@@ -298,6 +300,18 @@ export default function TableScreen() {
                         key={char.id}
                         style={[styles.charSelectPill, isSelected && styles.charSelectPillActive]}
                         onPress={() => setSelectedCharId(char.id)}
+                        delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                        onLongPress={() =>
+                          openRecordPreview({
+                            target: { kind: 'character', character: char },
+                            primaryAction: {
+                              label: isSelected ? 'Agente Selecionado' : 'Selecionar Agente',
+                              icon: 'checkmark-circle-outline',
+                              onPress: () => setSelectedCharId(char.id),
+                            },
+                          })
+                        }
+                        testID={`table-char-pill-${char.id}`}
                       >
                         <Ionicons
                           name="person"
@@ -513,8 +527,55 @@ export default function TableScreen() {
               ) : (
                 participantsList.map((participant) => {
                   const ag = participant.agent;
+                  const fullChar = ag ? characters.find((c) => c.id === ag.id) : undefined;
+                  const openParticipantPreview = () => {
+                    if (fullChar) {
+                      openRecordPreview({
+                        target: { kind: 'character', character: fullChar },
+                      });
+                    } else if (ag) {
+                      openRecordPreview({
+                        target: {
+                          kind: 'generic',
+                          title: ag.name,
+                          categoryLabel: 'Agente na Mesa',
+                          subtitle: `Jogador: ${participant.userName} • ${ag.classTitle} (NEX ${ag.nex}%)`,
+                          stats: [
+                            { label: 'PV', value: `${ag.pvCurrent}/${ag.pvMax}` },
+                            { label: 'PE', value: `${ag.peCurrent}/${ag.peMax}` },
+                            { label: 'SAN', value: `${ag.sanCurrent}/${ag.sanMax}` },
+                            { label: 'DEF', value: String(ag.defense), highlight: true },
+                          ],
+                          description:
+                            ag.conditions && ag.conditions.length > 0
+                              ? `Condições ativas: ${ag.conditions.join(', ')}`
+                              : 'Sem condições ativas no momento.',
+                        },
+                      });
+                    } else {
+                      openRecordPreview({
+                        target: {
+                          kind: 'generic',
+                          title: participant.userName,
+                          categoryLabel: participant.role === 'master' ? 'Mestre da Sessão' : 'Participante',
+                          subtitle: participant.isOnline ? 'Online' : 'Offline',
+                          description:
+                            participant.role === 'master'
+                              ? 'Comanda a sessão, cenas, pistas e trilha de iniciativa.'
+                              : 'Conectado à mesa virtual sem ficha vinculada.',
+                        },
+                      });
+                    }
+                  };
                   return (
-                    <View key={participant.userId} style={styles.agentCard}>
+                    <TouchableOpacity
+                      key={participant.userId}
+                      style={styles.agentCard}
+                      activeOpacity={0.9}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      onLongPress={openParticipantPreview}
+                      testID={`table-participant-${participant.userId}`}
+                    >
                       <View style={styles.agentCardHeader}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                           <View style={styles.avatarCircle}>
@@ -541,12 +602,21 @@ export default function TableScreen() {
                           </View>
                         </View>
 
-                        {ag && (
-                          <View style={styles.defenseBadge}>
-                            <Text style={styles.defenseLabel}>DEF</Text>
-                            <Text style={styles.defenseValue}>{ag.defense}</Text>
-                          </View>
-                        )}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          {ag && (
+                            <View style={styles.defenseBadge}>
+                              <Text style={styles.defenseLabel}>DEF</Text>
+                              <Text style={styles.defenseValue}>{ag.defense}</Text>
+                            </View>
+                          )}
+                          <TouchableOpacity
+                            onPress={openParticipantPreview}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityLabel={`Mais detalhes sobre ${ag ? ag.name : participant.userName}`}
+                          >
+                            <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
 
                       {ag ? (
@@ -631,7 +701,7 @@ export default function TableScreen() {
                           </Text>
                         </View>
                       )}
-                    </View>
+                    </TouchableOpacity>
                   );
                 })
               )}
@@ -710,15 +780,38 @@ export default function TableScreen() {
                 virtualTable.combat.entries.map((entry, index) => {
                   const isCurrentTurn = index === (virtualTable.combat.currentTurnIndex || 0);
                   const isMonster = entry.type === 'monster';
+                  const openInitPreview = () =>
+                    openRecordPreview({
+                      target: {
+                        kind: 'generic',
+                        title: entry.name,
+                        categoryLabel: isMonster ? 'Ameaça em Combate' : 'Agente em Combate',
+                        subtitle: `Posição #${index + 1} • Iniciativa ${entry.initiative}`,
+                        badgeText: isCurrentTurn ? 'TURNO ATUAL' : undefined,
+                        stats: [
+                          { label: 'INIT', value: String(entry.initiative), highlight: true },
+                          ...(entry.pvMax !== undefined
+                            ? [{ label: 'PV', value: `${entry.pvCurrent ?? entry.pvMax}/${entry.pvMax}` }]
+                            : []),
+                        ],
+                        description: isMonster
+                          ? 'Ameaça presente na trilha de iniciativa atual.'
+                          : 'Agente participante na trilha de iniciativa atual.',
+                      },
+                    });
 
                   return (
-                    <View
+                    <TouchableOpacity
                       key={entry.id || index}
                       style={[
                         styles.initCard,
                         isCurrentTurn && styles.initCardActive,
                         isMonster && styles.initCardMonster,
                       ]}
+                      activeOpacity={0.9}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      onLongPress={openInitPreview}
+                      testID={`table-init-${entry.id || index}`}
                     >
                       <View style={styles.initOrderBadge}>
                         <Text style={styles.initOrderNum}>#{index + 1}</Text>
@@ -750,7 +843,7 @@ export default function TableScreen() {
                         <Text style={styles.initScoreLabel}>INIT</Text>
                         <Text style={styles.initScoreVal}>{entry.initiative}</Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })
               )}

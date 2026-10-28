@@ -10,6 +10,8 @@ import {
   calculateWeaponStats,
   getWeaponModsWithCompendium,
   OFFICIAL_WEAPON_MODS,
+  checkModificationCompatibility,
+  sanitizeWeaponModifications,
 } from '../src/utils/weapons';
 
 describe('Sistema de Armas e Modificações (weapons.ts)', () => {
@@ -297,6 +299,177 @@ describe('Sistema de Armas e Modificações (weapons.ts)', () => {
       assert.ok(modIds.includes('maldicao_predadora'));
       assert.ok(modIds.includes('maldicao_energetica'));
       assert.ok(modIds.includes('maldicao_vibrante'));
+    });
+  });
+
+  describe('Compatibilidade de Modificações e Tipos de Armas (checkModificationCompatibility)', () => {
+    it('Pistola (Arma de Fogo) deve aceitar modificações de fogo e rejeitar corpo a corpo', () => {
+      const pistolContext = {
+        weaponType: 'Fogo' as const,
+        baseWeaponName: 'Pistola',
+        range: 'Curto',
+        ammoType: 'Balas curtas',
+      };
+
+      // Aceita modificações de fogo
+      assert.strictEqual(checkModificationCompatibility('alongada', pistolContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('mira_laser', pistolContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('calibre_grosso', pistolContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('silenciador', pistolContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('municao_dumdum', pistolContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('municao_explosiva', pistolContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('tatica', pistolContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('discreta', pistolContext).compatible, true);
+
+      // Rejeita modificações de corpo a corpo / disparo
+      const certeiraCheck = checkModificationCompatibility('certeira', pistolContext);
+      assert.strictEqual(certeiraCheck.compatible, false);
+      assert.ok(certeiraCheck.reason?.includes('Corpo a Corpo'));
+
+      const perigosaCheck = checkModificationCompatibility('perigosa', pistolContext);
+      assert.strictEqual(perigosaCheck.compatible, false);
+
+      const cruelCheck = checkModificationCompatibility('cruel', pistolContext);
+      assert.strictEqual(cruelCheck.compatible, false);
+
+      const empuxoCheck = checkModificationCompatibility('item__livro_base__empuxo', pistolContext);
+      assert.strictEqual(empuxoCheck.compatible, false);
+
+      const equilibradaCheck = checkModificationCompatibility('equilibrada', pistolContext);
+      assert.strictEqual(equilibradaCheck.compatible, false);
+    });
+
+    it('Faca (Arma Corpo a Corpo) deve aceitar melhorias corpo a corpo e rejeitar fogo e munição', () => {
+      const knifeContext = {
+        weaponType: 'Corpo a corpo' as const,
+        baseWeaponName: 'Faca',
+        range: 'Curto',
+        ammoType: 'Nenhuma',
+      };
+
+      // Aceita modificações corpo a corpo
+      assert.strictEqual(checkModificationCompatibility('certeira', knifeContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('perigosa', knifeContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('cruel', knifeContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('equilibrada', knifeContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('item__livro_base__empuxo', knifeContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('tatica', knifeContext).compatible, true);
+      assert.strictEqual(checkModificationCompatibility('discreta', knifeContext).compatible, true);
+
+      // Rejeita modificações exclusivas de armas de fogo
+      const alongadaCheck = checkModificationCompatibility('alongada', knifeContext);
+      assert.strictEqual(alongadaCheck.compatible, false);
+
+      const miraLaserCheck = checkModificationCompatibility('mira_laser', knifeContext);
+      assert.strictEqual(miraLaserCheck.compatible, false);
+
+      const silenciadorCheck = checkModificationCompatibility('silenciador', knifeContext);
+      assert.strictEqual(silenciadorCheck.compatible, false);
+
+      // Rejeita modificações de munição
+      const dumDumCheck = checkModificationCompatibility('municao_dumdum', knifeContext);
+      assert.strictEqual(dumDumCheck.compatible, false);
+      assert.ok(dumDumCheck.reason?.includes('munição'));
+    });
+
+    it('Compensador requer arma automática (inerente ou via Ferrolho Automático)', () => {
+      const revolverContext = {
+        weaponType: 'Fogo' as const,
+        baseWeaponName: 'Revólver',
+        range: 'Curto',
+        ammoType: 'Balas curtas',
+        selectedModIds: [],
+      };
+      // Revólver comum não é automático -> rejeita Compensador
+      assert.strictEqual(checkModificationCompatibility('compensador', revolverContext).compatible, false);
+
+      // Revólver com Ferrolho Automático selecionado -> aceita Compensador
+      const revolverWithAutoBolt = {
+        ...revolverContext,
+        selectedModIds: ['ferrolho_automatico'],
+      };
+      assert.strictEqual(checkModificationCompatibility('compensador', revolverWithAutoBolt).compatible, true);
+
+      // Fuzil de Assalto é inerentemente automático -> aceita Compensador diretamente
+      const assaultRifleContext = {
+        weaponType: 'Fogo' as const,
+        baseWeaponName: 'Fuzil de assalto',
+        range: 'Médio',
+        ammoType: 'Balas longas',
+        selectedModIds: [],
+      };
+      assert.strictEqual(checkModificationCompatibility('compensador', assaultRifleContext).compatible, true);
+
+      // Fuzil de Assalto já é automático -> rejeita Ferrolho Automático
+      const ferrolhoCheck = checkModificationCompatibility('ferrolho_automatico', assaultRifleContext);
+      assert.strictEqual(ferrolhoCheck.compatible, false);
+      assert.ok(ferrolhoCheck.reason?.includes('já é inerentemente automática'));
+    });
+
+    it('Munições Dum Dum e Explosiva aceitam apenas Balas Curtas e Longas', () => {
+      const shotgunContext = {
+        weaponType: 'Fogo' as const,
+        baseWeaponName: 'Espingarda',
+        range: 'Curto',
+        ammoType: 'Cartuchos',
+      };
+      // Espingarda usa Cartuchos -> rejeita Dum Dum e Explosiva
+      const dumDumCheck = checkModificationCompatibility('municao_dumdum', shotgunContext);
+      assert.strictEqual(dumDumCheck.compatible, false);
+      assert.ok(dumDumCheck.reason?.includes('Cartuchos'));
+
+      // Espingarda aceita Munição Perfurante (aceita cartuchos)
+      assert.strictEqual(checkModificationCompatibility('municao_perfurante', shotgunContext).compatible, true);
+
+      // Arco usa Flechas -> rejeita Dum Dum
+      const bowContext = {
+        weaponType: 'Disparo' as const,
+        baseWeaponName: 'Arco',
+        range: 'Médio',
+        ammoType: 'Flechas',
+      };
+      assert.strictEqual(checkModificationCompatibility('municao_dumdum', bowContext).compatible, false);
+    });
+
+    it('Besta/Balestra aceita Carregador Rápido', () => {
+      const crossbowContext = {
+        weaponType: 'Disparo' as const,
+        baseWeaponName: 'Balestra',
+        range: 'Médio',
+        ammoType: 'Flechas',
+      };
+      assert.strictEqual(checkModificationCompatibility('carregador_rapido', crossbowContext).compatible, true);
+
+      const swordContext = {
+        weaponType: 'Corpo a corpo' as const,
+        baseWeaponName: 'Espada',
+        range: 'Corpo a corpo',
+        ammoType: 'Nenhuma',
+      };
+      assert.strictEqual(checkModificationCompatibility('carregador_rapido', swordContext).compatible, false);
+    });
+
+    it('sanitizeWeaponModifications deve remover modificações incompatíveis ao mudar de arma', () => {
+      // Modificações de um Fuzil: Alongada, Mira Laser, Dum Dum, Tática
+      const previousMods = ['alongada', 'mira_laser', 'municao_dumdum', 'tatica'];
+
+      // Mudou para Faca (Corpo a corpo)
+      const knifeContext = {
+        weaponType: 'Corpo a corpo' as const,
+        baseWeaponName: 'Faca',
+        range: 'Curto',
+        ammoType: 'Nenhuma',
+      };
+
+      const { sanitizedModIds, removedMods } = sanitizeWeaponModifications(previousMods, knifeContext);
+
+      // Tática é universal e permanece; Alongada, Mira Laser e Dum Dum são removidas
+      assert.deepStrictEqual(sanitizedModIds, ['tatica']);
+      assert.strictEqual(removedMods.length, 3);
+      const removedNames = removedMods.map((m) => m.shortId || m.id);
+      assert.ok(removedNames.includes('alongada'));
+      assert.ok(removedNames.includes('mira_laser'));
+      assert.ok(removedNames.includes('municao_dumdum'));
     });
   });
 });

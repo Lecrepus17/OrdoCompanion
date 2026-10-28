@@ -20,6 +20,10 @@ export type ParanormalElement =
   | 'Variável'
   | 'Nenhum';
 
+export type WeaponType = 'Corpo a corpo' | 'Disparo' | 'Fogo';
+export type WeaponProficiency = 'Simples' | 'Tática' | 'Pesada';
+export type WeaponHandedness = 'Uma Mão' | 'Duas Mãos' | 'Leve';
+
 export interface CompendiumEntity {
   id: string;
   category: EntityCategory;
@@ -71,6 +75,9 @@ export interface CompendiumEntity {
   spaces?: string;
   proficiency?: string;
   handedness?: string;
+  allowedWeaponTypes?: WeaponType[];
+  allowedAmmoTypes?: string[];
+  appliesToDescription?: string;
 
   // Skill & Condition fields
   baseAttribute?: 'AGI' | 'FOR' | 'INT' | 'PRE' | 'VIG';
@@ -86,7 +93,8 @@ export interface CompendiumEntity {
   attributes?: Record<string, string>;
   disturbingPresence?: string;
 
-  // User customization flags
+  // User customization & PDF origin tracking flags
+  sourcePdf?: string;
   isCustom?: boolean;
   isEdited?: boolean;
   updatedAt?: string;
@@ -98,12 +106,62 @@ export interface TocEntry {
   page: number;
 }
 
+export type BookUnlockMethod = 'pdf_upload' | 'email_code' | 'master_code' | 'custom_py' | 'cloud_sync';
+
+export interface UnlockedBookRecord {
+  bookId: string;
+  unlockedAt: string;
+  method: BookUnlockMethod;
+  fileName?: string;
+  sha256?: string;
+  localPdfStored?: boolean;
+  driveFileId?: string;
+}
+
 export interface BookInfo {
   id: string;
   title: string;
   fileName: string;
   pageCount: number;
   toc: TocEntry[];
+  isUnlocked?: boolean;
+  isCustomBook?: boolean;
+  unlockedAt?: string;
+  unlockMethod?: BookUnlockMethod;
+  localPdfAvailable?: boolean;
+  driveFileId?: string;
+}
+
+export interface CatalogBookInfo extends BookInfo {
+  isUnlocked: boolean;
+  entityCount: number;
+  localPdfAvailable: boolean;
+  driveSynced?: boolean;
+}
+
+export interface KnownPdfSignature {
+  id: string;
+  title: string;
+  fileName: string;
+  pageCount: number;
+  fileSize: number;
+  sha256: string;
+  aliases: string[];
+  sampleKeywords: string[];
+}
+
+export interface PdfUploadResult {
+  ok: boolean;
+  bookId?: string;
+  bookTitle?: string;
+  isKnownBook?: boolean;
+  extractedByPython?: boolean;
+  entitiesUnlockedCount?: number;
+  pagesCount?: number;
+  savedOffline?: boolean;
+  savedToDrive?: boolean;
+  message: string;
+  error?: string;
 }
 
 export interface BookPage {
@@ -274,10 +332,6 @@ export interface CharacterSheet {
   updatedAt: string;
 }
 
-export type WeaponType = 'Corpo a corpo' | 'Disparo' | 'Fogo';
-export type WeaponProficiency = 'Simples' | 'Tática' | 'Pesada';
-export type WeaponHandedness = 'Uma Mão' | 'Duas Mãos' | 'Leve';
-
 export type ModificationTargetType = 'weapon' | 'ammo';
 
 export interface WeaponModificationDef {
@@ -288,6 +342,13 @@ export interface WeaponModificationDef {
   categoryIncrease: number;
   description: string;
   appliesTo: 'all' | 'melee' | 'firearm' | 'ranged';
+  allowedWeaponTypes?: WeaponType[];
+  allowedAmmoTypes?: string[];
+  requiresAutomatic?: boolean;
+  requiresNonAutomatic?: boolean;
+  requiresRanged?: boolean;
+  requiresAmmo?: boolean;
+  specialRequirementText?: string;
   targetType?: ModificationTargetType;
   attackBonus?: number;
   damageBonus?: number;
@@ -440,6 +501,13 @@ export const KNOWN_TAB_DEFINITIONS: Record<string, TabMetadata> = {
     headerTitle: 'G.L.I.T.C.H. - Guia Lógico de Interferências Transcendentais do Caos Humano',
     icon: 'sparkles',
     description: 'Guia Lógico de Interferências Transcendentais do Caos Humano e Modo Anfitrião',
+  },
+  support: {
+    id: 'support',
+    label: 'Suporte',
+    headerTitle: 'Suporte, Feedback & Relato de Erros',
+    icon: 'bug-outline',
+    description: 'Relate bugs diretamente pelo app, envie sugestões ou fale com o desenvolvedor',
   },
 };
 

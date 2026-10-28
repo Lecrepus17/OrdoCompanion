@@ -1,20 +1,24 @@
 import {
   BookInfo,
   BookPage,
+  BookUnlockMethod,
+  BookWithPages,
   Campaign,
+  CatalogBookInfo,
   CharacterSheet,
   CompendiumEntity,
   CompendiumFilters,
   CustomWeapon,
   SavedList,
+  UnlockedBookRecord,
   UserProfile,
 } from '../types/compendium';
 
 /**
  * Interface desacoplada de repositório de dados.
  * Hoje implementada por OfflineDataRepository (100% offline com Seed JSON + AsyncStorage).
- * Para migrar/sincronizar com nuvem (ex.: Supabase / Firebase) no futuro,
- * basta implementar esta mesma interface sem alterar nenhuma tela do aplicativo.
+ * Para migrar/sincronizar com nuvem (ex.: Supabase / Firebase / Google Drive),
+ * utiliza esta mesma interface sem alterar nenhuma tela do aplicativo.
  */
 export interface IDataRepository {
   initialize(): Promise<void>;
@@ -29,8 +33,25 @@ export interface IDataRepository {
   deleteCustomEntity(id: string): Promise<void>;
   resetEntityToDefault(id: string): Promise<CompendiumEntity | undefined>;
 
-  // Livros e Páginas ("Ver Mais / Ler no Livro Original")
+  // Livros, Acesso por Origem de PDF e Páginas ("Ver Mais / Ler no Livro Original")
   getBooks(): BookInfo[];
+  getAllCatalogBooks(): CatalogBookInfo[];
+  getUnlockedBookIds(): string[];
+  getUnlockedBooksRecordMap(): Record<string, UnlockedBookRecord>;
+  isBookUnlocked(bookId: string): boolean;
+  unlockBook(bookId: string, record?: Partial<UnlockedBookRecord>): Promise<UnlockedBookRecord>;
+  unlockAllBooks(method?: BookUnlockMethod): Promise<UnlockedBookRecord[]>;
+  lockBook(bookId: string): Promise<void>;
+  lockAllBooks(): Promise<void>;
+  registerDynamicPdfBook(
+    book: BookWithPages,
+    entities: CompendiumEntity[],
+    fileName?: string,
+    sha256?: string
+  ): Promise<UnlockedBookRecord>;
+  getDynamicBooks(): BookWithPages[];
+  getDynamicEntities(): CompendiumEntity[];
+
   getBookPage(bookId: string, pageNumber: number): BookPage | undefined;
   searchInBookPages(bookId: string | 'all', query: string): Array<{
     bookId: string;

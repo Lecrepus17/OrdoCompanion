@@ -1,11 +1,22 @@
 import {
+  BookWithPages,
   Campaign,
   CharacterSheet,
   CompendiumEntity,
   CustomWeapon,
   SavedList,
+  UnlockedBookRecord,
   UserProfile,
 } from '../../types/compendium';
+
+export interface DriveStoredPdfRef {
+  bookId: string;
+  driveFileId: string;
+  fileName: string;
+  size?: number;
+  sha256?: string;
+  updatedAt: string;
+}
 
 export interface UserDataBackupPayload {
   exportedAt: string;
@@ -18,6 +29,10 @@ export interface UserDataBackupPayload {
   characters?: CharacterSheet[];
   campaigns?: Campaign[];
   customWeapons?: CustomWeapon[];
+  unlockedBooks?: Record<string, UnlockedBookRecord>;
+  dynamicBooks?: BookWithPages[];
+  dynamicEntities?: CompendiumEntity[];
+  drivePdfFiles?: Record<string, DriveStoredPdfRef>;
 }
 
 export type SyncStatus = 'idle' | 'checking' | 'syncing' | 'synced' | 'error';
@@ -47,6 +62,9 @@ export interface MergeStats {
   customEntitiesCount: number;
   favoritesCount: number;
   listsCount: number;
+  unlockedBooksCount?: number;
+  dynamicBooksCount?: number;
+  pdfsSyncedCount?: number;
   conflictsResolved: number;
 }
 

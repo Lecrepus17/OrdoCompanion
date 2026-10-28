@@ -3,6 +3,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getServerBaseUrl,
+  getEffectivePdfFileBaseUrl,
+  getCloudPdfUrl,
+  getEmbeddedPdfViewerUrl,
   getCleanPdfUrl,
   getRawPdfUrl,
   getRenderedPdfPageUrl,
@@ -66,6 +69,25 @@ describe('Utilitários de URLs e Páginas PDF (pdfUrl.ts)', () => {
       const res = await testPdfServerConnection('');
       assert.strictEqual(res.ok, false);
       assert.ok(res.message.length > 0);
+    });
+  });
+
+  describe('Fallback na Nuvem para APK (getEffectivePdfFileBaseUrl, getCloudPdfUrl e getEmbeddedPdfViewerUrl)', () => {
+    it('getEffectivePdfFileBaseUrl deve retornar sempre uma URL válida iniciando com http/https', () => {
+      const base = getEffectivePdfFileBaseUrl();
+      assert.ok(base.startsWith('http://') || base.startsWith('https://'));
+    });
+
+    it('getCloudPdfUrl deve construir URL direta no GitHub Raw codificando o nome do PDF', () => {
+      const cloudUrl = getCloudPdfUrl('Livro base.pdf');
+      assert.ok(cloudUrl.includes('raw.githubusercontent.com'));
+      assert.ok(cloudUrl.endsWith('/pdfs/Livro%20base.pdf'));
+    });
+
+    it('getEmbeddedPdfViewerUrl deve construir URL do visualizador para Android', () => {
+      const viewerUrl = getEmbeddedPdfViewerUrl('Livro base.pdf', 10);
+      assert.ok(viewerUrl.startsWith('https://docs.google.com/gview?embedded=true&url='));
+      assert.ok(viewerUrl.includes('page=10'));
     });
   });
 

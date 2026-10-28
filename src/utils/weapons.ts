@@ -112,6 +112,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'mira_laser',
     categoryIncrease: 1,
     appliesTo: 'firearm',
+    allowedWeaponTypes: ['Fogo'],
+    specialRequirementText: 'Armas de Fogo',
     criticalRangeReduction: 2,
     ...getSeedInfo('item__livro_base__mira_laser', {
       name: 'Mira Laser',
@@ -125,6 +127,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'alongada',
     categoryIncrease: 1,
     appliesTo: 'firearm',
+    allowedWeaponTypes: ['Fogo'],
+    specialRequirementText: 'Armas de Fogo',
     attackBonus: 2,
     ...getSeedInfo('item__livro_base__alongada', {
       name: 'Alongada',
@@ -138,6 +142,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'perigosa',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo'],
+    specialRequirementText: 'Armas Corpo a Corpo e de Disparo',
     criticalRangeReduction: 2,
     ...getSeedInfo('item__livro_base__perigosa', {
       name: 'Perigosa',
@@ -151,6 +157,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'certeira',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo'],
+    specialRequirementText: 'Armas Corpo a Corpo e de Disparo',
     attackBonus: 2,
     ...getSeedInfo('item__livro_base__certeira', {
       name: 'Certeira',
@@ -164,6 +172,9 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'calibre_grosso',
     categoryIncrease: 1,
     appliesTo: 'firearm',
+    allowedWeaponTypes: ['Fogo'],
+    requiresAmmo: true,
+    specialRequirementText: 'Armas de Fogo',
     damageStepIncrease: 1,
     ...getSeedInfo('item__livro_base__calibre_grosso', {
       name: 'Calibre Grosso',
@@ -177,6 +188,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'cruel',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo'],
+    specialRequirementText: 'Armas Corpo a Corpo e de Disparo',
     damageBonus: 2,
     ...getSeedInfo('item__livro_base__cruel', {
       name: 'Cruel',
@@ -190,6 +203,9 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'mira_telescopica',
     categoryIncrease: 1,
     appliesTo: 'ranged',
+    allowedWeaponTypes: ['Fogo', 'Disparo'],
+    requiresRanged: true,
+    specialRequirementText: 'Armas de Fogo ou de Disparo',
     rangeStepIncrease: 1,
     ...getSeedInfo('item__livro_base__mira_telescopica', {
       name: 'Mira Telescópica',
@@ -203,6 +219,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'silenciador',
     categoryIncrease: 1,
     appliesTo: 'firearm',
+    allowedWeaponTypes: ['Fogo'],
+    specialRequirementText: 'Armas de Fogo',
     ...getSeedInfo('item__livro_base__silenciador', {
       name: 'Silenciador',
       description: 'Um silenciador reduz em –10 a penalidade em Furtividade para se esconder no mesmo turno em que atacou com a arma de fogo.',
@@ -215,6 +233,9 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'compensador',
     categoryIncrease: 1,
     appliesTo: 'firearm',
+    allowedWeaponTypes: ['Fogo'],
+    requiresAutomatic: true,
+    specialRequirementText: 'Armas de Fogo Automáticas',
     ...getSeedInfo('item__livro_base__compensador', {
       name: 'Compensador',
       description: 'Apenas para armas automáticas. Um sistema de amortecimento reduz o coice da arma, anulando a penalidade em testes de ataque por disparar rajadas.',
@@ -227,6 +248,9 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'ferrolho_automatico',
     categoryIncrease: 1,
     appliesTo: 'firearm',
+    allowedWeaponTypes: ['Fogo'],
+    requiresNonAutomatic: true,
+    specialRequirementText: 'Armas de Fogo não automáticas',
     ...getSeedInfo('item__livro_base__ferrolho_automatico', {
       name: 'Ferrolho Automático',
       description: 'O mecanismo de ação da arma é modificado para disparar várias vezes em sequência. A arma se torna automática.',
@@ -239,6 +263,9 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'visao_de_calor',
     categoryIncrease: 1,
     appliesTo: 'firearm',
+    allowedWeaponTypes: ['Fogo', 'Disparo'],
+    requiresRanged: true,
+    specialRequirementText: 'Armas de Fogo ou de Disparo',
     ...getSeedInfo('item__livro_base__visao_de_calor', {
       name: 'Visão de Calor',
       description: 'A mira tem um sistema eletrônico com infravermelho. Ao disparar com a arma, você ignora qualquer camuflagem do alvo.',
@@ -251,6 +278,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'discreta',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     spacesChange: -1,
     ...getSeedInfo('item__livro_base__discreta', {
       name: 'Discreta',
@@ -264,6 +293,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'tatica',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     ...getSeedInfo('item__livro_base__tatica', {
       name: 'Tática',
       description: 'A arma possui cabo texturizado, bandoleira e outros acessórios que facilitam seu manuseio. Você pode sacar a arma como uma ação livre.',
@@ -277,6 +308,10 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     appliesTo: 'firearm',
     targetType: 'ammo',
+    allowedWeaponTypes: ['Fogo'],
+    allowedAmmoTypes: ['Balas curtas', 'Balas longas'],
+    requiresAmmo: true,
+    specialRequirementText: 'Balas Curtas e Balas Longas',
     criticalMultiplierIncrease: 2,
     ...getSeedInfo('item__livro_base__dum_dum', {
       name: 'Dum Dum',
@@ -291,6 +326,10 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     appliesTo: 'firearm',
     targetType: 'ammo',
+    allowedWeaponTypes: ['Fogo'],
+    allowedAmmoTypes: ['Balas curtas', 'Balas longas'],
+    requiresAmmo: true,
+    specialRequirementText: 'Balas Curtas e Balas Longas',
     ...getSeedInfo('item__livro_base__explosiva', {
       name: 'Explosiva',
       description: 'Munições com mercúrio ou glicerina que explodem ao atingir o alvo. Só pode ser aplicada em balas curtas e longas e aumenta o dano causado em +2d6. Aumenta a categoria da munição em +1.',
@@ -305,6 +344,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'carregador_rapido',
     categoryIncrease: 1,
     appliesTo: 'firearm',
+    allowedWeaponTypes: ['Fogo', 'Disparo'],
+    specialRequirementText: 'Armas de Fogo ou Balestras/Bestas',
     ...getSeedInfo('item__sobrevivendo_ao_horror__carregador_rapido', {
       name: 'Carregador Rápido',
       description: 'Em uma arma de fogo, permite recarregá-la como ação livre uma vez por rodada. Para bestas ou balestras, permite até cinco recargas como ação livre exigindo apenas uma mão.',
@@ -320,6 +361,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_lancinante',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Sangue',
     ...getSeedInfo('item__livro_base__lancinante', {
       name: 'Maldição: Lancinante',
@@ -334,6 +377,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_predadora',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     rangeStepIncrease: 1,
     element: 'Sangue',
     ...getSeedInfo('item__livro_base__predadora', {
@@ -349,6 +394,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_sanguinaria',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Sangue',
     ...getSeedInfo('item__livro_base__sanguinaria', {
       name: 'Maldição: Sanguinária',
@@ -365,6 +412,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_energetica',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     attackBonus: 5,
     element: 'Energia',
     ...getSeedInfo('item__livro_base__energetica', {
@@ -380,6 +429,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_vibrante',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Energia',
     ...getSeedInfo('item__livro_base__vibrante', {
       name: 'Maldição: Vibrante',
@@ -394,6 +445,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_empuxo',
     categoryIncrease: 1,
     appliesTo: 'melee',
+    allowedWeaponTypes: ['Corpo a corpo'],
+    specialRequirementText: 'Apenas Armas Corpo a Corpo',
     element: 'Energia',
     ...getSeedInfo('item__livro_base__empuxo', {
       name: 'Maldição: Empuxo',
@@ -410,6 +463,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_erosiva',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Morte',
     ...getSeedInfo('item__livro_base__erosiva', {
       name: 'Maldição: Erosiva',
@@ -424,6 +479,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_consumidora',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Morte',
     ...getSeedInfo('item__livro_base__consumidora', {
       name: 'Maldição: Consumidora',
@@ -438,6 +495,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_repulsora',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Morte',
     ...getSeedInfo('item__livro_base__repulsora', {
       name: 'Maldição: Repulsora',
@@ -454,6 +513,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_antielemento',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Conhecimento',
     ...getSeedInfo('item__livro_base__antielemento', {
       name: 'Maldição: Antielemento',
@@ -468,6 +529,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_ritualistica',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Conhecimento',
     ...getSeedInfo('item__livro_base__ritualistica', {
       name: 'Maldição: Ritualística',
@@ -482,6 +545,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     shortId: 'maldicao_senciente',
     categoryIncrease: 1,
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Conhecimento',
     ...getSeedInfo('item__livro_base__senciente', {
       name: 'Maldição: Senciente',
@@ -499,6 +564,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'Multiplicador de crítico aumenta em +1 (ex.: x2 vira x3). Em acerto crítico, recupera PV igual ao dano do crítico.',
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     criticalMultiplierIncrease: 1,
     element: 'Sangue',
     source: 'Livro Base',
@@ -510,6 +577,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'Causa +1d6 pontos de dano de Sangue e cura o agente em metade do dano bônus causado.',
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Sangue',
     source: 'Livro Base',
   },
@@ -520,6 +589,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'Descarrega arcos elétricos caóticos, causando +1d6 de dano adicional de Choque/Energia.',
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Energia',
     source: 'Livro Base',
   },
@@ -530,6 +601,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'Você pode canalizar a espiral de decomposição do ritual Decadência diretamente através do ataque da arma.',
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Morte',
     source: 'Livro Base',
   },
@@ -540,6 +613,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'Acelera a sua percepção temporal, concedendo +1 ação de movimento adicional em cada rodada.',
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Morte',
     source: 'Livro Base',
   },
@@ -550,6 +625,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'A cada dano massivo ou ferimento sofrido pelo portador na cena, a arma acumula poder concedendo +1d6 no dano.',
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Conhecimento',
     source: 'Livro Base',
   },
@@ -560,6 +637,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'O conhecimento sussurra as ações futuras dos inimigos, concedendo +5 em testes de Iniciativa.',
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     element: 'Conhecimento',
     source: 'Livro Base',
   },
@@ -570,6 +649,9 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'Dobra a quantidade de munição antes de necessitar de recarga.',
     appliesTo: 'firearm',
+    allowedWeaponTypes: ['Fogo'],
+    requiresAmmo: true,
+    specialRequirementText: 'Armas de Fogo com Carregador',
     source: 'Sobrevivendo ao Horror',
   },
   {
@@ -580,6 +662,10 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     description: 'Projéteis de alta penetração que ignoram até 5 pontos de Resistência a Dano (RD) do alvo. Aumenta a categoria da munição em +1.',
     appliesTo: 'firearm',
     targetType: 'ammo',
+    allowedWeaponTypes: ['Fogo'],
+    allowedAmmoTypes: ['Balas curtas', 'Balas longas', 'Cartuchos'],
+    requiresAmmo: true,
+    specialRequirementText: 'Balas Curtas, Longas ou Cartuchos',
     source: 'Sobrevivendo ao Horror',
   },
   {
@@ -589,6 +675,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'Concede +2 em testes de manobra de combate com a arma.',
     appliesTo: 'melee',
+    allowedWeaponTypes: ['Corpo a corpo'],
+    specialRequirementText: 'Armas Corpo a Corpo',
     source: 'Livro Base',
   },
   {
@@ -598,6 +686,8 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     categoryIncrease: 1,
     description: 'Reduz o peso da arma, diminuindo em –1 o espaço ocupado (mínimo 1) e penalidades de carga.',
     appliesTo: 'all',
+    allowedWeaponTypes: ['Corpo a corpo', 'Disparo', 'Fogo'],
+    specialRequirementText: 'Qualquer Arma',
     spacesChange: -1,
     source: 'Livro Base',
   },
@@ -684,6 +774,9 @@ export function getWeaponModsWithCompendium(
       source: (entity.bookTitle as any) || mod.source,
       element: (entity.element && entity.element !== 'Nenhum' ? entity.element : mod.element) as ParanormalElement | undefined,
       targetType: mod.targetType || (isAmmoModification(mod) ? 'ammo' : 'weapon'),
+      allowedWeaponTypes: entity.allowedWeaponTypes || mod.allowedWeaponTypes,
+      allowedAmmoTypes: entity.allowedAmmoTypes || mod.allowedAmmoTypes,
+      specialRequirementText: entity.appliesToDescription || mod.specialRequirementText,
     };
   });
 }
@@ -1020,4 +1113,235 @@ export function calculateWeaponStats(
     element,
     specialRules: specialParts.join(' • '),
   };
+}
+
+export function getAvailableWeaponMods(unlockedBookIds?: Set<string>): WeaponModificationDef[] {
+  if (!unlockedBookIds) return OFFICIAL_WEAPON_MODS;
+  return OFFICIAL_WEAPON_MODS.filter((mod) => {
+    if (mod.source === 'Homebrew') return true;
+    if (mod.source === 'Livro Base') return unlockedBookIds.has('livro_base');
+    if (mod.source === 'Sobrevivendo ao Horror') return unlockedBookIds.has('sobrevivendo_ao_horror');
+    if (mod.id.includes('__sobrevivendo_ao_horror__')) return unlockedBookIds.has('sobrevivendo_ao_horror');
+    if (mod.id.includes('__livro_base__')) return unlockedBookIds.has('livro_base');
+    return true;
+  });
+}
+
+export function isWeaponAutomatic(
+  weaponName?: string,
+  selectedModIds: string[] = []
+): boolean {
+  if (
+    selectedModIds.includes('ferrolho_automatico') ||
+    selectedModIds.includes('item__livro_base__ferrolho_automatico')
+  ) {
+    return true;
+  }
+  const n = (weaponName || '').toLowerCase().trim();
+  return (
+    n.includes('submetralhadora') ||
+    n.includes('fuzil de assalto') ||
+    n.includes('metralhadora')
+  );
+}
+
+export function isWeaponInherentlyAutomatic(weaponName?: string): boolean {
+  const n = (weaponName || '').toLowerCase().trim();
+  return (
+    n.includes('submetralhadora') ||
+    n.includes('fuzil de assalto') ||
+    n.includes('metralhadora')
+  );
+}
+
+export function isWeaponCrossbow(weaponName?: string): boolean {
+  const n = (weaponName || '').toLowerCase().trim();
+  return n.includes('besta') || n.includes('balestra');
+}
+
+export interface WeaponCompatibilityContext {
+  weaponType: WeaponType;
+  baseWeaponName?: string;
+  range?: string;
+  ammoType?: string;
+  selectedModIds?: string[];
+}
+
+export interface CompatibilityCheckResult {
+  compatible: boolean;
+  reason?: string;
+}
+
+export function checkModificationCompatibility(
+  modOrId: WeaponModificationDef | string,
+  context: WeaponCompatibilityContext
+): CompatibilityCheckResult {
+  const mod = typeof modOrId === 'string' ? OFFICIAL_WEAPON_MODS_MAP.get(modOrId) : modOrId;
+  if (!mod) {
+    return { compatible: true };
+  }
+
+  const { weaponType, baseWeaponName, range, ammoType, selectedModIds = [] } = context;
+  const isMelee = weaponType === 'Corpo a corpo';
+  const effectiveAmmo = isMelee ? 'Nenhuma' : ammoType || detectDefaultAmmo(baseWeaponName, weaponType).ammoType;
+  const isAutomatic = isWeaponAutomatic(baseWeaponName, selectedModIds);
+  const inherentlyAutomatic = isWeaponInherentlyAutomatic(baseWeaponName);
+  const isCrossbow = isWeaponCrossbow(baseWeaponName);
+
+  // 1. Modificações de Munição
+  if (isAmmoModification(mod) || mod.targetType === 'ammo') {
+    if (isMelee || effectiveAmmo === 'Nenhuma') {
+      return {
+        compatible: false,
+        reason: 'Armas corpo a corpo ou sem munição não podem receber modificações de balas/munição.',
+      };
+    }
+    if (mod.allowedAmmoTypes && mod.allowedAmmoTypes.length > 0) {
+      if (!mod.allowedAmmoTypes.includes(effectiveAmmo)) {
+        return {
+          compatible: false,
+          reason: `Modificação exclusiva para ${mod.allowedAmmoTypes.join(' ou ')} (a arma atual usa "${effectiveAmmo}").`,
+        };
+      }
+    }
+    if (weaponType === 'Disparo' && mod.allowedWeaponTypes && !mod.allowedWeaponTypes.includes('Disparo')) {
+      return {
+        compatible: false,
+        reason: `Modificação de munição incompatível com armas de disparo (${effectiveAmmo}).`,
+      };
+    }
+    return { compatible: true };
+  }
+
+  // 2. Carregador Rápido: Armas de fogo OU bestas/balestras
+  const modKey = mod.shortId || mod.id;
+  if (modKey === 'carregador_rapido' || mod.id === 'item__sobrevivendo_ao_horror__carregador_rapido') {
+    if (weaponType === 'Fogo' || isCrossbow) {
+      return { compatible: true };
+    }
+    return {
+      compatible: false,
+      reason: 'Carregador Rápido só pode ser instalado em armas de fogo ou bestas/balestras.',
+    };
+  }
+
+  // 3. Compensador: Apenas para armas automáticas
+  if (mod.requiresAutomatic || modKey === 'compensador' || mod.id === 'item__livro_base__compensador') {
+    if (weaponType !== 'Fogo') {
+      return {
+        compatible: false,
+        reason: 'Compensador só pode ser instalado em armas de fogo automáticas.',
+      };
+    }
+    if (!isAutomatic) {
+      return {
+        compatible: false,
+        reason: 'Compensador requer arma automática (Submetralhadora, Fuzil de Assalto, Metralhadora ou modificação Ferrolho Automático).',
+      };
+    }
+    return { compatible: true };
+  }
+
+  // 4. Ferrolho Automático: Armas de fogo não automáticas
+  if (mod.requiresNonAutomatic || modKey === 'ferrolho_automatico' || mod.id === 'item__livro_base__ferrolho_automatico') {
+    if (weaponType !== 'Fogo') {
+      return {
+        compatible: false,
+        reason: 'Ferrolho Automático só pode ser instalado em armas de fogo.',
+      };
+    }
+    if (inherentlyAutomatic) {
+      return {
+        compatible: false,
+        reason: 'Esta arma já é inerentemente automática (não necessita de Ferrolho Automático).',
+      };
+    }
+    return { compatible: true };
+  }
+
+  // 5. Tipo de arma permitido (allowedWeaponTypes)
+  if (mod.allowedWeaponTypes && mod.allowedWeaponTypes.length > 0) {
+    if (!mod.allowedWeaponTypes.includes(weaponType)) {
+      const allowedStr = mod.specialRequirementText || mod.allowedWeaponTypes.join(' ou ');
+      return {
+        compatible: false,
+        reason: `Exclusiva para ${allowedStr} (a arma selecionada é do tipo "${weaponType}").`,
+      };
+    }
+  } else if (mod.appliesTo) {
+    if (mod.appliesTo === 'melee' && !isMelee) {
+      return {
+        compatible: false,
+        reason: 'Modificação exclusiva para armas corpo a corpo.',
+      };
+    }
+    if (mod.appliesTo === 'firearm' && weaponType !== 'Fogo') {
+      return {
+        compatible: false,
+        reason: 'Modificação exclusiva para armas de fogo.',
+      };
+    }
+    if (mod.appliesTo === 'ranged' && isMelee) {
+      return {
+        compatible: false,
+        reason: 'Modificação exclusiva para armas de ataque à distância.',
+      };
+    }
+  }
+
+  // 6. Exigência de alcance à distância (requiresRanged)
+  if (mod.requiresRanged && isMelee && (range === 'Corpo a corpo' || !range)) {
+    return {
+      compatible: false,
+      reason: 'Esta modificação requer uma arma com alcance à distância (curto, médio ou longo).',
+    };
+  }
+
+  // 7. Exigência de munição (requiresAmmo)
+  if (mod.requiresAmmo && (isMelee || effectiveAmmo === 'Nenhuma')) {
+    return {
+      compatible: false,
+      reason: 'Esta modificação requer uma arma que utilize munição/carregador.',
+    };
+  }
+
+  return { compatible: true };
+}
+
+export function sanitizeWeaponModifications(
+  selectedModIds: string[],
+  context: WeaponCompatibilityContext
+): { sanitizedModIds: string[]; removedMods: WeaponModificationDef[] } {
+  const remainingIds = [...selectedModIds];
+  const removed: WeaponModificationDef[] = [];
+
+  const hasFerrolho = remainingIds.some(
+    (id) => id === 'ferrolho_automatico' || id === 'item__livro_base__ferrolho_automatico'
+  );
+  const ferrolhoCheck = hasFerrolho
+    ? checkModificationCompatibility('ferrolho_automatico', { ...context, selectedModIds: remainingIds })
+    : { compatible: false };
+
+  const effectiveSelectedIds = remainingIds.filter((id) => {
+    if ((id === 'ferrolho_automatico' || id === 'item__livro_base__ferrolho_automatico') && !ferrolhoCheck.compatible) {
+      return false;
+    }
+    return true;
+  });
+
+  const finalIds: string[] = [];
+  for (const id of remainingIds) {
+    const def = OFFICIAL_WEAPON_MODS_MAP.get(id);
+    const check = checkModificationCompatibility(id, {
+      ...context,
+      selectedModIds: effectiveSelectedIds,
+    });
+    if (check.compatible) {
+      finalIds.push(id);
+    } else {
+      if (def) removed.push(def);
+    }
+  }
+
+  return { sanitizedModIds: finalIds, removedMods: removed };
 }

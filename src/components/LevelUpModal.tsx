@@ -30,6 +30,8 @@ import {
   OFFICIAL_SKILLS_LIST,
   parseTrackAbilities,
 } from '../utils/progression';
+import { useApp } from '../context/AppContext';
+import { DEFAULT_LONG_PRESS_DELAY } from '../types/recordPreview';
 
 const RANK_ITEM_LIMITS = {
   Recruta: { cat1: 2, cat2: 0, cat3: 0, cat4: 0, credit: 'Baixo' as const },
@@ -67,6 +69,7 @@ export default function LevelUpModal({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const { openEntityPreview, openSkillPreview } = useApp();
 
   if (!character) return null;
 
@@ -615,17 +618,40 @@ export default function LevelUpModal({
               <View style={{ gap: 8, marginTop: 10 }}>
                 {compatibleTracks.map((trk) => {
                   const isSel = trk.id === selectedTrackId;
+                  const openTrackDetails = () =>
+                    openEntityPreview(trk, {
+                      primaryAction: {
+                        label: isSel ? 'Trilha Selecionada' : 'Escolher esta Trilha',
+                        isSelected: isSel,
+                        onPress: () => setSelectedTrackId(trk.id),
+                      },
+                    });
                   return (
                     <TouchableOpacity
                       key={trk.id}
                       style={[styles.choiceCard, isSel && styles.choiceCardActive]}
                       onPress={() => setSelectedTrackId(trk.id)}
+                      onLongPress={openTrackDetails}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      testID={`levelup-track-${trk.id}`}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={[styles.choiceCardTitle, isSel && { color: colors.primary }]}>
                           {trk.name}
                         </Text>
-                        {isSel && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openTrackDetails();
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            testID={`levelup-track-info-${trk.id}`}
+                          >
+                            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                          {isSel && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
+                        </View>
                       </View>
                       <Text style={styles.choiceCardDesc}>{getTrackDescription(trk)}</Text>
                       {(() => {
@@ -747,11 +773,22 @@ export default function LevelUpModal({
               <View style={{ gap: 8, marginTop: 8 }}>
                 {displayedClassPowers.slice(0, 50).map((pow) => {
                   const isSel = pow.id === selectedClassPowerId;
+                  const openPowDetails = () =>
+                    openEntityPreview(pow, {
+                      primaryAction: {
+                        label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
+                        isSelected: isSel,
+                        onPress: () => setSelectedClassPowerId(isSel ? null : pow.id),
+                      },
+                    });
                   return (
                     <TouchableOpacity
                       key={pow.id}
                       style={[styles.choiceCard, isSel && styles.choiceCardActive]}
                       onPress={() => setSelectedClassPowerId(isSel ? null : pow.id)}
+                      onLongPress={openPowDetails}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      testID={`levelup-class-power-${pow.id}`}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
@@ -760,9 +797,20 @@ export default function LevelUpModal({
                             {pow.name}
                           </Text>
                         </View>
-                        <Text style={[styles.badgeText, { color: colors.accent }]}>
-                          {pow.subCategory}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.badgeText, { color: colors.accent }]}>
+                            {pow.subCategory}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openPowDetails();
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                       <Text style={styles.choiceCardDesc}>{pow.summary || pow.description}</Text>
                     </TouchableOpacity>
@@ -820,11 +868,22 @@ export default function LevelUpModal({
               <View style={{ gap: 8, marginTop: 8 }}>
                 {displayedParanormalPowers.slice(0, 50).map((pow) => {
                   const isSel = pow.id === selectedParanormalPowerId;
+                  const openParaDetails = () =>
+                    openEntityPreview(pow, {
+                      primaryAction: {
+                        label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
+                        isSelected: isSel,
+                        onPress: () => setSelectedParanormalPowerId(isSel ? null : pow.id),
+                      },
+                    });
                   return (
                     <TouchableOpacity
                       key={pow.id}
                       style={[styles.choiceCard, isSel && [styles.choiceCardActive, { borderColor: '#8B5CF6' }]]}
                       onPress={() => setSelectedParanormalPowerId(isSel ? null : pow.id)}
+                      onLongPress={openParaDetails}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      testID={`levelup-para-power-${pow.id}`}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
@@ -833,9 +892,20 @@ export default function LevelUpModal({
                             {pow.name}
                           </Text>
                         </View>
-                        <Text style={[styles.badgeText, { color: '#8B5CF6', fontWeight: '700' }]}>
-                          {pow.subCategory}{pow.element && pow.element !== 'Nenhum' ? ` • ${pow.element}` : ''}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.badgeText, { color: '#8B5CF6', fontWeight: '700' }]}>
+                            {pow.subCategory}{pow.element && pow.element !== 'Nenhum' ? ` • ${pow.element}` : ''}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openParaDetails();
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                       <Text style={styles.choiceCardDesc}>{pow.summary || pow.description}</Text>
                     </TouchableOpacity>
@@ -926,11 +996,23 @@ export default function LevelUpModal({
                   const isParanormal = (pow.subCategory || '').toLowerCase().includes('paranormal') ||
                     (pow.element && pow.element !== 'Nenhum' && !(pow.subCategory || '').toLowerCase().includes('combatente') && !(pow.subCategory || '').toLowerCase().includes('especialista') && !(pow.subCategory || '').toLowerCase().includes('ocultista'));
 
+                  const openPowDetails = () =>
+                    openEntityPreview(pow, {
+                      primaryAction: {
+                        label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
+                        isSelected: isSel,
+                        onPress: () => setSelectedPowerId(isSel ? null : pow.id),
+                      },
+                    });
+
                   return (
                     <TouchableOpacity
                       key={pow.id}
                       style={[styles.choiceCard, isSel && styles.choiceCardActive, isParanormal && isSel && { borderColor: '#8B5CF6' }]}
                       onPress={() => setSelectedPowerId(isSel ? null : pow.id)}
+                      onLongPress={openPowDetails}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      testID={`levelup-power-${pow.id}`}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
@@ -943,9 +1025,21 @@ export default function LevelUpModal({
                             {pow.name}
                           </Text>
                         </View>
-                        <Text style={[styles.badgeText, isParanormal ? { color: '#8B5CF6', fontWeight: '700' } : { color: colors.accent }]}>
-                          {pow.subCategory}{pow.element && pow.element !== 'Nenhum' ? ` • ${pow.element}` : ''}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.badgeText, isParanormal ? { color: '#8B5CF6', fontWeight: '700' } : { color: colors.accent }]}>
+                            {pow.subCategory}{pow.element && pow.element !== 'Nenhum' ? ` • ${pow.element}` : ''}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openPowDetails();
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            testID={`levelup-power-info-${pow.id}`}
+                          >
+                            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                       <Text style={styles.choiceCardDesc}>{pow.summary || pow.description}</Text>
                     </TouchableOpacity>
@@ -1014,21 +1108,40 @@ export default function LevelUpModal({
                 {OFFICIAL_SKILLS_LIST.map((sk) => {
                   const currentDeg = character.skills[sk.name]?.degree || 0;
                   const isSel = selectedSkillPromotions.includes(sk.name);
+                  const openSkillInfo = () =>
+                    openSkillPreview(sk, {
+                      primaryAction: {
+                        label: isSel ? 'Promoção Selecionada' : `Promover ${sk.name}`,
+                        isSelected: isSel,
+                        onPress: () => toggleSkillPromotion(sk.name),
+                      },
+                    });
 
                   return (
                     <TouchableOpacity
                       key={sk.name}
                       style={[styles.skillItem, isSel && styles.skillItemActive]}
                       onPress={() => toggleSkillPromotion(sk.name)}
+                      onLongPress={openSkillInfo}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                     >
                       <Ionicons
                         name={isSel ? 'checkbox' : 'square-outline'}
                         size={18}
                         color={isSel ? colors.primary : colors.textSecondary}
                       />
-                      <Text style={[styles.skillItemName, isSel && { color: colors.primary, fontWeight: '700' }]}>
+                      <Text style={[styles.skillItemName, { flex: 1 }, isSel && { color: colors.primary, fontWeight: '700' }]}>
                         {sk.name} (+{currentDeg} ➔ +{milestone.skillTrainingTargetDegree})
                       </Text>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          openSkillInfo();
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+                      </TouchableOpacity>
                     </TouchableOpacity>
                   );
                 })}
@@ -1098,19 +1211,42 @@ export default function LevelUpModal({
                   .slice(0, 15)
                   .map((rit) => {
                     const isSel = rit.id === selectedRitualId;
+                    const openRitualInfo = () =>
+                      openEntityPreview(rit, {
+                        primaryAction: {
+                          label: isSel ? 'Ritual Selecionado' : 'Escolher este Ritual',
+                          isSelected: isSel,
+                          onPress: () => setSelectedRitualId(rit.id),
+                        },
+                      });
                     return (
                       <TouchableOpacity
                         key={rit.id}
                         style={[styles.choiceCard, isSel && styles.choiceCardActive]}
                         onPress={() => setSelectedRitualId(rit.id)}
+                        onLongPress={openRitualInfo}
+                        delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                        testID={`levelup-ritual-${rit.id}`}
                       >
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Text style={[styles.choiceCardTitle, isSel && { color: colors.primary }]}>
                             {rit.name}
                           </Text>
-                          <Text style={[styles.badgeText, { color: colors.accent }]}>
-                            {rit.element} • {rit.circle}º Círculo
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[styles.badgeText, { color: colors.accent }]}>
+                              {rit.element} • {rit.circle}º Círculo
+                            </Text>
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation?.();
+                                openRitualInfo();
+                              }}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              testID={`levelup-ritual-info-${rit.id}`}
+                            >
+                              <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                          </View>
                         </View>
                         <Text style={styles.choiceCardDesc}>{rit.summary}</Text>
                       </TouchableOpacity>

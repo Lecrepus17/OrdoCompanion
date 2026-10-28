@@ -27,6 +27,8 @@ import {
   getRitualDt,
   OFFICIAL_SKILLS_LIST,
 } from '../utils/progression';
+import { useApp } from '../context/AppContext';
+import { DEFAULT_LONG_PRESS_DELAY } from '../types/recordPreview';
 
 interface CreateAgentModalProps {
   visible: boolean;
@@ -50,6 +52,7 @@ export default function CreateAgentModal({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const { openEntityPreview, openSkillPreview } = useApp();
 
   // Etapa atual: 1..6
   const [step, setStep] = useState<number>(1);
@@ -61,7 +64,6 @@ export default function CreateAgentModal({
   // Etapa 2: Origem
   const [originSearch, setOriginSearch] = useState('');
   const [selectedOriginId, setSelectedOriginId] = useState<string>(originsList[0]?.id || '');
-  const [abilityPopupOrigin, setAbilityPopupOrigin] = useState<CompendiumEntity | null>(null);
 
   // Etapa 3: Classe
   const [selectedClassId, setSelectedClassId] = useState<string>(() => {
@@ -101,7 +103,6 @@ export default function CreateAgentModal({
       setPlayer(userProfile?.playerName || '');
       setOriginSearch('');
       setSelectedOriginId(originsList[0]?.id || '');
-      setAbilityPopupOrigin(null);
       if (userProfile?.preferredClass) {
         const match = classesList.find((c) =>
           c.name.toLowerCase().includes(userProfile.preferredClass!.toLowerCase())
@@ -700,14 +701,24 @@ export default function CreateAgentModal({
                   const bookRef = `${orig.bookTitle || 'Livro Base'}${
                     orig.pageNumber ? ` p. ${orig.pageNumber}` : ''
                   }`;
+                  const openOriginDetails = () =>
+                    openEntityPreview(orig, {
+                      popupTestID: 'origin-ability-popup',
+                      primaryAction: {
+                        label: isSelected ? 'Origem Selecionada' : 'Escolher esta Origem',
+                        isSelected,
+                        onPress: () => setSelectedOriginId(orig.id),
+                        testID: 'popup-select-btn',
+                      },
+                    });
 
                   return (
                     <TouchableOpacity
                       key={orig.id}
                       style={[styles.itemCard, isSelected && styles.itemCardActive]}
                       onPress={() => setSelectedOriginId(orig.id)}
-                      onLongPress={() => setAbilityPopupOrigin(orig)}
-                      delayLongPress={350}
+                      onLongPress={openOriginDetails}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                       activeOpacity={0.7}
                       testID={`origin-card-${orig.id}`}
                     >
@@ -725,7 +736,7 @@ export default function CreateAgentModal({
                             style={styles.originInfoBtn}
                             onPress={(e) => {
                               e.stopPropagation?.();
-                              setAbilityPopupOrigin(orig);
+                              openOriginDetails();
                             }}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             accessibilityLabel={`Ver habilidade de ${orig.name}`}
@@ -786,6 +797,13 @@ export default function CreateAgentModal({
                 </View>
               </View>
 
+              <View style={styles.hintBanner}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
+                <Text style={styles.hintBannerText}>
+                  Toque e segure em qualquer classe para abrir todas as suas características e progressão.
+                </Text>
+              </View>
+
               <View style={{ gap: 10, marginTop: 10 }}>
                 {classesList.map((cls) => {
                   const isSelected = cls.id === selectedClassId;
@@ -793,12 +811,24 @@ export default function CreateAgentModal({
                   const bookRef = `${cls.bookTitle || 'Livro Base'}${
                     cls.pageNumber ? ` p. ${cls.pageNumber}` : ''
                   }`;
+                  const openClassDetails = () =>
+                    openEntityPreview(cls, {
+                      primaryAction: {
+                        label: isSelected ? 'Classe Selecionada' : 'Escolher esta Classe',
+                        isSelected,
+                        onPress: () => setSelectedClassId(cls.id),
+                      },
+                    });
 
                   return (
                     <TouchableOpacity
                       key={cls.id}
                       style={[styles.classCard, isSelected && styles.classCardActive]}
                       onPress={() => setSelectedClassId(cls.id)}
+                      onLongPress={openClassDetails}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      activeOpacity={0.75}
+                      testID={`class-card-${cls.id}`}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -809,7 +839,21 @@ export default function CreateAgentModal({
                             <Text style={styles.bookBadgeText}>{bookRef}</Text>
                           </View>
                         </View>
-                        {isSelected && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <TouchableOpacity
+                            style={styles.originInfoBtn}
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openClassDetails();
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityLabel={`Ver detalhes de ${cls.name}`}
+                            testID={`class-info-${cls.id}`}
+                          >
+                            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                          {isSelected && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
+                        </View>
                       </View>
                       <Text style={styles.classCardSummary}>{cls.summary}</Text>
 
@@ -1094,6 +1138,16 @@ export default function CreateAgentModal({
                             key={skName}
                             style={[styles.skillPill, isSel && styles.skillPillActive]}
                             onPress={() => handleSelectChoiceGroup(idx, skName)}
+                            onLongPress={() =>
+                              openSkillPreview(skName, {
+                                primaryAction: {
+                                  label: isSel ? 'Perícia Selecionada' : `Escolher ${skName}`,
+                                  isSelected: isSel,
+                                  onPress: () => handleSelectChoiceGroup(idx, skName),
+                                },
+                              })
+                            }
+                            delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                           >
                             <Ionicons
                               name={isSel ? 'checkmark-circle' : 'ellipse-outline'}
@@ -1204,6 +1258,18 @@ export default function CreateAgentModal({
                   const isQuotaFull = freeSkillSelections.length >= totalFreeChoicesCount;
                   const isDisabled = isLocked || (!isFree && isQuotaFull);
 
+                  const handleInspectSkill = () =>
+                    openSkillPreview(sk, {
+                      primaryAction:
+                        !isLocked && (!isQuotaFull || isFree)
+                          ? {
+                              label: isFree ? 'Remover Perícia Livre' : 'Treinar Perícia Livre',
+                              isSelected: isFree,
+                              onPress: () => toggleFreeSkill(sk.name),
+                            }
+                          : undefined,
+                    });
+
                   return (
                     <TouchableOpacity
                       key={sk.name}
@@ -1214,10 +1280,12 @@ export default function CreateAgentModal({
                         isDisabled && !isSelected && { opacity: 0.45 },
                       ]}
                       onPress={() => {
-                        if (isLocked) return;
+                        if (isLocked || (isDisabled && !isFree)) return;
                         toggleFreeSkill(sk.name);
                       }}
-                      disabled={isDisabled && !isFree}
+                      onLongPress={handleInspectSkill}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      testID={`skill-card-${sk.name}`}
                     >
                       <Ionicons
                         name={isSelected ? 'checkbox' : 'square-outline'}
@@ -1276,6 +1344,17 @@ export default function CreateAgentModal({
                           <Text style={[styles.tagBadgeText, { color: colors.success }]}>Livre</Text>
                         </View>
                       )}
+                      <TouchableOpacity
+                        style={styles.originInfoBtn}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          handleInspectSkill();
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        testID={`skill-info-${sk.name}`}
+                      >
+                        <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+                      </TouchableOpacity>
                     </TouchableOpacity>
                   );
                 })}
@@ -1332,19 +1411,43 @@ export default function CreateAgentModal({
                       )
                       .map((rit) => {
                         const isSel = selectedRitualIds.includes(rit.id);
+                        const openRitualDetails = () =>
+                          openEntityPreview(rit, {
+                            primaryAction: {
+                              label: isSel ? 'Ritual Selecionado' : 'Escolher este Ritual',
+                              isSelected: isSel,
+                              onPress: () => toggleRitual(rit.id),
+                            },
+                          });
                         return (
                           <TouchableOpacity
                             key={rit.id}
                             style={[styles.itemCard, isSel && styles.itemCardActive]}
                             onPress={() => toggleRitual(rit.id)}
+                            onLongPress={openRitualDetails}
+                            delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                            testID={`ritual-card-${rit.id}`}
                           >
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                               <Text style={[styles.itemCardTitle, isSel && { color: colors.primary }]}>
                                 {rit.name}
                               </Text>
-                              <Text style={[styles.badgeText, { color: colors.accent }]}>
-                                {rit.element} • 1º Círculo
-                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={[styles.badgeText, { color: colors.accent }]}>
+                                  {rit.element} • 1º Círculo
+                                </Text>
+                                <TouchableOpacity
+                                  style={styles.originInfoBtn}
+                                  onPress={(e) => {
+                                    e.stopPropagation?.();
+                                    openRitualDetails();
+                                  }}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                  testID={`ritual-info-${rit.id}`}
+                                >
+                                  <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                                </TouchableOpacity>
+                              </View>
                             </View>
                             <Text style={styles.itemCardSummary}>{rit.summary}</Text>
                           </TouchableOpacity>
@@ -1373,20 +1476,40 @@ export default function CreateAgentModal({
                   <View style={styles.skillsGrid}>
                     {peritoCandidates.map((skName) => {
                       const isSel = peritoSkills.includes(skName);
+                      const openPeritoSkill = () =>
+                        openSkillPreview(skName, {
+                          primaryAction: {
+                            label: isSel ? 'Selecionada em Perito' : `Escolher ${skName} para Perito`,
+                            isSelected: isSel,
+                            onPress: () => togglePeritoSkill(skName),
+                          },
+                        });
                       return (
                         <TouchableOpacity
                           key={skName}
                           style={[styles.skillItem, isSel && styles.skillItemActive]}
                           onPress={() => togglePeritoSkill(skName)}
+                          onLongPress={openPeritoSkill}
+                          delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                         >
                           <Ionicons
                             name={isSel ? 'radio-button-on' : 'radio-button-off'}
                             size={18}
                             color={isSel ? colors.primary : colors.textSecondary}
                           />
-                          <Text style={[styles.skillItemName, isSel && { color: colors.primary, fontWeight: '700' }]}>
+                          <Text style={[styles.skillItemName, isSel && { color: colors.primary, fontWeight: '700', flex: 1 }, !isSel && { flex: 1 }]}>
                             {skName}
                           </Text>
+                          <TouchableOpacity
+                            style={styles.originInfoBtn}
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openPeritoSkill();
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+                          </TouchableOpacity>
                         </TouchableOpacity>
                       );
                     })}
@@ -1570,149 +1693,6 @@ export default function CreateAgentModal({
             </TouchableOpacity>
           )}
         </View>
-
-        {/* ======================================================== */}
-        {/* POPUP / MODAL: DETALHES DA HABILIDADE DE ORIGEM          */}
-        {/* ======================================================== */}
-        <Modal
-          visible={!!abilityPopupOrigin}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setAbilityPopupOrigin(null)}
-          statusBarTranslucent
-        >
-          <View style={styles.popupOverlay}>
-            <TouchableOpacity
-              style={StyleSheet.absoluteFill}
-              activeOpacity={1}
-              onPress={() => setAbilityPopupOrigin(null)}
-            />
-            {abilityPopupOrigin && (
-              <View style={styles.popupCard} testID="origin-ability-popup">
-                {/* Header do Popup */}
-                <View style={styles.popupHeader}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                    <View style={styles.popupIconBadge}>
-                      <Ionicons name="flash" size={20} color="#F59E0B" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.popupOriginName}>{abilityPopupOrigin.name}</Text>
-                      <Text style={styles.popupOriginBook}>
-                        {abilityPopupOrigin.bookTitle || 'Livro Base'}
-                        {abilityPopupOrigin.pageNumber ? ` • pág. ${abilityPopupOrigin.pageNumber}` : ''}
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setAbilityPopupOrigin(null)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={styles.popupCloseBtn}
-                    testID="popup-close-btn"
-                  >
-                    <Ionicons name="close" size={22} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Conteúdo com Scroll */}
-                <ScrollView
-                  style={styles.popupBody}
-                  contentContainerStyle={{ paddingBottom: 16 }}
-                  showsVerticalScrollIndicator={true}
-                >
-                  {/* Bloco de Habilidade / Poder */}
-                  <View style={styles.popupAbilitySection}>
-                    <View style={styles.popupAbilityHeader}>
-                      <Ionicons name="sparkles" size={16} color="#F59E0B" />
-                      <Text style={styles.popupAbilityTitle}>
-                        {abilityPopupOrigin.powerName || 'Habilidade de Origem'}
-                      </Text>
-                      {(() => {
-                        const descLower = (abilityPopupOrigin.powerDescription || '').toLowerCase();
-                        const cost = descLower.includes('gastar 2 pe')
-                          ? '2 PE'
-                          : descLower.includes('gastar 1 pe')
-                          ? '1 PE'
-                          : 'Passivo';
-                        return (
-                          <View style={styles.popupCostBadge}>
-                            <Text style={styles.popupCostBadgeText}>{cost}</Text>
-                          </View>
-                        );
-                      })()}
-                    </View>
-
-                    <Text style={styles.popupAbilityDescription}>
-                      {abilityPopupOrigin.powerDescription ||
-                        abilityPopupOrigin.description ||
-                        'Habilidade especial concedida pela Origem do agente.'}
-                    </Text>
-                  </View>
-
-                  {/* Bloco de Perícias Treinadas */}
-                  {!!abilityPopupOrigin.trainedSkills && (
-                    <View style={styles.popupSkillsSection}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Ionicons name="dice-outline" size={16} color={colors.accent} />
-                        <Text style={styles.popupSectionLabel}>Perícias Treinadas:</Text>
-                      </View>
-                      <Text style={styles.popupSkillsText}>
-                        {abilityPopupOrigin.trainedSkills}
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Contexto / Descrição Narrativa da Origem */}
-                  {!!abilityPopupOrigin.description && (
-                    <View style={styles.popupLoreSection}>
-                      <Text style={styles.popupLoreLabel}>Sobre a Origem:</Text>
-                      <Text style={styles.popupLoreText}>
-                        {abilityPopupOrigin.description.split('\n\n')[0]}
-                      </Text>
-                    </View>
-                  )}
-                </ScrollView>
-
-                {/* Rodapé com Ações */}
-                <View style={styles.popupFooter}>
-                  <TouchableOpacity
-                    style={styles.popupDismissButton}
-                    onPress={() => setAbilityPopupOrigin(null)}
-                    testID="popup-dismiss-btn"
-                  >
-                    <Text style={styles.popupDismissButtonText}>Fechar</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.popupSelectButton,
-                      selectedOriginId === abilityPopupOrigin.id && styles.popupSelectButtonActive,
-                    ]}
-                    onPress={() => {
-                      setSelectedOriginId(abilityPopupOrigin.id);
-                      setAbilityPopupOrigin(null);
-                    }}
-                    testID="popup-select-btn"
-                  >
-                    <Ionicons
-                      name={
-                        selectedOriginId === abilityPopupOrigin.id
-                          ? 'checkmark-circle'
-                          : 'checkmark'
-                      }
-                      size={18}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.popupSelectButtonText}>
-                      {selectedOriginId === abilityPopupOrigin.id
-                        ? 'Origem Selecionada'
-                        : 'Escolher esta Origem'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </View>
-        </Modal>
       </View>
     </Modal>
   );

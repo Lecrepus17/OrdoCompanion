@@ -13062,7 +13062,11 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo"
+      ],
+      "appliesToDescription": "Armas de Fogo"
     },
     {
       "id": "item__livro_base__calibre_grosso",
@@ -13083,7 +13087,11 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo"
+      ],
+      "appliesToDescription": "Armas de Fogo"
     },
     {
       "id": "item__livro_base__certeira",
@@ -13101,7 +13109,12 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo"
+      ],
+      "appliesToDescription": "Armas Corpo a Corpo e de Disparo"
     },
     {
       "id": "item__livro_base__compensador",
@@ -13119,7 +13132,11 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo"
+      ],
+      "appliesToDescription": "Armas de Fogo Automáticas"
     },
     {
       "id": "item__livro_base__cruel",
@@ -13137,7 +13154,12 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo"
+      ],
+      "appliesToDescription": "Armas Corpo a Corpo e de Disparo"
     },
     {
       "id": "item__livro_base__discreta",
@@ -13155,7 +13177,13 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__dum_dum",
@@ -13173,7 +13201,16 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo"
+      ],
+      "allowedAmmoTypes": [
+        "Balas curtas",
+        "Balas longas"
+      ],
+      "appliesToDescription": "Balas Curtas e Balas Longas",
+      "targetType": "ammo"
     },
     {
       "id": "item__livro_base__explosiva",
@@ -13193,7 +13230,16 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo"
+      ],
+      "allowedAmmoTypes": [
+        "Balas curtas",
+        "Balas longas"
+      ],
+      "appliesToDescription": "Balas Curtas e Balas Longas",
+      "targetType": "ammo"
     },
     {
       "id": "item__livro_base__ferrolho_automatico",
@@ -13211,7 +13257,11 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo"
+      ],
+      "appliesToDescription": "Armas de Fogo não automáticas"
     },
     {
       "id": "item__livro_base__mira_laser",
@@ -13229,7 +13279,11 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo"
+      ],
+      "appliesToDescription": "Armas de Fogo"
     },
     {
       "id": "item__livro_base__mira_telescopica",
@@ -13247,7 +13301,12 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo",
+        "Disparo"
+      ],
+      "appliesToDescription": "Armas de Fogo ou de Disparo"
     },
     {
       "id": "item__livro_base__perigosa",
@@ -13265,7 +13324,12 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo"
+      ],
+      "appliesToDescription": "Armas Corpo a Corpo e de Disparo"
     },
     {
       "id": "item__livro_base__silenciador",
@@ -13283,7 +13347,11 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo"
+      ],
+      "appliesToDescription": "Armas de Fogo"
     },
     {
       "id": "item__livro_base__tatica",
@@ -13301,7 +13369,13 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__visao_de_calor",
@@ -13319,7 +13393,12 @@
         "Modificação",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo",
+        "Disparo"
+      ],
+      "appliesToDescription": "Armas de Fogo ou de Disparo"
     },
     {
       "id": "item__livro_base__protecao_leve",
@@ -14052,7 +14131,13 @@
         "Conhecimento",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__ritualistica",
@@ -14071,7 +14156,13 @@
         "Conhecimento",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__senciente",
@@ -14090,7 +14181,13 @@
         "Conhecimento",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__empuxo",
@@ -14109,7 +14206,11 @@
         "Energia",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo"
+      ],
+      "appliesToDescription": "Armas Corpo a Corpo"
     },
     {
       "id": "item__livro_base__energetica",
@@ -14128,7 +14229,13 @@
         "Energia",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__vibrante",
@@ -14147,7 +14254,13 @@
         "Energia",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__consumidora",
@@ -14166,7 +14279,13 @@
         "Morte",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__erosiva",
@@ -14188,7 +14307,13 @@
         "Morte",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__repulsora",
@@ -14207,7 +14332,13 @@
         "Morte",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__lancinante",
@@ -14229,7 +14360,13 @@
         "Sangue",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__predadora",
@@ -14248,7 +14385,13 @@
         "Sangue",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__sanguinaria",
@@ -14270,7 +14413,13 @@
         "Sangue",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Corpo a corpo",
+        "Disparo",
+        "Fogo"
+      ],
+      "appliesToDescription": "Qualquer Arma"
     },
     {
       "id": "item__livro_base__abascanta",
@@ -15030,7 +15179,12 @@
         "Modificação",
         "Sobrevivendo ao Horror",
         "Item"
-      ]
+      ],
+      "allowedWeaponTypes": [
+        "Fogo",
+        "Disparo"
+      ],
+      "appliesToDescription": "Armas de Fogo ou Balestras/Bestas"
     },
     {
       "id": "item__sobrevivendo_ao_horror__amuleto_sagrado",

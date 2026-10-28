@@ -73,7 +73,7 @@ const BookCoverCard: React.FC<{
 };
 
 export default function BooksScreen() {
-  const { books, searchInBookPages, openManual } = useApp();
+  const { books, catalogBooks, searchInBookPages, openManual, openPdfAccessModal } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 10);
@@ -105,16 +105,11 @@ export default function BooksScreen() {
     setReaderOpen(true);
   }, []);
 
-  const openExternalPdf = useCallback((book: BookInfo, pageNo: number = 1) => {
-    if (Platform.OS === 'web') {
-      openPdfDocument(book.fileName, pageNo);
-      return;
-    }
-    if (!isPdfServerConfigured()) {
+  const openExternalPdf = useCallback(async (book: BookInfo, pageNo: number = 1) => {
+    const opened = await openPdfDocument(book.fileName, pageNo);
+    if (!opened) {
       openBookAtPage(book, pageNo, 'text');
-      return;
     }
-    openPdfDocument(book.fileName, pageNo);
   }, [openBookAtPage]);
 
   const renderSnippetItem = useCallback(({ item }: { item: ReturnType<typeof searchInBookPages>[0] }) => {
@@ -156,6 +151,23 @@ export default function BooksScreen() {
             </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity
+          testID="btn-open-pdf-access-modal"
+          onPress={openPdfAccessModal}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            paddingHorizontal: 10,
+            height: 42,
+            borderRadius: 10,
+            backgroundColor: colors.primary,
+          }}
+          accessibilityLabel="Disponibilizar PDFs e Código de Acesso"
+        >
+          <Ionicons name="cloud-upload-outline" size={16} color="#FFF" />
+          <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFF' }}>Disponibilizar PDF</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => openManual('books')}
           style={{
@@ -225,13 +237,52 @@ export default function BooksScreen() {
             </View>
             <Text style={styles.pipelineDesc}>
               Todas as 1.261 páginas oficiais estão conectadas diretamente ao leitor integrado com suporte a busca textual,
-              sumário hierárquico e visualização offline. O modo offline carrega instantaneamente no aplicativo sem consumir internet.
+              sumário hierárquico e visualização offline. Faça upload dos PDFs que você tem acesso (ou use o código de e-mail) para liberar os dados no Compêndio e ler os livros offline.
             </Text>
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                backgroundColor: colors.primarySoft,
+                borderWidth: 1,
+                borderColor: colors.primary,
+                borderRadius: 10,
+                paddingVertical: 9,
+                paddingHorizontal: 12,
+                marginTop: 4,
+              }}
+              onPress={openPdfAccessModal}
+            >
+              <Ionicons name="key-outline" size={15} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800' }}>
+                Enviar PDFs / Liberar com Código no E-mail ({sortedBooks.length}/{catalogBooks.length} liberados)
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionHeading}>
             Biblioteca de PDFs Anexados ({sortedBooks.length} Livros • 1.261 Páginas)
           </Text>
+
+          {sortedBooks.length === 0 && (
+            <View style={styles.bookCard}>
+              <View style={{ alignItems: 'center', paddingVertical: 14, gap: 8 }}>
+                <Ionicons name="lock-closed-outline" size={34} color={colors.primary} />
+                <Text style={[styles.bookTitle, { textAlign: 'center' }]}>
+                  Nenhum PDF disponibilizado ainda
+                </Text>
+                <Text style={[styles.pipelineDesc, { textAlign: 'center' }]}>
+                  Envie seus arquivos PDF (ex.: Livro Base, Arquivos Secretos #01, #03) ou solicite um código para pedro.eduardo1777@gmail.com para liberar os livros no leitor e no Compêndio.
+                </Text>
+                <TouchableOpacity style={styles.readBookBtn} onPress={openPdfAccessModal}>
+                  <Ionicons name="cloud-upload-outline" size={15} color="#FFF" />
+                  <Text style={styles.readBookBtnText}>Disponibilizar Meus PDFs / Código</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {sortedBooks.map((book) => {
             return (

@@ -2,8 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   BookInfo,
   BookPage,
+  BookUnlockMethod,
   BookWithPages,
   Campaign,
+  CatalogBookInfo,
   CharacterSheet,
   CompendiumEntity,
   CompendiumFilters,
@@ -11,17 +13,24 @@ import {
   EntityClassFilter,
   ExcludableType,
   SavedList,
+  UnlockedBookRecord,
   UserProfile,
   DEFAULT_USER_PROFILE,
 } from '../types/compendium';
 import { IDataRepository } from './IDataRepository';
+import { localPdfStorage } from '../services/pdf/PdfAccessService';
 
 import compendiumSeedRaw from '../data/seed/compendium_seed.json';
 import booksPagesSeedRaw from '../data/seed/books_pages_seed.json';
 
+export const UNLOCKED_BOOKS_STORAGE_KEY = '@ordem_paranormal:unlocked_books_v1';
+
 const STORAGE_KEYS = {
   CUSTOM_ENTITIES: '@ordem_paranormal:custom_entities_v1',
   EDITED_ENTITIES: '@ordem_paranormal:edited_entities_v1',
+  UNLOCKED_BOOKS: UNLOCKED_BOOKS_STORAGE_KEY,
+  DYNAMIC_BOOKS: '@ordem_paranormal:dynamic_books_v1',
+  DYNAMIC_ENTITIES: '@ordem_paranormal:dynamic_entities_v1',
   FAVORITES: '@ordem_paranormal:favorites_v1',
   SAVED_LISTS: '@ordem_paranormal:saved_lists_v1',
   CHARACTERS: '@ordem_paranormal:characters_v1',
@@ -38,7 +47,7 @@ export function normalizeText(str: string): string {
     .trim();
 }
 
-export function sortBooksCanonical(books: BookInfo[]): BookInfo[] {
+export function sortBooksCanonical<T extends BookInfo>(books: T[]): T[] {
   return [...books].sort((a, b) => {
     const keyA = getBookPriority(a);
     const keyB = getBookPriority(b);
@@ -155,7 +164,12 @@ export class OfflineDataRepository implements IDataRepository {
   private seedEntitiesMap: Map<string, CompendiumEntity> = new Map();
   private customEntitiesMap: Map<string, CompendiumEntity> = new Map();
   private editedEntitiesMap: Map<string, CompendiumEntity> = new Map();
+  private dynamicEntitiesMap: Map<string, CompendiumEntity> = new Map();
   private booksList: BookInfo[] = [];
+  private dynamicBooksMap: Map<string, BookWithPages> = new Map();
+  private unlockedBooksMap: Map<string, UnlockedBookRecord> = new Map();
+  private bookFileNameByIdMap: Map<string, string> = new Map();
+  private entityCountByBookMap: Map<string, number> = new Map();
   private booksPagesMap: Map<string, BookWithPages> = new Map();
   private bookPagesByNumMap: Map<string, BookPage> = new Map();
   private pageNormTextCache: WeakMap<BookPage, string> = new WeakMap();
@@ -166,37 +180,73 @@ export class OfflineDataRepository implements IDataRepository {
   private initialized = false;
 
   async initialize(): Promise<void> {
-    if (this.initialized) return;
+    await localPdfStorage.initialize();
 
-    const compData = compendiumSeedRaw as unknown as {
-      books: BookInfo[];
-      entities: CompendiumEntity[];
-    };
-    const pagesData = booksPagesSeedRaw as unknown as {
-      books: Record<string, BookWithPages>;
-    };
+    if (!this.initialized) {
+      const compData = compendiumSeedRaw as unknown as {
+        books: BookInfo[];
+        entities: CompendiumEntity[];
+      };
+      const pagesData = booksPagesSeedRaw as unknown as {
+        books: Record<string, BookWithPages>;
+      };
 
-    this.booksList = sortBooksCanonical(compData.books || []);
-    for (const ent of compData.entities || []) {
-      this.seedEntitiesMap.set(ent.id, ent);
-    }
+      this.booksList = sortBooksCanonical(compData.books || []);
+      this.bookFileNameByIdMap.clear();
+      this.entityCountByBookMap.clear();
 
-    if (pagesData && pagesData.books) {
-      for (const [bid, bval] of Object.entries(pagesData.books)) {
-        this.booksPagesMap.set(bid, bval);
-        if (bval && Array.isArray(bval.pages)) {
-          for (const page of bval.pages) {
-            this.bookPagesByNumMap.set(`${bid}:${page.pageNumber}`, page);
+      for (const b of this.booksList) {
+        this.bookFileNameByIdMap.set(b.id, b.fileName);
+        this.entityCountByBookMap.set(b.id, 0);
+      }
+
+      for (const ent of compData.entities || []) {
+        const sourcePdf = ent.sourcePdf || this.bookFileNameByIdMap.get(ent.bookId) || `${ent.bookId}.pdf`;
+        const enriched: CompendiumEntity = {
+          ...ent,
+          sourcePdf,
+        };
+        this.seedEntitiesMap.set(ent.id, enriched);
+        this.entityCountByBookMap.set(
+          ent.bookId,
+          (this.entityCountByBookMap.get(ent.bookId) || 0) + 1
+        );
+      }
+
+      if (pagesData && pagesData.books) {
+        for (const [bid, bval] of Object.entries(pagesData.books)) {
+          this.booksPagesMap.set(bid, bval);
+          if (bval && Array.isArray(bval.pages)) {
+            for (const page of bval.pages) {
+              this.bookPagesByNumMap.set(`${bid}:${page.pageNumber}`, page);
+            }
           }
         }
       }
     }
 
+    this.unlockedBooksMap.clear();
+    this.dynamicBooksMap.clear();
+    this.dynamicEntitiesMap.clear();
+    this.customEntitiesMap.clear();
+    this.editedEntitiesMap.clear();
+    this.invalidateEntityCache();
+
     try {
-      const [customRaw, editedRaw, profileRaw] = await Promise.all([
+      const [
+        customRaw,
+        editedRaw,
+        profileRaw,
+        unlockedRaw,
+        dynamicBooksRaw,
+        dynamicEntitiesRaw,
+      ] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_ENTITIES),
         AsyncStorage.getItem(STORAGE_KEYS.EDITED_ENTITIES),
         AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE),
+        AsyncStorage.getItem(STORAGE_KEYS.UNLOCKED_BOOKS),
+        AsyncStorage.getItem(STORAGE_KEYS.DYNAMIC_BOOKS),
+        AsyncStorage.getItem(STORAGE_KEYS.DYNAMIC_ENTITIES),
       ]);
 
       if (profileRaw) {
@@ -205,10 +255,70 @@ export class OfflineDataRepository implements IDataRepository {
         } catch {}
       }
 
+      if (unlockedRaw) {
+        try {
+          const parsedUnlocked = JSON.parse(unlockedRaw);
+          if (Array.isArray(parsedUnlocked)) {
+            for (const bid of parsedUnlocked) {
+              if (typeof bid === 'string' && bid) {
+                this.unlockedBooksMap.set(bid, {
+                  bookId: bid,
+                  unlockedAt: new Date().toISOString(),
+                  method: 'pdf_upload',
+                });
+              }
+            }
+          } else if (parsedUnlocked && typeof parsedUnlocked === 'object') {
+            for (const [bid, rec] of Object.entries(parsedUnlocked)) {
+              if (rec && typeof rec === 'object') {
+                this.unlockedBooksMap.set(bid, rec as UnlockedBookRecord);
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (dynamicBooksRaw) {
+        try {
+          const parsedDynBooks: BookWithPages[] = JSON.parse(dynamicBooksRaw);
+          for (const db of parsedDynBooks) {
+            if (db && db.id) {
+              this.dynamicBooksMap.set(db.id, db);
+              this.bookFileNameByIdMap.set(db.id, db.fileName);
+              this.booksPagesMap.set(db.id, db);
+              for (const page of db.pages || []) {
+                this.bookPagesByNumMap.set(`${db.id}:${page.pageNumber}`, page);
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (dynamicEntitiesRaw) {
+        try {
+          const parsedDynEnts: CompendiumEntity[] = JSON.parse(dynamicEntitiesRaw);
+          for (const de of parsedDynEnts) {
+            if (de && de.id) {
+              const sourcePdf =
+                de.sourcePdf || this.bookFileNameByIdMap.get(de.bookId) || `${de.bookId}.pdf`;
+              this.dynamicEntitiesMap.set(de.id, { ...de, sourcePdf });
+              this.entityCountByBookMap.set(
+                de.bookId,
+                (this.entityCountByBookMap.get(de.bookId) || 0) + 1
+              );
+            }
+          }
+        } catch {}
+      }
+
       if (customRaw) {
         const parsedCustom: CompendiumEntity[] = JSON.parse(customRaw);
         for (const item of parsedCustom) {
-          this.customEntitiesMap.set(item.id, { ...item, isCustom: true });
+          this.customEntitiesMap.set(item.id, {
+            ...item,
+            sourcePdf: item.sourcePdf || 'Homebrew',
+            isCustom: true,
+          });
         }
       }
 
@@ -256,6 +366,173 @@ export class OfflineDataRepository implements IDataRepository {
     }
   }
 
+  // ============================================================================
+  // CONTROLE DE ACESSO POR LIVRO / ORIGEM DO PDF
+  // ============================================================================
+
+  getUnlockedBookIds(): string[] {
+    return Array.from(this.unlockedBooksMap.keys());
+  }
+
+  getUnlockedBooksRecordMap(): Record<string, UnlockedBookRecord> {
+    return Object.fromEntries(this.unlockedBooksMap.entries());
+  }
+
+  isBookUnlocked(bookId: string): boolean {
+    if (!bookId || bookId === 'custom') return true;
+    return this.unlockedBooksMap.has(bookId);
+  }
+
+  async unlockBook(
+    bookId: string,
+    record?: Partial<UnlockedBookRecord>
+  ): Promise<UnlockedBookRecord> {
+    const existing = this.unlockedBooksMap.get(bookId);
+    const fileName =
+      record?.fileName ||
+      existing?.fileName ||
+      this.bookFileNameByIdMap.get(bookId) ||
+      `${bookId}.pdf`;
+
+    const fullRecord: UnlockedBookRecord = {
+      bookId,
+      unlockedAt: record?.unlockedAt || existing?.unlockedAt || new Date().toISOString(),
+      method: record?.method || existing?.method || 'pdf_upload',
+      fileName,
+      sha256: record?.sha256 || existing?.sha256,
+      localPdfStored:
+        record?.localPdfStored ?? existing?.localPdfStored ?? localPdfStorage.hasPdfOffline(bookId),
+      driveFileId: record?.driveFileId || existing?.driveFileId,
+    };
+
+    this.unlockedBooksMap.set(bookId, fullRecord);
+    this.invalidateEntityCache();
+    await this.persistUnlockedBooks();
+    return fullRecord;
+  }
+
+  async unlockAllBooks(method: BookUnlockMethod = 'email_code'): Promise<UnlockedBookRecord[]> {
+    const nowIso = new Date().toISOString();
+    const allBookIds = new Set<string>([
+      ...this.booksList.map((b) => b.id),
+      ...this.dynamicBooksMap.keys(),
+    ]);
+
+    const records: UnlockedBookRecord[] = [];
+    for (const bid of allBookIds) {
+      const existing = this.unlockedBooksMap.get(bid);
+      const fileName = this.bookFileNameByIdMap.get(bid) || `${bid}.pdf`;
+      const rec: UnlockedBookRecord = {
+        bookId: bid,
+        unlockedAt: existing?.unlockedAt || nowIso,
+        method: existing?.method || method,
+        fileName,
+        sha256: existing?.sha256,
+        localPdfStored: true,
+        driveFileId: existing?.driveFileId,
+      };
+      this.unlockedBooksMap.set(bid, rec);
+      records.push(rec);
+    }
+
+    this.invalidateEntityCache();
+    await this.persistUnlockedBooks();
+    return records;
+  }
+
+  async lockBook(bookId: string): Promise<void> {
+    if (this.unlockedBooksMap.has(bookId)) {
+      this.unlockedBooksMap.delete(bookId);
+      this.invalidateEntityCache();
+      await this.persistUnlockedBooks();
+    }
+  }
+
+  async lockAllBooks(): Promise<void> {
+    this.unlockedBooksMap.clear();
+    this.invalidateEntityCache();
+    await this.persistUnlockedBooks();
+  }
+
+  async registerDynamicPdfBook(
+    book: BookWithPages,
+    entities: CompendiumEntity[],
+    fileName?: string,
+    sha256?: string
+  ): Promise<UnlockedBookRecord> {
+    const cleanBook: BookWithPages = {
+      ...book,
+      fileName: fileName || book.fileName || `${book.id}.pdf`,
+      isUnlocked: true,
+      isCustomBook: true,
+      unlockMethod: 'custom_py',
+    };
+
+    this.dynamicBooksMap.set(cleanBook.id, cleanBook);
+    this.bookFileNameByIdMap.set(cleanBook.id, cleanBook.fileName);
+    this.booksPagesMap.set(cleanBook.id, cleanBook);
+
+    for (const page of cleanBook.pages || []) {
+      this.bookPagesByNumMap.set(`${cleanBook.id}:${page.pageNumber}`, page);
+    }
+
+    // Remove entidades antigas do mesmo bookId dinâmico antes de reinserir
+    for (const [eid, ent] of this.dynamicEntitiesMap.entries()) {
+      if (ent.bookId === cleanBook.id) {
+        this.dynamicEntitiesMap.delete(eid);
+      }
+    }
+
+    let count = 0;
+    for (const ent of entities) {
+      const enriched: CompendiumEntity = {
+        ...ent,
+        bookId: cleanBook.id,
+        bookTitle: cleanBook.title,
+        sourcePdf: cleanBook.fileName,
+      };
+      this.dynamicEntitiesMap.set(enriched.id, enriched);
+      count++;
+    }
+    this.entityCountByBookMap.set(cleanBook.id, count);
+
+    await Promise.all([this.persistDynamicBooks(), this.persistDynamicEntities()]);
+
+    return await this.unlockBook(cleanBook.id, {
+      method: 'custom_py',
+      fileName: cleanBook.fileName,
+      sha256,
+      localPdfStored: true,
+    });
+  }
+
+  getDynamicBooks(): BookWithPages[] {
+    return Array.from(this.dynamicBooksMap.values());
+  }
+
+  getDynamicEntities(): CompendiumEntity[] {
+    return Array.from(this.dynamicEntitiesMap.values());
+  }
+
+  private async persistUnlockedBooks(): Promise<void> {
+    const obj = Object.fromEntries(this.unlockedBooksMap.entries());
+    await AsyncStorage.setItem(STORAGE_KEYS.UNLOCKED_BOOKS, JSON.stringify(obj));
+  }
+
+  private async persistDynamicBooks(): Promise<void> {
+    const arr = Array.from(this.dynamicBooksMap.values());
+    await AsyncStorage.setItem(STORAGE_KEYS.DYNAMIC_BOOKS, JSON.stringify(arr));
+  }
+
+  private async persistDynamicEntities(): Promise<void> {
+    const arr = Array.from(this.dynamicEntitiesMap.values());
+    await AsyncStorage.setItem(STORAGE_KEYS.DYNAMIC_ENTITIES, JSON.stringify(arr));
+  }
+
+  // ============================================================================
+  // LISTAGEM E BUSCA DE ENTIDADES (FILTRADAS PELOS LIVROS DESBLOQUEADOS)
+  // ============================================================================
+
   getAllEntities(): CompendiumEntity[] {
     if (this.cachedAllEntities) {
       return this.cachedAllEntities;
@@ -263,13 +540,21 @@ export class OfflineDataRepository implements IDataRepository {
 
     const merged: CompendiumEntity[] = [];
 
-    // 1. Custom entities first so user creations are easy to spot
+    // 1. Entidades customizadas (Homebrew do usuário) estão sempre liberadas
     for (const custom of this.customEntitiesMap.values()) {
       merged.push(custom);
     }
 
-    // 2. Seed entities (with local edits applied if any)
+    // 2. Entidades extraídas de PDFs dinâmicos (via .py) cujos livros estão liberados
+    for (const [id, dynEnt] of this.dynamicEntitiesMap.entries()) {
+      if (!this.isBookUnlocked(dynEnt.bookId)) continue;
+      const edited = this.editedEntitiesMap.get(id);
+      merged.push(edited ? { ...dynEnt, ...edited, isEdited: true } : dynEnt);
+    }
+
+    // 3. Entidades dos 10 livros oficiais — APENAS daqueles que o usuário tem acesso liberado
     for (const [id, seedEnt] of this.seedEntitiesMap.entries()) {
+      if (!this.isBookUnlocked(seedEnt.bookId)) continue;
       const edited = this.editedEntitiesMap.get(id);
       merged.push(edited ? { ...seedEnt, ...edited, isEdited: true } : seedEnt);
     }
@@ -282,7 +567,16 @@ export class OfflineDataRepository implements IDataRepository {
     if (this.customEntitiesMap.has(id)) {
       return this.customEntitiesMap.get(id);
     }
+    if (this.dynamicEntitiesMap.has(id)) {
+      const dyn = this.dynamicEntitiesMap.get(id)!;
+      if (!this.isBookUnlocked(dyn.bookId)) return undefined;
+      const edited = this.editedEntitiesMap.get(id);
+      return edited ? { ...dyn, ...edited, isEdited: true } : dyn;
+    }
     const seed = this.seedEntitiesMap.get(id);
+    if (seed && !this.isBookUnlocked(seed.bookId)) {
+      return undefined;
+    }
     const edited = this.editedEntitiesMap.get(id);
     if (seed && edited) {
       return { ...seed, ...edited, isEdited: true };
@@ -291,7 +585,10 @@ export class OfflineDataRepository implements IDataRepository {
   }
 
   hasOriginalSeedVersion(id: string): boolean {
-    return this.seedEntitiesMap.has(id) && this.editedEntitiesMap.has(id);
+    return (
+      (this.seedEntitiesMap.has(id) || this.dynamicEntitiesMap.has(id)) &&
+      this.editedEntitiesMap.has(id)
+    );
   }
 
   searchEntities(filters: CompendiumFilters, favoriteIds?: Set<string>): CompendiumEntity[] {
@@ -357,8 +654,6 @@ export class OfflineDataRepository implements IDataRepository {
       }
 
       if (hasExclusions) {
-        // Se o usuário selecionou explicitamente a aba de uma categoria (ex: 'rule'),
-        // não bloqueia os itens dessa categoria selecionada
         if (filters.category === 'all' || filters.category !== ent.category) {
           if (isEntityExcluded(ent, filters.excludedTypes)) return false;
         }
@@ -398,6 +693,7 @@ export class OfflineDataRepository implements IDataRepository {
       id,
       bookId: input.bookId || 'custom',
       bookTitle: input.bookTitle || 'Conteúdo Pessoal (Homebrew)',
+      sourcePdf: input.sourcePdf || 'Homebrew',
       isCustom: true,
       updatedAt: new Date().toISOString(),
     };
@@ -424,7 +720,7 @@ export class OfflineDataRepository implements IDataRepository {
       return updated;
     }
 
-    const base = this.getEntityById(id);
+    const base = this.getEntityById(id) || this.seedEntitiesMap.get(id) || this.dynamicEntitiesMap.get(id);
     if (!base) {
       throw new Error(`Entidade ${id} não encontrada`);
     }
@@ -456,7 +752,7 @@ export class OfflineDataRepository implements IDataRepository {
       this.invalidateEntityCache(id);
       await this.persistEditedEntities();
     }
-    return this.seedEntitiesMap.get(id);
+    return this.seedEntitiesMap.get(id) || this.dynamicEntitiesMap.get(id);
   }
 
   private async persistCustomEntities(): Promise<void> {
@@ -472,11 +768,97 @@ export class OfflineDataRepository implements IDataRepository {
     await AsyncStorage.setItem(STORAGE_KEYS.EDITED_ENTITIES, JSON.stringify(obj));
   }
 
+  /**
+   * Retorna apenas os livros aos quais o usuário já possui acesso desbloqueado
+   * (para exibição no leitor de PDFs e nos filtros de livros).
+   */
   getBooks(): BookInfo[] {
-    return this.booksList;
+    const combined: BookInfo[] = [];
+
+    for (const b of this.booksList) {
+      if (!this.isBookUnlocked(b.id)) continue;
+      const rec = this.unlockedBooksMap.get(b.id);
+      combined.push({
+        ...b,
+        isUnlocked: true,
+        unlockedAt: rec?.unlockedAt,
+        unlockMethod: rec?.method,
+        localPdfAvailable: Boolean(rec?.localPdfStored || localPdfStorage.hasPdfOffline(b.id)),
+        driveFileId: rec?.driveFileId,
+      });
+    }
+
+    for (const db of this.dynamicBooksMap.values()) {
+      if (!this.isBookUnlocked(db.id)) continue;
+      const rec = this.unlockedBooksMap.get(db.id);
+      combined.push({
+        id: db.id,
+        title: db.title,
+        fileName: db.fileName,
+        pageCount: db.pageCount,
+        toc: db.toc,
+        isUnlocked: true,
+        isCustomBook: true,
+        unlockedAt: rec?.unlockedAt,
+        unlockMethod: rec?.method || 'custom_py',
+        localPdfAvailable: Boolean(rec?.localPdfStored || localPdfStorage.hasPdfOffline(db.id)),
+        driveFileId: rec?.driveFileId,
+      });
+    }
+
+    return sortBooksCanonical(combined);
+  }
+
+  /**
+   * Retorna o catálogo completo de todos os livros registrados + livros dinâmicos
+   * com status de desbloqueio, quantidade de entidades e disponibilidade offline/Drive.
+   */
+  getAllCatalogBooks(): CatalogBookInfo[] {
+    const catalog: CatalogBookInfo[] = [];
+
+    for (const b of this.booksList) {
+      const unlocked = this.isBookUnlocked(b.id);
+      const rec = this.unlockedBooksMap.get(b.id);
+      const localAvail = Boolean(rec?.localPdfStored || localPdfStorage.hasPdfOffline(b.id));
+      catalog.push({
+        ...b,
+        isUnlocked: unlocked,
+        unlockedAt: rec?.unlockedAt,
+        unlockMethod: rec?.method,
+        entityCount: this.entityCountByBookMap.get(b.id) || 0,
+        localPdfAvailable: localAvail,
+        driveFileId: rec?.driveFileId,
+        driveSynced: Boolean(rec?.driveFileId),
+      });
+    }
+
+    for (const db of this.dynamicBooksMap.values()) {
+      if (this.booksList.some((b) => b.id === db.id)) continue;
+      const unlocked = this.isBookUnlocked(db.id);
+      const rec = this.unlockedBooksMap.get(db.id);
+      const localAvail = Boolean(rec?.localPdfStored || localPdfStorage.hasPdfOffline(db.id));
+      catalog.push({
+        id: db.id,
+        title: db.title,
+        fileName: db.fileName,
+        pageCount: db.pageCount,
+        toc: db.toc,
+        isUnlocked: unlocked,
+        isCustomBook: true,
+        unlockedAt: rec?.unlockedAt,
+        unlockMethod: rec?.method || 'custom_py',
+        entityCount: this.entityCountByBookMap.get(db.id) || 0,
+        localPdfAvailable: localAvail,
+        driveFileId: rec?.driveFileId,
+        driveSynced: Boolean(rec?.driveFileId),
+      });
+    }
+
+    return sortBooksCanonical(catalog);
   }
 
   getBookPage(bookId: string, pageNumber: number): BookPage | undefined {
+    if (!this.isBookUnlocked(bookId)) return undefined;
     return this.bookPagesByNumMap.get(`${bookId}:${pageNumber}`);
   }
 
@@ -502,6 +884,7 @@ export class OfflineDataRepository implements IDataRepository {
     }> = [];
 
     for (const [bid, book] of this.booksPagesMap.entries()) {
+      if (!this.isBookUnlocked(bid)) continue;
       if (bookId !== 'all' && bid !== bookId) continue;
 
       for (const page of book.pages) {
@@ -634,6 +1017,9 @@ export class OfflineDataRepository implements IDataRepository {
       userProfile,
       customEntities: Array.from(this.customEntitiesMap.values()),
       editedEntities: Object.fromEntries(this.editedEntitiesMap.entries()),
+      unlockedBooks: Object.fromEntries(this.unlockedBooksMap.entries()),
+      dynamicBooks: Array.from(this.dynamicBooksMap.values()),
+      dynamicEntities: Array.from(this.dynamicEntitiesMap.values()),
       favorites,
       savedLists,
       characters,
@@ -649,6 +1035,38 @@ export class OfflineDataRepository implements IDataRepository {
 
     if (parsed.userProfile && typeof parsed.userProfile === 'object') {
       await this.saveUserProfile(parsed.userProfile);
+    }
+
+    if (parsed.unlockedBooks && typeof parsed.unlockedBooks === 'object') {
+      for (const [bid, rec] of Object.entries(parsed.unlockedBooks)) {
+        if (rec && typeof rec === 'object') {
+          this.unlockedBooksMap.set(bid, rec as UnlockedBookRecord);
+        }
+      }
+      await this.persistUnlockedBooks();
+    }
+
+    if (Array.isArray(parsed.dynamicBooks)) {
+      for (const db of parsed.dynamicBooks) {
+        if (db && db.id) {
+          this.dynamicBooksMap.set(db.id, db);
+          this.bookFileNameByIdMap.set(db.id, db.fileName);
+          this.booksPagesMap.set(db.id, db);
+          for (const page of db.pages || []) {
+            this.bookPagesByNumMap.set(`${db.id}:${page.pageNumber}`, page);
+          }
+        }
+      }
+      await this.persistDynamicBooks();
+    }
+
+    if (Array.isArray(parsed.dynamicEntities)) {
+      for (const de of parsed.dynamicEntities) {
+        if (de && de.id) {
+          this.dynamicEntitiesMap.set(de.id, de);
+        }
+      }
+      await this.persistDynamicEntities();
     }
 
     if (Array.isArray(parsed.customEntities)) {
@@ -693,4 +1111,4 @@ export class OfflineDataRepository implements IDataRepository {
   }
 }
 
-export const defaultRepository: IDataRepository = new OfflineDataRepository();
+export const defaultRepository = new OfflineDataRepository();

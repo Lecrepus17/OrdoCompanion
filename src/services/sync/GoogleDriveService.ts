@@ -494,6 +494,135 @@ export class GoogleDriveService {
     }
   }
 
+  /**
+   * Lista todos os arquivos PDF do acervo salvos na pasta oculta (appDataFolder) do Google Drive do usuário
+   */
+  public async listDrivePdfFiles(): Promise<DriveFileInfo[]> {
+    const token = await this.ensureValidToken();
+    const query = encodeURIComponent(`name contains 'ordo_pdf__' and trashed = false`);
+    const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,modifiedTime,size)&q=${query}`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      return [];
+    }
+
+    const data = await res.json();
+    return Array.isArray(data.files) ? data.files : [];
+  }
+
+  /**
+   * Salva ou atualiza um arquivo PDF na pasta oculta (appDataFolder) do Google Drive do usuário
+   */
+  public async uploadPdfToDrive(
+    bookId: string,
+    fileName: string,
+    pdfBytes: Uint8Array,
+    existingFileId?: string
+  ): Promise<DriveFileInfo> {
+    const token = await this.ensureValidToken();
+    const driveName = `ordo_pdf__${bookId}.pdf`;
+
+    let targetFileId = existingFileId;
+    if (!targetFileId) {
+      const files = await this.listDrivePdfFiles();
+      const found = files.find((f) => f.name === driveName);
+      if (found) {
+        targetFileId = found.id;
+      }
+    }
+
+    if (targetFileId) {
+      const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${targetFileId}?uploadType=media`;
+      const res = await fetch(updateUrl, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/pdf',
+        },
+        body: pdfBytes as any,
+      });
+
+      if (!res.ok) {
+        throw new Error(`Erro ao atualizar PDF no Google Drive: HTTP ${res.status}`);
+      }
+
+      return {
+        id: targetFileId,
+        name: driveName,
+        modifiedTime: new Date().toISOString(),
+        size: String(pdfBytes.length),
+      };
+    } else {
+      // Cria metadados primeiro e envia o binário via PATCH media para suportar PDFs de qualquer tamanho
+      const createMetaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: JSON.stringify({
+          name: driveName,
+          parents: ['appDataFolder'],
+          mimeType: 'application/pdf',
+          description: `PDF Oficial OrdoCompanion: ${fileName} (${bookId})`,
+        }),
+      });
+
+      if (!createMetaRes.ok) {
+        throw new Error(`Erro ao criar registro de PDF no Google Drive: HTTP ${createMetaRes.status}`);
+      }
+
+      const createdMeta = await createMetaRes.json();
+      const newFileId = createdMeta.id;
+
+      const uploadRes = await fetch(
+        `https://www.googleapis.com/upload/drive/v3/files/${newFileId}?uploadType=media`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/pdf',
+          },
+          body: pdfBytes as any,
+        }
+      );
+
+      if (!uploadRes.ok) {
+        throw new Error(`Erro ao enviar conteúdo do PDF ao Google Drive: HTTP ${uploadRes.status}`);
+      }
+
+      return {
+        id: newFileId,
+        name: driveName,
+        modifiedTime: new Date().toISOString(),
+        size: String(pdfBytes.length),
+      };
+    }
+  }
+
+  /**
+   * Baixa os bytes de um PDF salvo no Google Drive do usuário para disponibilizar offline no aparelho
+   */
+  public async downloadPdfFromDrive(fileId: string): Promise<Uint8Array> {
+    const token = await this.ensureValidToken();
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Erro ao baixar PDF do Google Drive: HTTP ${res.status}`);
+    }
+
+    const buf = await res.arrayBuffer();
+    return new Uint8Array(buf);
+  }
+
   private getValidToken(): string {
     if (!this.authState.isAuthenticated || !this.authState.accessToken) {
       throw new Error('Google Drive não está autenticado.');

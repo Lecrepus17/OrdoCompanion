@@ -171,6 +171,7 @@ export default function CompendiumScreen() {
     toggleListingColumns,
     setListingColumns,
     openManual,
+    openPdfAccessModal,
     favoriteIds,
     toggleFavorite,
     rollFormula,
@@ -651,11 +652,42 @@ export default function CompendiumScreen() {
         renderItem={renderEntityItem}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Ionicons name="folder-open-outline" size={44} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>Nenhum registro encontrado</Text>
-            <Text style={styles.emptySub}>
-              Tente ajustar os filtros ou clique no botão "+" no topo para adicionar manualmente um novo item nesta categoria.
+            <Ionicons
+              name={books.length === 0 ? 'lock-closed-outline' : 'folder-open-outline'}
+              size={44}
+              color={books.length === 0 ? colors.primary : colors.textMuted}
+            />
+            <Text style={styles.emptyTitle}>
+              {books.length === 0
+                ? 'Disponibilize seus PDFs para liberar o Compêndio'
+                : 'Nenhum registro encontrado'}
             </Text>
+            <Text style={styles.emptySub}>
+              {books.length === 0
+                ? 'Os dados do Compêndio listam apenas o conteúdo dos PDFs aos quais você tem acesso. Envie seus PDFs (ou use o código enviado por e-mail) para desbloquear os livros e ler offline.'
+                : 'Tente ajustar os filtros ou clique no botão "+" no topo para adicionar manualmente um novo item nesta categoria.'}
+            </Text>
+            {books.length === 0 && (
+              <TouchableOpacity
+                testID="btn-compendium-open-pdf-access"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: colors.primary,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  marginTop: 8,
+                }}
+                onPress={openPdfAccessModal}
+              >
+                <Ionicons name="cloud-upload-outline" size={16} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>
+                  Disponibilizar PDFs / Liberar com Código
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />

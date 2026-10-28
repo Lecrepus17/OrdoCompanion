@@ -26,6 +26,7 @@ import {
 import { confirmAction } from '../../utils/alert';
 import {
   calculateWeaponStats,
+  checkModificationCompatibility,
   DEFAULT_AMMO_TYPES,
   detectDefaultAmmo,
   getWeaponModsWithCompendium,
@@ -33,7 +34,9 @@ import {
   OFFICIAL_WEAPON_MODS,
   OFFICIAL_WEAPON_MODS_MAP,
   parseCritical,
+  sanitizeWeaponModifications,
 } from '../../utils/weapons';
+import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
 
 const WEAPON_TYPES: WeaponType[] = ['Fogo', 'Corpo a corpo', 'Disparo'];
 const PROFICIENCIES: WeaponProficiency[] = ['Simples', 'Tática', 'Pesada'];
@@ -60,6 +63,8 @@ export default function WeaponsScreen() {
     upsertCharacter,
     rollFormula,
     openManual,
+    openRecordPreview,
+    openEntityPreview,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,6 +145,7 @@ export default function WeaponsScreen() {
   const [element, setElement] = useState<ParanormalElement>('Nenhum');
   const [notes, setNotes] = useState('');
   const [editorModFilter, setEditorModFilter] = useState<'all' | 'weapon' | 'ammo' | 'curse'>('all');
+  const [onlyCompatibleFilter, setOnlyCompatibleFilter] = useState(false);
   const [customModName, setCustomModName] = useState('');
   const [customModEffect, setCustomModEffect] = useState('');
   const [customModTargetType, setCustomModTargetType] = useState<ModificationTargetType>('weapon');
@@ -151,6 +157,18 @@ export default function WeaponsScreen() {
   const compendiumWeapons = useMemo(
     () => entities.filter((e) => e.category === 'weapon'),
     [entities]
+  );
+
+  // Contexto da arma atual para verificação de compatibilidade de modificações
+  const currentWeaponContext = useMemo(
+    () => ({
+      weaponType,
+      baseWeaponName,
+      range: baseRange,
+      ammoType,
+      selectedModIds: selectedMods,
+    }),
+    [weaponType, baseWeaponName, baseRange, ammoType, selectedMods]
   );
 
   // Modificações e maldições enriquecidas dinamicamente pela base do compêndio
@@ -249,7 +267,8 @@ export default function WeaponsScreen() {
     setName(`${ent.name} Modificado`);
     setBaseDamage(ent.damage || '1d6');
     setBaseCritical(ent.critical || '20/x2');
-    setBaseRange(ent.range || (ent.subCategory?.includes('Corpo') ? 'Corpo a corpo' : 'Curto'));
+    const newRange = ent.range || (ent.subCategory?.includes('Corpo') ? 'Corpo a corpo' : 'Curto');
+    setBaseRange(newRange);
     setBaseDamageType(ent.damageType || 'B');
     setBaseSpaces(ent.spaces || '1');
     setBaseCategory(ent.itemCategory || '0');
@@ -282,7 +301,75 @@ export default function WeaponsScreen() {
       setProficiency('Simples');
     }
 
+    // Sanitiza modificações selecionadas anteriormente para a nova arma
+    const newContext = {
+      weaponType: wType,
+      baseWeaponName: ent.name,
+      range: newRange,
+      ammoType: defAmmo.ammoType,
+      selectedModIds: selectedMods,
+    };
+    const { sanitizedModIds, removedMods } = sanitizeWeaponModifications(selectedMods, newContext);
+    if (removedMods.length > 0) {
+      Alert.alert(
+        'Modificações Incompatíveis Desmarcadas',
+        `Ao escolher "${ent.name}" (${wType}), as seguintes melhorias foram desmarcadas por não serem compatíveis:\n\n• ${removedMods.map((m) => m.name).join('\n• ')}`
+      );
+      setSelectedMods(sanitizedModIds);
+    }
+
     setBaseWeaponPickerVisible(false);
+  };
+
+  const handleWeaponTypeChange = (newType: WeaponType) => {
+    setWeaponType(newType);
+    let newAmmo = ammoType;
+    let newBaseAmmoCat = baseAmmoCategory;
+    if (newType === 'Corpo a corpo') {
+      newAmmo = 'Nenhuma';
+      newBaseAmmoCat = '0';
+      setAmmoType('Nenhuma');
+      setBaseAmmoCategory('0');
+    } else if (ammoType === 'Nenhuma') {
+      const def = detectDefaultAmmo(baseWeaponName, newType);
+      newAmmo = def.ammoType;
+      newBaseAmmoCat = def.baseCategory;
+      setAmmoType(def.ammoType);
+      setBaseAmmoCategory(def.baseCategory);
+    }
+    const { sanitizedModIds, removedMods } = sanitizeWeaponModifications(selectedMods, {
+      weaponType: newType,
+      baseWeaponName,
+      range: baseRange,
+      ammoType: newAmmo,
+      selectedModIds: selectedMods,
+    });
+    if (removedMods.length > 0) {
+      Alert.alert(
+        'Modificações Incompatíveis Desmarcadas',
+        `Ao mudar o tipo da arma para "${newType}", as seguintes melhorias foram desmarcadas:\n\n• ${removedMods.map((m) => m.name).join('\n• ')}`
+      );
+      setSelectedMods(sanitizedModIds);
+    }
+  };
+
+  const handleAmmoTypeChange = (newAmmoName: string, newBaseCategory: string) => {
+    setAmmoType(newAmmoName);
+    setBaseAmmoCategory(newBaseCategory);
+    const { sanitizedModIds, removedMods } = sanitizeWeaponModifications(selectedMods, {
+      weaponType,
+      baseWeaponName,
+      range: baseRange,
+      ammoType: newAmmoName,
+      selectedModIds: selectedMods,
+    });
+    if (removedMods.length > 0) {
+      Alert.alert(
+        'Modificações Incompatíveis Desmarcadas',
+        `Ao alterar o tipo de munição para "${newAmmoName}", as seguintes melhorias foram desmarcadas:\n\n• ${removedMods.map((m) => m.name).join('\n• ')}`
+      );
+      setSelectedMods(sanitizedModIds);
+    }
   };
 
   const toggleMod = (modId: string) => {
@@ -296,8 +383,38 @@ export default function WeaponsScreen() {
 
     const isActive = selectedMods.some((mid) => aliases.has(mid));
     if (isActive) {
-      setSelectedMods(selectedMods.filter((id) => !aliases.has(id)));
+      const nextMods = selectedMods.filter((id) => !aliases.has(id));
+      const { sanitizedModIds, removedMods } = sanitizeWeaponModifications(nextMods, {
+        weaponType,
+        baseWeaponName,
+        range: baseRange,
+        ammoType,
+        selectedModIds: nextMods,
+      });
+      if (removedMods.length > 0) {
+        Alert.alert(
+          'Melhorias Dependentes Desmarcadas',
+          `Ao desmarcar "${def?.name || modId}", as seguintes modificações foram desmarcadas por dependência:\n\n• ${removedMods.map((m) => m.name).join('\n• ')}`
+        );
+      }
+      setSelectedMods(sanitizedModIds);
     } else {
+      const compat = checkModificationCompatibility(def || modId, {
+        weaponType,
+        baseWeaponName,
+        range: baseRange,
+        ammoType,
+        selectedModIds: selectedMods,
+      });
+
+      if (!compat.compatible) {
+        Alert.alert(
+          'Modificação Incompatível',
+          `"${def?.name || modId}" não pode ser selecionada para esta arma.\n\nRegra oficial: ${compat.reason}`
+        );
+        return;
+      }
+
       setSelectedMods([...selectedMods, def?.id || modId]);
     }
   };
@@ -540,8 +657,25 @@ export default function WeaponsScreen() {
                 : null;
             const elemColor = elemDef?.border || colors.textSecondary;
 
+            const openWeaponPreview = () =>
+              openRecordPreview({
+                target: { kind: 'custom_weapon', weapon },
+                primaryAction: {
+                  label: 'Editar na Oficina',
+                  icon: 'create-outline',
+                  onPress: () => openEditWeapon(weapon),
+                },
+              });
+
             return (
-              <View key={weapon.id} style={styles.weaponCard}>
+              <TouchableOpacity
+                key={weapon.id}
+                style={styles.weaponCard}
+                activeOpacity={0.92}
+                onLongPress={openWeaponPreview}
+                delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                testID={`weapon-card-${weapon.id}`}
+              >
                 <View style={styles.weaponHeader}>
                   <View style={{ flex: 1 }}>
                     <View style={styles.nameRow}>
@@ -613,13 +747,24 @@ export default function WeaponsScreen() {
                       const isAmmo = isAmmoModification(def || mid);
                       const isCurse = def?.element && def.element !== 'Nenhum';
                       return (
-                        <View
+                        <TouchableOpacity
                           key={mid}
                           style={[
                             styles.modBadge,
                             isAmmo && styles.ammoModBadge,
                             isCurse && styles.curseModBadge,
                           ]}
+                          onPress={() => {
+                            if (def) {
+                              openRecordPreview({ target: { kind: 'weapon_mod', mod: def } });
+                            }
+                          }}
+                          onLongPress={() => {
+                            if (def) {
+                              openRecordPreview({ target: { kind: 'weapon_mod', mod: def } });
+                            }
+                          }}
+                          delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                         >
                           <Ionicons
                             name={isAmmo ? 'flame' : isCurse ? 'sparkles' : 'checkmark-circle'}
@@ -635,7 +780,7 @@ export default function WeaponsScreen() {
                           >
                             {def?.name || mid} {isAmmo ? '(Bala)' : ''}
                           </Text>
-                        </View>
+                        </TouchableOpacity>
                       );
                     })}
                     {weapon.customModifications?.map((cmod) => {
@@ -717,6 +862,16 @@ export default function WeaponsScreen() {
                     <TouchableOpacity
                       style={styles.iconBtn}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={openWeaponPreview}
+                      accessibilityLabel="Inspecionar arma"
+                      testID={`weapon-info-${weapon.id}`}
+                    >
+                      <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.iconBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       onPress={() => openEditWeapon(weapon)}
                       accessibilityLabel="Editar arma"
                     >
@@ -741,7 +896,7 @@ export default function WeaponsScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })
         )}
@@ -824,7 +979,7 @@ export default function WeaponsScreen() {
                       <TouchableOpacity
                         key={t}
                         style={[styles.smallPill, weaponType === t && styles.smallPillActive]}
-                        onPress={() => setWeaponType(t)}
+                        onPress={() => handleWeaponTypeChange(t)}
                       >
                         <Text style={[styles.smallPillText, weaponType === t && styles.smallPillTextActive]}>
                           {t}
@@ -935,8 +1090,7 @@ export default function WeaponsScreen() {
                         key={at.name}
                         style={[styles.ammoTypePill, isSelected && styles.ammoTypePillActive]}
                         onPress={() => {
-                          setAmmoType(at.name);
-                          setBaseAmmoCategory(at.baseCategory);
+                          handleAmmoTypeChange(at.name, at.baseCategory);
                         }}
                       >
                         <Ionicons
@@ -1045,7 +1199,7 @@ export default function WeaponsScreen() {
                 Toque para adicionar melhorias oficiais. Note a diferenciação: modificações de arma aumentam a <Text style={{ fontWeight: '700', color: '#10B981' }}>Categoria da Arma</Text>, e modificações de balas aumentam a <Text style={{ fontWeight: '700', color: '#F59E0B' }}>Categoria das Balas</Text>.
               </Text>
 
-              {/* Mod Filter Tabs */}
+              {/* Mod Filter Tabs & Quick Toggle */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modFilterRow}>
                 {[
                   { id: 'all', label: 'Todas as Melhorias' },
@@ -1068,14 +1222,36 @@ export default function WeaponsScreen() {
                 })}
               </ScrollView>
 
+              {/* Botão de alternância: Apenas compatíveis com o tipo da arma */}
+              <TouchableOpacity
+                style={[styles.compatibleTogglePill, onlyCompatibleFilter && styles.compatibleTogglePillActive]}
+                onPress={() => setOnlyCompatibleFilter(!onlyCompatibleFilter)}
+              >
+                <Ionicons
+                  name={onlyCompatibleFilter ? 'checkmark-circle' : 'funnel-outline'}
+                  size={14}
+                  color={onlyCompatibleFilter ? '#10B981' : colors.textSecondary}
+                />
+                <Text style={[styles.compatibleToggleText, onlyCompatibleFilter && styles.compatibleToggleTextActive]}>
+                  {onlyCompatibleFilter
+                    ? `Filtrando apenas compatíveis com ${weaponType} (${baseWeaponName})`
+                    : `Ver apenas compatíveis com ${weaponType} (${baseWeaponName})`}
+                </Text>
+              </TouchableOpacity>
+
               <View style={styles.modsGrid}>
                 {availableMods
                   .filter((mod) => {
                     const isAmmo = isAmmoModification(mod);
                     const isCurse = mod.element && mod.element !== 'Nenhum';
-                    if (editorModFilter === 'weapon') return !isAmmo && !isCurse;
-                    if (editorModFilter === 'ammo') return isAmmo;
-                    if (editorModFilter === 'curse') return isCurse;
+                    if (editorModFilter === 'weapon' && (isAmmo || isCurse)) return false;
+                    if (editorModFilter === 'ammo' && !isAmmo) return false;
+                    if (editorModFilter === 'curse' && !isCurse) return false;
+
+                    if (onlyCompatibleFilter) {
+                      const compat = checkModificationCompatibility(mod, currentWeaponContext);
+                      if (!compat.compatible) return false;
+                    }
                     return true;
                   })
                   .map((mod) => {
@@ -1085,10 +1261,33 @@ export default function WeaponsScreen() {
                         (mod.canonicalEntityId && mid === mod.canonicalEntityId) ||
                         (mod.shortId && mid === mod.shortId)
                     );
+                    const compat = checkModificationCompatibility(mod, currentWeaponContext);
                     const isAmmo = isAmmoModification(mod);
                     const isCurse = mod.element && mod.element !== 'Nenhum';
                     const elemDef = isCurse ? colors.elements[mod.element as keyof typeof colors.elements] : null;
                     const badgeColor = isAmmo ? '#F59E0B' : elemDef?.border || colors.primary;
+
+                    const openModPreview = () =>
+                      openRecordPreview({
+                        target: { kind: 'weapon_mod', mod },
+                        primaryAction: {
+                          label: active ? 'Remover Modificação' : 'Aplicar Modificação',
+                          isSelected: active,
+                          onPress: () => toggleMod(mod.id),
+                        },
+                      });
+
+                    const requirementLabel =
+                      mod.specialRequirementText ||
+                      (isAmmo
+                        ? 'Munição / Balas'
+                        : mod.allowedWeaponTypes && mod.allowedWeaponTypes.length > 0
+                        ? mod.allowedWeaponTypes.join(' ou ')
+                        : mod.appliesTo === 'firearm'
+                        ? 'Arma de Fogo'
+                        : mod.appliesTo === 'melee'
+                        ? 'Corpo a corpo'
+                        : 'Geral');
 
                     return (
                       <TouchableOpacity
@@ -1097,17 +1296,28 @@ export default function WeaponsScreen() {
                           styles.modSelectCard,
                           active && styles.modSelectCardActive,
                           active && { borderColor: badgeColor },
+                          !compat.compatible && !active && styles.modSelectCardIncompatible,
                         ]}
                         onPress={() => toggleMod(mod.id)}
+                        onLongPress={openModPreview}
+                        delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                        testID={`mod-card-${mod.id}`}
                       >
                         <View style={styles.modSelectHeader}>
                           <View style={{ flex: 1 }}>
-                            <Text style={[styles.modSelectName, active && { color: '#FFF' }]}>
+                            <Text
+                              style={[
+                                styles.modSelectName,
+                                active && { color: '#FFF' },
+                                !compat.compatible && !active && { color: colors.textSecondary },
+                              ]}
+                            >
                               {mod.name}
                             </Text>
                             <Text style={styles.modSourceTag}>
-                              {mod.source} • {isAmmo ? 'Munição / Balas' : mod.appliesTo === 'firearm' ? 'Arma de Fogo' : mod.appliesTo === 'melee' ? 'Corpo a corpo' : 'Geral'}
+                              {mod.source} • {requirementLabel}
                             </Text>
+
                             {/* Visual Indicator of what category this modifies */}
                             {isAmmo ? (
                               <View style={styles.targetBadgeAmmo}>
@@ -1122,16 +1332,57 @@ export default function WeaponsScreen() {
                                 <Text style={styles.targetBadgeWeaponText}>🔫 +1 Categoria da ARMA</Text>
                               </View>
                             )}
+
+                            {/* Incompatibility Warning Badge */}
+                            {!compat.compatible ? (
+                              <View style={styles.incompatibleWarningRow}>
+                                <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                                <Text style={styles.incompatibleWarningText} numberOfLines={2}>
+                                  {compat.reason}
+                                </Text>
+                              </View>
+                            ) : null}
                           </View>
-                          <View style={[styles.checkCircle, active && { backgroundColor: badgeColor }]}>
-                            {active ? (
-                              <Ionicons name="checkmark" size={14} color="#FFF" />
-                            ) : (
-                              <Ionicons name="add" size={14} color={colors.textMuted} />
-                            )}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation?.();
+                                openModPreview();
+                              }}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              testID={`mod-info-${mod.id}`}
+                            >
+                              <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                            <View
+                              style={[
+                                styles.checkCircle,
+                                active && { backgroundColor: badgeColor },
+                                !compat.compatible &&
+                                  !active && {
+                                    borderColor: 'rgba(239, 68, 68, 0.4)',
+                                    backgroundColor: 'transparent',
+                                  },
+                              ]}
+                            >
+                              {active ? (
+                                <Ionicons name="checkmark" size={14} color="#FFF" />
+                              ) : !compat.compatible ? (
+                                <Ionicons name="close" size={14} color="#EF4444" />
+                              ) : (
+                                <Ionicons name="add" size={14} color={colors.textMuted} />
+                              )}
+                            </View>
                           </View>
                         </View>
-                        <Text style={styles.modSelectDesc}>{mod.description}</Text>
+                        <Text
+                          style={[
+                            styles.modSelectDesc,
+                            !compat.compatible && !active && { color: colors.textMuted },
+                          ]}
+                        >
+                          {mod.description}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -1296,24 +1547,48 @@ export default function WeaponsScreen() {
               .filter((w) =>
                 w.name.toLowerCase().includes(baseWeaponSearch.toLowerCase())
               )
-              .map((w) => (
-                <TouchableOpacity
-                  key={w.id}
-                  style={styles.compendiumWeaponItem}
-                  onPress={() => handleSelectCompendiumWeapon(w)}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.compendiumWeaponName}>{w.name}</Text>
-                    <Text style={styles.compendiumWeaponSub}>
-                      {w.subCategory} • Cat {w.itemCategory || '0'}
-                    </Text>
-                    <Text style={styles.compendiumWeaponStats}>
-                      Dano: {w.damage} • Crítico: {w.critical} • Alcance: {w.range || 'Corpo a corpo'} • Espaços: {w.spaces || '1'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
-              ))}
+              .map((w) => {
+                const openBaseWeaponPreview = () =>
+                  openEntityPreview(w, {
+                    primaryAction: {
+                      label: 'Usar como Arma Base',
+                      onPress: () => handleSelectCompendiumWeapon(w),
+                    },
+                  });
+                return (
+                  <TouchableOpacity
+                    key={w.id}
+                    style={styles.compendiumWeaponItem}
+                    onPress={() => handleSelectCompendiumWeapon(w)}
+                    onLongPress={openBaseWeaponPreview}
+                    delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                    testID={`base-weapon-card-${w.id}`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.compendiumWeaponName}>{w.name}</Text>
+                      <Text style={styles.compendiumWeaponSub}>
+                        {w.subCategory} • Cat {w.itemCategory || '0'}
+                      </Text>
+                      <Text style={styles.compendiumWeaponStats}>
+                        Dano: {w.damage} • Crítico: {w.critical} • Alcance: {w.range || 'Corpo a corpo'} • Espaços: {w.spaces || '1'}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          openBaseWeaponPreview();
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        testID={`base-weapon-info-${w.id}`}
+                      >
+                        <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
           </ScrollView>
         </View>
       </Modal>
@@ -1895,6 +2170,53 @@ const createStyles = (colors: ThemeColors) =>
   },
   modSelectCardActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  modSelectCardIncompatible: {
+    opacity: 0.6,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    backgroundColor: 'rgba(239, 68, 68, 0.03)',
+  },
+  incompatibleWarningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    marginTop: 4,
+  },
+  incompatibleWarningText: {
+    color: '#EF4444',
+    fontSize: 10,
+    fontWeight: '700',
+    flex: 1,
+  },
+  compatibleTogglePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+    marginBottom: 10,
+  },
+  compatibleTogglePillActive: {
+    borderColor: '#10B981',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+  },
+  compatibleToggleText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  compatibleToggleTextActive: {
+    color: '#10B981',
+    fontWeight: '800',
   },
   modSelectHeader: {
     flexDirection: 'row',

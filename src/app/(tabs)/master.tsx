@@ -30,6 +30,7 @@ import {
 } from '../../types/compendium';
 import { confirmAction, showAlert } from '../../utils/alert';
 import { parseAgentShareCode } from '../../utils/agentSharing';
+import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
 
 type MasterSubTab = 'stories' | 'monsters' | 'agents' | 'combat';
 
@@ -65,6 +66,8 @@ export default function MasterScreen() {
     rollOrdemTest,
     rollFormula,
     openManual,
+    openRecordPreview,
+    openEntityPreview,
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<MasterSubTab>('stories');
@@ -799,68 +802,97 @@ export default function MasterScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                activeCampaign.stories.map((scene, idx) => (
-                  <View key={scene.id} style={styles.sceneCard}>
-                    <View style={styles.sceneCardHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.sceneNumber}>Cena {idx + 1}</Text>
-                        <Text style={styles.sceneTitle}>{scene.title}</Text>
-                        {scene.summary ? <Text style={styles.sceneSummary}>{scene.summary}</Text> : null}
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 6 }}>
-                        <TouchableOpacity style={styles.iconCircleBtnSmall} onPress={() => handleOpenEditScene(scene)}>
-                          <Ionicons name="pencil" size={14} color={colors.text} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.iconCircleBtnSmall}
-                          onPress={() => deleteStorySceneFromCampaign(activeCampaign.id, scene.id)}
-                        >
-                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+                activeCampaign.stories.map((scene, idx) => {
+                  const openScenePreview = () =>
+                    openRecordPreview({
+                      target: { kind: 'campaign_scene', scene },
+                      primaryAction: {
+                        label: 'Editar Cena',
+                        icon: 'create-outline',
+                        onPress: () => handleOpenEditScene(scene),
+                      },
+                    });
 
-                    {scene.details ? (
-                      <Text style={styles.sceneDetails}>{scene.details}</Text>
-                    ) : null}
-
-                    {/* Pistas */}
-                    <View style={styles.cluesWrap}>
-                      <Text style={styles.cluesHeading}>Pistas & Documentos ({scene.clues.length}):</Text>
-                      {scene.clues.map((clue) => (
-                        <TouchableOpacity
-                          key={clue.id}
-                          style={styles.clueRow}
-                          onPress={async () => {
-                            const updatedClues = scene.clues.map((c) =>
-                              c.id === clue.id ? { ...c, isFound: !c.isFound } : c
-                            );
-                            await updateStorySceneInCampaign(activeCampaign.id, scene.id, { clues: updatedClues });
-                          }}
-                        >
-                          <Ionicons
-                            name={clue.isFound ? 'checkbox' : 'square-outline'}
-                            size={18}
-                            color={clue.isFound ? '#10B981' : colors.textMuted}
-                          />
-                          <Text
-                            style={[
-                              styles.clueText,
-                              clue.isFound && { textDecorationLine: 'line-through', color: colors.textMuted },
-                            ]}
+                  return (
+                    <TouchableOpacity
+                      key={scene.id}
+                      style={styles.sceneCard}
+                      activeOpacity={0.92}
+                      onLongPress={openScenePreview}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      testID={`master-scene-${scene.id}`}
+                    >
+                      <View style={styles.sceneCardHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.sceneNumber}>Cena {idx + 1}</Text>
+                          <Text style={styles.sceneTitle}>{scene.title}</Text>
+                          {scene.summary ? <Text style={styles.sceneSummary}>{scene.summary}</Text> : null}
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <TouchableOpacity
+                            style={styles.iconCircleBtnSmall}
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openScenePreview();
+                            }}
+                            testID={`master-scene-info-${scene.id}`}
                           >
-                            {clue.text}
-                          </Text>
-                          {clue.isFound ? (
-                            <View style={styles.foundBadge}>
-                              <Text style={styles.foundBadgeText}>Encontrada</Text>
-                            </View>
-                          ) : null}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                ))
+                            <Ionicons name="information-circle-outline" size={14} color={colors.text} />
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.iconCircleBtnSmall} onPress={() => handleOpenEditScene(scene)}>
+                            <Ionicons name="pencil" size={14} color={colors.text} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.iconCircleBtnSmall}
+                            onPress={() => deleteStorySceneFromCampaign(activeCampaign.id, scene.id)}
+                          >
+                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {scene.details ? (
+                        <Text style={styles.sceneDetails}>{scene.details}</Text>
+                      ) : null}
+
+                      {/* Pistas */}
+                      <View style={styles.cluesWrap}>
+                        <Text style={styles.cluesHeading}>Pistas & Documentos ({scene.clues.length}):</Text>
+                        {scene.clues.map((clue) => (
+                          <TouchableOpacity
+                            key={clue.id}
+                            style={styles.clueRow}
+                            onPress={async () => {
+                              const updatedClues = scene.clues.map((c) =>
+                                c.id === clue.id ? { ...c, isFound: !c.isFound } : c
+                              );
+                              await updateStorySceneInCampaign(activeCampaign.id, scene.id, { clues: updatedClues });
+                            }}
+                          >
+                            <Ionicons
+                              name={clue.isFound ? 'checkbox' : 'square-outline'}
+                              size={18}
+                              color={clue.isFound ? '#10B981' : colors.textMuted}
+                            />
+                            <Text
+                              style={[
+                                styles.clueText,
+                                clue.isFound && { textDecorationLine: 'line-through', color: colors.textMuted },
+                              ]}
+                            >
+                              {clue.text}
+                            </Text>
+                            {clue.isFound ? (
+                              <View style={styles.foundBadge}>
+                                <Text style={styles.foundBadgeText}>Encontrada</Text>
+                              </View>
+                            ) : null}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
               )}
             </ScrollView>
           )}
@@ -897,8 +929,25 @@ export default function MasterScreen() {
               ) : (
                 activeCampaign.monsters.map((mon) => {
                   const pvPercent = Math.max(0, Math.min(100, (mon.pvCurrent / (mon.pvMax || 1)) * 100));
+                  const openMonsterPreview = () =>
+                    openRecordPreview({
+                      target: { kind: 'campaign_monster', monster: mon },
+                      primaryAction: {
+                        label: 'Editar Ameaça',
+                        icon: 'create-outline',
+                        onPress: () => handleOpenEditMonster(mon),
+                      },
+                    });
+
                   return (
-                    <View key={mon.id} style={styles.monsterCard}>
+                    <TouchableOpacity
+                      key={mon.id}
+                      style={styles.monsterCard}
+                      activeOpacity={0.92}
+                      onLongPress={openMonsterPreview}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      testID={`master-monster-${mon.id}`}
+                    >
                       <View style={styles.monsterCardHeader}>
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -915,6 +964,17 @@ export default function MasterScreen() {
                         </View>
 
                         <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <TouchableOpacity
+                            style={styles.iconCircleBtnSmall}
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openMonsterPreview();
+                            }}
+                            accessibilityLabel="Inspecionar Ameaça"
+                            testID={`master-monster-info-${mon.id}`}
+                          >
+                            <Ionicons name="information-circle-outline" size={14} color={colors.text} />
+                          </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.iconCircleBtnSmall}
                             onPress={() => handleSaveMonsterToGeneralCompendium(mon)}
@@ -992,7 +1052,7 @@ export default function MasterScreen() {
                           <Text style={styles.detailBoxContent}>{mon.abilities}</Text>
                         </View>
                       ) : null}
-                    </View>
+                    </TouchableOpacity>
                   );
                 })
               )}
@@ -1022,9 +1082,20 @@ export default function MasterScreen() {
                 activeCampaign.agents.map((link) => {
                   const sheet = link.characterSheet;
                   const def = 10 + (sheet.attributes?.AGI || 0) + (sheet.defenseBonus || 0);
+                  const openAgentPreview = () =>
+                    openRecordPreview({
+                      target: { kind: 'character', character: sheet },
+                    });
 
                   return (
-                    <View key={link.id} style={styles.agentCard}>
+                    <TouchableOpacity
+                      key={link.id}
+                      style={styles.agentCard}
+                      activeOpacity={0.92}
+                      onLongPress={openAgentPreview}
+                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                      testID={`master-agent-${link.id}`}
+                    >
                       <View style={styles.agentCardTop}>
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1057,6 +1128,17 @@ export default function MasterScreen() {
                         </View>
 
                         <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <TouchableOpacity
+                            style={styles.iconCircleBtnSmall}
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              openAgentPreview();
+                            }}
+                            accessibilityLabel="Inspecionar Ficha do Agente"
+                            testID={`master-agent-info-${link.id}`}
+                          >
+                            <Ionicons name="information-circle-outline" size={15} color={colors.text} />
+                          </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.iconCircleBtnSmall}
                             onPress={() => setSkillRollAgent(link)}
@@ -1147,7 +1229,7 @@ export default function MasterScreen() {
                           </View>
                         ))}
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })
               )}
@@ -1555,20 +1637,45 @@ export default function MasterScreen() {
               data={filteredCompendiumCreatures}
               keyExtractor={(item) => item.id}
               contentContainerStyle={{ padding: 16, gap: 10 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.compendiumCreatureRow}
-                  onPress={() => handleImportCompendiumCreature(item)}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.compendiumCreatureName}>{item.name}</Text>
-                    <Text style={styles.compendiumCreatureMeta}>
-                      VD {item.vd || '?'} • {item.element || 'Neutro'} • PV {item.pv || '?'} • Def {item.defense || '?'}
-                    </Text>
-                  </View>
-                  <Ionicons name="add-circle" size={24} color={colors.primary} />
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const openCreaturePreview = () =>
+                  openEntityPreview(item, {
+                    primaryAction: {
+                      label: 'Importar para Campanha',
+                      onPress: () => handleImportCompendiumCreature(item),
+                    },
+                  });
+
+                return (
+                  <TouchableOpacity
+                    style={styles.compendiumCreatureRow}
+                    onPress={() => handleImportCompendiumCreature(item)}
+                    onLongPress={openCreaturePreview}
+                    delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                    testID={`master-comp-creature-${item.id}`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.compendiumCreatureName}>{item.name}</Text>
+                      <Text style={styles.compendiumCreatureMeta}>
+                        VD {item.vd || '?'} • {item.element || 'Neutro'} • PV {item.pv || '?'} • Def {item.defense || '?'}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          openCreaturePreview();
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        testID={`master-comp-creature-info-${item.id}`}
+                      >
+                        <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                      <Ionicons name="add-circle" size={24} color={colors.primary} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
             />
           </View>
         </View>

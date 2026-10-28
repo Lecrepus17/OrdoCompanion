@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CompendiumEntity } from '../types/compendium';
+import { DEFAULT_LONG_PRESS_DELAY } from '../types/recordPreview';
 import { CATEGORY_LABELS, getElementStyle, ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { useApp } from '../context/AppContext';
 
@@ -9,6 +10,8 @@ export interface EntityCardProps {
   entity: CompendiumEntity;
   onPress?: () => void;
   onPressItem?: (id: string) => void;
+  onLongPress?: () => void;
+  onInspectEntity?: (entity: CompendiumEntity) => void;
   numColumns?: number;
   cardWidth?: number;
   isFavorite?: boolean;
@@ -20,6 +23,8 @@ export const EntityCardView = React.memo<EntityCardProps>(function EntityCardVie
   entity,
   onPress,
   onPressItem,
+  onLongPress,
+  onInspectEntity,
   numColumns = 1,
   cardWidth,
   isFavorite = false,
@@ -41,6 +46,14 @@ export const EntityCardView = React.memo<EntityCardProps>(function EntityCardVie
     }
   }, [onPressItem, onPress, entity.id]);
 
+  const handleLongPress = useCallback(() => {
+    if (onLongPress) {
+      onLongPress();
+    } else if (onInspectEntity) {
+      onInspectEntity(entity);
+    }
+  }, [onLongPress, onInspectEntity, entity]);
+
   const handleToggleFav = useCallback(() => {
     onToggleFavorite?.(entity.id);
   }, [onToggleFavorite, entity.id]);
@@ -53,7 +66,10 @@ export const EntityCardView = React.memo<EntityCardProps>(function EntityCardVie
         cardWidth ? { width: cardWidth } : undefined,
       ]}
       onPress={handlePress}
+      onLongPress={handleLongPress}
+      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
       activeOpacity={0.82}
+      testID={`entity-card-${entity.id}`}
     >
       <View style={styles.topContent}>
         <View style={styles.headerRow}>
@@ -134,18 +150,37 @@ export const EntityCardView = React.memo<EntityCardProps>(function EntityCardVie
             )}
           </View>
 
-          <TouchableOpacity
-            style={styles.favBtn}
-            onPress={handleToggleFav}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel={isFavorite ? 'Remover dos favoritos' : 'Favoritar item'}
-          >
-            <Ionicons
-              name={isFavorite ? 'bookmark' : 'bookmark-outline'}
-              size={isGrid ? 18 : 20}
-              color={isFavorite ? colors.warning : colors.textMuted}
-            />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TouchableOpacity
+              style={styles.favBtn}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                handleLongPress();
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+              accessibilityLabel="Ver detalhes rápidos"
+              testID={`entity-info-${entity.id}`}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={isGrid ? 18 : 20}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.favBtn}
+              onPress={handleToggleFav}
+              hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
+              accessibilityLabel={isFavorite ? 'Remover dos favoritos' : 'Favoritar item'}
+            >
+              <Ionicons
+                name={isFavorite ? 'bookmark' : 'bookmark-outline'}
+                size={isGrid ? 18 : 20}
+                color={isFavorite ? colors.warning : colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Text
@@ -197,13 +232,20 @@ export const EntityCardView = React.memo<EntityCardProps>(function EntityCardVie
 });
 
 const EntityCardConnected: React.FC<EntityCardProps> = (props) => {
-  const { favoriteIds, toggleFavorite, rollFormula } = useApp();
+  const { favoriteIds, toggleFavorite, rollFormula, openEntityPreview } = useApp();
+  const handleInspect = useCallback(
+    (ent: CompendiumEntity) => {
+      openEntityPreview(ent, { showOpenFullEntityButton: true });
+    },
+    [openEntityPreview]
+  );
   return (
     <EntityCardView
       {...props}
       isFavorite={props.isFavorite !== undefined ? props.isFavorite : favoriteIds.has(props.entity.id)}
       onToggleFavorite={props.onToggleFavorite || toggleFavorite}
       onRollFormula={props.onRollFormula || rollFormula}
+      onInspectEntity={props.onInspectEntity || handleInspect}
     />
   );
 };
@@ -212,7 +254,8 @@ export const EntityCard = React.memo<EntityCardProps>(function EntityCard(props)
   if (
     props.onToggleFavorite !== undefined &&
     props.isFavorite !== undefined &&
-    props.onRollFormula !== undefined
+    props.onRollFormula !== undefined &&
+    props.onInspectEntity !== undefined
   ) {
     return <EntityCardView {...props} />;
   }

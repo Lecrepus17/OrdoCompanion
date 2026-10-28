@@ -1479,6 +1479,63 @@ export const MANUAL_SECTIONS: ManualSection[] = [
       'acoes clicaveis',
     ],
   },
+  {
+    id: 'support',
+    title: 'Central de Suporte, Feedback & Relato de Erros',
+    subtitle: 'Relate bugs diretamente pelo app ou fale com o desenvolvedor',
+    icon: 'bug-outline',
+    route: '/(tabs)/support',
+    badge: 'Suporte & Erros',
+    summary:
+      'A Central de Suporte permite que jogadores e mestres relatem falhas técnicas, apontem divergências em regras do Compêndio, enviem ideias de melhorias ou entrem em contato direto com o desenvolvedor sem precisar sair do aplicativo.',
+    purpose:
+      'Garantir um canal direto, rápido e organizado com coleta automática de diagnóstico técnico (versão do app, sistema operacional e tema ativo) para resolver qualquer problema rapidamente.',
+    features: [
+      {
+        id: 'sup-direct-form',
+        title: 'Envio Direto pelo Aplicativo & Geração de Protocolo (#ORD)',
+        badge: 'In-App',
+        description:
+          'Formulário integrado que envia seu relato diretamente para a central do desenvolvedor (via Webhook/Endpoint) e registra um código de protocolo local.',
+        howToUse: [
+          'Acesse a tela "Suporte" pelo menu "+ Mais" da barra inferior ou pela aba "Suporte" dentro do Modal de Perfil do Jogador.',
+          'Escolha a categoria: Bug / Erro Técnico, Erro de Regra / Compêndio, Sugestão ou Contato Direto.',
+          'Preencha o título, a descrição e informe seu Discord, E-mail ou WhatsApp caso queira receber retorno direto.',
+          'Toque em "Enviar Relato Direto pelo App" para enviar imediatamente e gerar seu protocolo #ORD-XXXX.',
+        ],
+      },
+      {
+        id: 'sup-channels-diagnostics',
+        title: 'Canais Diretos (Discord, E-mail, GitHub) & Diagnóstico Automático',
+        badge: 'Canais Oficiais',
+        description:
+          'Acesso em 1 clique ao Discord do desenvolvedor, E-mail de suporte e abertura de Issues pré-preenchidas no repositório oficial do GitHub.',
+        howToUse: [
+          'Use os botões em "Canais de Contato Direto" para abrir o Discord, enviar e-mail ou copiar o usuário de contato.',
+          'Ative a opção "Anexar Diagnóstico Técnico Automaticamente" para incluir versão do aplicativo, plataforma e contagem de registros locais no relatório.',
+          'Se preferir, toque em "Abrir Issue no GitHub" para abrir o navegador já com todo o relatório técnico preenchido automaticamente.',
+        ],
+      },
+    ],
+    proTip:
+      'Ao reportar um erro técnico ou de regra, mantenha a opção de Diagnóstico Técnico ativada e informe seu usuário do Discord no campo de retorno para que o desenvolvedor possa responder rapidamente!',
+    keywords: [
+      'suporte',
+      'erro',
+      'bug',
+      'contato',
+      'ajuda',
+      'discord',
+      'email',
+      'github',
+      'issue',
+      'protocolo',
+      'feedback',
+      'sugestao',
+      'desenvolvedor',
+      'relatar',
+    ],
+  },
 ];
 
 /**

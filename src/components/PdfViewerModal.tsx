@@ -22,6 +22,7 @@ import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { BookInfo } from '../types/compendium';
 import {
   downloadPdfDocument,
+  getCleanPdfUrl,
   getCustomPdfServerUrl,
   getRawPdfUrl,
   getRenderedPdfPageUrl,
@@ -42,172 +43,26 @@ interface PdfViewerModalProps {
   initialMode?: PdfViewerMode;
 }
 
-interface PdfScrollPageItemProps {
-  bookFileName: string;
-  pageNumber: number;
-  pageWidth: number;
-  pageHeight: number;
-  containerHeight: number;
-  dpi: number;
-  sectionTitle?: string;
-  pageText?: string;
-  colors: ThemeColors;
-  styles: any;
-  screenWidth: number;
-  isMaximized?: boolean;
-  onImageLoaded?: (width: number, height: number) => void;
-  onOpenServerConfig?: () => void;
-}
-
-const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
-  bookFileName,
-  pageNumber,
-  pageWidth,
-  pageHeight,
-  containerHeight,
-  dpi,
-  sectionTitle,
-  pageText,
-  colors,
-  styles,
-  screenWidth,
-  isMaximized = false,
-  onImageLoaded,
-  onOpenServerConfig,
-}) => {
-  const isServerConfigured = isPdfServerConfigured();
-  const rawImageUrl = useMemo(
-    () => (isServerConfigured ? getRenderedPdfPageUrl(bookFileName, pageNumber, dpi) : ''),
-    [bookFileName, pageNumber, dpi, isServerConfigured]
-  );
-  const [retryKey, setRetryKey] = useState(0);
-  const [loading, setLoading] = useState(Boolean(rawImageUrl));
-  const [error, setError] = useState(!rawImageUrl);
-
-  const imageUrl = useMemo(
-    () => (rawImageUrl ? `${rawImageUrl}${retryKey > 0 ? `&retry=${retryKey}` : ''}` : ''),
-    [rawImageUrl, retryKey]
-  );
-
-  const canScrollHorizontal = pageWidth > screenWidth - (isMaximized ? 8 : 24);
-
-  return (
-    <View style={[styles.scrollPageWrap, { height: containerHeight }]}>
-      {!isMaximized && (
-        <View style={[styles.scrollPageHeader, { width: Math.min(pageWidth, screenWidth - 24) }]}>
-          <View style={styles.scrollPageBadge}>
-            <Ionicons name="document-text-outline" size={13} color={colors.primary} />
-            <Text style={styles.scrollPageBadgeText}>Página {pageNumber}</Text>
-          </View>
-          {sectionTitle ? (
-            <Text style={styles.scrollPageSectionText} numberOfLines={1}>
-              {sectionTitle}
-            </Text>
-          ) : null}
-          {!isServerConfigured && (
-            <View style={styles.scrollPageOfflinePill}>
-              <Text style={styles.scrollPageOfflinePillText}>Offline</Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      <ScrollView
-        horizontal
-        scrollEnabled={canScrollHorizontal}
-        showsHorizontalScrollIndicator={canScrollHorizontal}
-        contentContainerStyle={styles.scrollPageHorizontalContent}
-      >
-        <View style={[styles.scrollPagePaper, { width: pageWidth, height: pageHeight }]}>
-          {imageUrl && !error ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={{ width: pageWidth, height: pageHeight }}
-              resizeMode="contain"
-              onLoadStart={() => setLoading(true)}
-              onLoad={(e) => {
-                setLoading(false);
-                const src = e.nativeEvent?.source;
-                if (src?.width && src?.height && onImageLoaded) {
-                  onImageLoaded(src.width, src.height);
-                }
-              }}
-              onError={() => {
-                setLoading(false);
-                setError(true);
-              }}
-            />
-          ) : null}
-
-          {loading && !error && (
-            <View style={styles.scrollPageLoadingOverlay}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.scrollPageLoadingText}>Carregando página {pageNumber}...</Text>
-            </View>
-          )}
-
-          {error && (
-            <View style={[styles.scrollPageFallbackBox, { width: pageWidth, height: pageHeight }]}>
-              <View style={styles.scrollPageFallbackHeader}>
-                <View style={styles.scrollPageFallbackBadge}>
-                  <Ionicons name="book-outline" size={14} color={colors.primary} />
-                  <Text style={styles.scrollPageFallbackBadgeText}>Texto Oficial • Página {pageNumber}</Text>
-                </View>
-                {sectionTitle ? (
-                  <Text style={styles.scrollPageFallbackSection} numberOfLines={1}>
-                    {sectionTitle}
-                  </Text>
-                ) : null}
-              </View>
-
-              <ScrollView
-                style={styles.scrollPageFallbackScroll}
-                contentContainerStyle={styles.scrollPageFallbackContent}
-                nestedScrollEnabled
-                showsVerticalScrollIndicator
-              >
-                <Text style={styles.scrollPageFallbackBody}>
-                  {pageText || 'Esta página consiste em arte, mapa ou diagrama oficial do livro sem camada textual extraível.'}
-                </Text>
-              </ScrollView>
-
-              <View style={styles.scrollPageFallbackFooter}>
-                {isServerConfigured ? (
-                  <TouchableOpacity
-                    style={styles.scrollPageRetryBtn}
-                    onPress={() => {
-                      setError(false);
-                      setLoading(true);
-                      setRetryKey((k) => k + 1);
-                    }}
-                  >
-                    <Ionicons name="reload-outline" size={13} color={colors.text} />
-                    <Text style={styles.scrollPageRetryText}>Tentar Imagem Gráfica</Text>
-                  </TouchableOpacity>
-                ) : onOpenServerConfig ? (
-                  <TouchableOpacity
-                    style={styles.scrollPageConfigServerBtn}
-                    onPress={onOpenServerConfig}
-                  >
-                    <Ionicons name="cloud-outline" size={13} color={colors.primary} />
-                    <Text style={styles.scrollPageConfigServerText}>Conectar Servidor de Alta Resolução</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </View>
-  );
-});
-
 // Cache global em memória de documentos PDF.js já abertos na sessão Web
 const pdfDocsCache: Record<string, any> = {};
 let pdfJsLoadPromise: Promise<any> | null = null;
 
+const PDFJS_CDN_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_CDN_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+function loadScriptTag(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = (err) => reject(err);
+    document.head.appendChild(script);
+  });
+}
+
 function ensurePdfJsLoaded(): Promise<any> {
-  if (Platform.OS !== 'web' || typeof window === 'undefined') {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof document === 'undefined') {
     return Promise.reject(new Error('PDF.js disponível apenas na Web'));
   }
 
@@ -220,28 +75,299 @@ function ensurePdfJsLoaded(): Promise<any> {
     return pdfJsLoadPromise;
   }
 
-  pdfJsLoadPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = '/pdfjs/pdf.min.js';
-    script.async = true;
-    script.onload = () => {
+  pdfJsLoadPromise = (async () => {
+    try {
+      await loadScriptTag('/pdfjs/pdf.min.js');
       if (win.pdfjsLib) {
         win.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.js';
-        resolve(win.pdfjsLib);
-      } else {
-        pdfJsLoadPromise = null;
-        reject(new Error('Falha ao inicializar window.pdfjsLib'));
+        return win.pdfjsLib;
       }
-    };
-    script.onerror = (err) => {
+    } catch {
+      // Fallback automático para CDN oficial caso o middleware local não esteja servindo /pdfjs/
+    }
+
+    try {
+      await loadScriptTag(PDFJS_CDN_SCRIPT);
+      if (win.pdfjsLib) {
+        win.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_CDN_WORKER;
+        return win.pdfjsLib;
+      }
+    } catch (err) {
       pdfJsLoadPromise = null;
-      reject(err);
-    };
-    document.head.appendChild(script);
-  });
+      throw err;
+    }
+
+    pdfJsLoadPromise = null;
+    throw new Error('Falha ao inicializar window.pdfjsLib');
+  })();
 
   return pdfJsLoadPromise;
 }
+
+async function getOrLoadPdfJsDocument(fileName: string): Promise<any> {
+  const pdfjsLib = await ensurePdfJsLoaded();
+  if (pdfDocsCache[fileName]) {
+    return pdfDocsCache[fileName];
+  }
+  const cleanUrl = getCleanPdfUrl(fileName);
+  const loadingTask = pdfjsLib.getDocument({
+    url: cleanUrl,
+    disableAutoFetch: true,
+    disableStream: false,
+    rangeChunkSize: 65536 * 4,
+  });
+  const doc = await loadingTask.promise;
+  pdfDocsCache[fileName] = doc;
+  return doc;
+}
+
+interface PdfScrollPageItemProps {
+  bookFileName: string;
+  bookTitle: string;
+  pageNumber: number;
+  pageCount: number;
+  pageWidth: number;
+  pageHeight: number;
+  containerHeight: number;
+  dpi: number;
+  zoom: number;
+  sectionTitle?: string;
+  pageText?: string;
+  colors: ThemeColors;
+  styles: any;
+  screenWidth: number;
+  isMaximized?: boolean;
+  onImageLoaded?: (width: number, height: number) => void;
+  onOpenExternalPdf?: () => void;
+  onSelectPageForSingleView?: (page: number) => void;
+}
+
+const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
+  bookFileName,
+  bookTitle,
+  pageNumber,
+  pageCount,
+  pageWidth,
+  pageHeight,
+  containerHeight,
+  dpi,
+  zoom,
+  sectionTitle,
+  pageText,
+  colors,
+  styles,
+  screenWidth,
+  isMaximized = false,
+  onImageLoaded,
+  onOpenExternalPdf,
+  onSelectPageForSingleView,
+}) => {
+  const isServerConfigured = isPdfServerConfigured();
+  const rawImageUrl = useMemo(
+    () => (isServerConfigured ? getRenderedPdfPageUrl(bookFileName, pageNumber, dpi) : ''),
+    [bookFileName, pageNumber, dpi, isServerConfigured]
+  );
+  const [retryKey, setRetryKey] = useState(0);
+  const [loading, setLoading] = useState(Boolean(rawImageUrl));
+  const [error, setError] = useState(!rawImageUrl);
+  const [webCanvasReady, setWebCanvasReady] = useState(false);
+  const itemCanvasRef = useRef<any>(null);
+
+  const imageUrl = useMemo(
+    () => (rawImageUrl ? `${rawImageUrl}${retryKey > 0 ? `&retry=${retryKey}` : ''}` : ''),
+    [rawImageUrl, retryKey]
+  );
+
+  // Na Web, se a imagem do servidor falhar (ex: Python não instalado), renderiza via PDF.js <canvas>
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !error || !bookFileName) return;
+    let cancelled = false;
+    let renderTask: any = null;
+
+    (async () => {
+      try {
+        setLoading(true);
+        const pdfDoc = await getOrLoadPdfJsDocument(bookFileName);
+        if (cancelled) return;
+        const page = await pdfDoc.getPage(pageNumber);
+        if (cancelled) return;
+        const baseViewport = page.getViewport({ scale: 1 });
+        if (baseViewport.width && baseViewport.height && onImageLoaded) {
+          onImageLoaded(baseViewport.width, baseViewport.height);
+        }
+        const canvas: HTMLCanvasElement | null = itemCanvasRef.current;
+        if (!canvas) return;
+        const scale = pageWidth / (baseViewport.width || pageWidth);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const viewport = page.getViewport({ scale: scale * dpr });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = `${Math.floor(viewport.width / dpr)}px`;
+        canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        renderTask = page.render({ canvasContext: ctx, viewport });
+        await renderTask.promise;
+        if (!cancelled) {
+          setWebCanvasReady(true);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (renderTask) {
+        try {
+          renderTask.cancel();
+        } catch {}
+      }
+    };
+  }, [error, bookFileName, pageNumber, pageWidth]);
+
+  const showFallbackTextSheet = error && !webCanvasReady;
+
+  return (
+    <View style={[styles.scrollPageWrap, { height: containerHeight }]}>
+      {!isMaximized && (
+        <View style={[styles.scrollPageHeader, { width: Math.min(pageWidth, screenWidth - 24) }]}>
+          <View style={styles.scrollPageBadge}>
+            <Ionicons name="document-text-outline" size={13} color={colors.primary} />
+            <Text style={styles.scrollPageBadgeText}>
+              Página {pageNumber} de {pageCount}
+            </Text>
+          </View>
+          {sectionTitle ? (
+            <Text style={styles.scrollPageSectionText} numberOfLines={1}>
+              {sectionTitle}
+            </Text>
+          ) : null}
+          {!isServerConfigured && (
+            <View style={styles.scrollPageOfflinePill}>
+              <Text style={styles.scrollPageOfflinePillText}>Integrado</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      <View style={[styles.scrollPagePaper, { width: pageWidth, height: pageHeight }]}>
+        {Boolean(imageUrl) && !error ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={{ width: pageWidth, height: pageHeight }}
+            resizeMode="contain"
+            onLoadStart={() => setLoading(true)}
+            onLoad={(e) => {
+              setLoading(false);
+              const src = e.nativeEvent?.source;
+              if (src?.width && src?.height && onImageLoaded) {
+                onImageLoaded(src.width, src.height);
+              }
+            }}
+            onError={() => {
+              setLoading(false);
+              setError(true);
+            }}
+          />
+        ) : null}
+
+        {Platform.OS === 'web' &&
+          error &&
+          React.createElement('canvas', {
+            ref: itemCanvasRef,
+            style: {
+              display: webCanvasReady ? 'block' : 'none',
+              maxWidth: '100%',
+              maxHeight: '100%',
+            },
+          })}
+
+        {loading && (!error || Platform.OS === 'web') && !webCanvasReady && (
+          <View style={styles.scrollPageLoadingOverlay}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.scrollPageLoadingText}>Carregando página {pageNumber}...</Text>
+          </View>
+        )}
+
+        {showFallbackTextSheet && !loading && (
+          <View style={[styles.scrollPageFallbackBox, { width: pageWidth, height: pageHeight }]}>
+            <View style={styles.scrollPageFallbackHeader}>
+              <View style={styles.scrollPageFallbackBadge}>
+                <Ionicons name="book-outline" size={14} color={colors.primary} />
+                <Text style={styles.scrollPageFallbackBadgeText}>
+                  {bookTitle} • Pág. {pageNumber}
+                </Text>
+              </View>
+              {sectionTitle ? (
+                <Text style={styles.scrollPageFallbackSection} numberOfLines={1}>
+                  {sectionTitle}
+                </Text>
+              ) : null}
+            </View>
+
+            <View style={styles.scrollPageFallbackScroll}>
+              <Text
+                style={[
+                  styles.scrollPageFallbackBody,
+                  {
+                    fontSize: Math.max(12, Math.min(18, Math.round(13 * zoom))),
+                    lineHeight: Math.max(18, Math.min(26, Math.round(20 * zoom))),
+                  },
+                ]}
+                numberOfLines={Math.max(8, Math.floor((pageHeight - 110) / Math.max(18, Math.round(20 * zoom))))}
+              >
+                {pageText ||
+                  'Esta página consiste em arte, capa, mapa ou diagrama oficial do livro.'}
+              </Text>
+            </View>
+
+            <View style={styles.scrollPageFallbackFooter}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {onSelectPageForSingleView && (
+                  <TouchableOpacity
+                    style={styles.scrollPageConfigServerBtn}
+                    onPress={() => onSelectPageForSingleView(pageNumber)}
+                  >
+                    <Ionicons name="reader-outline" size={13} color={colors.primary} />
+                    <Text style={styles.scrollPageConfigServerText}>Ler Página Inteira</Text>
+                  </TouchableOpacity>
+                )}
+
+                {onOpenExternalPdf && (
+                  <TouchableOpacity
+                    style={styles.scrollPageRetryBtn}
+                    onPress={onOpenExternalPdf}
+                  >
+                    <Ionicons name="open-outline" size={13} color={colors.text} />
+                    <Text style={styles.scrollPageRetryText}>Abrir PDF Original</Text>
+                  </TouchableOpacity>
+                )}
+
+                {isServerConfigured && (
+                  <TouchableOpacity
+                    style={styles.scrollPageRetryBtn}
+                    onPress={() => {
+                      setError(false);
+                      setLoading(true);
+                      setRetryKey((k) => k + 1);
+                    }}
+                  >
+                    <Ionicons name="reload-outline" size={13} color={colors.text} />
+                    <Text style={styles.scrollPageRetryText}>Recarregar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+});
 
 export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   visible,
@@ -257,20 +383,21 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const styles = useThemedStyles(createStyles);
 
   const serverConfigured = isPdfServerConfigured();
-  const computedInitialMode = (!serverConfigured && (initialMode === 'pdf_scroll' || initialMode === 'pdf_page'))
-    ? 'text'
-    : initialMode;
+  const computedInitialMode: PdfViewerMode =
+    !serverConfigured && Platform.OS !== 'web' && (initialMode === 'pdf_scroll' || initialMode === 'pdf_page')
+      ? 'text'
+      : initialMode;
 
-  const [currentPage, setCurrentPage] = useState<number>(initialPage);
+  const [currentPage, setCurrentPage] = useState<number>(initialPage || 1);
   const [viewMode, setViewMode] = useState<PdfViewerMode>(computedInitialMode);
   const [zoom, setZoom] = useState<number>(1.0);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
-  const [pageInputText, setPageInputText] = useState<string>(String(initialPage));
+  const [pageInputText, setPageInputText] = useState<string>(String(initialPage || 1));
   const [showTocList, setShowTocList] = useState<boolean>(false);
   const [showInBookSearch, setShowInBookSearch] = useState<boolean>(false);
   const [inBookQuery, setInBookQuery] = useState<string>(highlightTerm);
 
-  // Estados de conexão do servidor de PDFs
+  // Estados de conexão do servidor de PDFs (renderizado como overlay interno sem Modal aninhado)
   const [showServerModal, setShowServerModal] = useState<boolean>(false);
   const [serverUrlInput, setServerUrlInput] = useState<string>(getCustomPdfServerUrl());
   const [testStatus, setTestStatus] = useState<{
@@ -289,12 +416,15 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const renderTaskRef = useRef<any>(null);
   const flatListRef = useRef<FlatList<number>>(null);
   const isScrollingProgrammatically = useRef<boolean>(false);
-  const currentPageRef = useRef<number>(currentPage);
+
+  const totalPages = Math.max(1, book?.pageCount || 1);
+  const safeCurrentPage = Math.max(1, Math.min(totalPages, currentPage || 1));
+  const currentPageRef = useRef<number>(safeCurrentPage);
   const prevZoomRef = useRef<number>(zoom);
 
   useEffect(() => {
-    currentPageRef.current = currentPage;
-  }, [currentPage]);
+    currentPageRef.current = safeCurrentPage;
+  }, [safeCurrentPage]);
 
   const toggleMaximized = useCallback(() => {
     setIsMaximized((m) => !m);
@@ -304,28 +434,22 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const pagesList = useMemo(() => {
     if (!book || !book.pageCount) return [];
     return Array.from({ length: book.pageCount }, (_, i) => i + 1);
-  }, [book?.pageCount]);
+  }, [book?.id, book?.pageCount]);
 
-  const clampedInitialIndex = useMemo(() => {
-    if (!book || !book.pageCount) return 0;
-    const initial = typeof initialPage === 'number' ? initialPage : 1;
-    return Math.max(0, Math.min(book.pageCount - 1, initial - 1));
-  }, [book?.pageCount, initialPage]);
-
-  // Dimensões dinâmicas calculadas com base no zoom e aspect ratio
-  // No modo maximizado, expande a largura máxima e reduz margens para exibir mais texto limpo
-  const { width: windowWidth } = useWindowDimensions();
-  const screenWidth = windowWidth;
-  const isCompact = windowWidth < 480;
-  const isVerySmall = windowWidth < 390;
+  // Dimensões dinâmicas seguras calculadas com base no zoom e aspect ratio
+  const { width: rawWindowWidth } = useWindowDimensions();
+  const screenWidth = Math.max(300, rawWindowWidth || 360);
+  const isCompact = screenWidth < 480;
+  const isVerySmall = screenWidth < 390;
+  const safeAspect = pageAspect > 0.1 && Number.isFinite(pageAspect) ? pageAspect : 1211 / 1625;
   const pageHorizontalMargin = isMaximized ? 8 : 24;
   const pageMaxWidth = isMaximized ? Math.min(screenWidth - 8, 1200) : 880;
-  const basePageWidth = Math.min(screenWidth - pageHorizontalMargin, pageMaxWidth) * zoom;
-  const basePageHeight = basePageWidth / pageAspect;
+  const basePageWidth = Math.max(240, Math.min(screenWidth - pageHorizontalMargin, pageMaxWidth) * zoom);
+  const basePageHeight = Math.max(320, basePageWidth / safeAspect);
   const targetDpi = zoom >= 1.5 ? 200 : 150;
   const PAGE_GAP = isMaximized ? 14 : 20;
   const HEADER_HEIGHT = isMaximized ? 0 : 36;
-  const itemTotalHeight = Math.round(basePageHeight + HEADER_HEIGHT + PAGE_GAP);
+  const itemTotalHeight = Math.max(360, Math.round(basePageHeight + HEADER_HEIGHT + PAGE_GAP));
 
   const getItemLayout = useCallback(
     (_data: any, index: number) => ({
@@ -336,18 +460,31 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     [itemTotalHeight]
   );
 
+  const scrollFlatListToPage = useCallback(
+    (pageNum: number, animated: boolean) => {
+      if (!flatListRef.current || !book) return;
+      const clamped = Math.max(1, Math.min(book.pageCount || 1, Math.round(pageNum)));
+      const offset = Math.max(0, (clamped - 1) * itemTotalHeight);
+      try {
+        flatListRef.current.scrollToOffset({
+          offset,
+          animated,
+        });
+      } catch {}
+    },
+    [book, itemTotalHeight]
+  );
+
   const handleScrollToIndexFailed = useCallback(
     (info: { index: number }) => {
       setTimeout(() => {
         if (!flatListRef.current) return;
         try {
-          flatListRef.current.scrollToIndex({ index: info.index, animated: false });
-        } catch {
           flatListRef.current.scrollToOffset({
-            offset: info.index * itemTotalHeight,
+            offset: Math.max(0, info.index * itemTotalHeight),
             animated: false,
           });
-        }
+        } catch {}
       }, 50);
     },
     [itemTotalHeight]
@@ -375,7 +512,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const goToPage = useCallback(
     (target: number, animated = true) => {
       if (!book) return;
-      const clamped = Math.max(1, Math.min(book.pageCount, Math.round(target)));
+      const clamped = Math.max(1, Math.min(book.pageCount || 1, Math.round(target)));
       const isFarJump = Math.abs(clamped - currentPageRef.current) > 2;
       const shouldAnimate = isFarJump ? false : animated;
 
@@ -385,91 +522,61 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
       if (viewMode === 'pdf_scroll' && flatListRef.current) {
         isScrollingProgrammatically.current = true;
-        try {
-          flatListRef.current.scrollToIndex({
-            index: clamped - 1,
-            animated: shouldAnimate,
-            viewPosition: 0,
-          });
-        } catch {
-          flatListRef.current.scrollToOffset({
-            offset: (clamped - 1) * itemTotalHeight,
-            animated: shouldAnimate,
-          });
-        }
+        scrollFlatListToPage(clamped, shouldAnimate);
         setTimeout(() => {
           isScrollingProgrammatically.current = false;
-        }, shouldAnimate ? 450 : 120);
+        }, shouldAnimate ? 400 : 120);
       }
     },
-    [book, viewMode, itemTotalHeight]
+    [book, viewMode, scrollFlatListToPage]
   );
 
-  // Preserva estritamente a página atual ao alterar o zoom (aumentar, diminuir ou resetar)
-  // Previne que a alteração da altura dos itens mude a página atual de visualização
+  // Preserva estritamente a página atual ao alterar o zoom
   useEffect(() => {
     if (prevZoomRef.current !== zoom) {
       prevZoomRef.current = zoom;
       if (viewMode === 'pdf_scroll' && flatListRef.current) {
         isScrollingProgrammatically.current = true;
         const targetPage = currentPageRef.current;
-        const targetOffset = (targetPage - 1) * itemTotalHeight;
-        try {
-          flatListRef.current.scrollToOffset({
-            offset: targetOffset,
-            animated: false,
-          });
-        } catch {}
-
+        scrollFlatListToPage(targetPage, false);
         setCurrentPage(targetPage);
         setPageInputText(String(targetPage));
 
         const timer = setTimeout(() => {
           isScrollingProgrammatically.current = false;
-        }, 300);
+        }, 250);
         return () => clearTimeout(timer);
       }
     }
-  }, [zoom, itemTotalHeight, viewMode]);
+  }, [zoom, itemTotalHeight, viewMode, scrollFlatListToPage]);
 
   // Sincroniza página inicial e livro quando o modal abre
   useEffect(() => {
     if (visible && book) {
       const isServerActive = isPdfServerConfigured();
       const targetMode: PdfViewerMode =
-        !isServerActive && (initialMode === 'pdf_scroll' || initialMode === 'pdf_page')
+        !isServerActive && Platform.OS !== 'web' && (initialMode === 'pdf_scroll' || initialMode === 'pdf_page')
           ? 'text'
           : initialMode;
       setViewMode(targetMode);
 
-      const clamped = Math.max(1, Math.min(book.pageCount, initialPage || 1));
+      const clamped = Math.max(1, Math.min(book.pageCount || 1, initialPage || 1));
       setCurrentPage(clamped);
       currentPageRef.current = clamped;
       setPageInputText(String(clamped));
       setShowTocList(false);
+      setShowServerModal(false);
       if (highlightTerm) {
         setInBookQuery(highlightTerm);
       }
       if (targetMode === 'pdf_scroll') {
         isScrollingProgrammatically.current = true;
         setTimeout(() => {
-          if (flatListRef.current && clamped > 1) {
-            try {
-              flatListRef.current.scrollToIndex({
-                index: clamped - 1,
-                animated: false,
-              });
-            } catch {
-              flatListRef.current.scrollToOffset({
-                offset: (clamped - 1) * itemTotalHeight,
-                animated: false,
-              });
-            }
-          }
+          scrollFlatListToPage(clamped, false);
           setTimeout(() => {
             isScrollingProgrammatically.current = false;
-          }, 350);
-        }, 120);
+          }, 250);
+        }, 80);
       }
     }
   }, [visible, book?.id, initialPage]);
@@ -479,67 +586,66 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     if (viewMode === 'pdf_scroll' && visible && book) {
       isScrollingProgrammatically.current = true;
       setTimeout(() => {
-        if (flatListRef.current && currentPage > 1) {
-          try {
-            flatListRef.current.scrollToIndex({
-              index: currentPage - 1,
-              animated: false,
-            });
-          } catch {
-            flatListRef.current.scrollToOffset({
-              offset: (currentPage - 1) * itemTotalHeight,
-              animated: false,
-            });
-          }
-        }
+        scrollFlatListToPage(currentPageRef.current, false);
         setTimeout(() => {
           isScrollingProgrammatically.current = false;
-        }, 300);
-      }, 100);
+        }, 250);
+      }, 60);
     }
   }, [viewMode]);
 
   useEffect(() => {
-    setPageInputText(String(currentPage));
-    const isServerActive = isPdfServerConfigured();
-    setImageLoading(isServerActive);
-    setImageError(!isServerActive);
+    setPageInputText(String(safeCurrentPage));
+    const url = book ? getRenderedPdfPageUrl(book.fileName, safeCurrentPage, targetDpi) : '';
+    const hasValidImageUrl = Boolean(url);
+    setImageLoading(hasValidImageUrl);
+    setImageError(!hasValidImageUrl);
     setCanvasReady(false);
-  }, [currentPage, book?.id]);
+  }, [safeCurrentPage, book?.id]);
 
-  // Intercepta botão de retorno físico no Android nativo (mantém o usuário na lista de livros ao voltar)
+  // Intercepta botão de retorno físico no Android nativo
   useEffect(() => {
     if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
     const onBackPress = () => {
+      if (showServerModal) {
+        setShowServerModal(false);
+        return true;
+      }
       onClose();
       return true;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
-  }, [visible, onClose]);
+  }, [visible, onClose, showServerModal]);
 
-  // Intercepta a seta de retorno do navegador na Web (evita voltar para o compêndio ao invés da lista de livros)
+  // Intercepta a seta de retorno do navegador na Web
   useEffect(() => {
     if (Platform.OS !== 'web' || !visible || typeof window === 'undefined') return;
 
     const modalHistoryState = { modal: 'ordo-pdf-viewer', time: Date.now() };
-    window.history.pushState(modalHistoryState, '');
+    try {
+      window.history?.pushState?.(modalHistoryState, '');
+    } catch {}
 
     const handlePopState = () => {
       onClose();
     };
 
-    window.addEventListener('popstate', handlePopState);
+    try {
+      window.addEventListener?.('popstate', handlePopState);
+    } catch {}
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
-      if (window.history.state?.modal === 'ordo-pdf-viewer') {
-        window.history.back();
-      }
+      try {
+        window.removeEventListener?.('popstate', handlePopState);
+        if (window.history?.state?.modal === 'ordo-pdf-viewer') {
+          window.history.back();
+        }
+      } catch {}
     };
   }, [visible, onClose]);
 
-  // Atalhos de teclado na Web (Setas / PageUp / PageDown / Zoom +/- / F ou M para Maximizar / Escape)
+  // Atalhos de teclado na Web
   useEffect(() => {
     if (Platform.OS !== 'web' || !visible || !book) return;
 
@@ -549,10 +655,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
       if (e.key === 'ArrowRight' || e.key === 'PageDown') {
         e.preventDefault();
-        goToPage(currentPage + 1);
+        goToPage(safeCurrentPage + 1);
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
-        goToPage(currentPage - 1);
+        goToPage(safeCurrentPage - 1);
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         setZoom((z) => Math.min(2.5, Number((z + 0.25).toFixed(2))));
@@ -563,7 +669,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         e.preventDefault();
         toggleMaximized();
       } else if (e.key === 'Escape') {
-        if (isMaximized) {
+        if (showServerModal) {
+          e.preventDefault();
+          setShowServerModal(false);
+        } else if (isMaximized) {
           e.preventDefault();
           setIsMaximized(false);
         } else {
@@ -574,19 +683,21 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [visible, book, currentPage, goToPage, onClose, isMaximized, toggleMaximized]);
+  }, [visible, book, safeCurrentPage, goToPage, onClose, isMaximized, toggleMaximized, showServerModal]);
 
-  // Pré-carrega a próxima página no servidor para navegação instantânea em página única
+  // Pré-carrega a próxima página somente quando houver URL válida de servidor gráfico
   useEffect(() => {
-    if (!visible || !book || viewMode !== 'pdf_page') return;
-    const nextPage = currentPage + 1;
+    if (!visible || !book || viewMode !== 'pdf_page' || !isPdfServerConfigured()) return;
+    const nextPage = safeCurrentPage + 1;
     if (nextPage <= book.pageCount) {
       const nextUrl = getRenderedPdfPageUrl(book.fileName, nextPage, 150);
-      Image.prefetch(nextUrl).catch(() => {});
+      if (nextUrl && nextUrl.startsWith('http')) {
+        Image.prefetch(nextUrl).catch(() => {});
+      }
     }
-  }, [visible, book, currentPage, viewMode]);
+  }, [visible, book, safeCurrentPage, viewMode]);
 
-  // Renderização via PDF.js em <canvas> na Web (em paralelo ao fallback de imagem para página única)
+  // Renderização via PDF.js em <canvas> na Web para página única
   useEffect(() => {
     if (Platform.OS !== 'web' || !visible || !book || viewMode !== 'pdf_page') {
       return;
@@ -597,25 +708,11 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     async function renderWithPdfJs() {
       try {
         setCanvasLoading(true);
-        const pdfjsLib = await ensurePdfJsLoaded();
-        if (cancelled || !book) return;
-
-        const rawUrl = getRawPdfUrl(book.fileName);
-        let pdfDoc = pdfDocsCache[book.fileName];
-        if (!pdfDoc) {
-          const loadingTask = pdfjsLib.getDocument({
-            url: rawUrl,
-            disableAutoFetch: true,
-            disableStream: false,
-            rangeChunkSize: 65536 * 4,
-          });
-          pdfDoc = await loadingTask.promise;
-          pdfDocsCache[book.fileName] = pdfDoc;
-        }
-
+        if (!book) return;
+        const pdfDoc = await getOrLoadPdfJsDocument(book.fileName);
         if (cancelled) return;
 
-        const page = await pdfDoc.getPage(currentPage);
+        const page = await pdfDoc.getPage(safeCurrentPage);
         if (cancelled) return;
 
         const baseViewport = page.getViewport({ scale: 1 });
@@ -632,8 +729,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
           } catch {}
         }
 
-        const screenWidth = Math.min(Dimensions.get('window').width - 28, 920);
-        const baseScale = (screenWidth / baseViewport.width) * zoom;
+        const targetW = Math.min(Dimensions.get('window').width - 28, 920);
+        const baseScale = (targetW / (baseViewport.width || targetW)) * zoom;
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         const viewport = page.getViewport({ scale: baseScale * dpr });
 
@@ -673,12 +770,12 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         } catch {}
       }
     };
-  }, [visible, book, currentPage, zoom, viewMode]);
+  }, [visible, book, safeCurrentPage, zoom, viewMode]);
 
   const activePageData = useMemo(() => {
     if (!book) return undefined;
-    return getBookPage(book.id, currentPage);
-  }, [book, currentPage, getBookPage]);
+    return getBookPage(book.id, safeCurrentPage);
+  }, [book, safeCurrentPage, getBookPage]);
 
   const inBookResults = useMemo(() => {
     if (!book || inBookQuery.trim().length < 2) return [];
@@ -690,7 +787,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     if (!isNaN(parsed)) {
       goToPage(parsed);
     } else {
-      setPageInputText(String(currentPage));
+      setPageInputText(String(safeCurrentPage));
     }
   };
 
@@ -699,29 +796,15 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     (typeof navigator !== 'undefined' &&
       /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
 
-  const handleOpenExternalPdf = async () => {
+  const handleOpenExternalPdf = useCallback(async () => {
     if (!book) return;
-    if (!isPdfServerConfigured()) {
-      setShowServerModal(true);
-      return;
-    }
-    const ok = await openPdfDocument(book.fileName, currentPage);
-    if (!ok) {
-      setShowServerModal(true);
-    }
-  };
+    await openPdfDocument(book.fileName, safeCurrentPage);
+  }, [book, safeCurrentPage]);
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = useCallback(async () => {
     if (!book) return;
-    if (!isPdfServerConfigured()) {
-      setShowServerModal(true);
-      return;
-    }
-    const ok = await downloadPdfDocument(book.fileName);
-    if (!ok) {
-      setShowServerModal(true);
-    }
-  };
+    await downloadPdfDocument(book.fileName);
+  }, [book]);
 
   const handleTestServer = async () => {
     setTestStatus({ testing: true, result: null });
@@ -730,13 +813,15 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   };
 
   const handleSaveServer = async () => {
-    await setCustomPdfServerUrl(serverUrlInput);
-    if (viewMode === 'text' && serverUrlInput.trim().length > 0) {
+    const cleanInput = serverUrlInput.trim();
+    await setCustomPdfServerUrl(cleanInput);
+    if (viewMode === 'text' && cleanInput.length > 0) {
       setViewMode('pdf_scroll');
     }
     setShowServerModal(false);
-    setImageError(false);
-    setImageLoading(true);
+    const hasUrl = Boolean(book && getRenderedPdfPageUrl(book.fileName, safeCurrentPage, targetDpi));
+    setImageError(!hasUrl);
+    setImageLoading(hasUrl);
     setCanvasReady(false);
   };
 
@@ -744,6 +829,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     await setCustomPdfServerUrl('');
     setServerUrlInput('');
     setTestStatus({ testing: false, result: null });
+    setImageError(true);
+    setImageLoading(false);
     setViewMode('text');
     setShowServerModal(false);
   };
@@ -755,11 +842,14 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
       return (
         <PdfScrollPageItem
           bookFileName={book.fileName}
+          bookTitle={book.title}
           pageNumber={item}
+          pageCount={book.pageCount}
           pageWidth={basePageWidth}
           pageHeight={basePageHeight}
           containerHeight={itemTotalHeight}
           dpi={targetDpi}
+          zoom={zoom}
           sectionTitle={pageData?.section}
           pageText={pageData?.text}
           colors={colors}
@@ -771,7 +861,11 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               setPageAspect(w / h);
             }
           }}
-          onOpenServerConfig={() => setShowServerModal(true)}
+          onOpenExternalPdf={handleOpenExternalPdf}
+          onSelectPageForSingleView={(p) => {
+            goToPage(p, false);
+            setViewMode('text');
+          }}
         />
       );
     },
@@ -781,18 +875,22 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
       basePageHeight,
       itemTotalHeight,
       targetDpi,
+      zoom,
       colors,
       styles,
       screenWidth,
       isMaximized,
       getBookPage,
+      handleOpenExternalPdf,
+      goToPage,
     ]
   );
 
   if (!book) return null;
 
-  const renderedImageUrl = getRenderedPdfPageUrl(book.fileName, currentPage, targetDpi);
-  const nativePdfIframeUrl = getRawPdfUrl(book.fileName, currentPage);
+  const renderedImageUrl = getRenderedPdfPageUrl(book.fileName, safeCurrentPage, targetDpi);
+  const nativePdfIframeUrl = getRawPdfUrl(book.fileName, safeCurrentPage);
+  const hasValidRenderedImageUrl = Boolean(renderedImageUrl && renderedImageUrl.startsWith('http'));
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -823,7 +921,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 </View>
               </View>
               <Text style={styles.pageSubTitle} numberOfLines={1}>
-                Página {currentPage} de {book.pageCount}
+                Página {safeCurrentPage} de {book.pageCount}
                 {activePageData?.section ? ` • ${activePageData.section}` : ''}
               </Text>
             </View>
@@ -864,7 +962,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 </TouchableOpacity>
               )}
 
-              {/* Indicador de Status do Servidor de PDF / Modo Offline */}
+              {/* Indicador de Status do Servidor de PDF / Modo Integrado */}
               <TouchableOpacity
                 style={styles.serverStatusPill}
                 onPress={() => setShowServerModal(true)}
@@ -873,7 +971,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 <View
                   style={[
                     styles.serverStatusDot,
-                    { backgroundColor: isPdfServerConfigured() ? '#10B981' : colors.textMuted },
+                    { backgroundColor: isPdfServerConfigured() ? '#10B981' : colors.primary },
                   ]}
                 />
                 <Text style={styles.serverStatusText}>
@@ -881,7 +979,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 </Text>
               </TouchableOpacity>
 
-              {/* Botão de Maximizar Visualização (Rolagem Contínua e Página Única) */}
+              {/* Botão de Maximizar Visualização */}
               <TouchableOpacity
                 style={styles.maximizeBtn}
                 onPress={toggleMaximized}
@@ -891,7 +989,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 {!isVerySmall && <Text style={styles.maximizeBtnText}>Maximizar</Text>}
               </TouchableOpacity>
 
-              {/* No celular, oferece download para evitar tela cinza de navegadores móveis */}
+              {/* No celular ou desktop, permite abrir/baixar o PDF original diretamente */}
               {isMobile ? (
                 <TouchableOpacity
                   style={styles.iconBtn}
@@ -1063,7 +1161,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                       key={`inbook_${res.pageNumber}_${idx}`}
                       style={[
                         styles.searchResultItem,
-                        res.pageNumber === currentPage && styles.searchResultItemActive,
+                        res.pageNumber === safeCurrentPage && styles.searchResultItemActive,
                       ]}
                       onPress={() => {
                         goToPage(res.pageNumber);
@@ -1091,7 +1189,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
             <Text style={styles.drawerHeading}>Sumário de {book.title}</Text>
             <ScrollView style={styles.tocVerticalScroll}>
               {book.toc.map((entry, idx) => {
-                const isCurrent = currentPage === entry.page;
+                const isCurrent = safeCurrentPage === entry.page;
                 return (
                   <TouchableOpacity
                     key={`toc_v_${idx}`}
@@ -1128,7 +1226,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               contentContainerStyle={styles.tocStripScroll}
             >
               {book.toc.map((t, i) => {
-                const isActive = currentPage === t.page;
+                const isActive = safeCurrentPage === t.page;
                 return (
                   <TouchableOpacity
                     key={`strip_toc_${i}`}
@@ -1165,7 +1263,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               <View style={styles.floatingBadge}>
                 <Ionicons name="document-text" size={13} color={colors.primary} />
                 <Text style={styles.floatingBadgeText}>
-                  Pág. {currentPage} / {book.pageCount}
+                  Pág. {safeCurrentPage} / {book.pageCount}
                 </Text>
               </View>
 
@@ -1192,9 +1290,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
           {isMaximized && viewMode === 'pdf_page' && (
             <View style={[styles.floatingPageNavBottom, { bottom: Math.max(insets.bottom, 14) }]}>
               <TouchableOpacity
-                style={[styles.floatingNavBtn, currentPage <= 1 && styles.btnDisabled]}
-                disabled={currentPage <= 1}
-                onPress={() => goToPage(currentPage - 1)}
+                style={[styles.floatingNavBtn, safeCurrentPage <= 1 && styles.btnDisabled]}
+                disabled={safeCurrentPage <= 1}
+                onPress={() => goToPage(safeCurrentPage - 1)}
                 accessibilityLabel="Página anterior"
               >
                 <Ionicons name="chevron-back" size={17} color="#FFF" />
@@ -1203,14 +1301,14 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
               <View style={styles.floatingPageIndicator}>
                 <Text style={styles.floatingPageIndicatorText}>
-                  {currentPage} / {book.pageCount}
+                  {safeCurrentPage} / {book.pageCount}
                 </Text>
               </View>
 
               <TouchableOpacity
-                style={[styles.floatingNavBtn, currentPage >= book.pageCount && styles.btnDisabled]}
-                disabled={currentPage >= book.pageCount}
-                onPress={() => goToPage(currentPage + 1)}
+                style={[styles.floatingNavBtn, safeCurrentPage >= book.pageCount && styles.btnDisabled]}
+                disabled={safeCurrentPage >= book.pageCount}
+                onPress={() => goToPage(safeCurrentPage + 1)}
                 accessibilityLabel="Próxima página"
               >
                 <Text style={styles.floatingNavBtnText}>Próx.</Text>
@@ -1219,22 +1317,27 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
             </View>
           )}
 
-          {/* MODO 1: ROLAGEM CONTÍNUA COM TODAS AS PÁGINAS CARREGANDO */}
+          {/* MODO 1: ROLAGEM CONTÍNUA COM TODAS AS PÁGINAS */}
           {viewMode === 'pdf_scroll' && (
             <FlatList
+              key={`pdf_scroll_list_${book.id}`}
               ref={flatListRef}
               data={pagesList}
-              keyExtractor={(item) => `scroll_page_${item}`}
+              keyExtractor={(item) => `scroll_page_${book.id}_${item}`}
               renderItem={renderScrollPageItem}
               getItemLayout={getItemLayout}
-              initialScrollIndex={clampedInitialIndex}
+              onLayout={() => {
+                if (currentPageRef.current > 1) {
+                  scrollFlatListToPage(currentPageRef.current, false);
+                }
+              }}
               onScrollToIndexFailed={handleScrollToIndexFailed}
               onViewableItemsChanged={onViewableItemsChanged}
               viewabilityConfig={viewabilityConfig}
               showsVerticalScrollIndicator
-              initialNumToRender={Platform.OS === 'web' ? 4 : 5}
-              maxToRenderPerBatch={Platform.OS === 'web' ? 4 : 6}
-              windowSize={Platform.OS === 'web' ? 7 : 9}
+              initialNumToRender={Platform.OS === 'web' ? 4 : 3}
+              maxToRenderPerBatch={Platform.OS === 'web' ? 4 : 4}
+              windowSize={Platform.OS === 'web' ? 7 : 5}
               removeClippedSubviews={false}
               contentContainerStyle={[
                 styles.scrollListContent,
@@ -1254,158 +1357,125 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               showsVerticalScrollIndicator
               showsHorizontalScrollIndicator
             >
-              <ScrollView
-                horizontal
-                contentContainerStyle={styles.pageHorizontalWrap}
-                showsHorizontalScrollIndicator={zoom > 1.0}
+              <View
+                style={[
+                  styles.pdfPagePaper,
+                  {
+                    width: basePageWidth,
+                    minHeight: basePageHeight,
+                  },
+                ]}
               >
-                <View
-                  style={[
-                    styles.pdfPagePaper,
-                    {
+                {/* Camada 1: Imagem de Alta Resolução renderizada pelo servidor quando configurada */}
+                {hasValidRenderedImageUrl && !imageError && (
+                  <Image
+                    source={{ uri: renderedImageUrl }}
+                    style={{
                       width: basePageWidth,
-                      minHeight: basePageHeight,
+                      height: basePageHeight,
+                      opacity: canvasReady ? 0 : 1,
+                      position: canvasReady ? 'absolute' : 'relative',
+                    }}
+                    resizeMode="contain"
+                    onLoadStart={() => setImageLoading(true)}
+                    onLoad={(e) => {
+                      const src = e.nativeEvent?.source;
+                      if (src?.width && src?.height) {
+                        setPageAspect(src.width / src.height);
+                      }
+                      setImageLoading(false);
+                    }}
+                    onError={() => {
+                      setImageLoading(false);
+                      setImageError(true);
+                    }}
+                  />
+                )}
+
+                {/* Camada 2 (Web): Canvas vetorial PDF.js direto do arquivo .pdf original */}
+                {Platform.OS === 'web' &&
+                  React.createElement('canvas', {
+                    ref: canvasRef,
+                    style: {
+                      display: canvasReady ? 'block' : 'none',
+                      maxWidth: '100%',
+                      borderRadius: 6,
                     },
-                  ]}
-                >
-                  {/* Camada 1: Imagem de Alta Resolução renderizada pelo PyMuPDF no servidor */}
-                  {!imageError && (
-                    <Image
-                      source={{ uri: renderedImageUrl }}
-                      style={{
-                        width: basePageWidth,
-                        height: basePageHeight,
-                        opacity: canvasReady ? 0 : 1,
-                        position: canvasReady ? 'absolute' : 'relative',
-                      }}
-                      resizeMode="contain"
-                      onLoadStart={() => setImageLoading(true)}
-                      onLoad={(e) => {
-                        const src = e.nativeEvent?.source;
-                        if (src?.width && src?.height) {
-                          setPageAspect(src.width / src.height);
-                        }
-                        setImageLoading(false);
-                      }}
-                      onError={() => {
-                        setImageLoading(false);
-                        setImageError(true);
-                      }}
-                    />
-                  )}
+                  })}
 
-                  {/* Camada 2 (Web): Canvas vetorial PDF.js direto do arquivo .pdf original */}
-                  {Platform.OS === 'web' &&
-                    React.createElement('canvas', {
-                      ref: canvasRef,
-                      style: {
-                        display: canvasReady ? 'block' : 'none',
-                        maxWidth: '100%',
-                        borderRadius: 6,
-                      },
-                    })}
+                {/* Indicador de carregamento */}
+                {(imageLoading || canvasLoading) && !canvasReady && (
+                  <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={styles.loadingText}>
+                      Carregando página {safeCurrentPage} de {book.title}...
+                    </Text>
+                  </View>
+                )}
 
-                  {/* Indicador de carregamento */}
-                  {imageLoading && !canvasReady && (
-                    <View style={styles.loadingOverlay}>
-                      <ActivityIndicator size="large" color={colors.primary} />
-                      <Text style={styles.loadingText}>
-                        Renderizando página {currentPage} de {book.title}...
-                      </Text>
-                      {canvasLoading && (
-                        <Text style={styles.loadingSubText}>
-                          Carregando PDF original ({book.fileName})
-                        </Text>
-                      )}
-                    </View>
-                  )}
-
-                  {/* Caso a imagem e o canvas estejam indisponíveis, exibe o conteúdo textual integrado e opções de leitura */}
-                  {imageError && !canvasReady && !canvasLoading && (
-                    <View style={styles.fallbackNotice}>
-                      <View style={styles.fallbackAlertHeader}>
-                        <Ionicons name="document-text-outline" size={32} color={colors.primary} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.fallbackTitle}>
-                            Página {currentPage} • {book.title}
-                          </Text>
-                          <Text style={styles.fallbackSub}>
-                            Renderização gráfica não concluída. O texto oficial e regras desta página estão disponíveis abaixo:
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.fallbackTextCard}>
-                        <View style={styles.fallbackTextHeader}>
+                {/* Visualização da Página Integrada (no APK ou quando sem servidor de imagens ativo) */}
+                {(!hasValidRenderedImageUrl || imageError) && !canvasReady && !canvasLoading && (
+                  <View style={styles.fallbackNotice}>
+                    <View style={styles.fallbackTextCard}>
+                      <View style={styles.fallbackTextHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                          <Ionicons name="book-outline" size={16} color={colors.primary} />
                           <Text style={styles.fallbackTextSection} numberOfLines={1}>
                             {activePageData?.section || book.title}
                           </Text>
-                          <Text style={styles.textModePageBadge}>Pág. {currentPage}</Text>
                         </View>
-                        <Text style={styles.fallbackTextBody} selectable>
-                          {activePageData?.text ||
-                            'Esta página não possui camada textual extraível (pode conter apenas arte ou diagrama). Conecte ao servidor para ver a arte original.'}
+                        <Text style={styles.textModePageBadge}>
+                          Pág. {safeCurrentPage} / {book.pageCount}
                         </Text>
                       </View>
+                      <Text
+                        style={[
+                          styles.fallbackTextBody,
+                          {
+                            fontSize: Math.round(14 * zoom),
+                            lineHeight: Math.round(22 * zoom),
+                          },
+                        ]}
+                        selectable
+                      >
+                        {activePageData?.text ||
+                          'Esta página consiste em capa, arte de capítulo, mapa ou diagrama oficial do livro.'}
+                      </Text>
+                    </View>
 
-                      <View style={styles.fallbackBtnsRow}>
-                        {isPdfServerConfigured() && (
-                          <TouchableOpacity
-                            style={styles.retryBtn}
-                            onPress={() => {
-                              setImageError(false);
-                              setImageLoading(true);
-                            }}
-                          >
-                            <Ionicons name="reload-outline" size={14} color={colors.text} />
-                            <Text style={styles.retryBtnText}>Tentar Novamente</Text>
-                          </TouchableOpacity>
-                        )}
+                    <View style={styles.fallbackBtnsRow}>
+                      <TouchableOpacity
+                        style={styles.externalBtn}
+                        onPress={handleOpenExternalPdf}
+                      >
+                        <Ionicons name="open-outline" size={14} color="#FFF" />
+                        <Text style={styles.externalBtnText}>Abrir PDF Original</Text>
+                      </TouchableOpacity>
 
-                        {!isPdfServerConfigured() && (
-                          <TouchableOpacity
-                            style={[styles.retryBtn, { borderColor: colors.primary }]}
-                            onPress={() => setShowServerModal(true)}
-                          >
-                            <Ionicons name="cloud-outline" size={14} color={colors.primary} />
-                            <Text style={[styles.retryBtnText, { color: colors.primary }]}>
-                              Conectar Servidor
-                            </Text>
-                          </TouchableOpacity>
-                        )}
+                      <TouchableOpacity
+                        style={styles.retryBtn}
+                        onPress={handleDownloadPdf}
+                      >
+                        <Ionicons name="download-outline" size={14} color={colors.text} />
+                        <Text style={styles.retryBtnText}>Baixar PDF</Text>
+                      </TouchableOpacity>
 
+                      {hasValidRenderedImageUrl && (
                         <TouchableOpacity
-                          style={styles.externalBtn}
+                          style={styles.retryBtn}
                           onPress={() => {
-                            if (isMobile) {
-                              handleDownloadPdf();
-                            } else {
-                              handleOpenExternalPdf();
-                            }
+                            setImageError(false);
+                            setImageLoading(true);
                           }}
                         >
-                          <Ionicons
-                            name={isMobile ? 'download-outline' : 'open-outline'}
-                            size={14}
-                            color="#FFF"
-                          />
-                          <Text style={styles.externalBtnText}>
-                            {isMobile ? 'Baixar PDF' : 'Abrir PDF'}
-                          </Text>
+                          <Ionicons name="reload-outline" size={14} color={colors.text} />
+                          <Text style={styles.retryBtnText}>Tentar Novamente</Text>
                         </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.externalBtn, { backgroundColor: colors.surfaceElevated }]}
-                          onPress={() => setViewMode('text')}
-                        >
-                          <Ionicons name="reader-outline" size={14} color={colors.text} />
-                          <Text style={styles.externalBtnText}>Modo Texto</Text>
-                        </TouchableOpacity>
-                      </View>
+                      )}
                     </View>
-                  )}
-                </View>
-              </ScrollView>
+                  </View>
+                )}
+              </View>
             </ScrollView>
           )}
 
@@ -1416,7 +1486,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 <Ionicons name="document-attach-outline" size={46} color={colors.primary} />
                 <Text style={styles.mobileNativeTitle}>Leitor Nativo no Celular</Text>
                 <Text style={styles.mobileNativeSub}>
-                  Navegadores móveis não renderizam PDFs integrais de 80 MB em quadros embutidos. Toque no botão abaixo para baixar o arquivo "{book.fileName}" diretamente para o seu aparelho:
+                  Toque no botão abaixo para abrir ou baixar o arquivo "{book.fileName}" diretamente no seu aparelho:
                 </Text>
                 <TouchableOpacity
                   style={styles.mobileOpenBtn}
@@ -1435,9 +1505,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
             ) : (
               <View style={styles.iframeContainer}>
                 {React.createElement('iframe', {
-                  key: `${book.fileName}_p${currentPage}`,
+                  key: `${book.fileName}_p${safeCurrentPage}`,
                   src: nativePdfIframeUrl,
-                  title: `${book.title} - Página ${currentPage}`,
+                  title: `${book.title} - Página ${safeCurrentPage}`,
                   style: {
                     width: '100%',
                     height: '100%',
@@ -1465,7 +1535,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                       <Text style={styles.textModeOfflineBadgeText}>100% Offline</Text>
                     </View>
                     <Text style={styles.textModePageBadge}>
-                      Pág. {currentPage} / {book.pageCount}
+                      Pág. {safeCurrentPage} / {book.pageCount}
                     </Text>
                   </View>
                 </View>
@@ -1482,6 +1552,24 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                   {activePageData?.text ||
                     'Esta página consiste em arte, mapa ou diagrama oficial do livro sem camada textual extraível.'}
                 </Text>
+
+                <View style={[styles.fallbackBtnsRow, { marginTop: 16, justifyContent: 'flex-end' }]}>
+                  <TouchableOpacity
+                    style={styles.retryBtn}
+                    onPress={handleOpenExternalPdf}
+                  >
+                    <Ionicons name="open-outline" size={14} color={colors.text} />
+                    <Text style={styles.retryBtnText}>Abrir PDF Original</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.retryBtn}
+                    onPress={handleDownloadPdf}
+                  >
+                    <Ionicons name="download-outline" size={14} color={colors.text} />
+                    <Text style={styles.retryBtnText}>Baixar PDF</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </ScrollView>
           )}
@@ -1492,9 +1580,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
           <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <View style={styles.navGroup}>
               <TouchableOpacity
-                style={[styles.smallJumpBtn, currentPage <= 1 && styles.btnDisabled]}
-                disabled={currentPage <= 1}
-                onPress={() => goToPage(currentPage - 10, false)}
+                style={[styles.smallJumpBtn, safeCurrentPage <= 1 && styles.btnDisabled]}
+                disabled={safeCurrentPage <= 1}
+                onPress={() => goToPage(safeCurrentPage - 10, false)}
                 hitSlop={{ top: 12, bottom: 12, left: 10, right: 6 }}
                 accessibilityLabel="Voltar 10 páginas"
               >
@@ -1502,9 +1590,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.navBtn, currentPage <= 1 && styles.btnDisabled]}
-                disabled={currentPage <= 1}
-                onPress={() => goToPage(currentPage - 1)}
+                style={[styles.navBtn, safeCurrentPage <= 1 && styles.btnDisabled]}
+                disabled={safeCurrentPage <= 1}
+                onPress={() => goToPage(safeCurrentPage - 1)}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
                 accessibilityLabel="Página anterior"
               >
@@ -1534,9 +1622,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
             <View style={styles.navGroup}>
               <TouchableOpacity
-                style={[styles.navBtn, currentPage >= book.pageCount && styles.btnDisabled]}
-                disabled={currentPage >= book.pageCount}
-                onPress={() => goToPage(currentPage + 1)}
+                style={[styles.navBtn, safeCurrentPage >= book.pageCount && styles.btnDisabled]}
+                disabled={safeCurrentPage >= book.pageCount}
+                onPress={() => goToPage(safeCurrentPage + 1)}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
                 accessibilityLabel="Próxima página"
               >
@@ -1549,9 +1637,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.smallJumpBtn, currentPage >= book.pageCount && styles.btnDisabled]}
-                disabled={currentPage >= book.pageCount}
-                onPress={() => goToPage(currentPage + 10, false)}
+                style={[styles.smallJumpBtn, safeCurrentPage >= book.pageCount && styles.btnDisabled]}
+                disabled={safeCurrentPage >= book.pageCount}
+                onPress={() => goToPage(safeCurrentPage + 10, false)}
                 hitSlop={{ top: 12, bottom: 12, left: 6, right: 10 }}
                 accessibilityLabel="Avançar 10 páginas"
               >
@@ -1560,13 +1648,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
             </View>
           </View>
         )}
-        {/* Modal de Conexão do Servidor de PDFs */}
-        <Modal
-          visible={showServerModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowServerModal(false)}
-        >
+
+        {/* Overlay Interno de Conexão do Servidor de PDFs (sem Modal aninhado para evitar travamento no Android APK) */}
+        {showServerModal && (
           <View style={styles.serverModalOverlay}>
             <View style={styles.serverModalCard}>
               <View style={styles.serverModalHeader}>
@@ -1594,8 +1678,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               </View>
 
               <Text style={styles.serverModalDesc}>
-                O Ordo Companion já inclui todas as 1.261 páginas com texto oficial e regras integradas offline no aplicativo.{'\n\n'}
-                Para visualizar as ilustrações gráficas originais em alta definição ou baixar os PDFs no celular, conecte ao seu servidor local (Metro na mesma rede Wi-Fi, ex: <Text style={{ color: colors.primary, fontWeight: '700' }}>http://192.168.1.15:8081</Text>) ou a um servidor remoto.
+                O Ordo Companion já inclui todas as 1.261 páginas com texto oficial e regras integradas offline no aplicativo, além de download direto dos PDFs oficiais na nuvem.{'\n\n'}
+                Opcionalmente, para renderizar páginas via servidor local na mesma rede Wi-Fi, informe o endereço abaixo (ex: <Text style={{ color: colors.primary, fontWeight: '700' }}>http://192.168.1.15:8081</Text>).
               </Text>
 
               <View style={styles.serverInputWrap}>
@@ -1677,7 +1761,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               </View>
             </View>
           </View>
-        </Modal>
+        )}
       </View>
     </Modal>
   );
@@ -2142,7 +2226,6 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    // Estilos do modo rolagem contínua
     scrollListContent: {
       paddingVertical: 14,
       alignItems: 'center',
@@ -2183,11 +2266,6 @@ const createStyles = (colors: ThemeColors) =>
       textAlign: 'right',
       marginLeft: 8,
     },
-    scrollPageHorizontalContent: {
-      flexGrow: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     scrollPagePaper: {
       backgroundColor: colors.surfaceElevated,
       borderRadius: 8,
@@ -2217,22 +2295,6 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 12,
       fontWeight: '600',
     },
-    scrollPageErrorBox: {
-      padding: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-    },
-    scrollPageErrorTitle: {
-      color: colors.text,
-      fontSize: 14,
-      fontWeight: '800',
-    },
-    scrollPageErrorSub: {
-      color: colors.textSecondary,
-      fontSize: 12,
-      textAlign: 'center',
-    },
     scrollPageRetryBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -2243,14 +2305,12 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 7,
-      marginTop: 6,
     },
     scrollPageRetryText: {
       color: colors.text,
       fontSize: 11,
       fontWeight: '700',
     },
-    // Estilos do modo página única
     pageScrollOuter: {
       flex: 1,
     },
@@ -2259,11 +2319,6 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 14,
-    },
-    pageHorizontalWrap: {
-      flexGrow: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
       paddingHorizontal: 12,
     },
     pdfPagePaper: {
@@ -2297,44 +2352,22 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '700',
       textAlign: 'center',
     },
-    loadingSubText: {
-      color: colors.textSecondary,
-      fontSize: 12,
-      textAlign: 'center',
-    },
     fallbackNotice: {
       padding: 16,
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'space-between',
       gap: 10,
-      maxWidth: 560,
       width: '100%',
-    },
-    fallbackAlertHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      marginBottom: 6,
-      width: '100%',
-    },
-    fallbackTitle: {
-      color: colors.text,
-      fontSize: 15,
-      fontWeight: '800',
-    },
-    fallbackSub: {
-      color: colors.textSecondary,
-      fontSize: 12,
-      lineHeight: 18,
+      flex: 1,
     },
     fallbackTextCard: {
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: colors.surface,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 14,
+      padding: 16,
       width: '100%',
-      marginVertical: 4,
+      flex: 1,
     },
     fallbackTextHeader: {
       flexDirection: 'row',
@@ -2342,20 +2375,20 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
-      paddingBottom: 8,
-      marginBottom: 8,
+      paddingBottom: 10,
+      marginBottom: 12,
     },
     fallbackTextSection: {
       color: colors.primary,
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: '800',
       flex: 1,
       marginRight: 8,
     },
     fallbackTextBody: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      lineHeight: 19,
+      color: colors.text,
+      fontSize: 14,
+      lineHeight: 22,
     },
     fallbackBtnsRow: {
       flexDirection: 'row',
@@ -2644,9 +2677,6 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
       marginVertical: 4,
     },
-    scrollPageFallbackContent: {
-      paddingBottom: 10,
-    },
     scrollPageFallbackBody: {
       color: colors.text,
       fontSize: 13,
@@ -2675,7 +2705,12 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '700',
     },
     serverModalOverlay: {
-      flex: 1,
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 100,
       backgroundColor: 'rgba(0,0,0,0.75)',
       justifyContent: 'center',
       alignItems: 'center',
