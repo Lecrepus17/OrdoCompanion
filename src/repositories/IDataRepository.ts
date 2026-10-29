@@ -51,6 +51,7 @@ export interface IDataRepository {
   ): Promise<UnlockedBookRecord>;
   getDynamicBooks(): BookWithPages[];
   getDynamicEntities(): CompendiumEntity[];
+  deleteDynamicPdfBook(bookId: string): Promise<boolean>;
 
   getBookPage(bookId: string, pageNumber: number): BookPage | undefined;
   searchInBookPages(bookId: string | 'all', query: string): Array<{

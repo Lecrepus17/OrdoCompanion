@@ -103,7 +103,9 @@ export default function WeaponsScreen() {
 
     let popActive = true;
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.history.pushState({ modal: 'weapons-modal' }, '');
+      try {
+        window.history.pushState({ modal: 'weapons-modal' }, '');
+      } catch {}
       const handlePop = () => {
         if (popActive) {
           handleBack();

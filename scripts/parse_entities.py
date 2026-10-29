@@ -643,12 +643,26 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
                         pno = pg
                 add_power("livro_base", "Livro Base", pno, m.group(1), m.group(2), class_subcat)
 
+        # Livro Base General Paranormal Powers
+        add_power(
+            "livro_base", "Livro Base", 116, "Aprender Ritual",
+            "Através de uma conexão com as memórias de ocultistas do passado e os segredos das entidades, você aprende e pode conjurar um ritual de 1º círculo à sua escolha. Além disso, você pode substituir um ritual que já conhece por outro. A partir de 45% de NEX, quando escolhe este poder, você aprende um ritual de até 2º círculo e, a partir de 75% de NEX, aprende um ritual de até 3º círculo. Você pode escolher esse poder quantas vezes quiser, mas está sujeito ao limite de rituais conhecidos. Este poder conta como um poder do elemento do ritual escolhido.",
+            "Poder Paranormal", "Variável (Conhecimento / Energia / Morte / Sangue)", "Nenhum", None
+        )
+        add_power(
+            "livro_base", "Livro Base", 116, "Resistir a Elemento",
+            "Escolha entre Conhecimento, Energia, Morte ou Sangue. Você recebe resistência 10 contra esse elemento. Este poder conta como um poder do elemento escolhido.",
+            "Poder Paranormal", "Variável (Conhecimento / Energia / Morte / Sangue)", "Nenhum", "aumenta a resistência para 20."
+        )
+
         lb_para_text = ""
         lb_para_offsets = []
         for pno in (115, 116, 117, 118):
             txt = lb["pages"][pno - 1]["text"]
             txt = re.sub(r"RESPONDENDO AO OUTRO LADO[\s\S]*?\"Marcados\"\.\n+N\n+", "", txt)
             txt = re.sub(r"TABELA 3\.2:[\s\S]*?Sangue 2\n+", "", txt)
+            txt = re.sub(r"LISTA DE PODERES[\s\S]*?PODERES DE CONHECIMENTO", "PODERES DE CONHECIMENTO", txt)
+            txt = re.sub(r"Causalidade\s*\n\s*Fortuita", "Causalidade Fortuita", txt)
             lb_para_offsets.append((len(lb_para_text), pno))
             lb_para_text += txt + "\n"
 
@@ -670,8 +684,9 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
             m = re.match(r"^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç ]{2,38})\n+([\s\S]+?)\n+Afinidade:\s*([^\n]+(?:\n(?![A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+ )[^\n]+)*)", blk.strip())
             if m:
                 pname, pbody, pafin = m.group(1).strip(), m.group(2).strip(), m.group(3).strip().replace("\n", " ")
+                pafin = re.sub(r"\s+Causalidade$", "", pafin).strip()
                 req_m = re.search(r"Pré-requisitos?:\s*([^\.]+)\.", pbody)
-                prereq = req_m.group(1).strip() if req_m else f"{current_el} 1"
+                prereq = req_m.group(1).strip() if req_m else "Nenhum"
                 add_power("livro_base", "Livro Base", pno, pname, pbody, "Poder Paranormal", current_el, prereq, pafin)
 
     # 4B. Sobrevivendo ao Horror Class Powers, General Powers & Paranormal Powers
@@ -730,14 +745,14 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
 
         # SaH Paranormal Powers (Table 1.6 on p. 47-48: 8 powers)
         sh_para_powers = [
-            (47, "Espreitar da Besta", "Sangue", "Sangue 1", "Você recebe +5 em Furtividade. Em cenas de perseguição, se for o caçador, pode usar Furtividade em vez de Atletismo. Em cenas de furtividade, pode fazer ações discretas sem sofrer -1d20 de penalidade.", "O bônus em Furtividade aumenta para +10."),
-            (47, "Instintos Sanguinários", "Sangue", "Sangue 1", "Ao se conectar com o Sangue do Outro Lado, você desperta instintos animalescos paranormais. Você recebe visão no escuro e faro.", "Você não pode mais ser flanqueado, não fica desprevenido e recebe +5 em testes de resistência contra armadilhas."),
-            (47, "Antecipar Vitalidade", "Morte", "Morte 1", "Quando faz um teste, você pode acumular uma carga de antecipação para adicionar +1d20 a esse teste (máximo de cargas igual ao Vigor). Na próxima ação dormir, perde uma carga em vez de recuperar PV.", "Amplia sua capacidade de sacrificar vitalidade futura, podendo acumular até o dobro do Vigor e somando +2d20 por carga."),
-            (47, "Aura de Pavor", "Morte", "Morte 2", "Você pode gastar 2 PE para emanar uma aura de pavor espiral em alcance curto que impõe penalidades e condições de medo aos inimigos próximos.", "Aumenta a DT da aura e intensifica a condição de medo causada."),
-            (48, "Absorver Conhecimento", "Conhecimento", "Conhecimento 1", "Você consegue absorver fragmentos de memória e conhecimento ao tocar objetos ou registros deixados por outras pessoas.", "Reduz o custo em PE e amplia as informações obtidas."),
+            (47, "Espreitar da Besta", "Sangue", "Nenhum", "Você recebe +5 em Furtividade. Em cenas de perseguição, se for o caçador, pode usar Furtividade em vez de Atletismo. Em cenas de furtividade, pode fazer ações discretas sem sofrer -1d20 de penalidade.", "O bônus em Furtividade aumenta para +10."),
+            (47, "Instintos Sanguinários", "Sangue", "Nenhum", "Ao se conectar com o Sangue do Outro Lado, você desperta instintos animalescos paranormais. Você recebe visão no escuro e faro.", "Você não pode mais ser flanqueado, não fica desprevenido e recebe +5 em testes de resistência contra armadilhas."),
+            (47, "Antecipar Vitalidade", "Morte", "Nenhum", "Quando faz um teste, você pode acumular uma carga de antecipação para adicionar +1d20 a esse teste (máximo de cargas igual ao Vigor). Na próxima ação dormir, perde uma carga em vez de recuperar PV.", "Amplia sua capacidade de sacrificar vitalidade futura, podendo acumular até o dobro do Vigor e somando +2d20 por carga."),
+            (47, "Aura de Pavor", "Morte", "Nenhum", "Você pode gastar 2 PE para emanar uma aura de pavor espiral em alcance curto que impõe penalidades e condições de medo aos inimigos próximos.", "Aumenta a DT da aura e intensifica a condição de medo causada."),
+            (48, "Absorver Conhecimento", "Conhecimento", "Nenhum", "Você consegue absorver fragmentos de memória e conhecimento ao tocar objetos ou registros deixados por outras pessoas.", "Reduz o custo em PE e amplia as informações obtidas."),
             (48, "Apatia Herege", "Conhecimento", "Conhecimento 1", "Você usa as experiências grotescas que já viveu para desligar suas emoções e blindar sua mente. Quando faz um teste contra uma condição de medo, você pode gastar 2 PE para rolar o teste novamente.", "Você pode usar esse poder depois de saber se passou no teste, além de escolher a melhor rolagem entre as duas."),
             (48, "Conexão Empática", "Energia", "Energia 1", "Você pode gastar uma ação completa e 2 PE para tocar um objeto elétrico ligado e conversar com ele como se fosse um ser senciente até o fim da cena.", "Você pode se conectar a objetos à distância em alcance curto e recebe +5 em testes de Diplomacia e Tecnologia com eles."),
-            (48, "Valer-se do Caos", "Energia", "Energia 1", "Quando faz um teste de perícia, você pode apostar no caos da Energia para receber dados extras ou efeitos imprevisíveis.", "Você pode rolar novamente resultados desfavoráveis gerados pelo caos."),
+            (48, "Valer-se do Caos", "Energia", "Nenhum", "Quando faz um teste de perícia, você pode apostar no caos da Energia para receber dados extras ou efeitos imprevisíveis.", "Você pode rolar novamente resultados desfavoráveis gerados pelo caos."),
         ]
         for pno, pname, el, prereq, pbody, pafin in sh_para_powers:
             add_power("sobrevivendo_ao_horror", sh["title"], pno, pname, pbody, "Poder Paranormal", el, prereq, pafin)
@@ -751,7 +766,7 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
 
         for page in book["pages"]:
             pno = page["pageNumber"]
-            txt = page["text"]
+            txt = page["text"].replace("\xa0", " ").replace("Afinidade.", "Afinidade:")
             sec = page.get("section", "")
 
             if "PODER PARANORMAL" in txt.upper():
@@ -764,7 +779,7 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
                     pbody = m.group(3).strip()
                     pafin = m.group(4).strip().replace("\n", " ") if m.group(4) else None
                     req_m = re.search(r"Pré-requisitos?:\s*([^\.]+)\.", pbody)
-                    prereq = req_m.group(1).strip() if req_m else f"{el} 1"
+                    prereq = req_m.group(1).strip() if req_m else "Nenhum"
                     add_power(book_id, book_title, pno, pname, pbody, "Poder Paranormal", el, prereq, pafin)
 
             is_as_power_page = (

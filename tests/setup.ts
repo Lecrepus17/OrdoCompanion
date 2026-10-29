@@ -57,6 +57,19 @@ for (const [key, val] of globalsToSet) {
   }
 }
 
+if (win.history) {
+  try {
+    const origPush = win.history.pushState?.bind(win.history);
+    win.history.pushState = (data: any, unused: string, url?: string | URL | null) => {
+      try {
+        return origPush ? origPush(data, unused, url) : undefined;
+      } catch {
+        return undefined;
+      }
+    };
+  } catch {}
+}
+
 // Polyfill globalThis.expo for expo-modules-core / expo-constants
 if (!(globalThis as unknown as { expo?: unknown }).expo) {
   (globalThis as unknown as { expo: unknown }).expo = {

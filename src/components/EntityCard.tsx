@@ -116,6 +116,39 @@ export const EntityCardView = React.memo<EntityCardProps>(function EntityCardVie
               </View>
             )}
 
+            {Boolean(entity.prerequisite) && (
+              <View
+                style={[
+                  styles.prereqBadge,
+                  isGrid && styles.prereqBadgeGrid,
+                  entity.prerequisite !== 'Nenhum'
+                    ? styles.prereqBadgeRequired
+                    : styles.prereqBadgeNone,
+                ]}
+              >
+                <Ionicons
+                  name={entity.prerequisite !== 'Nenhum' ? 'lock-closed-outline' : 'checkmark-circle-outline'}
+                  size={isGrid ? 10 : 11}
+                  color={entity.prerequisite !== 'Nenhum' ? '#F59E0B' : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.prereqBadgeText,
+                    isGrid && styles.prereqBadgeTextGrid,
+                    { color: entity.prerequisite !== 'Nenhum' ? '#F59E0B' : colors.textMuted },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {isGrid
+                    ? entity.prerequisite !== 'Nenhum'
+                      ? `Req: ${entity.prerequisite}`
+                      : 'Req: Nenhum'
+                    : `Pré-req: ${entity.prerequisite}`}
+                </Text>
+              </View>
+            )}
+
             {entity.isCustom && (
               <View style={[styles.customBadge, isGrid && styles.customBadgeGrid]}>
                 <Text
@@ -356,6 +389,36 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '800',
     },
     customBadgeTextGrid: {
+      fontSize: 9,
+    },
+    prereqBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      borderWidth: 1,
+      maxWidth: '100%',
+    },
+    prereqBadgeGrid: {
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      borderRadius: 4,
+    },
+    prereqBadgeRequired: {
+      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+      borderColor: 'rgba(245, 158, 11, 0.35)',
+    },
+    prereqBadgeNone: {
+      backgroundColor: colors.surfaceElevated || 'rgba(255, 255, 255, 0.04)',
+      borderColor: colors.border,
+    },
+    prereqBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    prereqBadgeTextGrid: {
       fontSize: 9,
     },
     title: {

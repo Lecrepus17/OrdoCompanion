@@ -234,6 +234,7 @@ interface AppContextValue {
   verifyAdminEmailUnlockCode: (code: string) => Promise<{ ok: boolean; message: string }>;
   unlockWithMasterPassword: (password: string) => Promise<{ ok: boolean; message: string }>;
   lockBook: (bookId: string) => Promise<void>;
+  deletePdfBook: (bookId: string) => Promise<{ ok: boolean; message: string }>;
 }
 
 const DEFAULT_FILTERS: CompendiumFilters = {
@@ -1190,6 +1191,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     cloudSyncManager.scheduleAutoSync();
   }, []);
 
+  const deletePdfBook = useCallback(
+    async (bookId: string): Promise<{ ok: boolean; message: string }> => {
+      try {
+        const dynamicBooks = defaultRepository.getDynamicBooks();
+        const isDynamic =
+          dynamicBooks.some((b) => b.id === bookId) ||
+          catalogBooks.some((b) => b.id === bookId && b.isCustomBook);
+
+        await localPdfStorage.removePdfOffline(bookId);
+
+        if (isDynamic) {
+          await defaultRepository.deleteDynamicPdfBook(bookId);
+          setVersionTick((v) => v + 1);
+          cloudSyncManager.scheduleAutoSync();
+          return {
+            ok: true,
+            message: 'PDF personalizado e seus dados foram excluídos com sucesso.',
+          };
+        } else {
+          await defaultRepository.lockBook(bookId);
+          setVersionTick((v) => v + 1);
+          cloudSyncManager.scheduleAutoSync();
+          return {
+            ok: true,
+            message: 'Arquivo PDF offline removido e livro bloqueado com sucesso.',
+          };
+        }
+      } catch (err: any) {
+        return {
+          ok: false,
+          message: err?.message || 'Falha ao excluir PDF.',
+        };
+      }
+    },
+    [catalogBooks]
+  );
+
   const contextValue = useMemo<AppContextValue>(
     () => ({
       ready,
@@ -1205,6 +1243,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       verifyAdminEmailUnlockCode,
       unlockWithMasterPassword,
       lockBook,
+      deletePdfBook,
       filters,
       setFilters,
       resetFilters,
@@ -1406,6 +1445,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       verifyAdminEmailUnlockCode,
       unlockWithMasterPassword,
       lockBook,
+      deletePdfBook,
     ]
   );
 

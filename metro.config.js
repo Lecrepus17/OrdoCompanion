@@ -335,8 +335,17 @@ config.server = {
             const safeName = path.basename(decodeURIComponent(rawName)).replace(/[^\w\s.-]/g, '_');
             const finalName = safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`;
 
+            req.setTimeout(300000);
+            res.setTimeout(300000);
             const chunks = [];
             req.on('data', (chunk) => chunks.push(chunk));
+            req.on('error', (err) => {
+              res.writeHead(500, {
+                'Access-Control-Allow-Origin': '*',
+                'Content-Type': 'application/json',
+              });
+              res.end(JSON.stringify({ ok: false, error: err.message }));
+            });
             req.on('end', () => {
               try {
                 const buffer = Buffer.concat(chunks);

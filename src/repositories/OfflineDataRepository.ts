@@ -514,6 +514,62 @@ export class OfflineDataRepository implements IDataRepository {
     return Array.from(this.dynamicEntitiesMap.values());
   }
 
+  async deleteDynamicPdfBook(bookId: string): Promise<boolean> {
+    const isDynamic = this.dynamicBooksMap.has(bookId);
+    const hasEntities = Array.from(this.dynamicEntitiesMap.values()).some((e) => e.bookId === bookId);
+    const hasPages = this.booksPagesMap.has(bookId);
+
+    if (!isDynamic && !hasEntities && !hasPages) {
+      if (this.unlockedBooksMap.has(bookId)) {
+        await this.lockBook(bookId);
+      }
+      return false;
+    }
+
+    // 1. Remove páginas daquele livro do mapa por página
+    const dynBook = this.dynamicBooksMap.get(bookId);
+    if (dynBook && dynBook.pages) {
+      for (const p of dynBook.pages) {
+        this.bookPagesByNumMap.delete(`${bookId}:${p.pageNumber}`);
+      }
+    }
+    for (const key of Array.from(this.bookPagesByNumMap.keys())) {
+      if (key.startsWith(`${bookId}:`)) {
+        this.bookPagesByNumMap.delete(key);
+      }
+    }
+
+    // 2. Remove o livro dos mapas
+    this.dynamicBooksMap.delete(bookId);
+    this.booksPagesMap.delete(bookId);
+    this.bookFileNameByIdMap.delete(bookId);
+    this.entityCountByBookMap.delete(bookId);
+
+    // 3. Remove entidades dinâmicas associadas ao livro
+    for (const [eid, ent] of Array.from(this.dynamicEntitiesMap.entries())) {
+      if (ent.bookId === bookId) {
+        this.dynamicEntitiesMap.delete(eid);
+        this.editedEntitiesMap.delete(eid);
+      }
+    }
+
+    // 4. Remove do mapa de livros desbloqueados
+    this.unlockedBooksMap.delete(bookId);
+
+    // 5. Invalida cache de entidades
+    this.invalidateEntityCache();
+
+    // 6. Persiste alterações no armazenamento local
+    await Promise.all([
+      this.persistDynamicBooks(),
+      this.persistDynamicEntities(),
+      this.persistUnlockedBooks(),
+      this.persistEditedEntities(),
+    ]);
+
+    return true;
+  }
+
   private async persistUnlockedBooks(): Promise<void> {
     const obj = Object.fromEntries(this.unlockedBooksMap.entries());
     await AsyncStorage.setItem(STORAGE_KEYS.UNLOCKED_BOOKS, JSON.stringify(obj));

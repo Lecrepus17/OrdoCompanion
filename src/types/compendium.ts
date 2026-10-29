@@ -35,6 +35,7 @@ export interface CompendiumEntity {
   element: string;
   summary: string;
   description: string;
+  shortDescription?: string;
   tags: string[];
   diceFormulas?: string[];
 
@@ -130,6 +131,9 @@ export interface BookInfo {
   unlockMethod?: BookUnlockMethod;
   localPdfAvailable?: boolean;
   driveFileId?: string;
+  driveSynced?: boolean;
+  hasLocalPdf?: boolean;
+  pdfUrl?: string;
 }
 
 export interface CatalogBookInfo extends BookInfo {

@@ -1,36 +1,48 @@
 # 📋 Atualizações Pendentes para o Próximo Release
 
 > **Versão Atual**: `1.0.1-beta.1`  
-> **Versão Sugerida**: `1.1.0-beta.1` (Motivo: Adição do ecossistema de agentes de IA, skills de automação e melhorias de compêndio)  
-> **Última Atualização**: 2026-10-29 19:57
+> **Versão Sugerida**: `1.1.0-beta.1` (Motivo: [Minor] Grande volume de novas funcionalidades — Leitor de PDF, Exportação de Cards em Imagem, Resumidor de Habilidades e Governança de Agentes)  
+> **Última Atualização**: 2026-10-29 20:00
 
 ---
 
 ## 🚀 Resumo para Release (Changelog de Usuário)
-* Configurado ecossistema de subagentes e regras de desenvolvimento autônomo para o Ordo Companion.
-* Proposta técnica de novos agentes e personas de IA (Senhor Veríssimo, Co-Mestre de Enigmas e Avaliador de Fichas).
-* Automação de changelog estruturado e geração de mensagens de commit semântico.
+* **Novo Visualizador & Gerenciador de PDFs**: Suporte a desbloqueio, leitura aprimorada e exclusão segura de livros locais.
+* **Exportação de Cards em Imagem**: Gere e compartilhe imagens de alta qualidade das entidades do compêndio e rituais.
+* **Resumo Inteligente de Habilidades**: Descrições compactas e diretas para consulta ágil durante o combate.
+* **Evolução de Agente Aprimorada**: Melhorias no fluxo de Level Up, cálculo de limites de PE e exportação de fichas.
+* **Ecossistema de IA e Automação**: Governança de subagentes no `GEMINI.md` e automação de changelogs.
 
 ---
 
 ## 📦 Detalhamento Técnico das Modificações
 
-### ✨ Novas Funcionalidades e Arquitetura (Features)
-- **Governança de Agentes de IA (`GEMINI.md`)**: Diretrizes para agentes de desenvolvimento com personas especializadas (`rpg-rules-expert`, `mobile-ui-expert`, `qa-reliability-engineer`, `release-manager`, `git-commit-architect`).
-- **Skills do Workspace (`.agents/skills/`)**:
-  - `run-suite`: Automação da validação tripla (TypeScript, tsx e integridade do banco de dados).
-  - `rpg-rules-audit`: Procedimentos para auditoria das fórmulas mecânicas de Ordem Paranormal.
-  - `update-recorder`: Gravação automática de changelog estruturado com sugestão SemVer.
-  - `commit-generator`: Geração de títulos e descrições no padrão Conventional Commits.
+### ✨ Novas Funcionalidades (Features)
+- **Leitor e Gerenciador de PDFs (`src/services/pdf/`, `src/components/Pdf*`)**:
+  - Implementado modal de exclusão segura de livros locais (`deletePdfBook`).
+  - Suporte expandido a carregamento de URLs e fluxo de desbloqueio com senha.
+- **Exportação de Cards (`src/services/cardImage/`, `RecordImageCard.tsx`)**:
+  - Renderização off-screen de cards táticos com paleta paranormal.
+  - Extração de estatísticas e exportação com resolução otimizada para compartilhamento.
+- **Resumidor de Habilidades (`src/utils/abilitySummarizer.ts`)**:
+  - Compactação automática de textos longos de rituais e poderes para visualização em cards rápidos.
+- **Progressão de Personagens (`LevelUpModal.tsx`, `progression.ts`)**:
+  - Refinamento de fórmulas de avanço de NEX, atributos e limite de PE por turno.
+  - Melhorias no utilitário de impressão de fichas (`sheetPrinter.ts`).
 
-### 📚 Documentação (Docs)
-- **Proposta de IA (`docs/MELHORIAS_AGENTES_IA.md`)**: Roadmap e arquitetura para agentes temáticos e utilitários dentro do app.
-- **Backlog de Atualizações (`docs/ATUALIZACOES_PENDENTES.md`)**: Registro contínuo de novidades prontas para release.
-- **Backlog de Commits (`docs/COMMITS_PENDENTES.md`)**: Rastreamento de commits semânticos sugeridos.
+### 🧪 Testes Automatizados (Tests)
+- `tests/pdfAccessAndUnlock.test.tsx` & `tests/deletePdfBook.test.tsx`: Cobertura de ciclo de vida de PDFs.
+- `tests/cardImage.test.ts`: Validação de extração de dados para renderização de cards.
+- `tests/abilitySummarizer.test.ts`: Validação do algoritmo de sumarização.
+- `tests/progression.test.ts` & `tests/sheetPrinter.test.ts`: Testes de regras e layout de impressão.
+
+### 📚 Governança & Compêndio
+- Atualização completa de `compendium_seed.json` com campos normalizados.
+- Configuração do ecossistema de subagentes em `GEMINI.md` e `.agents/skills/`.
 
 ---
 
 ## 🛠️ Comando para Gerar o Release
 ```bash
-npm run release 1.1.0-beta.1 "Ecossistema de agentes inteligentes, automação de changelogs e melhorias técnicas"
+npm run release 1.1.0-beta.1 "Leitor de PDF aprimorado, exportação de cards em imagem, resumidor de habilidades e melhorias de ficha"
 ```
