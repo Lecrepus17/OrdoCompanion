@@ -37,6 +37,7 @@ import {
   OFFICIAL_SKILLS_LIST,
   SkillDefinition,
   calculateStatIncreases,
+  checkPrerequisite,
   getPeRoundLimit,
   getRitualDt,
 } from '../../utils/progression';
@@ -151,7 +152,9 @@ export default function CharactersScreen() {
 
     let popActive = true;
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.history.pushState({ screen: 'character-sheet' }, '');
+      try {
+        window.history.pushState({ screen: 'character-sheet' }, '');
+      } catch {}
       const handlePop = () => {
         if (popActive) {
           setActiveCharId(null);
@@ -3165,6 +3168,11 @@ export default function CharactersScreen() {
                       setPickerModalType(null);
                     };
 
+                    const isNoPrereq = !item.prerequisite || item.prerequisite === 'Nenhum' || item.prerequisite === '—';
+                    const prereqStatus = isNoPrereq
+                      ? { met: true, details: 'Nenhum' }
+                      : checkPrerequisite(item.prerequisite, activeChar, getEntityById);
+
                     const openPickerPreview = () =>
                       openEntityPreview(item, {
                         primaryAction: {
@@ -3187,7 +3195,57 @@ export default function CharactersScreen() {
                         delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                       >
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.pickerItemTitle}>{item.name}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Text style={styles.pickerItemTitle}>{item.name}</Text>
+                            {Boolean(item.prerequisite) && (
+                              <View
+                                style={[
+                                  styles.pickerPrereqBadge,
+                                  isNoPrereq
+                                    ? { backgroundColor: colors.surfaceElevated, borderColor: colors.border }
+                                    : prereqStatus.met
+                                    ? { backgroundColor: 'rgba(34, 197, 94, 0.12)', borderColor: 'rgba(34, 197, 94, 0.35)' }
+                                    : { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.4)' },
+                                ]}
+                              >
+                                <Ionicons
+                                  name={
+                                    isNoPrereq
+                                      ? 'checkmark-circle-outline'
+                                      : prereqStatus.met
+                                      ? 'checkmark-circle'
+                                      : 'alert-circle'
+                                  }
+                                  size={10}
+                                  color={
+                                    isNoPrereq
+                                      ? colors.textMuted
+                                      : prereqStatus.met
+                                      ? '#22C55E'
+                                      : '#EF4444'
+                                  }
+                                />
+                                <Text
+                                  style={[
+                                    styles.pickerPrereqText,
+                                    {
+                                      color: isNoPrereq
+                                        ? colors.textMuted
+                                        : prereqStatus.met
+                                        ? '#22C55E'
+                                        : '#EF4444',
+                                    },
+                                  ]}
+                                >
+                                  {isNoPrereq
+                                    ? 'Pré-req: Nenhum'
+                                    : prereqStatus.met
+                                    ? `Pré-req: ${item.prerequisite} (Atendido)`
+                                    : `Pré-req: ${item.prerequisite} (${prereqStatus.details})`}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
                           <Text style={styles.pickerItemSub}>
                             {item.subCategory} • {item.bookTitle} • {item.summary}
                           </Text>
@@ -4371,6 +4429,19 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.textSecondary,
     fontSize: 11,
     marginTop: 2,
+  },
+  pickerPrereqBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  pickerPrereqText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   rankPill: {
     paddingHorizontal: 10,

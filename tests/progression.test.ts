@@ -11,6 +11,7 @@ import {
   getClassSkillRules,
   getOriginSkillsInfo,
   calculateInitialSkillBudget,
+  checkPrerequisite,
 } from '../src/utils/progression';
 import { CharacterAttributes } from '../src/types/compendium';
 
@@ -440,4 +441,100 @@ NEX 99% - Máquina de Matar. Redução em IV, +2 margem de ameaça e passo de da
       assert.strictEqual(budget.totalTrainedExpected, 6);
     });
   });
+  describe('checkPrerequisite - Validação Inteligente de Pré-requisitos de Poderes', () => {
+    const mockEntities = [
+      { id: 'p_morte_1', category: 'power', name: 'Potencial Aprimorado', element: 'Morte' },
+      { id: 'p_morte_2', category: 'power', name: 'Escapar da Morte', element: 'Morte' },
+      { id: 'p_sangue_1', category: 'power', name: 'Arma de Sangue', element: 'Sangue' },
+      { id: 'p_ataque_esp', category: 'power', name: 'Ataque Especial', element: 'Nenhum' },
+      { id: 'rit_1', category: 'ritual', name: 'Decadência', element: 'Morte', circle: 1 },
+      { id: 'rit_2', category: 'ritual', name: 'Velocidade Mortal', element: 'Morte', circle: 2 },
+    ];
+    const getEntityById = (id: string) => mockEntities.find((e) => e.id === id) as any;
+
+    const baseChar: any = {
+      nex: 15,
+      attributes: { FOR: 2, AGI: 1, INT: 2, PRE: 3, VIG: 1 },
+      skills: {
+        Luta: { degree: 5, bonus: 5 },
+        Percepção: { degree: 10, bonus: 10 },
+        Tática: { degree: 10, bonus: 10 },
+      },
+      entityIds: ['p_morte_1'],
+      abilities: [],
+    };
+
+    it('deve aprovar poderes com pré-requisito Nenhum, vazio ou traço', () => {
+      assert.strictEqual(checkPrerequisite('Nenhum', baseChar, getEntityById).met, true);
+      assert.strictEqual(checkPrerequisite('', baseChar, getEntityById).met, true);
+      assert.strictEqual(checkPrerequisite('—', baseChar, getEntityById).met, true);
+      assert.strictEqual(checkPrerequisite(undefined, baseChar, getEntityById).met, true);
+    });
+
+    it('deve validar atributos simples e combinados com ou', () => {
+      // FOR 2 (tem 2) -> PASS
+      assert.strictEqual(checkPrerequisite('For 2', baseChar, getEntityById).met, true);
+      // FOR 3 (tem 2) -> FAIL
+      assert.strictEqual(checkPrerequisite('For 3', baseChar, getEntityById).met, false);
+      // AGI 2 (tem 1) -> FAIL
+      assert.strictEqual(checkPrerequisite('Agi 2', baseChar, getEntityById).met, false);
+      // FOR 2 ou AGI 2 -> PASS
+      assert.strictEqual(checkPrerequisite('For 2 ou Agi 2', baseChar, getEntityById).met, true);
+      // PRE 3 -> PASS
+      assert.strictEqual(checkPrerequisite('Pre 3', baseChar, getEntityById).met, true);
+      // PRE 4 -> FAIL
+      assert.strictEqual(checkPrerequisite('Pre 4', baseChar, getEntityById).met, false);
+    });
+
+    it('deve considerar contexto de targetAttributes e targetNex em evolução', () => {
+      // Atual tem AGI 1, mas escolheu +1 AGI na subida (targetAttributes AGI 2)
+      const context = {
+        targetNex: 20,
+        targetAttributes: { ...baseChar.attributes, AGI: 2 },
+      };
+      assert.strictEqual(checkPrerequisite('Agi 2', baseChar, getEntityById, context).met, true);
+      assert.strictEqual(checkPrerequisite('NEX 20%', baseChar, getEntityById, context).met, true);
+      assert.strictEqual(checkPrerequisite('NEX 30%', baseChar, getEntityById, context).met, false);
+    });
+
+    it('deve validar contagem de poderes prévios de elementos paranormais', () => {
+      // baseChar possui 1 poder de Morte ('p_morte_1')
+      assert.strictEqual(checkPrerequisite('Morte 1', baseChar, getEntityById).met, true);
+      assert.strictEqual(checkPrerequisite('Morte 2', baseChar, getEntityById).met, false);
+      assert.strictEqual(checkPrerequisite('Sangue 1', baseChar, getEntityById).met, false);
+
+      // Adicionando segundo poder de Morte
+      const charWith2Morte = {
+        ...baseChar,
+        entityIds: ['p_morte_1', 'p_morte_2'],
+      };
+      assert.strictEqual(checkPrerequisite('Morte 2', charWith2Morte, getEntityById).met, true);
+    });
+
+    it('deve validar perícias treinadas e veteranas (individuais, com ou, com e)', () => {
+      // Luta está em degree 5 (Treinado)
+      assert.strictEqual(checkPrerequisite('treinado em Luta', baseChar, getEntityById).met, true);
+      assert.strictEqual(checkPrerequisite('veterano em Luta', baseChar, getEntityById).met, false);
+
+      // Pontaria não treinada (degree 0)
+      assert.strictEqual(checkPrerequisite('treinado em Pontaria', baseChar, getEntityById).met, false);
+
+      // Luta ou Pontaria -> PASS
+      assert.strictEqual(checkPrerequisite('treinado em Luta ou Pontaria', baseChar, getEntityById).met, true);
+
+      // Percepção e Tática estão ambos em degree 10 (Veterano)
+      assert.strictEqual(checkPrerequisite('treinado em Percepção e Tática', baseChar, getEntityById).met, true);
+      assert.strictEqual(checkPrerequisite('veterano em Percepção', baseChar, getEntityById).met, true);
+    });
+
+    it('deve validar poderes compostos separados por vírgula', () => {
+      // 'For +2, treinado em Luta' -> FOR 2 (PASS) & Luta 5 (PASS) -> PASS
+      assert.strictEqual(checkPrerequisite('For +2, treinado em Luta', baseChar, getEntityById).met, true);
+      // 'Agi 3, treinado em Luta ou Pontaria' -> AGI 1 (FAIL) -> FAIL
+      const res = checkPrerequisite('Agi 3, treinado em Luta ou Pontaria', baseChar, getEntityById);
+      assert.strictEqual(res.met, false);
+      assert.ok(res.details.includes('AGI'));
+    });
+  });
+
 });

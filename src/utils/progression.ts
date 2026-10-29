@@ -616,4 +616,263 @@ export function calculateInitialSkillBudget(
   };
 }
 
+export interface PrerequisiteCheckResult {
+  met: boolean;
+  details: string;
+  unmetDetails: string[];
+}
+
+function normalizePrereqStr(s: string): string {
+  return (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function checkPrerequisiteClause(
+  clause: string,
+  character: CharacterSheet,
+  getEntityById?: (id: string) => CompendiumEntity | undefined,
+  context?: {
+    targetNex?: number;
+    targetAttributes?: CharacterAttributes;
+  }
+): { met: boolean; details: string } {
+  const c = clause.trim();
+  const cNorm = normalizePrereqStr(c);
+  if (!c || cNorm === 'nenhum' || cNorm === '—' || cNorm === '-') {
+    return { met: true, details: 'Nenhum' };
+  }
+
+  // 1. Contagem de poderes paranormais: 'Morte 1', 'Sangue 2', 'Energia 1', 'Conhecimento 1'
+  const elemMatch = c.match(/^(Conhecimento|Energia|Morte|Sangue)\s+(\d+)$/i);
+  if (elemMatch) {
+    const elemName = elemMatch[1];
+    const needed = parseInt(elemMatch[2], 10);
+    const normElem = normalizePrereqStr(elemName);
+    let count = 0;
+    const countedNames = new Set<string>();
+
+    if (character.entityIds && Array.isArray(character.entityIds)) {
+      for (const id of character.entityIds) {
+        const ent = getEntityById ? getEntityById(id) : null;
+        if (ent && ent.category === 'power') {
+          if (normalizePrereqStr(ent.element).includes(normElem)) {
+            countedNames.add(normalizePrereqStr(ent.name));
+            count++;
+          }
+        } else if (!getEntityById && id.toLowerCase().includes(normElem)) {
+          count++;
+        }
+      }
+    }
+
+    if (character.abilities && Array.isArray(character.abilities)) {
+      for (const ab of character.abilities) {
+        const abNormName = normalizePrereqStr(ab.name);
+        if (ab.type === 'poder' && !countedNames.has(abNormName)) {
+          if (normalizePrereqStr(ab.description + ' ' + (ab.originPage || '')).includes(normElem)) {
+            countedNames.add(abNormName);
+            count++;
+          }
+        }
+      }
+    }
+
+    const met = count >= needed;
+    return {
+      met,
+      details: met
+        ? `Possui ${count}/${needed} poderes de ${elemName}`
+        : `Requer ${needed} ${needed === 1 ? 'poder prévio' : 'poderes prévios'} de ${elemName} (possui ${count})`,
+    };
+  }
+
+  // 2. NEX: 'NEX 30%', 'NEX 60%'
+  const nexMatch = c.match(/NEX\s*(\d+)%/i);
+  if (nexMatch) {
+    const neededNex = parseInt(nexMatch[1], 10);
+    const currNex = context?.targetNex ?? character.nex ?? 5;
+    const met = currNex >= neededNex;
+    return {
+      met,
+      details: met ? `NEX ${currNex}% >= ${neededNex}%` : `Requer NEX ${neededNex}% (atual: ${currNex}%)`,
+    };
+  }
+
+  // 3. Atributo com 'ou': 'For 2 ou Agi 2', 'For 3 ou Vig 3'
+  const attrOrMatch = c.match(/^(For|Agi|Int|Pre|Vig)\s*\+?(\d+)\s+ou\s+(For|Agi|Int|Pre|Vig)\s*\+?(\d+)$/i);
+  if (attrOrMatch) {
+    const a1 = attrOrMatch[1].toUpperCase() as keyof CharacterAttributes;
+    const v1 = parseInt(attrOrMatch[2], 10);
+    const a2 = attrOrMatch[3].toUpperCase() as keyof CharacterAttributes;
+    const v2 = parseInt(attrOrMatch[4], 10);
+    const attrs = context?.targetAttributes || character.attributes || { FOR: 1, AGI: 1, INT: 1, PRE: 1, VIG: 1 };
+    const val1 = attrs[a1] ?? 0;
+    const val2 = attrs[a2] ?? 0;
+    const met = val1 >= v1 || val2 >= v2;
+    return {
+      met,
+      details: met
+        ? `${a1} ${val1} ou ${a2} ${val2}`
+        : `Requer ${a1} ${v1} ou ${a2} ${v2} (atual: ${a1} ${val1}, ${a2} ${val2})`,
+    };
+  }
+
+  // 4. Atributo simples: 'For 2', 'Int 2', 'For +2', 'Agi 3', 'Pre 2', 'Vig 2'
+  const singleAttrMatch = c.match(/^(For|Agi|Int|Pre|Vig)\s*\+?(\d+)$/i);
+  if (singleAttrMatch) {
+    const a = singleAttrMatch[1].toUpperCase() as keyof CharacterAttributes;
+    const v = parseInt(singleAttrMatch[2], 10);
+    const attrs = context?.targetAttributes || character.attributes || { FOR: 1, AGI: 1, INT: 1, PRE: 1, VIG: 1 };
+    const val = attrs[a] ?? 0;
+    const met = val >= v;
+    return {
+      met,
+      details: met ? `${a} ${val} >= ${v}` : `Requer ${a} ${v} (atual: ${val})`,
+    };
+  }
+
+  // 5. Perícias: 'treinado em Luta', 'veterano em Medicina', 'treinado em Luta ou Pontaria'
+  const skillMatch = c.match(/^(treinado|veterano|expert)\s+(?:em|na perícia)\s*(.*)$/i);
+  if (skillMatch) {
+    const levelStr = skillMatch[1].toLowerCase();
+    const reqDegree = levelStr === 'veterano' ? 10 : levelStr === 'expert' ? 15 : 5;
+    const skillTarget = (skillMatch[2] || '').trim();
+
+    if (!skillTarget) {
+      return { met: true, details: 'Treinado na perícia' };
+    }
+
+    const checkSkill = (skName: string) => {
+      const norm = normalizePrereqStr(skName);
+      for (const [key, val] of Object.entries(character.skills || {})) {
+        if (normalizePrereqStr(key) === norm && (val.degree ?? 0) >= reqDegree) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (skillTarget.includes(' ou ')) {
+      const parts = skillTarget.split(' ou ');
+      const met = parts.some((p) => checkSkill(p));
+      return {
+        met,
+        details: met ? `${skillMatch[1]} em ${skillTarget}` : `Requer ${skillMatch[1]} em ${skillTarget}`,
+      };
+    }
+
+    if (skillTarget.includes(' e ')) {
+      const parts = skillTarget.split(' e ');
+      const met = parts.every((p) => checkSkill(p));
+      return {
+        met,
+        details: met ? `${skillMatch[1]} em ${skillTarget}` : `Requer ${skillMatch[1]} em ${skillTarget}`,
+      };
+    }
+
+    const met = checkSkill(skillTarget);
+    return {
+      met,
+      details: met ? `${skillMatch[1]} em ${skillTarget}` : `Requer ${skillMatch[1]} em ${skillTarget}`,
+    };
+  }
+
+  // 6. Rituais: 'conjurar ritual de 1° círculo', 'conjurar ritual de Sangue'
+  if (cNorm.includes('conjurar ritual')) {
+    let count = 0;
+    let maxCircle = 0;
+    let hasSangue = false;
+    const isSangueReq = cNorm.includes('sangue');
+    const circMatch = cNorm.match(/(\d+)[°º]\s*circulo/);
+    const reqCircle = circMatch ? parseInt(circMatch[1], 10) : 1;
+
+    if (character.entityIds && Array.isArray(character.entityIds)) {
+      for (const id of character.entityIds) {
+        const ent = getEntityById ? getEntityById(id) : null;
+        if (ent && ent.category === 'ritual') {
+          count++;
+          if ((ent.circle || 1) > maxCircle) maxCircle = ent.circle || 1;
+          if (normalizePrereqStr(ent.element).includes('sangue')) hasSangue = true;
+        }
+      }
+    }
+    if (character.abilities && Array.isArray(character.abilities)) {
+      for (const ab of character.abilities) {
+        if (ab.type === 'ritual') {
+          count++;
+          if (normalizePrereqStr(ab.description).includes('sangue')) hasSangue = true;
+        }
+      }
+    }
+
+    const met = isSangueReq ? hasSangue : count > 0 && maxCircle >= reqCircle;
+    return {
+      met,
+      details: met ? 'Conjura rituais necessários' : `Requer ${c}`,
+    };
+  }
+
+  // 7. Verificação por nome de poder/habilidade/recurso
+  const hasNamed =
+    (character.entityIds || []).some((id) => {
+      const ent = getEntityById ? getEntityById(id) : null;
+      return (
+        ent &&
+        (normalizePrereqStr(ent.name) === cNorm || normalizePrereqStr(ent.name).includes(cNorm))
+      );
+    }) ||
+    (character.abilities || []).some((ab) => {
+      const abNorm = normalizePrereqStr(ab.name);
+      return abNorm === cNorm || abNorm.includes(cNorm);
+    });
+
+  return {
+    met: hasNamed,
+    details: hasNamed ? `Possui "${c}"` : `Requer "${c}"`,
+  };
+}
+
+export function checkPrerequisite(
+  prerequisite: string | undefined | null,
+  character: CharacterSheet | null | undefined,
+  getEntityById?: (id: string) => CompendiumEntity | undefined,
+  context?: {
+    targetNex?: number;
+    targetAttributes?: CharacterAttributes;
+  }
+): PrerequisiteCheckResult {
+  if (
+    !prerequisite ||
+    prerequisite.trim() === '' ||
+    prerequisite === 'Nenhum' ||
+    prerequisite === '—' ||
+    prerequisite === '-'
+  ) {
+    return { met: true, details: 'Nenhum', unmetDetails: [] };
+  }
+
+  if (!character) {
+    return { met: true, details: 'Nenhum', unmetDetails: [] };
+  }
+
+  const clauses = prerequisite
+    .split(/,(?![^(]*\))/)
+    .map((cl) => cl.trim())
+    .filter(Boolean);
+
+  const results = clauses.map((cl) =>
+    checkPrerequisiteClause(cl, character, getEntityById, context)
+  );
+  const met = results.every((r) => r.met);
+  const unmetDetails = results.filter((r) => !r.met).map((r) => r.details);
+
+  return {
+    met,
+    details: met ? 'Requisito atendido' : unmetDetails.join('; '),
+    unmetDetails,
+  };
+}
 

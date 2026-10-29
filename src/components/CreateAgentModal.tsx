@@ -28,6 +28,7 @@ import {
   OFFICIAL_SKILLS_LIST,
 } from '../utils/progression';
 import { useApp } from '../context/AppContext';
+import { summarizeAbility } from '../utils/abilitySummarizer';
 import { DEFAULT_LONG_PRESS_DELAY } from '../types/recordPreview';
 
 interface CreateAgentModalProps {
@@ -465,15 +466,16 @@ export default function CreateAgentModal({
         selectedOrigin.pageNumber ? ` p. ${selectedOrigin.pageNumber}` : ''
       }`;
 
+      const originSummaryDesc = summarizeAbility(
+        selectedOrigin.powerName || selectedOrigin.name,
+        selectedOrigin.powerDescription || selectedOrigin.summary
+      );
       abilities.push({
         id: `ab_origem_${Date.now()}`,
         name: selectedOrigin.powerName || `Poder de ${selectedOrigin.name}`,
         cost: originCost,
         originPage: originRef,
-        description:
-          selectedOrigin.powerDescription ||
-          selectedOrigin.summary ||
-          'Habilidade especial concedida pela Origem do agente.',
+        description: originSummaryDesc || 'Habilidade especial concedida pela Origem do agente.',
         type: 'poder',
       });
     }
@@ -490,7 +492,7 @@ export default function CreateAgentModal({
         cost: '2 PE',
         originPage: classBookPage || 'Livro Base p. 26',
         description:
-          'Quando faz um ataque, você pode gastar 2 PE para receber +5 no teste de ataque ou na rolagem de dano.',
+          summarizeAbility('Ataque Especial', 'Quando faz um ataque, você pode gastar 2 PE para receber +5 no teste de ataque ou na rolagem de dano.'),
         type: 'habilidade',
       });
     } else if (clsName.includes('especialista')) {
@@ -500,7 +502,7 @@ export default function CreateAgentModal({
         cost: '2 PE',
         originPage: classBookPage || 'Livro Base p. 30',
         description:
-          'Quando faz um teste de uma perícia, você pode gastar 2 PE para receber os benefícios de ser treinado nesta perícia.',
+          summarizeAbility('Eclético', 'Quando faz um teste de uma perícia, você pode gastar 2 PE para receber os benefícios de ser treinado nesta perícia.'),
         type: 'habilidade',
       });
       abilities.push({
@@ -518,7 +520,7 @@ export default function CreateAgentModal({
         cost: 'Passiva',
         originPage: classBookPage || 'Livro Base p. 34',
         description:
-          'Você começa com 3 rituais de 1º círculo e aprende um novo ritual a cada avanço de NEX.',
+          summarizeAbility('Escolhido pelo Outro Lado', 'Você começa com 3 rituais de 1º círculo e aprende um novo ritual a cada avanço de NEX.'),
         type: 'habilidade',
       });
       // Adiciona os rituais selecionados
@@ -532,7 +534,7 @@ export default function CreateAgentModal({
         cost: '1 PE',
         originPage: classBookPage || 'Sobrevivendo ao Horror p. 31',
         description:
-          'Quando faz um teste de perícia, você pode gastar 1 PE para receber +2 nesse teste.',
+          summarizeAbility('Empenho', 'Quando faz um teste de perícia, você pode gastar 1 PE para receber +2 nesse teste.'),
         type: 'habilidade',
       });
     }

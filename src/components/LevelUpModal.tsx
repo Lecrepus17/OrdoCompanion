@@ -24,6 +24,7 @@ import {
 } from '../types/compendium';
 import {
   calculateStatIncreases,
+  checkPrerequisite,
   getNexMilestone,
   getPeRoundLimit,
   getRitualDt,
@@ -33,6 +34,7 @@ import {
 } from '../utils/progression';
 import { useApp } from '../context/AppContext';
 import { DEFAULT_LONG_PRESS_DELAY } from '../types/recordPreview';
+import { summarizeAbility } from '../utils/abilitySummarizer';
 
 const RANK_ITEM_LIMITS = {
   Recruta: { cat1: 2, cat2: 0, cat3: 0, cat4: 0, credit: 'Baixo' as const },
@@ -70,7 +72,7 @@ export default function LevelUpModal({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
-  const { openEntityPreview, openSkillPreview } = useApp();
+  const { openEntityPreview, openSkillPreview, getEntityById } = useApp();
 
   if (!character) return null;
 
@@ -318,7 +320,7 @@ export default function LevelUpModal({
         if (p) {
           const sub = (p.subCategory || '').toLowerCase();
           const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
-          classSlotIsParanormal = sub.includes('paranormal') || (!isClass && p.element && p.element !== 'Nenhum');
+          classSlotIsParanormal = Boolean(sub.includes('paranormal') || (!isClass && p.element && p.element !== 'Nenhum'));
         }
       }
       return extraActive || classSlotIsParanormal;
@@ -421,7 +423,7 @@ export default function LevelUpModal({
         name: `${milestone.trackAbility.title} (NEX ${targetNex}%)`,
         cost: 'Passiva',
         originPage: effectiveTrack?.name || trackEntity?.name || 'Trilha',
-        description: milestone.trackAbility.description,
+        description: summarizeAbility(milestone.trackAbility.title, milestone.trackAbility.description),
         type: 'habilidade',
       });
     }
@@ -433,7 +435,7 @@ export default function LevelUpModal({
         name: `${milestone.classAbilityUpgrade} (NEX ${targetNex}%)`,
         cost: 'Passiva',
         originPage: classEntity?.name || 'Classe',
-        description: milestone.description,
+        description: summarizeAbility(milestone.classAbilityUpgrade, milestone.description),
         type: 'habilidade',
       });
     }
@@ -823,6 +825,13 @@ export default function LevelUpModal({
               <View style={{ gap: 8, marginTop: 8 }}>
                 {displayedClassPowers.slice(0, 50).map((pow) => {
                   const isSel = pow.id === selectedClassPowerId;
+                  const isNoPrereq = !pow.prerequisite || pow.prerequisite === 'Nenhum' || pow.prerequisite === '—';
+                  const prereqStatus = isNoPrereq
+                    ? { met: true, details: 'Nenhum' }
+                    : checkPrerequisite(pow.prerequisite, character, getEntityById, {
+                        targetNex,
+                        targetAttributes: effectiveAttrs,
+                      });
                   const openPowDetails = () =>
                     openEntityPreview(pow, {
                       primaryAction: {
@@ -862,6 +871,51 @@ export default function LevelUpModal({
                           </TouchableOpacity>
                         </View>
                       </View>
+                      {Boolean(pow.prerequisite) && (
+                        <View
+                          style={[
+                            styles.prereqRow,
+                            !isNoPrereq && (prereqStatus.met ? styles.prereqRowMet : styles.prereqRowUnmet),
+                          ]}
+                        >
+                          <Ionicons
+                            name={
+                              isNoPrereq
+                                ? 'checkmark-circle-outline'
+                                : prereqStatus.met
+                                ? 'checkmark-circle'
+                                : 'alert-circle'
+                            }
+                            size={11}
+                            color={
+                              isNoPrereq
+                                ? colors.textMuted
+                                : prereqStatus.met
+                                ? '#22C55E'
+                                : '#EF4444'
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.prereqText,
+                              {
+                                color: isNoPrereq
+                                  ? colors.textMuted
+                                  : prereqStatus.met
+                                  ? '#22C55E'
+                                  : '#EF4444',
+                              },
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {isNoPrereq
+                              ? 'Pré-requisito: Nenhum'
+                              : prereqStatus.met
+                              ? `Pré-req: ${pow.prerequisite} (Atendido)`
+                              : `Pré-req: ${pow.prerequisite} (${prereqStatus.details})`}
+                          </Text>
+                        </View>
+                      )}
                       <Text style={styles.choiceCardDesc}>{pow.summary || pow.description}</Text>
                     </TouchableOpacity>
                   );
@@ -956,6 +1010,13 @@ export default function LevelUpModal({
               <View style={{ gap: 8, marginTop: 8 }}>
                 {displayedParanormalPowers.slice(0, 50).map((pow) => {
                   const isSel = pow.id === selectedParanormalPowerId;
+                  const isNoPrereq = !pow.prerequisite || pow.prerequisite === 'Nenhum' || pow.prerequisite === '—';
+                  const prereqStatus = isNoPrereq
+                    ? { met: true, details: 'Nenhum' }
+                    : checkPrerequisite(pow.prerequisite, character, getEntityById, {
+                        targetNex,
+                        targetAttributes: effectiveAttrs,
+                      });
                   const openParaDetails = () =>
                     openEntityPreview(pow, {
                       primaryAction: {
@@ -1011,6 +1072,51 @@ export default function LevelUpModal({
                           </TouchableOpacity>
                         </View>
                       </View>
+                      {Boolean(pow.prerequisite) && (
+                        <View
+                          style={[
+                            styles.prereqRow,
+                            !isNoPrereq && (prereqStatus.met ? styles.prereqRowMet : styles.prereqRowUnmet),
+                          ]}
+                        >
+                          <Ionicons
+                            name={
+                              isNoPrereq
+                                ? 'checkmark-circle-outline'
+                                : prereqStatus.met
+                                ? 'checkmark-circle'
+                                : 'alert-circle'
+                            }
+                            size={11}
+                            color={
+                              isNoPrereq
+                                ? colors.textMuted
+                                : prereqStatus.met
+                                ? '#22C55E'
+                                : '#EF4444'
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.prereqText,
+                              {
+                                color: isNoPrereq
+                                  ? colors.textMuted
+                                  : prereqStatus.met
+                                  ? '#22C55E'
+                                  : '#EF4444',
+                              },
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {isNoPrereq
+                              ? 'Pré-requisito: Nenhum'
+                              : prereqStatus.met
+                              ? `Pré-req: ${pow.prerequisite} (Atendido)`
+                              : `Pré-req: ${pow.prerequisite} (${prereqStatus.details})`}
+                          </Text>
+                        </View>
+                      )}
                       <Text style={styles.choiceCardDesc}>{pow.summary || pow.description}</Text>
                     </TouchableOpacity>
                   );
@@ -1097,6 +1203,13 @@ export default function LevelUpModal({
               <View style={{ gap: 8, marginTop: 8 }}>
                 {displayedPowers.slice(0, 50).map((pow) => {
                   const isSel = pow.id === selectedPowerId;
+                  const isNoPrereq = !pow.prerequisite || pow.prerequisite === 'Nenhum' || pow.prerequisite === '—';
+                  const prereqStatus = isNoPrereq
+                    ? { met: true, details: 'Nenhum' }
+                    : checkPrerequisite(pow.prerequisite, character, getEntityById, {
+                        targetNex,
+                        targetAttributes: effectiveAttrs,
+                      });
                   const isParanormal = (pow.subCategory || '').toLowerCase().includes('paranormal') ||
                     (pow.element && pow.element !== 'Nenhum' && !(pow.subCategory || '').toLowerCase().includes('combatente') && !(pow.subCategory || '').toLowerCase().includes('especialista') && !(pow.subCategory || '').toLowerCase().includes('ocultista'));
 
@@ -1145,6 +1258,51 @@ export default function LevelUpModal({
                           </TouchableOpacity>
                         </View>
                       </View>
+                      {Boolean(pow.prerequisite) && (
+                        <View
+                          style={[
+                            styles.prereqRow,
+                            !isNoPrereq && (prereqStatus.met ? styles.prereqRowMet : styles.prereqRowUnmet),
+                          ]}
+                        >
+                          <Ionicons
+                            name={
+                              isNoPrereq
+                                ? 'checkmark-circle-outline'
+                                : prereqStatus.met
+                                ? 'checkmark-circle'
+                                : 'alert-circle'
+                            }
+                            size={11}
+                            color={
+                              isNoPrereq
+                                ? colors.textMuted
+                                : prereqStatus.met
+                                ? '#22C55E'
+                                : '#EF4444'
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.prereqText,
+                              {
+                                color: isNoPrereq
+                                  ? colors.textMuted
+                                  : prereqStatus.met
+                                  ? '#22C55E'
+                                  : '#EF4444',
+                              },
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {isNoPrereq
+                              ? 'Pré-requisito: Nenhum'
+                              : prereqStatus.met
+                              ? `Pré-req: ${pow.prerequisite} (Atendido)`
+                              : `Pré-req: ${pow.prerequisite} (${prereqStatus.details})`}
+                          </Text>
+                        </View>
+                      )}
                       <Text style={styles.choiceCardDesc}>{pow.summary || pow.description}</Text>
                     </TouchableOpacity>
                   );
@@ -1692,6 +1850,33 @@ const createStyles = (colors: ThemeColors) =>
     badgeText: {
       fontSize: 10,
       color: colors.textMuted,
+    },
+    prereqRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 4,
+      marginBottom: 2,
+      borderRadius: 4,
+      alignSelf: 'flex-start',
+    },
+    prereqRowMet: {
+      backgroundColor: 'rgba(34, 197, 94, 0.12)',
+      borderWidth: 1,
+      borderColor: 'rgba(34, 197, 94, 0.35)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    prereqRowUnmet: {
+      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+      borderWidth: 1,
+      borderColor: 'rgba(239, 68, 68, 0.4)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    prereqText: {
+      fontSize: 11,
+      fontWeight: '700',
     },
     searchInput: {
       backgroundColor: colors.surfaceElevated,

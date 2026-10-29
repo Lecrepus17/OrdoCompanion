@@ -1,6 +1,12 @@
 import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import { CharacterSheet, CompendiumEntity } from '../types/compendium';
+import compendiumSeedRaw from '../data/seed/compendium_seed.json';
+import {
+  summarizeAbility,
+  summarizeAttackCritSpec,
+  getDescStyle,
+} from './abilitySummarizer';
 import {
   BASE_FRONT_B64,
   BASE_BACK_B64,
@@ -190,6 +196,35 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
     });
   }
 
+  // Include any linked rituals or powers from entityIds not already in list
+  if (char.entityIds && char.entityIds.length > 0) {
+    const seedEntities = (compendiumSeedRaw as any)?.entities || [];
+    char.entityIds.forEach((eid) => {
+      const ent = seedEntities.find((e: any) => e.id === eid);
+      if (ent && (ent.category === 'ritual' || ent.category === 'power')) {
+        const alreadyIn = allAbilities.some(
+          (a) => a.id === eid || a.name.toLowerCase() === ent.name.toLowerCase()
+        );
+        if (!alreadyIn) {
+          const costText =
+            ent.category === 'ritual'
+              ? ent.circle ? `${ent.circle} PE` : '1 PE'
+              : 'Passiva';
+          const originBook = ent.bookId?.toLowerCase().includes('horror') ? 'SH' : 'LB';
+          const pageRef = ent.pageNumber ? `${originBook} p. ${ent.pageNumber}` : (ent.category === 'ritual' ? 'Ritual' : 'Poder');
+          allAbilities.push({
+            id: ent.id,
+            name: ent.name,
+            cost: costText,
+            originPage: pageRef,
+            description: ent.summary || ent.description || '',
+            type: ent.category === 'ritual' ? 'ritual' : 'poder',
+          });
+        }
+      }
+    });
+  }
+
   // Attacks list (up to 5)
   const attacksList = (char.attacks || []).slice(0, 5);
 
@@ -309,9 +344,12 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
           ${attacksList
             .map((atk, idx) => {
               const top = 84.6 + idx * 2.06;
-              const critSpec = [atk.critical, atk.range, atk.special].filter(Boolean).join(' • ');
+              const critSpec = summarizeAttackCritSpec(atk);
+              const critStyle = getDescStyle(critSpec);
+              const nameStyle = (atk.name || '').length > 22 ? 'font-size: 9.5px;' : 'font-size: 11px;';
+              const fullSpec = [atk.critical, atk.range, atk.special].filter(Boolean).join(' • ');
               return `
-                <div class="field" style="left: 10.6%; top: ${top}%; width: 28.5%; font-weight: 600; font-size: 11px;">
+                <div class="field" style="left: 10.6%; top: ${top}%; width: 28.5%; font-weight: 600; ${nameStyle}" title="${escapeHtml(atk.name)}">
                   ${escapeHtml(atk.name)}
                 </div>
                 <div class="field center" style="left: 40.2%; top: ${top}%; width: 10.4%; font-size: 10.5px;">
@@ -320,7 +358,7 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
                 <div class="field center" style="left: 51.8%; top: ${top}%; width: 10.8%; font-weight: bold; font-size: 11px;">
                   ${escapeHtml(atk.damage)}
                 </div>
-                <div class="field" style="left: 63.9%; top: ${top}%; width: 29.5%; font-size: 9.5px;">
+                <div class="field" style="left: 63.9%; top: ${top}%; width: 29.5%; ${critStyle}" title="${escapeHtml(fullSpec)}">
                   ${escapeHtml(critSpec)}
                 </div>
               `;
@@ -440,9 +478,12 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
         ${attacksList
           .map((atk, idx) => {
             const top = 84.1 + idx * 2.06;
-            const critSpec = [atk.critical, atk.range, atk.special].filter(Boolean).join(' • ');
+            const critSpec = summarizeAttackCritSpec(atk);
+            const critStyle = getDescStyle(critSpec);
+            const nameStyle = (atk.name || '').length > 22 ? 'font-size: 9.5px;' : 'font-size: 11px;';
+            const fullSpec = [atk.critical, atk.range, atk.special].filter(Boolean).join(' • ');
             return `
-              <div class="field" style="left: 12.3%; top: ${top}%; width: 28.5%; font-weight: 600; font-size: 11px;">
+              <div class="field" style="left: 12.3%; top: ${top}%; width: 28.5%; font-weight: 600; ${nameStyle}" title="${escapeHtml(atk.name)}">
                 ${escapeHtml(atk.name)}
               </div>
               <div class="field center" style="left: 41.8%; top: ${top}%; width: 10.5%; font-size: 10.5px;">
@@ -451,7 +492,7 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
               <div class="field center" style="left: 53.5%; top: ${top}%; width: 10.8%; font-weight: bold; font-size: 11px;">
                 ${escapeHtml(atk.damage)}
               </div>
-              <div class="field" style="left: 65.6%; top: ${top}%; width: 29.5%; font-size: 9.5px;">
+              <div class="field" style="left: 65.6%; top: ${top}%; width: 29.5%; ${critStyle}" title="${escapeHtml(fullSpec)}">
                 ${escapeHtml(critSpec)}
               </div>
             `;
@@ -504,8 +545,11 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
             .slice(0, 20)
             .map((ab, idx) => {
               const top = 22.9 + idx * 2.00;
+              const descSummary = summarizeAbility(ab.name, ab.description);
+              const descStyle = getDescStyle(descSummary);
+              const nameStyle = (ab.name || '').length > 22 ? 'font-size: 9px;' : 'font-size: 10px;';
               return `
-                <div class="field" style="left: 6.8%; top: ${top}%; width: 27.5%; font-weight: bold; font-size: 10px;">
+                <div class="field" style="left: 6.8%; top: ${top}%; width: 27.5%; font-weight: bold; ${nameStyle}" title="${escapeHtml(ab.name)}">
                   ${escapeHtml(ab.name)}
                 </div>
                 <div class="field center" style="left: 34.6%; top: ${top}%; width: 6.8%; font-size: 9.5px;">
@@ -514,8 +558,8 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
                 <div class="field center" style="left: 41.9%; top: ${top}%; width: 5.5%; font-size: 8.5px;">
                   ${escapeHtml(formatPageRef(ab.originPage))}
                 </div>
-                <div class="field" style="left: 47.9%; top: ${top}%; width: 40.5%; font-size: 9.5px;">
-                  ${escapeHtml(ab.description || '')}
+                <div class="field field-desc" style="left: 47.9%; top: ${top}%; width: 40.5%; ${descStyle}" title="${escapeHtml(ab.description || descSummary)}">
+                  ${escapeHtml(descSummary)}
                 </div>
               `;
             })
@@ -608,8 +652,11 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
           .slice(0, 20)
           .map((ab, idx) => {
             const top = 6.2 + idx * 2.00;
+            const descSummary = summarizeAbility(ab.name, ab.description);
+            const descStyle = getDescStyle(descSummary);
+            const nameStyle = (ab.name || '').length > 22 ? 'font-size: 9px;' : 'font-size: 10px;';
             return `
-              <div class="field" style="left: 5.4%; top: ${top}%; width: 27.5%; font-weight: bold; font-size: 10px;">
+              <div class="field" style="left: 5.4%; top: ${top}%; width: 27.5%; font-weight: bold; ${nameStyle}" title="${escapeHtml(ab.name)}">
                 ${escapeHtml(ab.name)}
               </div>
               <div class="field center" style="left: 33.2%; top: ${top}%; width: 6.8%; font-size: 9.5px;">
@@ -618,8 +665,8 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
               <div class="field center" style="left: 40.5%; top: ${top}%; width: 5.5%; font-size: 8.5px;">
                 ${escapeHtml(formatPageRef(ab.originPage))}
               </div>
-              <div class="field" style="left: 46.5%; top: ${top}%; width: 41.0%; font-size: 9.5px;">
-                ${escapeHtml(ab.description || '')}
+              <div class="field field-desc" style="left: 46.5%; top: ${top}%; width: 41.0%; ${descStyle}" title="${escapeHtml(ab.description || descSummary)}">
+                ${escapeHtml(descSummary)}
               </div>
             `;
           })
@@ -748,6 +795,9 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
       background-position: center;
       overflow: hidden;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .field-desc {
+      line-height: 1.15;
     }
     .field {
       position: absolute;

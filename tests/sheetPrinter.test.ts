@@ -133,5 +133,67 @@ describe('Impressão e Renderização de Ficha (sheetPrinter.ts)', () => {
       assert.ok(htmlSH.includes('<!DOCTYPE html>'));
       assert.ok(htmlSH.includes('Agente Arthur &lt;Script&gt;'));
     });
+
+    it('deve compactar habilidades longas para que caibam no trecho do PDF', () => {
+      const charWithLongAbility: CharacterSheet = {
+        ...dummyChar,
+        abilities: [
+          {
+            id: 'ab_long',
+            name: 'Saber é Poder',
+            cost: '2 PE',
+            originPage: 'LB p. 24',
+            description:
+              'Quando faz um teste usando Intelecto, você pode gastar 2 PE para receber +5 nesse teste, utilizando todo o seu conhecimento acumulado ao longo dos anos de estudos.',
+            type: 'poder',
+          },
+        ],
+      };
+
+      const html = generateSheetHtml({ character: charWithLongAbility, sheetType: 'livro_base' });
+      // Deve conter o resumo canônico conciso
+      assert.ok(html.includes('Gaste 2 PE para +5 em teste de Intelecto.'));
+      // Deve conter o tooltip com a descrição original completa
+      assert.ok(html.includes('title='));
+      assert.ok(html.includes('estudos'));
+    });
+
+    it('deve compactar e abreviar modificações e alcance de armas longas', () => {
+      const charWithLongAttack: CharacterSheet = {
+        ...dummyChar,
+        attacks: [
+          {
+            id: 'atk_custom',
+            name: 'Fuzil de Caça Pesado',
+            test: 'Pontaria (3d20+10)',
+            damage: '2d10+4',
+            critical: '19/x3',
+            range: 'Corpo a corpo',
+            special:
+              'Balístico • Modificações: Mira Laser: Margem de ameaça +1 • Certeira: Ataque +2',
+          },
+        ],
+      };
+
+      const html = generateSheetHtml({ character: charWithLongAttack, sheetType: 'livro_base' });
+      // Range deve ser abreviado para CaC
+      assert.ok(html.includes('CaC'));
+      // Dano Balístico deve ser abreviado para Bal.
+      assert.ok(html.includes('Bal.'));
+      // Modificações compactadas
+      assert.ok(html.includes('+1 Margem'));
+      assert.ok(html.includes('+2 Atk'));
+    });
+
+    it('deve resolver e incluir rituais vinculados em entityIds na tabela de habilidades', () => {
+      const charWithRitual: CharacterSheet = {
+        ...dummyChar,
+        entityIds: ['ritual__livro_base__decadencia'],
+      };
+
+      const html = generateSheetHtml({ character: charWithRitual, sheetType: 'livro_base' });
+      assert.ok(html.includes('Decadência'));
+      assert.ok(html.includes('Causa 2d8+2 de dano de Morte com espirais negras.'));
+    });
   });
 });
