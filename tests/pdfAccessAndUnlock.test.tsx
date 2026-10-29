@@ -4,14 +4,14 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { OfflineDataRepository } from '../src/repositories/OfflineDataRepository';
 import {
-  ADMIN_UNLOCK_EMAIL,
   KNOWN_PDF_SIGNATURES,
   cacheUnlockedBooksOffline,
   computeSha256Hex,
   identifyUploadedPdf,
   localPdfStorage,
   processUnregisteredPdfWithPythonPipeline,
-  requestUnlockCodeForAdminEmail,
+  verifyMasterUnlockPassword,
+  computeMasterPasswordHash,
   verifyAdminUnlockCode,
 } from '../src/services/pdf/PdfAccessService';
 import { SmartMergeEngine } from '../src/services/sync/SmartMergeEngine';
@@ -220,32 +220,31 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     assert.ok(allEnts.every((e) => e.sourcePdf === 'Suplemento-Cripta-2026.pdf'));
   });
 
-  test('4. Envio de código para pedro.eduardo1777@gmail.com deve validar e desbloquear todos os livros atuais offline e no SmartMerge do Google Drive', async () => {
+  test('4. Senha Mestre Segura com Hash SHA-256 deve validar e desbloquear todos os livros atuais offline e no SmartMerge do Google Drive', async () => {
     clearUnlockedBooksForTest();
     const repo = new OfflineDataRepository();
     await repo.initialize();
 
-    assert.strictEqual(ADMIN_UNLOCK_EMAIL, 'pedro.eduardo1777@gmail.com');
+    // 1. Senha errada deve ser recusada com mensagem clara
+    const wrongVerify = await verifyMasterUnlockPassword('SENHAERRADA123');
+    assert.strictEqual(wrongVerify.valid, false);
+    assert.ok(wrongVerify.message.includes('Senha incorreta'));
 
-    // Solicita código para pedro.eduardo1777@gmail.com
-    const reqResult = await requestUnlockCodeForAdminEmail();
-    assert.strictEqual(reqResult.ok, true);
-    assert.ok(reqResult.message.includes('pedro.eduardo1777@gmail.com'));
-    assert.ok(reqResult.generatedCodeForTest && reqResult.generatedCodeForTest.length === 6);
+    // 2. Senha vazia deve pedir a senha
+    const emptyVerify = await verifyMasterUnlockPassword('');
+    assert.strictEqual(emptyVerify.valid, false);
 
-    // Código errado deve ser recusado
-    const wrongVerify = await verifyAdminUnlockCode('000000');
-    if (reqResult.generatedCodeForTest !== '000000') {
-      assert.strictEqual(wrongVerify.valid, false);
-    }
-
-    // Código correto enviado ao e-mail deve validar
-    const rightVerify = await verifyAdminUnlockCode(reqResult.generatedCodeForTest!);
+    // 3. Senha correta oficial definida pelo autor ("ORDOCOMPENDIONEOMELHOR") deve ser validada por hash
+    const rightVerify = await verifyMasterUnlockPassword('ORDOCOMPENDIONEOMELHOR');
     assert.strictEqual(rightVerify.valid, true);
-    assert.strictEqual(rightVerify.method, 'email_code');
+    assert.ok(rightVerify.message.includes('validada com sucesso'));
+
+    // Também deve aceitar minúsculas ou espaços ("ordo compendio neo melhor")
+    const lowerVerify = await verifyMasterUnlockPassword('ordocompendioneomelhor');
+    assert.strictEqual(lowerVerify.valid, true);
 
     // Desbloqueia todos os livros atuais e salva offline
-    const records = await repo.unlockAllBooks('email_code');
+    const records = await repo.unlockAllBooks('master_code');
     await cacheUnlockedBooksOffline(records.map((r) => r.bookId));
 
     assert.strictEqual(repo.getBooks().length, 10, 'Todos os 10 livros atuais devem ser liberados');
@@ -268,7 +267,7 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     assert.strictEqual(Object.keys(mergeRes.merged.unlockedBooks || {}).length, 10);
   });
 
-  test('5. Interface Frontend: Tela de Livros e Compêndio devem abrir o modal de disponibilização de PDFs e permitir liberar com código do e-mail', async () => {
+  test('5. Interface Frontend: Tela de Livros deve abrir o modal de disponibilização de PDFs e permitir liberar com Senha Mestre', async () => {
     clearUnlockedBooksForTest();
 
     const { getByTestId, queryByText, getByText, getByPlaceholder } = await renderWithProviders(<BooksScreen />);
@@ -276,26 +275,27 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     // Como começou bloqueado, mostra aviso de que nenhum PDF foi disponibilizado ainda
     assert.ok(queryByText(/Nenhum PDF disponibilizado ainda/i));
 
-    // Clica no botão de abrir o modal de PDFs / Código
+    // Clica no botão de abrir o modal de PDFs / Senha Mestre
     const openBtn = getByTestId('btn-open-pdf-access-modal');
     await fireClick(openBtn);
 
     // Verifica elementos do modal
     assert.ok(getByText(/Gerenciar Acesso aos Livros & PDFs/i));
-    assert.ok(getByText(/pedro\.eduardo1777@gmail\.com/i));
+    assert.ok(getByText(/Liberação por Senha do Mestre/i));
 
-    // Clica em enviar código para pedro.eduardo1777@gmail.com
-    const sendCodeBtn = getByTestId('btn-send-admin-unlock-code');
-    await fireClick(sendCodeBtn);
-
-    // Insere código de proprietário e clica em Liberar Tudo
-    const codeInput = getByPlaceholder(/código enviado ao e-mail|Código de 6 dígitos/i);
-    await changeInputText(codeInput, 'ORDO1777');
+    // Insere senha do Mestre e clica em Liberar Tudo
+    const codeInput = getByPlaceholder(/Digite a Senha Mestre/i);
+    await changeInputText(codeInput, 'ORDOCOMPENDIONEOMELHOR');
 
     const verifyBtn = getByTestId('btn-verify-admin-unlock-code');
     await fireClick(verifyBtn);
 
     // Agora todos os 10 livros devem estar liberados na biblioteca!
     assert.ok(queryByText(/10 de 10 livros liberados/i));
+
+    // Verifica que o botão de abrir pasta do Google Drive está disponível
+    const gdriveBtn = getByTestId('btn-open-master-gdrive');
+    assert.ok(gdriveBtn);
+    await fireClick(gdriveBtn);
   });
 });

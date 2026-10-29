@@ -20,16 +20,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { BookInfo } from '../types/compendium';
+import { localPdfStorage, slugifyPdfName } from '../services/pdf/PdfAccessService';
+import { GoogleDriveService } from '../services/sync/GoogleDriveService';
 import {
   downloadPdfDocument,
   getCleanPdfUrl,
-  getCustomPdfServerUrl,
   getRawPdfUrl,
   getRenderedPdfPageUrl,
   isPdfServerConfigured,
   openPdfDocument,
-  setCustomPdfServerUrl,
-  testPdfServerConnection,
 } from '../utils/pdfUrl';
 
 export type PdfViewerMode = 'pdf_scroll' | 'pdf_page' | 'pdf_native' | 'text';
@@ -104,26 +103,77 @@ function ensurePdfJsLoaded(): Promise<any> {
   return pdfJsLoadPromise;
 }
 
-async function getOrLoadPdfJsDocument(fileName: string): Promise<any> {
+async function getOrLoadPdfJsDocument(
+  fileName: string,
+  bookId?: string,
+  driveFileId?: string
+): Promise<any> {
   const pdfjsLib = await ensurePdfJsLoaded();
-  if (pdfDocsCache[fileName]) {
-    return pdfDocsCache[fileName];
+  const cacheKey = bookId || fileName;
+  if (pdfDocsCache[cacheKey]) {
+    return pdfDocsCache[cacheKey];
   }
+
+  // 1. Tenta carregar os bytes diretamente do armazenamento local offline
+  let bytes: Uint8Array | null = null;
+  const effectiveId = bookId || slugifyPdfName(fileName);
+  if (effectiveId) {
+    try {
+      bytes = await localPdfStorage.getPdfBytes(effectiveId);
+    } catch {}
+  }
+  if (!bytes) {
+    try {
+      bytes = await localPdfStorage.getPdfBytes(fileName);
+    } catch {}
+  }
+
+  // 2. Se o usuário fez upload anteriormente e o arquivo está salvo na pasta oculta (appDataFolder) do seu Drive
+  if (!bytes && driveFileId && GoogleDriveService.getInstance().getAuthState().isAuthenticated) {
+    try {
+      bytes = await GoogleDriveService.getInstance().downloadPdfFromDrive(driveFileId);
+      if (bytes && bytes.length > 0) {
+        await localPdfStorage.savePdfOffline(effectiveId || fileName, fileName, bytes);
+      }
+    } catch (e) {
+      console.warn('[PdfViewer] Falha ao recuperar PDF do Drive protegido:', e);
+    }
+  }
+
+  // 3. Se temos os bytes do arquivo enviado pelo usuário, renderiza direto na memória sem precisar de servidor
+  if (bytes && bytes.length > 0) {
+    const loadingTask = pdfjsLib.getDocument({
+      data: bytes,
+      disableAutoFetch: false,
+      disableStream: true,
+    });
+    const doc = await loadingTask.promise;
+    pdfDocsCache[cacheKey] = doc;
+    return doc;
+  }
+
+  // 4. Fallback: Se não houver bytes locais nem no Drive do usuário, tenta a URL direta
   const cleanUrl = getCleanPdfUrl(fileName);
-  const loadingTask = pdfjsLib.getDocument({
-    url: cleanUrl,
-    disableAutoFetch: true,
-    disableStream: false,
-    rangeChunkSize: 65536 * 4,
-  });
-  const doc = await loadingTask.promise;
-  pdfDocsCache[fileName] = doc;
-  return doc;
+  if (cleanUrl) {
+    const loadingTask = pdfjsLib.getDocument({
+      url: cleanUrl,
+      disableAutoFetch: true,
+      disableStream: false,
+      rangeChunkSize: 65536 * 4,
+    });
+    const doc = await loadingTask.promise;
+    pdfDocsCache[cacheKey] = doc;
+    return doc;
+  }
+
+  throw new Error(`PDF não disponível localmente para ${fileName}`);
 }
 
 interface PdfScrollPageItemProps {
   bookFileName: string;
   bookTitle: string;
+  bookId?: string;
+  driveFileId?: string;
   pageNumber: number;
   pageCount: number;
   pageWidth: number;
@@ -145,6 +195,8 @@ interface PdfScrollPageItemProps {
 const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
   bookFileName,
   bookTitle,
+  bookId,
+  driveFileId,
   pageNumber,
   pageCount,
   pageWidth,
@@ -178,7 +230,7 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
     [rawImageUrl, retryKey]
   );
 
-  // Na Web, se a imagem do servidor falhar (ex: Python não instalado), renderiza via PDF.js <canvas>
+  // Na Web, renderiza diretamente o PDF do usuário via PDF.js <canvas> sem precisar de servidor
   useEffect(() => {
     if (Platform.OS !== 'web' || !error || !bookFileName) return;
     let cancelled = false;
@@ -187,7 +239,7 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
     (async () => {
       try {
         setLoading(true);
-        const pdfDoc = await getOrLoadPdfJsDocument(bookFileName);
+        const pdfDoc = await getOrLoadPdfJsDocument(bookFileName, bookId, driveFileId);
         if (cancelled) return;
         const page = await pdfDoc.getPage(pageNumber);
         if (cancelled) return;
@@ -382,9 +434,15 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
 
+  const hasDirectPdf = Boolean(
+    book?.hasLocalPdf ||
+    book?.driveFileId ||
+    book?.driveSynced ||
+    (book?.id ? localPdfStorage.hasPdfOffline(book.id) : false)
+  );
   const serverConfigured = isPdfServerConfigured();
   const computedInitialMode: PdfViewerMode =
-    !serverConfigured && Platform.OS !== 'web' && (initialMode === 'pdf_scroll' || initialMode === 'pdf_page')
+    !hasDirectPdf && !serverConfigured && Platform.OS !== 'web' && (initialMode === 'pdf_scroll' || initialMode === 'pdf_page')
       ? 'text'
       : initialMode;
 
@@ -396,14 +454,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const [showTocList, setShowTocList] = useState<boolean>(false);
   const [showInBookSearch, setShowInBookSearch] = useState<boolean>(false);
   const [inBookQuery, setInBookQuery] = useState<string>(highlightTerm);
-
-  // Estados de conexão do servidor de PDFs (renderizado como overlay interno sem Modal aninhado)
-  const [showServerModal, setShowServerModal] = useState<boolean>(false);
-  const [serverUrlInput, setServerUrlInput] = useState<string>(getCustomPdfServerUrl());
-  const [testStatus, setTestStatus] = useState<{
-    testing: boolean;
-    result: { ok: boolean; message: string } | null;
-  }>({ testing: false, result: null });
 
   // Estados de carregamento e dimensões da página
   const [imageLoading, setImageLoading] = useState<boolean>(serverConfigured);
@@ -553,9 +603,15 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   // Sincroniza página inicial e livro quando o modal abre
   useEffect(() => {
     if (visible && book) {
+      const hasDirectPdf = Boolean(
+        book.hasLocalPdf ||
+        book.driveFileId ||
+        book.driveSynced ||
+        (book.id ? localPdfStorage.hasPdfOffline(book.id) : false)
+      );
       const isServerActive = isPdfServerConfigured();
       const targetMode: PdfViewerMode =
-        !isServerActive && Platform.OS !== 'web' && (initialMode === 'pdf_scroll' || initialMode === 'pdf_page')
+        !hasDirectPdf && !isServerActive && Platform.OS !== 'web' && (initialMode === 'pdf_scroll' || initialMode === 'pdf_page')
           ? 'text'
           : initialMode;
       setViewMode(targetMode);
@@ -565,7 +621,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
       currentPageRef.current = clamped;
       setPageInputText(String(clamped));
       setShowTocList(false);
-      setShowServerModal(false);
       if (highlightTerm) {
         setInBookQuery(highlightTerm);
       }
@@ -607,16 +662,12 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   useEffect(() => {
     if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
     const onBackPress = () => {
-      if (showServerModal) {
-        setShowServerModal(false);
-        return true;
-      }
       onClose();
       return true;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
-  }, [visible, onClose, showServerModal]);
+  }, [visible, onClose]);
 
   // Intercepta a seta de retorno do navegador na Web
   useEffect(() => {
@@ -669,10 +720,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         e.preventDefault();
         toggleMaximized();
       } else if (e.key === 'Escape') {
-        if (showServerModal) {
-          e.preventDefault();
-          setShowServerModal(false);
-        } else if (isMaximized) {
+        if (isMaximized) {
           e.preventDefault();
           setIsMaximized(false);
         } else {
@@ -683,7 +731,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [visible, book, safeCurrentPage, goToPage, onClose, isMaximized, toggleMaximized, showServerModal]);
+  }, [visible, book, safeCurrentPage, goToPage, onClose, isMaximized, toggleMaximized]);
 
   // Pré-carrega a próxima página somente quando houver URL válida de servidor gráfico
   useEffect(() => {
@@ -709,7 +757,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
       try {
         setCanvasLoading(true);
         if (!book) return;
-        const pdfDoc = await getOrLoadPdfJsDocument(book.fileName);
+        const pdfDoc = await getOrLoadPdfJsDocument(book.fileName, book.id, book.driveFileId);
         if (cancelled) return;
 
         const page = await pdfDoc.getPage(safeCurrentPage);
@@ -806,35 +854,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     await downloadPdfDocument(book.fileName);
   }, [book]);
 
-  const handleTestServer = async () => {
-    setTestStatus({ testing: true, result: null });
-    const res = await testPdfServerConnection(serverUrlInput);
-    setTestStatus({ testing: false, result: res });
-  };
-
-  const handleSaveServer = async () => {
-    const cleanInput = serverUrlInput.trim();
-    await setCustomPdfServerUrl(cleanInput);
-    if (viewMode === 'text' && cleanInput.length > 0) {
-      setViewMode('pdf_scroll');
-    }
-    setShowServerModal(false);
-    const hasUrl = Boolean(book && getRenderedPdfPageUrl(book.fileName, safeCurrentPage, targetDpi));
-    setImageError(!hasUrl);
-    setImageLoading(hasUrl);
-    setCanvasReady(false);
-  };
-
-  const handleResetToOffline = async () => {
-    await setCustomPdfServerUrl('');
-    setServerUrlInput('');
-    setTestStatus({ testing: false, result: null });
-    setImageError(true);
-    setImageLoading(false);
-    setViewMode('text');
-    setShowServerModal(false);
-  };
-
   const renderScrollPageItem = useCallback(
     ({ item }: { item: number }) => {
       if (!book) return null;
@@ -843,6 +862,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         <PdfScrollPageItem
           bookFileName={book.fileName}
           bookTitle={book.title}
+          bookId={book.id}
+          driveFileId={book.driveFileId}
           pageNumber={item}
           pageCount={book.pageCount}
           pageWidth={basePageWidth}
@@ -962,22 +983,28 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 </TouchableOpacity>
               )}
 
-              {/* Indicador de Status do Servidor de PDF / Modo Integrado */}
-              <TouchableOpacity
+              {/* Indicador de Status do Livro (PDF Original ou Modo Integrado) */}
+              <View
                 style={styles.serverStatusPill}
-                onPress={() => setShowServerModal(true)}
-                accessibilityLabel="Status do Servidor de PDFs"
+                accessibilityLabel="Status do Acervo"
               >
                 <View
                   style={[
                     styles.serverStatusDot,
-                    { backgroundColor: isPdfServerConfigured() ? '#10B981' : colors.primary },
+                    {
+                      backgroundColor:
+                        book.hasLocalPdf || book.driveSynced || (book.id && localPdfStorage.hasPdfOffline(book.id))
+                          ? '#10B981'
+                          : colors.primary,
+                    },
                   ]}
                 />
                 <Text style={styles.serverStatusText}>
-                  {isPdfServerConfigured() ? 'Online' : 'Offline'}
+                  {book.hasLocalPdf || book.driveSynced || (book.id && localPdfStorage.hasPdfOffline(book.id))
+                    ? 'PDF Próprio'
+                    : 'Modo Integrado'}
                 </Text>
-              </TouchableOpacity>
+              </View>
 
               {/* Botão de Maximizar Visualização */}
               <TouchableOpacity
@@ -1649,119 +1676,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
           </View>
         )}
 
-        {/* Overlay Interno de Conexão do Servidor de PDFs (sem Modal aninhado para evitar travamento no Android APK) */}
-        {showServerModal && (
-          <View style={styles.serverModalOverlay}>
-            <View style={styles.serverModalCard}>
-              <View style={styles.serverModalHeader}>
-                <View style={styles.serverModalIconWrap}>
-                  <Ionicons
-                    name={isPdfServerConfigured() ? 'cloud-done-outline' : 'cloud-offline-outline'}
-                    size={22}
-                    color={isPdfServerConfigured() ? '#10B981' : colors.primary}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.serverModalTitle}>Servidor de PDFs</Text>
-                  <Text style={styles.serverModalSubtitle}>
-                    {isPdfServerConfigured()
-                      ? 'Conectado a um servidor gráfico'
-                      : 'Modo Offline Ativo (100% das regras integradas)'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setShowServerModal(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close" size={22} color={colors.textMuted} />
-                </TouchableOpacity>
-              </View>
 
-              <Text style={styles.serverModalDesc}>
-                O Ordo Companion já inclui todas as 1.261 páginas com texto oficial e regras integradas offline no aplicativo, além de download direto dos PDFs oficiais na nuvem.{'\n\n'}
-                Opcionalmente, para renderizar páginas via servidor local na mesma rede Wi-Fi, informe o endereço abaixo (ex: <Text style={{ color: colors.primary, fontWeight: '700' }}>http://192.168.1.15:8081</Text>).
-              </Text>
-
-              <View style={styles.serverInputWrap}>
-                <Ionicons name="link-outline" size={17} color={colors.textMuted} />
-                <TextInput
-                  style={styles.serverInput}
-                  placeholder="http://192.168.1.15:8081"
-                  placeholderTextColor={colors.textMuted}
-                  value={serverUrlInput}
-                  onChangeText={(t) => {
-                    setServerUrlInput(t);
-                    setTestStatus({ testing: false, result: null });
-                  }}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {serverUrlInput.length > 0 && (
-                  <TouchableOpacity onPress={() => setServerUrlInput('')}>
-                    <Ionicons name="close-circle" size={17} color={colors.textMuted} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {testStatus.testing && (
-                <View style={styles.testStatusRow}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.testStatusText}>Testando conexão com o servidor...</Text>
-                </View>
-              )}
-
-              {testStatus.result && (
-                <View
-                  style={[
-                    styles.testResultBox,
-                    testStatus.result.ok ? styles.testResultSuccess : styles.testResultError,
-                  ]}
-                >
-                  <Ionicons
-                    name={testStatus.result.ok ? 'checkmark-circle' : 'alert-circle'}
-                    size={16}
-                    color={testStatus.result.ok ? '#10B981' : '#EF4444'}
-                  />
-                  <Text
-                    style={[
-                      styles.testResultText,
-                      { color: testStatus.result.ok ? '#10B981' : '#EF4444' },
-                    ]}
-                  >
-                    {testStatus.result.message}
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.serverModalActions}>
-                <TouchableOpacity
-                  style={styles.serverTestBtn}
-                  onPress={handleTestServer}
-                  disabled={testStatus.testing}
-                >
-                  <Ionicons name="flash-outline" size={14} color={colors.text} />
-                  <Text style={styles.serverTestBtnText}>Testar</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.serverSaveBtn}
-                  onPress={handleSaveServer}
-                >
-                  <Ionicons name="checkmark-sharp" size={15} color="#FFF" />
-                  <Text style={styles.serverSaveBtnText}>Salvar</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.serverResetBtn}
-                  onPress={handleResetToOffline}
-                >
-                  <Ionicons name="cloud-offline-outline" size={14} color={colors.textMuted} />
-                  <Text style={styles.serverResetBtnText}>Usar Offline</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
       </View>
     </Modal>
   );
@@ -2703,156 +2618,5 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primary,
       fontSize: 12,
       fontWeight: '700',
-    },
-    serverModalOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 100,
-      backgroundColor: 'rgba(0,0,0,0.75)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 16,
-    },
-    serverModalCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 20,
-      maxWidth: 520,
-      width: '100%',
-      gap: 14,
-    },
-    serverModalHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      paddingBottom: 12,
-    },
-    serverModalIconWrap: {
-      width: 40,
-      height: 40,
-      borderRadius: 10,
-      backgroundColor: colors.surfaceElevated,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    serverModalTitle: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '800',
-    },
-    serverModalSubtitle: {
-      color: colors.textSecondary,
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    serverModalDesc: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      lineHeight: 20,
-    },
-    serverInputWrap: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      height: 44,
-      gap: 8,
-    },
-    serverInput: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 14,
-    },
-    testStatusRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 4,
-    },
-    testStatusText: {
-      color: colors.textSecondary,
-      fontSize: 12,
-    },
-    testResultBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      padding: 10,
-      borderRadius: 8,
-      borderWidth: 1,
-    },
-    testResultSuccess: {
-      backgroundColor: 'rgba(16, 185, 129, 0.1)',
-      borderColor: 'rgba(16, 185, 129, 0.3)',
-    },
-    testResultError: {
-      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-      borderColor: 'rgba(239, 68, 68, 0.3)',
-    },
-    testResultText: {
-      fontSize: 12,
-      fontWeight: '600',
-      flex: 1,
-    },
-    serverModalActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      gap: 8,
-      marginTop: 6,
-    },
-    serverTestBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 12,
-      height: 38,
-      borderRadius: 8,
-      backgroundColor: colors.surfaceElevated,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    serverTestBtnText: {
-      color: colors.text,
-      fontSize: 12,
-      fontWeight: '700',
-    },
-    serverSaveBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 14,
-      height: 38,
-      borderRadius: 8,
-      backgroundColor: colors.primary,
-    },
-    serverSaveBtnText: {
-      color: '#FFF',
-      fontSize: 12,
-      fontWeight: '700',
-    },
-    serverResetBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 10,
-      height: 38,
-      borderRadius: 8,
-      backgroundColor: 'transparent',
-    },
-    serverResetBtnText: {
-      color: colors.textMuted,
-      fontSize: 12,
-      fontWeight: '600',
     },
   });

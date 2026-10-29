@@ -2,8 +2,10 @@ import './setup';
 import React, { act } from 'react';
 // @ts-ignore
 import { createRoot, Root } from 'react-dom/client';
-import { AppProvider } from '../src/context/AppContext';
+import { AppProvider, useApp } from '../src/context/AppContext';
 import { ThemeProvider } from '../src/theme';
+import { RecordPreviewModal } from '../src/components/RecordPreviewModal';
+import { PdfUploadAccessModal } from '../src/components/PdfUploadAccessModal';
 import {
   setMobilePlatform,
   setSafeAreaInsets,
@@ -46,6 +48,23 @@ export async function cleanup(): Promise<void> {
   setMobilePlatform('web');
 }
 
+function TestRootHost({ children }: { children: React.ReactNode }) {
+  const {
+    recordPreview,
+    closeRecordPreview,
+    pdfAccessModalVisible,
+    closePdfAccessModal,
+  } = useApp();
+
+  return (
+    <>
+      {children}
+      <RecordPreviewModal request={recordPreview} onClose={closeRecordPreview} />
+      <PdfUploadAccessModal visible={pdfAccessModalVisible} onClose={closePdfAccessModal} />
+    </>
+  );
+}
+
 export async function renderWithProviders(
   ui: React.ReactElement,
   options?: {
@@ -68,7 +87,9 @@ export async function renderWithProviders(
   await act(async () => {
     root.render(
       <ThemeProvider>
-        <AppProvider>{ui}</AppProvider>
+        <AppProvider>
+          <TestRootHost>{ui}</TestRootHost>
+        </AppProvider>
       </ThemeProvider>
     );
     // Allow AppProvider async storage sync to settle

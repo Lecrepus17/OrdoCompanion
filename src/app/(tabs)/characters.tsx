@@ -1228,18 +1228,18 @@ export default function CharactersScreen() {
                 </View>
               </View>
 
-              {/* Regra Opcional da Ficha: Transcender a cada 5% de NEX */}
+              {/* Regra Caseira da Ficha: Transcender a cada 5% de NEX */}
               <View style={{ marginTop: 10, padding: 12, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border, borderRadius: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View style={{ flex: 1, paddingRight: 10 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Ionicons name="bonfire" size={16} color="#8B5CF6" />
                       <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>
-                        Transcender a cada 5% de NEX
+                        Regra Caseira: Transcender a cada 5% de NEX
                       </Text>
                     </View>
                     <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, lineHeight: 15 }}>
-                      Regra da mesa: permite que este agente escolha um Poder Paranormal (Transcender) a cada avanço de 5% de NEX.
+                      Regra opcional de mesa: em qualquer avanço de NEX (+5%), além dos benefícios normais, o agente pode opcionalmente Transcender (escolher 1 poder paranormal adicional) ao custo de não receber Sanidade naquele avanço.
                     </Text>
                   </View>
                   <Switch
@@ -1955,7 +1955,7 @@ export default function CharactersScreen() {
                   activeOpacity={0.85}
                   onLongPress={() => openSkillPreview(sk)}
                   delayLongPress={DEFAULT_LONG_PRESS_DELAY}
-                  testID={`sheet-skill-${sk.name}`}
+                  testID={`char-skill-row-${sk.name}`}
                 >
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>

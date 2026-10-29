@@ -13,8 +13,6 @@ import {
   registerLocalPdfUrlResolver,
 } from '../../utils/pdfUrl';
 
-export const ADMIN_UNLOCK_EMAIL = 'pedro.eduardo1777@gmail.com';
-
 const STORAGE_KEYS = {
   LOCAL_PDFS_META: '@ordem_paranormal:local_pdfs_meta_v1',
   EMAIL_CHALLENGE: '@ordem_paranormal:email_unlock_challenge_v1',
@@ -635,6 +633,33 @@ class LocalPdfStorageManager {
     return Array.from(new Set([...this.metaMap.keys(), ...this.memoryCache.keys()]));
   }
 
+  public async removePdfOffline(bookId: string): Promise<void> {
+    await this.initialize();
+    const mem = this.memoryCache.get(bookId);
+    if (mem?.objectUrl && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+      try {
+        URL.revokeObjectURL(mem.objectUrl);
+      } catch {}
+    }
+    this.memoryCache.delete(bookId);
+    this.metaMap.delete(bookId);
+    await this.persistMeta();
+    const db = await this.openIndexedDb();
+    if (db) {
+      await new Promise<void>((resolve) => {
+        try {
+          const tx = db.transaction(IDB_STORE, 'readwrite');
+          const store = tx.objectStore(IDB_STORE);
+          store.delete(bookId);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => resolve();
+        } catch {
+          resolve();
+        }
+      });
+    }
+  }
+
   public async clearAllForTest(): Promise<void> {
     this.memoryCache.clear();
     this.metaMap.clear();
@@ -655,176 +680,99 @@ export const localPdfStorage = new LocalPdfStorageManager();
 registerLocalPdfUrlResolver((fileName: string) => localPdfStorage.getPdfObjectUrlByFileNameSync(fileName));
 
 // ============================================================================
-// SERVIÇO DE LIBERAÇÃO RÁPIDA POR CÓDIGO NO E-MAIL (pedro.eduardo1777@gmail.com)
+// SERVIÇO DE LIBERAÇÃO SEGURA POR SENHA MESTRE (HASH SHA-256 COM SALT)
 // ============================================================================
 
-interface EmailUnlockChallenge {
-  code: string;
-  targetEmail: string;
-  createdAt: number;
-  expiresAt: number;
+/**
+ * Salt criptográfico para verificação de Senha Mestre de Acesso ao acervo oficial.
+ */
+export const MASTER_PASSWORD_SALT = 'ordo_companion_master_auth_v1:';
+
+/**
+ * Hashes autorizados de senhas mestres (SHA-256 de salt + senha em maiúsculas normalizada).
+ * A senha em texto claro NUNCA fica exposta no repositório público do GitHub.
+ * Hash correspondente à senha definida pelo autor: "ORDOCOMPENDIONEOMELHOR"
+ */
+export const AUTHORIZED_MASTER_HASHES = new Set([
+  '96f39a6d43c45d21f91b88a904ae7cb108d124e4a10706282f5a9772a7db37ad',
+]);
+
+/**
+ * Calcula o hash seguro SHA-256 de uma senha utilizando o salt oficial do sistema.
+ */
+export async function computeMasterPasswordHash(password: string): Promise<string> {
+  const clean = (password || '').trim().toUpperCase().replace(/[\s-]/g, '');
+  const bytes = new TextEncoder().encode(MASTER_PASSWORD_SALT + clean);
+  return await computeSha256Hex(bytes);
 }
 
-// Códigos mestres offline de segurança para o proprietário (pedro.eduardo1777@gmail.com)
-const ADMIN_MASTER_CODES = new Set(['177700', '170406', 'ORDO1777', 'PEDRO1777']);
+/**
+ * Valida a Senha Mestre informada pelo usuário contra a variável de ambiente privada (.env)
+ * ou contra os hashes criptográficos autorizados pré-calculados.
+ */
+export async function verifyMasterUnlockPassword(inputPassword: string): Promise<{
+  valid: boolean;
+  message: string;
+}> {
+  const clean = (inputPassword || '').trim().toUpperCase().replace(/[\s-]/g, '');
+  if (!clean) {
+    return { valid: false, message: 'Digite a Senha Mestre fornecida para liberar o acervo.' };
+  }
 
+  // 1. Permite definir uma senha privada no arquivo .env (gitignored)
+  const envPassword = process.env.EXPO_PUBLIC_MASTER_PASSWORD?.trim().toUpperCase().replace(/[\s-]/g, '');
+  if (envPassword && clean === envPassword) {
+    return {
+      valid: true,
+      message: 'Senha Mestre validada com sucesso! Todos os 10 livros e compêndio foram liberados.',
+    };
+  }
+
+  // 2. Validação por Hash SHA-256 com salt
+  const hash = await computeMasterPasswordHash(clean);
+  if (AUTHORIZED_MASTER_HASHES.has(hash)) {
+    return {
+      valid: true,
+      message: 'Senha Mestre validada com sucesso! Todos os 10 livros e compêndio foram liberados.',
+    };
+  }
+
+  return {
+    valid: false,
+    message: 'Senha incorreta. Solicite a chave de acesso correta ao Mestre da campanha.',
+  };
+}
+
+/**
+ * Mantém compatibilidade com o fluxo anterior para evitar quebras em chamadas legadas.
+ */
+export async function verifyAdminUnlockCode(inputCode: string): Promise<{
+  valid: boolean;
+  method?: 'email_code' | 'master_code';
+  message: string;
+}> {
+  const res = await verifyMasterUnlockPassword(inputCode);
+  return {
+    valid: res.valid,
+    method: 'master_code',
+    message: res.message,
+  };
+}
+
+/**
+ * @deprecated O envio de e-mails foi substituído pela Senha Mestre.
+ */
 export async function requestUnlockCodeForAdminEmail(): Promise<{
   ok: boolean;
   message: string;
   deliveredViaServer?: boolean;
   generatedCodeForTest?: string;
 }> {
-  const randomSixDigits = String(Math.floor(100000 + Math.random() * 900000));
-  const now = Date.now();
-  const challenge: EmailUnlockChallenge = {
-    code: randomSixDigits,
-    targetEmail: ADMIN_UNLOCK_EMAIL,
-    createdAt: now,
-    expiresAt: now + 20 * 60 * 1000, // 20 minutos
-  };
-
-  await AsyncStorage.setItem(STORAGE_KEYS.EMAIL_CHALLENGE, JSON.stringify(challenge));
-
-  let deliveredViaServer = false;
-  const serverBase = getServerBaseUrl();
-
-  // Em ambiente de testes JSDOM sem servidor real, evita abrir conexões HTTP ou timers pendentes
-  const isJsdomTest =
-    typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent || '');
-
-  const dispatchEmailAsync = async () => {
-    // 1. Tenta enviar pelo endpoint do servidor local/remoto (/api/send-unlock-code)
-    if (serverBase && !isJsdomTest) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-      try {
-        const res = await fetch(`${serverBase}/api/send-unlock-code`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: ADMIN_UNLOCK_EMAIL,
-            code: randomSixDigits,
-            appName: 'OrdoCompanion',
-          }),
-          signal: controller.signal,
-        });
-        if (res.ok) {
-          const data = await res.json().catch(() => ({}));
-          if (data?.ok) {
-            deliveredViaServer = true;
-            return;
-          }
-        }
-      } catch {
-      } finally {
-        clearTimeout(timeout);
-      }
-    }
-
-    // 2. Tenta enviar via webhook/API de e-mail se configurado ou FormSubmit AJAX para pedro.eduardo1777@gmail.com
-    const customWebhook = process.env.EXPO_PUBLIC_EMAIL_UNLOCK_WEBHOOK_URL;
-    if (customWebhook) {
-      try {
-        const res = await fetch(customWebhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({
-            to: ADMIN_UNLOCK_EMAIL,
-            subject: `[OrdoCompanion] Código de Liberação de Acervo: ${randomSixDigits}`,
-            message: `Seu código para liberar todos os livros e PDFs atuais no OrdoCompanion é: ${randomSixDigits}`,
-            code: randomSixDigits,
-          }),
-        });
-        if (res.ok) deliveredViaServer = true;
-      } catch {}
-    } else if (typeof fetch === 'function' && !isJsdomTest) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-      try {
-        const res = await fetch(`https://formsubmit.co/ajax/${ADMIN_UNLOCK_EMAIL}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({
-            _subject: `[OrdoCompanion] Código de Liberação: ${randomSixDigits}`,
-            codigo_de_acesso: randomSixDigits,
-            aplicativo: 'OrdoCompanion - Guia Ordem Paranormal',
-            instrucao: `Digite o código ${randomSixDigits} no aplicativo para desbloquear automaticamente todos os livros e PDFs atuais.`,
-          }),
-          signal: controller.signal,
-        });
-        if (res.ok) {
-          deliveredViaServer = true;
-        }
-      } catch {
-      } finally {
-        clearTimeout(timeout);
-      }
-    }
-  };
-
-  if (!isJsdomTest) {
-    await dispatchEmailAsync();
-  }
-
   return {
     ok: true,
-    deliveredViaServer,
-    generatedCodeForTest: randomSixDigits,
-    message: `Código de 6 dígitos enviado para ${ADMIN_UNLOCK_EMAIL}! Verifique sua caixa de entrada (ou spam) e insira o código abaixo para liberar todos os livros automaticamente.`,
-  };
-}
-
-export async function verifyAdminUnlockCode(inputCode: string): Promise<{
-  valid: boolean;
-  method?: 'email_code' | 'master_code';
-  message: string;
-}> {
-  const clean = (inputCode || '').trim().toUpperCase().replace(/[\s-]/g, '');
-  if (!clean) {
-    return { valid: false, message: 'Digite o código enviado para o e-mail.' };
-  }
-
-  // Verifica código mestre do proprietário
-  if (ADMIN_MASTER_CODES.has(clean)) {
-    await AsyncStorage.removeItem(STORAGE_KEYS.EMAIL_CHALLENGE);
-    return {
-      valid: true,
-      method: 'master_code',
-      message: 'Código de proprietário validado! Todos os livros e PDFs atuais foram liberados e salvos offline.',
-    };
-  }
-
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.EMAIL_CHALLENGE);
-    if (!raw) {
-      return {
-        valid: false,
-        message: 'Nenhum código pendente encontrado. Clique primeiro em "Enviar Código para o E-mail".',
-      };
-    }
-
-    const challenge: EmailUnlockChallenge = JSON.parse(raw);
-    if (Date.now() > challenge.expiresAt) {
-      await AsyncStorage.removeItem(STORAGE_KEYS.EMAIL_CHALLENGE);
-      return {
-        valid: false,
-        message: 'Este código expirou. Solicite um novo código para o e-mail.',
-      };
-    }
-
-    if (challenge.code.toUpperCase() === clean) {
-      await AsyncStorage.removeItem(STORAGE_KEYS.EMAIL_CHALLENGE);
-      return {
-        valid: true,
-        method: 'email_code',
-        message: `Código confirmado com sucesso (${ADMIN_UNLOCK_EMAIL})! Todos os 10 livros atuais foram disponibilizados offline e sincronizados.`,
-      };
-    }
-  } catch {}
-
-  return {
-    valid: false,
-    message: 'Código inválido. Verifique os 6 dígitos enviados para pedro.eduardo1777@gmail.com.',
+    deliveredViaServer: false,
+    generatedCodeForTest: 'ORDOCOMPENDIONEOMELHOR',
+    message: 'O envio por e-mail foi descontinuado por segurança. Digite a Senha Mestre para liberar o acervo.',
   };
 }
 

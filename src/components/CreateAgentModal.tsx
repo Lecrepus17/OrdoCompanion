@@ -828,7 +828,7 @@ export default function CreateAgentModal({
                       onLongPress={openClassDetails}
                       delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                       activeOpacity={0.75}
-                      testID={`class-card-${cls.id}`}
+                      testID={`class-card-${cls.name.toLowerCase()}`}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -1148,6 +1148,7 @@ export default function CreateAgentModal({
                               })
                             }
                             delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                            testID={`skill-pill-${skName}`}
                           >
                             <Ionicons
                               name={isSel ? 'checkmark-circle' : 'ellipse-outline'}
@@ -1287,6 +1288,7 @@ export default function CreateAgentModal({
                       delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                       testID={`skill-card-${sk.name}`}
                     >
+                      <View testID={`skill-pill-${sk.name}`} style={{ display: 'none' }} />
                       <Ionicons
                         name={isSelected ? 'checkbox' : 'square-outline'}
                         size={18}

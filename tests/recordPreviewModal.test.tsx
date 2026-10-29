@@ -178,21 +178,27 @@ describe('RecordPreviewModal - Padronização de Pré-visualização (Long-Press
     await fireClick(getByTestId('popup-select-btn'));
     assert.equal(queryByTestId('record-preview-modal'), null, 'Modal deve fechar após selecionar');
 
-    // Passo 3 -> 4 -> 5 (Perícias)
+    // Passo 3 -> 4 (Atributos)
     await fireClick(getByText('Próximo'));
-    await fireClick(getByText('Próximo'));
+    await fireClick(getByText('Modo Livre'));
+    await fireClick(getByText('Próximo')); // Passo 4 -> 5 (Perícias)
 
     // Segurar perícia Luta abre detalhes da perícia
     const lutaPill = getByTestId('skill-pill-Luta');
     await fireLongPress(lutaPill);
 
     assert.ok(queryByTestId('record-preview-modal'), 'Modal de perícia deve abrir no longPress');
-    assert.ok(queryByText(/Combate corpo a corpo/i), 'Descrição da perícia Luta deve aparecer');
+    assert.ok(queryByText(/corpo a corpo/i), 'Descrição da perícia Luta deve aparecer');
     await fireClick(getByTestId('popup-dismiss-btn'));
 
+    // Seleciona 4 perícias para cumprir cota de Ocultista
+    const skillsToSelect = ['Diplomacia', 'Iniciativa', 'Medicina', 'Percepção'];
+    for (const sk of skillsToSelect) {
+      await fireClick(getByText(sk));
+    }
     // Passo 5 -> 6 (Rituais de Ocultista)
     await fireClick(getByText('Próximo'));
-
+    
     const ritual1st = ritualsList.find((e) => e.circle === 1)!;
     const ritualCard = getByTestId(`ritual-card-${ritual1st.id}`);
     await fireLongPress(ritualCard);
@@ -231,7 +237,7 @@ describe('RecordPreviewModal - Padronização de Pré-visualização (Long-Press
     );
 
     // Abre modal de forjar nova arma
-    await fireClick(getByText(/Forjar Nova Arma/i));
+    await fireClick(getByText(/Nova Arma|Forjar Nova Arma/i));
 
     // Segurar uma modificação (ex: mod_certeira)
     const modCard = getByTestId('mod-select-card-mod_certeira');

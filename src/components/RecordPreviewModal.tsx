@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -25,6 +25,7 @@ import {
   OFFICIAL_WEAPON_MODS_MAP,
 } from '../utils/weapons';
 import { OFFICIAL_SKILLS_LIST } from '../utils/progression';
+import { RecordImageExportModal } from './cardImage/RecordImageExportModal';
 
 export interface RecordPreviewModalProps {
   request: RecordPreviewRequest | null;
@@ -47,6 +48,7 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const [cardImageModalOpen, setCardImageModalOpen] = useState(false);
   const {
     entities,
     getEntityById,
@@ -587,7 +589,7 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={styles.popupOverlay}>
+      <View style={styles.popupOverlay} testID="record-preview-modal">
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
           activeOpacity={1}
@@ -597,6 +599,7 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
         <View style={styles.popupCard} testID={effectiveTestID}>
           {/* Wrapper adicional para busca universal em testes */}
           <View testID="record-preview-popup" style={{ flexShrink: 1 }}>
+            <View testID="record-preview-modal" style={{ display: 'none' }} />
             {/* HEADER */}
             <View style={styles.popupHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
@@ -1128,15 +1131,25 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
                 <Text style={styles.popupDismissButtonText}>Fechar</Text>
               </TouchableOpacity>
 
+              <TouchableOpacity
+                style={styles.popupImageButton}
+                onPress={() => setCardImageModalOpen(true)}
+                testID="popup-generate-image-btn"
+                accessibilityLabel="Gerar imagem estilizada"
+              >
+                <Ionicons name="image-outline" size={16} color={colors.primary} />
+                <Text style={styles.popupImageButtonText}>Gerar Imagem</Text>
+              </TouchableOpacity>
+
               {showOpenFullEntityButton && resolvedEntity && !primaryAction && (
                 <TouchableOpacity
                   style={styles.popupSelectButton}
                   onPress={() => {
                     const eid = resolvedEntity.id;
                     onClose();
-                    router.push(`/entity/${eid}`);
+                    router.push({ pathname: '/entity/[id]', params: { id: eid } });
                   }}
-                  testID="popup-open-full-btn"
+                  testID="popup-open-entity-btn"
                 >
                   <Ionicons name="open-outline" size={17} color="#FFFFFF" />
                   <Text style={styles.popupSelectButtonText}>Abrir Registro</Text>
@@ -1172,6 +1185,12 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
           </View>
         </View>
       </View>
+      {/* Modal Gerador de Imagem Estilizada */}
+      <RecordImageExportModal
+        visible={cardImageModalOpen}
+        target={resolvedEntity || target}
+        onClose={() => setCardImageModalOpen(false)}
+      />
     </Modal>
   );
 };
@@ -1183,6 +1202,7 @@ const PreviewStat: React.FC<{ label: string; value: string; highlight?: boolean 
 }) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.statBox}>
       <Text style={styles.statLabel}>{label}</Text>
@@ -1502,6 +1522,22 @@ function createStyles(colors: ThemeColors) {
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.background,
+    },
+    popupImageButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceHighlight,
+    },
+    popupImageButtonText: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '700',
     },
     popupDismissButtonText: {
       color: colors.textSecondary,

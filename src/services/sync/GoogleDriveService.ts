@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { DriveFileInfo, SyncAuthState, UserDataBackupPayload } from './types';
 
 // Garante o fechamento do navegador in-app após autenticação OAuth
@@ -121,10 +122,15 @@ export class GoogleDriveService {
   }
 
   public getRedirectUri(): string {
+    if (Platform.OS === 'web') {
+      return AuthSession.makeRedirectUri({
+        scheme: 'com.ordemparanormal.ordo',
+        path: 'oauthredirect',
+        preferLocalhost: true,
+      });
+    }
     return AuthSession.makeRedirectUri({
-      scheme: 'ordo',
-      path: 'oauthredirect',
-      preferLocalhost: true,
+      native: 'com.ordemparanormal.ordo:/oauthredirect',
     });
   }
 
@@ -190,16 +196,24 @@ export class GoogleDriveService {
         return this.authState;
       }
 
+            if (Platform.OS !== 'web' && (Constants as any)?.appOwnership === 'expo') {
+        this.authState = {
+          isAuthenticated: false,
+          error:
+            'O Google OAuth não é suportado dentro do Expo Go no celular, pois o Expo Go não pode registrar esquemas nativos (com.ordemparanormal.ordo) no Android. Para testar no celular, instale o APK compilado ou use um Development Build. Para testar localmente agora, abra no navegador Web (npm run web) ou utilize o Backup JSON.',
+        };
+        return this.authState;
+      }
+
       const request = new AuthSession.AuthRequest({
         clientId,
         scopes: DRIVE_SCOPES,
         responseType: AuthSession.ResponseType.Code,
         redirectUri,
-        prompt: AuthSession.Prompt.SelectAccount,
+        prompt: AuthSession.Prompt.Consent,
         usePKCE: true,
         extraParams: {
           access_type: 'offline',
-          prompt: 'consent',
         },
       });
 

@@ -417,24 +417,28 @@ export function getNexMilestone(
       milestone.canTranscendSeparately = true;
       milestone.onlyParanormal = false;
       milestone.description = milestone.description
-        ? `${milestone.description} (Regra Opcional Ativa: Você ganha o Poder de Classe oficial e pode escolher um Poder Paranormal separadamente).`
-        : 'Você ganha o Poder de Classe oficial e, pela regra opcional, pode escolher um Poder Paranormal separadamente.';
+        ? `${milestone.description} (Regra Caseira Ativa: Você ganha o Poder de Classe oficial e pode escolher um Poder Paranormal separadamente).`
+        : 'Você ganha o Poder de Classe oficial e, pela regra caseira opcional, pode escolher um Poder Paranormal separadamente.';
     } else {
       // Nos patamares não-oficiais de classe: SÓ pode escolher Poder Paranormal (não pode ser poder de classe)
       milestone.needsClassPower = false;
       milestone.canTranscendSeparately = false;
       milestone.onlyParanormal = true;
       milestone.description = milestone.description
-        ? `${milestone.description} (Regra Opcional: Você pode Transcender escolhendo um Poder Paranormal; poderes de classe não são permitidos nesta subida).`
-        : 'Regra Opcional Ativa: Você pode Transcender escolhendo um Poder Paranormal nesta subida (poderes de classe não são permitidos).';
+        ? `${milestone.description} (Regra Caseira: Você pode opcionalmente Transcender escolhendo um Poder Paranormal ao custo de não ganhar Sanidade).`
+        : 'Regra Caseira Ativa: Você pode opcionalmente Transcender escolhendo um Poder Paranormal nesta subida ao custo de não ganhar Sanidade.';
     }
   } else {
-    // Regra desativada: apenas os patamares oficiais ganham poder (podendo ser poder de classe ou paranormal)
+    // Regra desativada (Oficial RAW): apenas os patamares oficiais ganham poder (podendo ser poder de classe, geral ou paranormal sem SAN)
     milestone.canTranscendSeparately = false;
     milestone.onlyParanormal = false;
+    milestone.isTranscendRuleActive = false;
     if (hasOfficialClassPower) {
       milestone.needsClassPower = true;
       milestone.canTranscend = true;
+    } else {
+      milestone.needsClassPower = false;
+      milestone.canTranscend = false;
     }
   }
 

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   BookInfo,
+  CatalogBookInfo,
   BookPage,
   Campaign,
   CampaignAgentLink,
@@ -42,13 +43,22 @@ import { UpdateCheckResult } from '../services/updates/types';
 import { updateCheckerService } from '../services/updates/UpdateCheckerService';
 import { RecordPreviewRequest } from '../types/recordPreview';
 import { OFFICIAL_SKILLS_LIST, SkillDefinition } from '../utils/progression';
-import { RecordPreviewModal } from '../components/RecordPreviewModal';
+import {
+  identifyUploadedPdf,
+  localPdfStorage,
+  requestUnlockCodeForAdminEmail,
+  verifyAdminUnlockCode,
+  verifyMasterUnlockPassword,
+  cacheUnlockedBooksOffline,
+  processUnregisteredPdfWithPythonPipeline,
+} from '../services/pdf/PdfAccessService';
 
 interface AppContextValue {
   ready: boolean;
   entities: CompendiumEntity[];
   filteredEntities: CompendiumEntity[];
   books: BookInfo[];
+  catalogBooks: CatalogBookInfo[];
   filters: CompendiumFilters;
   setFilters: React.Dispatch<React.SetStateAction<CompendiumFilters>>;
   resetFilters: () => void;
@@ -206,6 +216,24 @@ interface AppContextValue {
     skillNameOrDef: string | SkillDefinition,
     options?: Omit<RecordPreviewRequest, 'target'>
   ) => void;
+
+  // Modal de Acesso e Liberacao de Livros/PDFs
+  pdfAccessModalVisible: boolean;
+  openPdfAccessModal: () => void;
+  closePdfAccessModal: () => void;
+  uploadAndUnlockPdf: (input: {
+    fileName: string;
+    bytes?: Uint8Array;
+    fileSize?: number;
+  }) => Promise<{ ok: boolean; message: string; bookId?: string }>;
+  requestAdminEmailUnlockCode: () => Promise<{
+    ok: boolean;
+    message: string;
+    generatedCodeForTest?: string;
+  }>;
+  verifyAdminEmailUnlockCode: (code: string) => Promise<{ ok: boolean; message: string }>;
+  unlockWithMasterPassword: (password: string) => Promise<{ ok: boolean; message: string }>;
+  lockBook: (bookId: string) => Promise<void>;
 }
 
 const DEFAULT_FILTERS: CompendiumFilters = {
@@ -386,7 +414,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const books = useMemo(() => {
     if (!ready) return [];
     return defaultRepository.getBooks();
-  }, [ready]);
+  }, [ready, versionTick]);
+
+  const catalogBooks = useMemo(() => {
+    if (!ready) return [];
+    return defaultRepository.getAllCatalogBooks();
+  }, [ready, versionTick]);
 
   const filteredEntities = useMemo(() => {
     if (!ready) return [];
@@ -1043,12 +1076,135 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [entities]
   );
 
+  // Estado e Ações do Modal de Acesso e Liberação de Livros/PDFs
+  const [pdfAccessModalVisible, setPdfAccessModalVisible] = useState(false);
+
+  const openPdfAccessModal = useCallback(() => {
+    setPdfAccessModalVisible(true);
+  }, []);
+
+  const closePdfAccessModal = useCallback(() => {
+    setPdfAccessModalVisible(false);
+  }, []);
+
+  const uploadAndUnlockPdf = useCallback(
+    async (input: { fileName: string; bytes?: Uint8Array; fileSize?: number }) => {
+      try {
+        const check = await identifyUploadedPdf(input);
+        if (check.matchedSignature) {
+          const sig = check.matchedSignature;
+          if (input.bytes) {
+            await localPdfStorage.savePdfOffline(
+              sig.id,
+              sig.fileName,
+              input.bytes,
+              check.sha256
+            );
+          }
+          await defaultRepository.unlockBook(sig.id, {
+            method: 'pdf_upload',
+            fileName: sig.fileName,
+            localPdfStored: Boolean(input.bytes || localPdfStorage.hasPdfOffline(sig.id)),
+          });
+          setVersionTick((v) => v + 1);
+          cloudSyncManager.scheduleAutoSync();
+          return {
+            ok: true,
+            message: `Livro "${sig.title}" liberado com sucesso!`,
+            bookId: sig.id,
+          };
+        }
+
+        if (input.bytes) {
+          const extracted = await processUnregisteredPdfWithPythonPipeline({
+            fileName: input.fileName,
+            bytes: input.bytes,
+          });
+          if (extracted.ok && extracted.book) {
+            await localPdfStorage.savePdfOffline(
+              extracted.book.id,
+              extracted.book.fileName,
+              input.bytes,
+              check.sha256
+            );
+            await defaultRepository.registerDynamicPdfBook(
+              extracted.book,
+              extracted.entities,
+              extracted.book.fileName,
+              check.sha256
+            );
+            setVersionTick((v) => v + 1);
+            cloudSyncManager.scheduleAutoSync();
+            return {
+              ok: true,
+              message: `Suplemento "${extracted.book.title}" extraído e integrado com sucesso!`,
+              bookId: extracted.book.id,
+            };
+          }
+        }
+
+        return {
+          ok: false,
+          message: `Arquivo "${input.fileName}" não reconhecido como PDF válido de Ordem Paranormal.`,
+        };
+      } catch (err: any) {
+        return {
+          ok: false,
+          message: err?.message || 'Falha ao processar arquivo PDF.',
+        };
+      }
+    },
+    []
+  );
+
+  const unlockWithMasterPassword = useCallback(async (password: string) => {
+    const res = await verifyMasterUnlockPassword(password);
+    if (!res.valid) {
+      return {
+        ok: false,
+        message: res.message || 'Senha do Mestre incorreta.',
+      };
+    }
+    const records = await defaultRepository.unlockAllBooks('master_code');
+    await cacheUnlockedBooksOffline(records.map((r) => r.bookId));
+    setVersionTick((v) => v + 1);
+    cloudSyncManager.scheduleAutoSync();
+    return {
+      ok: true,
+      message: 'Todos os 10 livros canônicos e o compêndio foram liberados com sucesso!',
+    };
+  }, []);
+
+  const requestAdminEmailUnlockCode = useCallback(async () => {
+    return await requestUnlockCodeForAdminEmail();
+  }, []);
+
+  const verifyAdminEmailUnlockCode = useCallback(async (code: string) => {
+    return await unlockWithMasterPassword(code);
+  }, [unlockWithMasterPassword]);
+
+  const lockBook = useCallback(async (bookId: string) => {
+    await defaultRepository.lockBook(bookId);
+    await localPdfStorage.removePdfOffline(bookId);
+    setVersionTick((v) => v + 1);
+    cloudSyncManager.scheduleAutoSync();
+  }, []);
+
   const contextValue = useMemo<AppContextValue>(
     () => ({
       ready,
       entities,
       filteredEntities,
       books,
+      catalogBooks,
+      pdfAccessModalVisible,
+      openPdfAccessModal,
+      closePdfAccessModal,
+      uploadAndUnlockPdf,
+      requestAdminEmailUnlockCode,
+      verifyAdminEmailUnlockCode,
+      unlockWithMasterPassword,
+      lockBook,
       filters,
       setFilters,
       resetFilters,
@@ -1241,13 +1397,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       closeRecordPreview,
       openEntityPreview,
       openSkillPreview,
+      catalogBooks,
+      pdfAccessModalVisible,
+      openPdfAccessModal,
+      closePdfAccessModal,
+      uploadAndUnlockPdf,
+      requestAdminEmailUnlockCode,
+      verifyAdminEmailUnlockCode,
+      unlockWithMasterPassword,
+      lockBook,
     ]
   );
 
   return (
     <AppContext.Provider value={contextValue}>
       {children}
-      <RecordPreviewModal request={recordPreview} onClose={closeRecordPreview} />
     </AppContext.Provider>
   );
 };

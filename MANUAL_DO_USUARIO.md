@@ -395,52 +395,13 @@ A Groq é uma das plataformas em nuvem mais rápidas do mundo. Ela utiliza chips
 
 ---
 
-#### C. Ollama Local (100% Offline e Privado no seu Computador)
-Se você vai jogar em uma chácara, sítio, convenção ou porão sem qualquer conexão com a internet, ou se você exige **privacidade absoluta** sem enviar nenhum dado para servidores externos, o **Ollama** é a solução definitiva.
+#### C. Modo Offline Local Nativo (Motor Interno do Aplicativo - 100% Offline)
+Quando você estiver no meio de uma sessão presencial sem sinal de internet no celular ou quiser jogar sem qualquer dependência externa, o OrdoCompanion não te deixa na mão!
 
-O Ollama executa modelos de inteligência artificial diretamente no processador e placa de vídeo (GPU) do seu próprio computador (Windows, macOS ou Linux).
-
-- **Como Configurar o Ollama Passo a Passo:**
-  1. **Instale o Ollama:** Acesse [ollama.com](https://ollama.com) e baixe o instalador para o seu sistema operacional.
-  2. **Baixe o Modelo no Terminal:** Abra o PowerShell, Prompt de Comando ou Terminal e digite:
-     ```bash
-     ollama run llama3.3
-     ```
-     *(Para computadores com menos memória de vídeo, você pode usar `ollama run mistral` ou `ollama run llama3.1:8b`).*
-  3. **Servidor Local:** O Ollama inicia automaticamente em segundo plano na porta padrão `11434`, expondo um endpoint totalmente compatível com o padrão OpenAI em:
-     ```
-     http://localhost:11434/v1/chat/completions
-     ```
-  4. **Uso no Computador (Web/Desktop):** No OrdoCompanion, selecione o endpoint correspondente e digite o modelo (ex: `llama3.3`).
-  5. **Uso no Celular (Mesma Rede Wi-Fi):**
-     - Descubra o IP local do seu computador na rede Wi-Fi (no Windows, execute `ipconfig` no terminal; procure por *Endereço IPv4*, ex.: `192.168.1.105`).
-     - Configure o Ollama para aceitar conexões locais definindo a variável de ambiente `OLLAMA_HOST=0.0.0.0:11434`.
-     - No aplicativo do celular conectado no mesmo Wi-Fi, aponte o endpoint para:
-       ```
-       http://192.168.1.105:11434/v1/chat/completions
-       ```
-- **Vantagens do Ollama:** Zero custo, sem limite de mensagens por minuto, sem necessidade de internet e privacidade total dos seus dados.
-
----
-
-#### D. OpenRouter (Centenas de Modelos Abertos e Proprietários)
-O **OpenRouter** é um roteador universal que oferece acesso a centenas de inteligências artificiais através de uma única API padrão OpenAI.
-
-- **Como Configurar:**
-  1. Crie uma chave em [openrouter.ai/keys](https://openrouter.ai/keys).
-  2. Cole a chave iniciada com `sk-or-v1-...` nas configurações.
-  3. Selecione ou digite o identificador do modelo desejado, como por exemplo:
-     - `meta-llama/llama-3.3-70b-instruct:free` (100% gratuito).
-     - Modelos avançados da Anthropic, Mistral, Qwen ou OpenAI.
-
----
-
-#### E. Modo Offline Local Nativo (Motor Interno do Celular)
-Quando você estiver no meio de uma sessão presencial sem sinal de internet no celular e sem um computador executando o Ollama por perto, o OrdoCompanion não te deixa na mão!
-
-- **Como Ativar:** Basta abrir o modal de configurações e selecionar **"Modo Offline Local (Sem chave)"**.
-- **Como Funciona:** O próprio aplicativo executa um motor sintetizador inteligente escrito em TypeScript que consulta localmente os 1.367 registros do compêndio, tabelas de armas, regras de dano, perícias e as 1.261 páginas de livros salvas na memória do aparelho.
-- **Vozes das Relíquias Mantidas:** O sintetizador offline suporta todas as 4 vozes de Relíquias (Anfitrião, Magistrada, Deus da Morte, Diabo) e cita os livros canônicos de forma 100% autônoma.
+- **Como Ativar:** Basta abrir o modal de configurações da IA e selecionar **"Modo Offline Local (Sem chave)"**.
+- **Como Funciona:** O próprio aplicativo executa um motor sintetizador inteligente em TypeScript que consulta diretamente no seu aparelho os 1.367 registros do compêndio, tabelas de armas, regras de dano, perícias e as 1.261 páginas de regras salvas na memória local.
+- **Vozes das Relíquias Mantidas:** O sintetizador offline suporta todas as 4 vozes de Relíquias (Anfitrião, Magistrada, Deus da Morte, Diabo) e cita os livros canônicos de forma 100% autônoma, sem necessidade de servidores externos.
+- **Vantagens:** Zero consumo de dados móveis, privacidade absoluta, instantâneo e funciona mesmo em modo avião ou sem cobertura de rede.
 
 ---
 

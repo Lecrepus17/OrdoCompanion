@@ -405,4 +405,136 @@ describe('LevelUpModal - Exibição Completa de Habilidades Desbloqueadas e Apri
     assert.ok(getByText(/Transcender: Escolha 1 Poder Paranormal \(Opcional\)/i));
     assert.ok(getByText(/Regra de Transcender: Escolha separada de Poder Paranormal/i));
   });
+
+  test('Regra Canônica: no NEX 40% sem a regra caseira, NÃO deve exibir opção de Transcender e concede ganho normal de SAN', async () => {
+    const sampleChar40Canon: CharacterSheet = {
+      id: 'char_40_canon',
+      name: 'Arthur Guerreiro',
+      player: 'Pedro',
+      originId: 'origin__livro_base__militar',
+      classId: combatenteClass?.id || 'class__livro_base__combatente',
+      trackId: aniquiladorTrack?.id || '',
+      rank: 'Operador',
+      affinity: 'Nenhum',
+      nex: 35, // Subindo para 40%
+      attributes: { AGI: 2, FOR: 3, INT: 1, PRE: 1, VIG: 2 },
+      pvCurrent: 35,
+      pvMax: 35,
+      sanCurrent: 20,
+      sanMax: 20,
+      peCurrent: 15,
+      peMax: 15,
+      defenseBonus: 12,
+      skills: {},
+      attacks: [],
+      abilities: [],
+      inventory: [],
+      entityIds: [],
+      notes: '',
+      transcendEvery5Nex: false,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const { getByText, queryByText } = await renderWithProviders(
+      <LevelUpModal
+        visible={true}
+        character={sampleChar40Canon}
+        classEntity={combatenteClass}
+        trackEntity={aniquiladorTrack}
+        allTracksList={allTracks}
+        allPowersList={allPowers}
+        allRitualsList={allRituals}
+        userProfile={{
+          id: 'test_u_canon',
+          playerName: 'Pedro',
+          cloudSyncEnabled: false,
+          updatedAt: new Date().toISOString(),
+          transcendEvery5Nex: false,
+        }}
+        onClose={() => {}}
+        onApplyLevelUp={() => {}}
+      />
+    );
+
+    // Não deve exibir opção de Transcender em patamar não-oficial de poder
+    assert.strictEqual(queryByText(/Transcender: Escolha 1 Poder Paranormal/i), null);
+
+    // Deve exibir ganho normal de Sanidade (+3 SAN para Combatente)
+    assert.ok(getByText(/\+3 SAN/i));
+    assert.ok(getByText(/\+3 base/i));
+  });
+
+  test('Regra Caseira: no NEX 40% com a regra ativa, ganha SAN normal se não marcar Transcender; zera SAN (+0) ao selecionar poder', async () => {
+    const sampleChar40Homebrew: CharacterSheet = {
+      id: 'char_40_homebrew',
+      name: 'Arthur Guerreiro',
+      player: 'Pedro',
+      originId: 'origin__livro_base__militar',
+      classId: combatenteClass?.id || 'class__livro_base__combatente',
+      trackId: aniquiladorTrack?.id || '',
+      rank: 'Operador',
+      affinity: 'Nenhum',
+      nex: 35, // Subindo para 40%
+      attributes: { AGI: 2, FOR: 3, INT: 1, PRE: 1, VIG: 2 },
+      pvCurrent: 35,
+      pvMax: 35,
+      sanCurrent: 20,
+      sanMax: 20,
+      peCurrent: 15,
+      peMax: 15,
+      defenseBonus: 12,
+      skills: {},
+      attacks: [],
+      abilities: [],
+      inventory: [],
+      entityIds: [],
+      notes: '',
+      transcendEvery5Nex: true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const { getByText, queryByText, getByTestId } = await renderWithProviders(
+      <LevelUpModal
+        visible={true}
+        character={sampleChar40Homebrew}
+        classEntity={combatenteClass}
+        trackEntity={aniquiladorTrack}
+        allTracksList={allTracks}
+        allPowersList={allPowers}
+        allRitualsList={allRituals}
+        userProfile={{
+          id: 'test_u_hb',
+          playerName: 'Pedro',
+          cloudSyncEnabled: false,
+          updatedAt: new Date().toISOString(),
+          transcendEvery5Nex: true,
+        }}
+        onClose={() => {}}
+        onApplyLevelUp={() => {}}
+      />
+    );
+
+    // Deve exibir o card de Transcender opcional
+    assert.ok(getByText(/Transcender: Escolha 1 Poder Paranormal \(Opcional\)/i));
+    assert.ok(getByText(/Desejo Transcender neste avanço/i));
+
+    // Inicialmente, sem selecionar poder: ganho normal de Sanidade mantido (+3 SAN)
+    assert.ok(getByText(/\+3 SAN/i));
+
+    // Encontra o primeiro poder paranormal e clica nele
+    const firstParaPower = allPowers.find((p) => {
+      const sub = (p.subCategory || '').toLowerCase();
+      const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
+      return sub.includes('paranormal') || (!isClass && p.element && p.element !== 'Nenhum');
+    });
+    assert.ok(firstParaPower, 'Deve encontrar ao menos um poder paranormal');
+
+    const cardPara = getByTestId(`levelup-para-power-${firstParaPower.id}`);
+    assert.ok(cardPara, 'Card do poder paranormal deve estar renderizado');
+    await fireClick(cardPara);
+
+    // Após selecionar poder paranormal: Sanidade fica +0 SAN
+    assert.ok(getByText(/\+0 SAN/i));
+    assert.ok(getByText(/Transcendeu \(sem ganho SAN\)/i));
+  });
 });

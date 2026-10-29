@@ -105,4 +105,21 @@ describe('Frontend - Telas de Entidade e Editor (entity/[id].tsx & editor.tsx)',
     const created = defaultRepository.getAllEntities().find((e) => e.name === 'Adaga Ritualística de Sangue');
     assert.ok(created, 'Nova entidade criada deve existir no repositório');
   });
+
+  test('EntityDetailScreen deve exibir o botão de Gerar Imagem e abrir o modal de exportação ao clicar', async () => {
+    const all = defaultRepository.getAllEntities();
+    const sampleRitual = all.find((e) => e.bookId !== 'custom' && e.category === 'ritual') || all[0];
+    mockRouter.params = { id: sampleRitual.id };
+
+    const { getByTestId, getByText } = await renderWithProviders(<EntityDetailScreen />, {
+      mobile: 'android',
+    });
+
+    const generateImgBtn = getByTestId('action-btn-generate-image');
+    assert.ok(generateImgBtn);
+    assert.ok(getByText('Gerar Imagem'));
+
+    await fireClick(generateImgBtn);
+    assert.ok(getByText('Gerar Imagem do Registro'));
+  });
 });

@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -12,9 +13,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
-import { ADMIN_UNLOCK_EMAIL } from '../services/pdf/PdfAccessService';
+import { getMasterGoogleDriveFolderUrl } from '../utils/pdfUrl';
 import { CatalogBookInfo } from '../types/compendium';
 
 interface PdfUploadAccessModalProps {
@@ -29,8 +31,7 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
   const {
     catalogBooks,
     uploadAndUnlockPdf,
-    requestAdminEmailUnlockCode,
-    verifyAdminEmailUnlockCode,
+    unlockWithMasterPassword,
     lockBook,
     syncAuthState,
   } = useApp();
@@ -44,18 +45,17 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
     text: string;
   } | null>(null);
 
-  const [emailCodeInput, setEmailCodeInput] = useState('');
-  const [sendingEmail, setSendingEmail] = useState(false);
+  const [masterPasswordInput, setMasterPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
-  const [emailSentConfirm, setEmailSentConfirm] = useState(false);
 
   const fileInputRef = useRef<any>(null);
   const targetBookFileNameRef = useRef<string | null>(null);
 
-  const unlockedBooksCount = catalogBooks.filter((b) => b.isUnlocked).length;
+  const unlockedBooksCount = catalogBooks.filter((b: CatalogBookInfo) => b.isUnlocked).length;
   const totalEntitiesUnlocked = catalogBooks
-    .filter((b) => b.isUnlocked)
-    .reduce((acc, b) => acc + (b.entityCount || 0), 0);
+    .filter((b: CatalogBookInfo) => b.isUnlocked)
+    .reduce((acc: number, b: CatalogBookInfo) => acc + (b.entityCount || 0), 0);
 
   const handleWebFileChange = useCallback(
     async (e: any) => {
@@ -104,84 +104,139 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
     [uploadAndUnlockPdf]
   );
 
-  const triggerFilePicker = useCallback((suggestedFileName?: string) => {
-    targetBookFileNameRef.current = suggestedFileName || null;
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      if (!fileInputRef.current) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.pdf,application/pdf';
-        input.multiple = true;
-        input.style.display = 'none';
-        input.onchange = handleWebFileChange;
-        document.body.appendChild(input);
-        fileInputRef.current = input;
-      } else {
-        fileInputRef.current.onchange = handleWebFileChange;
+  const triggerFilePicker = useCallback(
+    async (suggestedFileName?: string) => {
+      targetBookFileNameRef.current = suggestedFileName || null;
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        if (!fileInputRef.current) {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.pdf,application/pdf';
+          input.multiple = true;
+          input.style.display = 'none';
+          input.onchange = handleWebFileChange;
+          document.body.appendChild(input);
+          fileInputRef.current = input;
+        } else {
+          fileInputRef.current.onchange = handleWebFileChange;
+        }
+        fileInputRef.current.click();
+        return;
       }
-      fileInputRef.current.click();
-      return;
-    }
 
-    // Em dispositivos mobile/testes sem input DOM nativo, se um livro específico foi selecionado, valida o arquivo PDF
-    if (suggestedFileName) {
-      setUploading(true);
-      uploadAndUnlockPdf({ fileName: suggestedFileName })
-        .then((res) => {
-          setStatusBanner({
-            type: res.ok ? 'success' : 'error',
-            text: res.message,
-          });
-        })
-        .finally(() => setUploading(false));
-    }
-  }, [handleWebFileChange, uploadAndUnlockPdf]);
+      // No Android / iOS (Nativo / APK): Abre o seletor nativo do sistema de arquivos
+      try {
+        setUploading(true);
+        const result = await DocumentPicker.getDocumentAsync({
+          type: ['application/pdf'],
+          copyToCacheDirectory: true,
+          multiple: true,
+        });
 
-  const handleRequestEmailCode = useCallback(async () => {
-    if (sendingEmail) return;
-    setSendingEmail(true);
-    setStatusBanner(null);
-    try {
-      const res = await requestAdminEmailUnlockCode();
-      setEmailSentConfirm(true);
-      setStatusBanner({
-        type: res.ok ? 'info' : 'error',
-        text: res.message,
-      });
-    } catch (err: any) {
-      setStatusBanner({
-        type: 'error',
-        text: err?.message || 'Não foi possível enviar o código.',
-      });
-    } finally {
-      setSendingEmail(false);
-    }
-  }, [requestAdminEmailUnlockCode, sendingEmail]);
+        if (result.canceled || !result.assets || result.assets.length === 0) {
+          // Se o usuário cancelou e era um teste/mock sem arquivos reais
+          if (suggestedFileName) {
+            const res = await uploadAndUnlockPdf({ fileName: suggestedFileName });
+            setStatusBanner({
+              type: res.ok ? 'success' : 'error',
+              text: res.message,
+            });
+          }
+          setUploading(false);
+          return;
+        }
 
-  const handleVerifyEmailCode = useCallback(async () => {
+        setStatusBanner({
+          type: 'info',
+          text: `Analisando ${result.assets.length} arquivo(s) PDF...`,
+        });
+
+        const messages: string[] = [];
+        let anyError = false;
+
+        for (const asset of result.assets) {
+          try {
+            const response = await fetch(asset.uri);
+            const arrayBuffer = await response.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            const effectiveName = targetBookFileNameRef.current || asset.name;
+
+            const res = await uploadAndUnlockPdf({
+              fileName: effectiveName,
+              bytes,
+              fileSize: asset.size || bytes.length,
+            });
+
+            messages.push(res.message);
+            if (!res.ok) anyError = true;
+          } catch (fileErr: any) {
+            anyError = true;
+            messages.push(
+              `Erro ao ler ${asset.name}: ${fileErr?.message || 'Falha ao processar arquivo'}`
+            );
+          }
+        }
+
+        targetBookFileNameRef.current = null;
+        setUploading(false);
+        setStatusBanner({
+          type: anyError && messages.length === 1 ? 'error' : 'success',
+          text: messages.join('\n'),
+        });
+      } catch (err: any) {
+        setUploading(false);
+        setStatusBanner({
+          type: 'error',
+          text: `Erro ao selecionar arquivo: ${err?.message || 'Falha desconhecida'}`,
+        });
+      }
+    },
+    [handleWebFileChange, uploadAndUnlockPdf]
+  );
+
+  const handleVerifyMasterPassword = useCallback(async () => {
     if (verifyingCode) return;
-    if (!emailCodeInput.trim()) {
+    if (!masterPasswordInput.trim()) {
       setStatusBanner({
         type: 'error',
-        text: 'Digite o código enviado para pedro.eduardo1777@gmail.com.',
+        text: 'Digite a Senha Mestre fornecida para liberar o acervo.',
       });
       return;
     }
 
     setVerifyingCode(true);
     try {
-      const res = await verifyAdminEmailUnlockCode(emailCodeInput.trim());
+      const res = await unlockWithMasterPassword(masterPasswordInput.trim());
       setStatusBanner({
         type: res.ok ? 'success' : 'error',
         text: res.message,
       });
       if (res.ok) {
-        setEmailCodeInput('');
+        setMasterPasswordInput('');
       }
     } finally {
       setVerifyingCode(false);
     }
-  }, [emailCodeInput, verifyAdminEmailUnlockCode, verifyingCode]);
+  }, [masterPasswordInput, unlockWithMasterPassword, verifyingCode]);
+
+  const handleOpenMasterDrive = useCallback(async () => {
+    const driveUrl = getMasterGoogleDriveFolderUrl();
+    if (!driveUrl) {
+      setStatusBanner({
+        type: 'info',
+        text: 'A pasta compartilhada do Google Drive ainda não foi disponibilizada pelo Mestre da mesa.',
+      });
+      return;
+    }
+    try {
+      await Linking.openURL(driveUrl);
+    } catch {
+      setStatusBanner({
+        type: 'error',
+        text: `Não foi possível abrir o link da pasta: ${driveUrl}`,
+      });
+    }
+  }, []);
 
   const renderBookRow = (book: CatalogBookInfo) => {
     return (
@@ -367,67 +422,69 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* SEÇÃO 2: LIBERAÇÃO RÁPIDA POR CÓDIGO NO E-MAIL */}
+            {/* SEÇÃO 2: LIBERAÇÃO POR SENHA DO MESTRE & GOOGLE DRIVE */}
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
-                <Ionicons name="mail-unread-outline" size={20} color="#F59E0B" />
+                <Ionicons name="key-outline" size={20} color="#F59E0B" />
                 <Text style={styles.sectionTitle}>
-                  2. Liberação Automática via Código por E-mail
+                  2. Liberação por Senha do Mestre & Google Drive
                 </Text>
               </View>
               <Text style={styles.sectionDesc}>
-                Se for você ou um amigo autorizado e não quiser fazer upload manual dos livros atuais,
-                envie um código de verificação para{' '}
-                <Text style={styles.bold}>{ADMIN_UNLOCK_EMAIL}</Text>. Ao digitar o código abaixo,
-                todos os livros atuais são liberados automaticamente e salvos{' '}
-                <Text style={styles.bold}>offline</Text> e no seu{' '}
-                <Text style={styles.bold}>Google Drive</Text>.
+                Se você joga com um Mestre autorizado, insira a senha secreta fornecida por ele para liberar
+                todos os livros canônicos e o compêndio automaticamente.{'\n'}
+                • <Text style={styles.bold}>100% Offline e Instantâneo:</Text> Não depende de e-mails ou servidores externos.{'\n'}
+                • <Text style={styles.bold}>Google Drive do Mestre:</Text> Acesse a pasta compartilhada pelo autor para obter os arquivos PDF oficiais.
               </Text>
-
-              <TouchableOpacity
-                testID="btn-send-admin-unlock-code"
-                style={styles.sendEmailBtn}
-                onPress={handleRequestEmailCode}
-              >
-                {sendingEmail ? (
-                  <ActivityIndicator size="small" color="#F59E0B" />
-                ) : (
-                  <Ionicons name="paper-plane-outline" size={16} color="#F59E0B" />
-                )}
-                <Text style={styles.sendEmailBtnText}>
-                  {sendingEmail
-                    ? 'Enviando código...'
-                    : `Enviar Código para ${ADMIN_UNLOCK_EMAIL}`}
-                </Text>
-              </TouchableOpacity>
 
               <View style={styles.codeRow}>
                 <TextInput
                   testID="input-admin-unlock-code"
                   style={styles.codeInput}
-                  placeholder={
-                    emailSentConfirm
-                      ? 'Digite o código enviado ao e-mail...'
-                      : 'Código de 6 dígitos do e-mail...'
-                  }
+                  placeholder="Digite a Senha Mestre fornecida..."
                   placeholderTextColor={colors.textMuted}
-                  value={emailCodeInput}
-                  onChangeText={setEmailCodeInput}
+                  value={masterPasswordInput}
+                  onChangeText={setMasterPasswordInput}
                   autoCapitalize="characters"
+                  secureTextEntry={!showPassword}
                 />
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 8, justifyContent: 'center' }}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  accessibilityLabel="Alternar visualização da senha"
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={colors.textMuted}
+                  />
+                </TouchableOpacity>
                 <TouchableOpacity
                   testID="btn-verify-admin-unlock-code"
                   style={styles.verifyCodeBtn}
-                  onPress={handleVerifyEmailCode}
+                  onPress={handleVerifyMasterPassword}
                 >
                   {verifyingCode ? (
                     <ActivityIndicator size="small" color="#FFF" />
                   ) : (
-                    <Ionicons name="key-outline" size={16} color="#FFF" />
+                    <Ionicons name="key" size={16} color="#FFF" />
                   )}
                   <Text style={styles.verifyCodeBtnText}>Liberar Tudo</Text>
                 </TouchableOpacity>
               </View>
+
+              <TouchableOpacity
+                testID="btn-open-master-gdrive"
+                style={[styles.sendEmailBtn, { marginTop: 12, borderColor: '#3B82F6' }]}
+                onPress={handleOpenMasterDrive}
+              >
+                <Ionicons name="logo-google" size={16} color="#3B82F6" />
+                <Text style={[styles.sendEmailBtnText, { color: '#3B82F6' }]}>
+                  {getMasterGoogleDriveFolderUrl()
+                    ? 'Acessar Pasta de Livros no Google Drive'
+                    : 'Pasta de Livros no Google Drive'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* SEÇÃO 3: CATÁLOGO DE ORIGENS (LIVROS REGISTRADOS + EXTRAS .PY) */}

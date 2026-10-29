@@ -4,6 +4,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -116,10 +117,13 @@ export default function LevelUpModal({
     return trackEntity;
   }, [selectedTrackId, character?.trackId, allTracksList, trackEntity]);
 
-  // Regra de Transcender a cada 5% de NEX (configuração do agente ou do perfil geral)
-  const isTranscendEvery5Enabled = Boolean(
-    character.transcendEvery5Nex ?? userProfile?.transcendEvery5Nex
+  // Regra Caseira de Transcender a cada 5% de NEX (configuração do agente ou do perfil geral, editável no modal)
+  const [isTranscendEvery5Enabled, setIsTranscendEvery5Enabled] = useState(
+    Boolean(character.transcendEvery5Nex ?? userProfile?.transcendEvery5Nex)
   );
+
+  // Ativação explícita do item opcional Transcender neste avanço
+  const [wantToTranscendExtra, setWantToTranscendExtra] = useState(false);
 
   // Opção para não subir NEX (adquirir poder mantendo NEX atual)
   const [doNotIncreaseNex, setDoNotIncreaseNex] = useState(false);
@@ -185,13 +189,16 @@ export default function LevelUpModal({
     });
   }, [allTracksList, classEntity]);
 
-  // Poderes de classe compatíveis
+  // Poderes de classe e gerais compatíveis
   const classPowers = useMemo(() => {
     const clsName = (classEntity?.name || '').toLowerCase();
     return allPowersList.filter((p) => {
       const sub = (p.subCategory || '').toLowerCase();
       const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
-      if (!isClass) return false;
+      if (!isClass) {
+        // Inclui poderes gerais que não sejam paranormais
+        return !sub.includes('paranormal') && (!p.element || p.element === 'Nenhum');
+      }
       return (
         (clsName.includes('combatente') && sub.includes('combatente')) ||
         (clsName.includes('especialista') && sub.includes('especialista')) ||
@@ -301,15 +308,30 @@ export default function LevelUpModal({
   // Verificação se houve escolha paranormal (Transcender)
   const isSelectedPowerParanormal = useMemo(() => {
     if (isTranscendEvery5Enabled) {
-      return Boolean(selectedParanormalPowerId);
+      // Regra caseira ativada:
+      // 1. O usuário escolheu um poder paranormal no card opcional de Transcender?
+      const extraActive = Boolean(wantToTranscendExtra && selectedParanormalPowerId);
+      // 2. Ou no slot de poder de classe oficial escolheu um poder paranormal?
+      let classSlotIsParanormal = false;
+      if (selectedClassPowerId) {
+        const p = allPowersList.find((item) => item.id === selectedClassPowerId);
+        if (p) {
+          const sub = (p.subCategory || '').toLowerCase();
+          const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
+          classSlotIsParanormal = sub.includes('paranormal') || (!isClass && p.element && p.element !== 'Nenhum');
+        }
+      }
+      return extraActive || classSlotIsParanormal;
     }
+
+    // Regra oficial desativada: apenas se o poder escolhido no slot oficial for paranormal
     if (!selectedPowerId) return false;
     const p = allPowersList.find((item) => item.id === selectedPowerId);
     if (!p) return false;
     const sub = (p.subCategory || '').toLowerCase();
     const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
     return sub.includes('paranormal') || (!isClass && p.element && p.element !== 'Nenhum');
-  }, [isTranscendEvery5Enabled, selectedParanormalPowerId, selectedPowerId, allPowersList]);
+  }, [isTranscendEvery5Enabled, wantToTranscendExtra, selectedParanormalPowerId, selectedClassPowerId, selectedPowerId, allPowersList]);
 
   // Rituais filtrados pelo círculo máximo
   const availableRituals = useMemo(() => {
@@ -377,7 +399,7 @@ export default function LevelUpModal({
       if (selectedClassPowerId && !nextEntityIds.includes(selectedClassPowerId)) {
         nextEntityIds.push(selectedClassPowerId);
       }
-      if (selectedParanormalPowerId && !nextEntityIds.includes(selectedParanormalPowerId)) {
+      if (wantToTranscendExtra && selectedParanormalPowerId && !nextEntityIds.includes(selectedParanormalPowerId)) {
         nextEntityIds.push(selectedParanormalPowerId);
       }
     } else {
@@ -435,6 +457,7 @@ export default function LevelUpModal({
 
     const updatedSheet: CharacterSheet = {
       ...character,
+      transcendEvery5Nex: isTranscendEvery5Enabled,
       nex: effectiveNex,
       peRound: newPeRound,
       dtRituals: newDt,
@@ -507,6 +530,33 @@ export default function LevelUpModal({
                   ? 'O poder escolhido será adicionado mantendo o patamar de NEX e pontos vitais inalterados.'
                   : milestone.description}
               </Text>
+            </View>
+          </View>
+
+          {/* REGRA CASEIRA: TRANSCENDER A CADA 5% DE NEX */}
+          <View style={styles.homebrewCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="bonfire" size={16} color="#8B5CF6" />
+                  <Text style={styles.homebrewTitle}>Regra Caseira: Transcender a cada 5% de NEX</Text>
+                </View>
+                <Text style={styles.homebrewDesc}>
+                  Regra opcional de mesa: em qualquer avanço (+5%), além dos benefícios normais, permite ao agente optar por Transcender (ganhar 1 poder paranormal adicional) ao custo de não receber Sanidade (+0 SAN).
+                </Text>
+              </View>
+              <Switch
+                value={isTranscendEvery5Enabled}
+                onValueChange={(val) => {
+                  setIsTranscendEvery5Enabled(val);
+                  if (!val) {
+                    setSelectedParanormalPowerId(null);
+                    setWantToTranscendExtra(false);
+                  }
+                }}
+                trackColor={{ false: colors.border, true: '#8B5CF6' }}
+                thumbColor={isTranscendEvery5Enabled ? '#FFF' : colors.textSecondary}
+              />
             </View>
           </View>
 
@@ -633,7 +683,7 @@ export default function LevelUpModal({
                       onPress={() => setSelectedTrackId(trk.id)}
                       onLongPress={openTrackDetails}
                       delayLongPress={DEFAULT_LONG_PRESS_DELAY}
-                      testID={`levelup-track-${trk.id}`}
+                      testID={`levelup-track-card-${trk.id}`}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={[styles.choiceCardTitle, isSel && { color: colors.primary }]}>
@@ -844,6 +894,44 @@ export default function LevelUpModal({
                 </Text>
               </View>
 
+              {/* Checkbox de ativação do item opcional */}
+              <TouchableOpacity
+                style={[
+                  styles.checkboxRow,
+                  {
+                    padding: 10,
+                    borderRadius: 8,
+                    backgroundColor: wantToTranscendExtra ? '#8B5CF615' : colors.surfaceElevated,
+                    borderWidth: 1,
+                    borderColor: wantToTranscendExtra ? '#8B5CF6' : colors.border,
+                    marginBottom: 10,
+                  },
+                ]}
+                onPress={() => {
+                  const next = !wantToTranscendExtra;
+                  setWantToTranscendExtra(next);
+                  if (!next) {
+                    setSelectedParanormalPowerId(null);
+                  }
+                }}
+              >
+                <Ionicons
+                  name={wantToTranscendExtra ? 'checkbox' : 'square-outline'}
+                  size={20}
+                  color={wantToTranscendExtra ? '#8B5CF6' : colors.textSecondary}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.checkboxText, { fontWeight: '700', color: wantToTranscendExtra ? '#8B5CF6' : colors.text }]}>
+                    Desejo Transcender neste avanço (+1 Poder Paranormal adicional)
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                    {wantToTranscendExtra
+                      ? 'Ativado: selecione o poder paranormal desejado abaixo. O ganho de Sanidade deste NEX será zerado (+0 SAN).'
+                      : 'Desativado: nenhum poder paranormal extra será adicionado e seu ganho normal de Sanidade será mantido.'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
               <TextInput
                 style={styles.searchInput}
                 value={paranormalPowerSearch}
@@ -873,14 +961,30 @@ export default function LevelUpModal({
                       primaryAction: {
                         label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
                         isSelected: isSel,
-                        onPress: () => setSelectedParanormalPowerId(isSel ? null : pow.id),
+                        onPress: () => {
+                          if (isSel) {
+                            setSelectedParanormalPowerId(null);
+                            setWantToTranscendExtra(false);
+                          } else {
+                            setSelectedParanormalPowerId(pow.id);
+                            setWantToTranscendExtra(true);
+                          }
+                        },
                       },
                     });
                   return (
                     <TouchableOpacity
                       key={pow.id}
                       style={[styles.choiceCard, isSel && [styles.choiceCardActive, { borderColor: '#8B5CF6' }]]}
-                      onPress={() => setSelectedParanormalPowerId(isSel ? null : pow.id)}
+                      onPress={() => {
+                        if (isSel) {
+                          setSelectedParanormalPowerId(null);
+                          setWantToTranscendExtra(false);
+                        } else {
+                          setSelectedParanormalPowerId(pow.id);
+                          setWantToTranscendExtra(true);
+                        }
+                      }}
                       onLongPress={openParaDetails}
                       delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                       testID={`levelup-para-power-${pow.id}`}
@@ -1347,6 +1451,24 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
       gap: 10,
+    },
+    homebrewCard: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: '#8B5CF640',
+    },
+    homebrewTitle: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    homebrewDesc: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 2,
+      lineHeight: 15,
     },
     levelBadge: {
       paddingVertical: 6,

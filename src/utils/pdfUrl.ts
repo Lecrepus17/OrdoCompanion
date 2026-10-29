@@ -4,10 +4,10 @@ import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PDF_SERVER_STORAGE_KEY = '@ordem_paranormal:pdf_server_url';
-export const GITHUB_RAW_PDF_BASE_URL =
-  'https://raw.githubusercontent.com/Lecrepus17/OrdoCompanion/main';
+const GDRIVE_FOLDER_STORAGE_KEY = '@ordem_paranormal:gdrive_books_folder_url';
 
 let customPdfServerUrl = '';
+let customGdriveBooksFolderUrl = '';
 let isStorageLoaded = false;
 let localPdfUrlResolver: ((fileName: string) => string | null) | null = null;
 
@@ -36,6 +36,54 @@ export function normalizeServerUrl(url: string): string {
 export function getCustomPdfServerUrl(): string {
   return customPdfServerUrl;
 }
+
+/**
+ * Retorna a URL da pasta do Google Drive configurada pelo Mestre (se houver).
+ */
+export function getMasterGoogleDriveFolderUrl(): string {
+  if (customGdriveBooksFolderUrl && customGdriveBooksFolderUrl.trim().length > 0) {
+    return customGdriveBooksFolderUrl.trim();
+  }
+  const envUrl = process.env.EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
+    return envUrl.trim();
+  }
+  return '';
+}
+
+/**
+ * Define e persiste a URL da pasta compartilhada do Google Drive do Mestre.
+ */
+export async function setMasterGoogleDriveFolderUrl(url: string): Promise<void> {
+  const clean = (url || '').trim();
+  customGdriveBooksFolderUrl = clean;
+  try {
+    if (clean) {
+      await AsyncStorage.setItem(GDRIVE_FOLDER_STORAGE_KEY, clean);
+    } else {
+      await AsyncStorage.removeItem(GDRIVE_FOLDER_STORAGE_KEY);
+    }
+  } catch (e) {
+    console.warn('[PDF] Falha ao persistir URL da pasta do Google Drive:', e);
+  }
+}
+
+/**
+ * Carrega a URL da pasta do Google Drive persistida no AsyncStorage.
+ */
+export async function loadStoredMasterGoogleDriveFolderUrl(): Promise<string> {
+  try {
+    const stored = await AsyncStorage.getItem(GDRIVE_FOLDER_STORAGE_KEY);
+    if (stored && typeof stored === 'string') {
+      customGdriveBooksFolderUrl = stored.trim();
+    }
+  } catch (e) {
+    console.warn('[PDF] Falha ao ler pasta persistida do Google Drive:', e);
+  }
+  return getMasterGoogleDriveFolderUrl();
+}
+
+loadStoredMasterGoogleDriveFolderUrl().catch(() => {});
 
 /**
  * Define e persiste uma nova URL de servidor de PDFs (ex: http://192.168.1.15:8081 ou https://meu-servidor.com).
@@ -205,35 +253,40 @@ export function getServerBaseUrl(): string {
 
 /**
  * Retorna a URL base garantida para acessar os arquivos .pdf completos.
- * Caso não haja um servidor local configurado (como no APK de produção),
- * utiliza automaticamente o repositório oficial na nuvem (GitHub Raw),
- * garantindo que o download e a abertura de PDFs funcionem em qualquer celular.
+ * Caso não haja um servidor local configurado, utiliza a pasta oficial no Google Drive
+ * ou retorna vazio para garantir que nenhum binário seja buscado no GitHub.
  */
 export function getEffectivePdfFileBaseUrl(): string {
   const serverBase = getServerBaseUrl();
   if (serverBase) {
     return serverBase;
   }
-  return GITHUB_RAW_PDF_BASE_URL;
+  return getMasterGoogleDriveFolderUrl();
 }
 
 /**
- * Retorna a URL direta na nuvem (GitHub Raw) de um arquivo PDF oficial.
+ * Retorna a URL na nuvem (Google Drive do Mestre ou Servidor Remoto) de um arquivo PDF oficial.
  */
 export function getCloudPdfUrl(fileName: string): string {
   const cleanName = (fileName || '').trim();
   if (!cleanName) return '';
-  const encodedFile = encodeURIComponent(cleanName);
-  return `${GITHUB_RAW_PDF_BASE_URL}/pdfs/${encodedFile}`;
+  const serverBase = getServerBaseUrl();
+  if (serverBase) {
+    const encodedFile = encodeURIComponent(cleanName);
+    return `${serverBase}/pdfs/${encodedFile}`;
+  }
+  return getMasterGoogleDriveFolderUrl();
 }
 
 /**
- * Retorna a URL do visualizador embutido (Google Docs Viewer) para abrir o PDF
- * diretamente dentro do WebBrowser no Android sem tela cinza.
+ * Retorna a URL do visualizador embutido para abrir o PDF externamente sem falhas.
  */
 export function getEmbeddedPdfViewerUrl(fileName: string, pageNumber: number = 1): string {
   const cloudUrl = getCloudPdfUrl(fileName);
   if (!cloudUrl) return '';
+  if (cloudUrl.includes('drive.google.com')) {
+    return cloudUrl;
+  }
   const pageParam = pageNumber > 1 ? `&page=${pageNumber}` : '';
   return `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(cloudUrl)}${pageParam}`;
 }
@@ -251,6 +304,10 @@ export function getCleanPdfUrl(fileName: string): string {
     if (localUrl) return localUrl;
   }
   const base = getEffectivePdfFileBaseUrl();
+  if (!base) return '';
+  if (base.includes('drive.google.com')) {
+    return base;
+  }
   const encodedFile = encodeURIComponent(cleanName);
   return `${base}/pdfs/${encodedFile}`;
 }
@@ -268,6 +325,10 @@ export function getRawPdfUrl(fileName: string, pageNumber?: number): string {
     if (localUrl) return `${localUrl}${pageFragment}`;
   }
   const base = getEffectivePdfFileBaseUrl();
+  if (!base) return '';
+  if (base.includes('drive.google.com')) {
+    return `${base}${pageFragment}`;
+  }
   const encodedFile = encodeURIComponent(cleanName);
   return `${base}/pdfs/${encodedFile}${pageFragment}`;
 }

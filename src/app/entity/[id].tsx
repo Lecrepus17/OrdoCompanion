@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CATEGORY_LABELS, COLORS, getElementStyle, ThemeColors, useTheme, useThemedStyles } from '../../theme';
 import { PdfViewerModal, PdfViewerMode } from '../../components/PdfViewerModal';
+import { RecordImageExportModal } from '../../components/cardImage/RecordImageExportModal';
 import { getRenderedPdfPageUrl } from '../../utils/pdfUrl';
 import { confirmAction } from '../../utils/alert';
 
@@ -42,6 +43,7 @@ export default function EntityDetailScreen() {
   const [pageViewerOpen, setPageViewerOpen] = useState(false);
   const [viewerMode, setViewerMode] = useState<PdfViewerMode>('pdf_scroll');
   const [listModalOpen, setListModalOpen] = useState(false);
+  const [cardImageModalOpen, setCardImageModalOpen] = useState(false);
 
   if (!entity) {
     return (
@@ -167,6 +169,16 @@ export default function EntityDetailScreen() {
             >
               <Ionicons name="list-outline" size={17} color={colors.text} />
               <Text style={styles.actionBtnText}>Listas</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => setCardImageModalOpen(true)}
+              accessibilityLabel="Gerar imagem estilizada do registro"
+              testID="action-btn-generate-image"
+            >
+              <Ionicons name="image-outline" size={17} color={colors.accent || colors.primary} />
+              <Text style={styles.actionBtnText}>Gerar Imagem</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -461,6 +473,13 @@ export default function EntityDetailScreen() {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* Modal Gerador de Imagem Estilizada do Registro */}
+      <RecordImageExportModal
+        visible={cardImageModalOpen}
+        target={entity}
+        onClose={() => setCardImageModalOpen(false)}
+      />
 
       {/* Modal Visualizador Real do PDF */}
       <PdfViewerModal

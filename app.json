@@ -4,7 +4,7 @@
     "slug": "ordo-companion",
     "version": "1.0.1",
     "orientation": "default",
-    "scheme": "ordo",
+    "scheme": "com.ordemparanormal.ordo",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "icon": "./assets/icon.png",

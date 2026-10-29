@@ -14,6 +14,8 @@ import {
   isPdfServerConfigured,
   getCustomPdfServerUrl,
   setCustomPdfServerUrl,
+  getMasterGoogleDriveFolderUrl,
+  setMasterGoogleDriveFolderUrl,
   testPdfServerConnection,
   normalizeServerUrl,
 } from '../src/utils/pdfUrl';
@@ -72,22 +74,40 @@ describe('Utilitários de URLs e Páginas PDF (pdfUrl.ts)', () => {
     });
   });
 
-  describe('Fallback na Nuvem para APK (getEffectivePdfFileBaseUrl, getCloudPdfUrl e getEmbeddedPdfViewerUrl)', () => {
-    it('getEffectivePdfFileBaseUrl deve retornar sempre uma URL válida iniciando com http/https', () => {
+  describe('Master Google Drive Folder URL', () => {
+    it('deve permitir definir, obter e limpar URL da pasta do Google Drive do Mestre', async () => {
+      const initial = getMasterGoogleDriveFolderUrl();
+      assert.strictEqual(typeof initial, 'string');
+
+      await setMasterGoogleDriveFolderUrl('https://drive.google.com/drive/folders/12345ABCDE');
+      assert.strictEqual(getMasterGoogleDriveFolderUrl(), 'https://drive.google.com/drive/folders/12345ABCDE');
+
+      await setMasterGoogleDriveFolderUrl('');
+      assert.strictEqual(getMasterGoogleDriveFolderUrl(), '');
+    });
+  });
+
+  describe('Fallback na Nuvem e Google Drive (getEffectivePdfFileBaseUrl, getCloudPdfUrl e getEmbeddedPdfViewerUrl)', () => {
+    it('getEffectivePdfFileBaseUrl deve retornar string segura sem apontar para GitHub Raw', () => {
       const base = getEffectivePdfFileBaseUrl();
-      assert.ok(base.startsWith('http://') || base.startsWith('https://'));
+      assert.ok(typeof base === 'string');
+      assert.ok(!base.includes('raw.githubusercontent.com'));
     });
 
-    it('getCloudPdfUrl deve construir URL direta no GitHub Raw codificando o nome do PDF', () => {
+    it('getCloudPdfUrl não deve usar GitHub Raw e sim Google Drive ou Servidor Local', async () => {
+      await setMasterGoogleDriveFolderUrl('https://drive.google.com/drive/folders/testFolder');
       const cloudUrl = getCloudPdfUrl('Livro base.pdf');
-      assert.ok(cloudUrl.includes('raw.githubusercontent.com'));
-      assert.ok(cloudUrl.endsWith('/pdfs/Livro%20base.pdf'));
+      assert.ok(!cloudUrl.includes('raw.githubusercontent.com'));
+      assert.ok(cloudUrl.includes('drive.google.com') || cloudUrl.includes('http'));
+      await setMasterGoogleDriveFolderUrl('');
     });
 
-    it('getEmbeddedPdfViewerUrl deve construir URL do visualizador para Android', () => {
+    it('getEmbeddedPdfViewerUrl deve construir URL de visualizador sem links do GitHub', async () => {
+      await setMasterGoogleDriveFolderUrl('https://drive.google.com/drive/folders/testFolder');
       const viewerUrl = getEmbeddedPdfViewerUrl('Livro base.pdf', 10);
-      assert.ok(viewerUrl.startsWith('https://docs.google.com/gview?embedded=true&url='));
-      assert.ok(viewerUrl.includes('page=10'));
+      assert.ok(!viewerUrl.includes('raw.githubusercontent.com'));
+      assert.ok(viewerUrl.length > 0);
+      await setMasterGoogleDriveFolderUrl('');
     });
   });
 

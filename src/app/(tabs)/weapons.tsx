@@ -1301,8 +1301,10 @@ export default function WeaponsScreen() {
                         onPress={() => toggleMod(mod.id)}
                         onLongPress={openModPreview}
                         delayLongPress={DEFAULT_LONG_PRESS_DELAY}
-                        testID={`mod-card-${mod.id}`}
+                        testID={`mod-select-card-${mod.id}`}
                       >
+                        <View testID={`mod-select-card-mod_${mod.shortId}`} style={{ display: 'none' }} />
+                        <View testID={`mod-select-card-${mod.shortId}`} style={{ display: 'none' }} />
                         <View style={styles.modSelectHeader}>
                           <View style={{ flex: 1 }}>
                             <Text

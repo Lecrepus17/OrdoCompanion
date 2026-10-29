@@ -19,6 +19,7 @@ import { BookInfo } from '../../types/compendium';
 import { PdfViewerModal, PdfViewerMode } from '../../components/PdfViewerModal';
 import { getRawPdfUrl, getRenderedPdfPageUrl, isPdfServerConfigured, openPdfDocument } from '../../utils/pdfUrl';
 import { sortBooksCanonical } from '../../repositories/OfflineDataRepository';
+import { localPdfStorage } from '../../services/pdf/PdfAccessService';
 
 const BookCoverCard: React.FC<{
   book: BookInfo;
@@ -83,9 +84,7 @@ export default function BooksScreen() {
   const [pageQuery, setPageQuery] = useState('');
   const [selectedBook, setSelectedBook] = useState<BookInfo | null>(null);
   const [currentPageNo, setCurrentPageNo] = useState(1);
-  const [viewerMode, setViewerMode] = useState<PdfViewerMode>(() =>
-    isPdfServerConfigured() ? 'pdf_scroll' : 'text'
-  );
+  const [viewerMode, setViewerMode] = useState<PdfViewerMode>('pdf_scroll');
   const [readerOpen, setReaderOpen] = useState(false);
 
   const pageSearchResults = useMemo(() => {
@@ -100,7 +99,13 @@ export default function BooksScreen() {
   ) => {
     setSelectedBook(book);
     setCurrentPageNo(Math.max(1, Math.min(book.pageCount, pageNo)));
-    const defaultMode = mode || (isPdfServerConfigured() ? 'pdf_scroll' : 'text');
+    const hasDirect = Boolean(
+      book.hasLocalPdf ||
+      book.driveSynced ||
+      book.driveFileId ||
+      localPdfStorage.hasPdfOffline(book.id)
+    );
+    const defaultMode = mode || (hasDirect || isPdfServerConfigured() ? 'pdf_scroll' : 'text');
     setViewerMode(defaultMode);
     setReaderOpen(true);
   }, []);
@@ -163,7 +168,7 @@ export default function BooksScreen() {
             borderRadius: 10,
             backgroundColor: colors.primary,
           }}
-          accessibilityLabel="Disponibilizar PDFs e Código de Acesso"
+          accessibilityLabel="Disponibilizar PDFs e Senha do Mestre"
         >
           <Ionicons name="cloud-upload-outline" size={16} color="#FFF" />
           <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFF' }}>Disponibilizar PDF</Text>
@@ -216,28 +221,28 @@ export default function BooksScreen() {
               <View
                 style={[
                   styles.bannerServerPill,
-                  { backgroundColor: isPdfServerConfigured() ? 'rgba(16, 185, 129, 0.15)' : colors.surfaceElevated },
+                  { backgroundColor: 'rgba(16, 185, 129, 0.15)' },
                 ]}
               >
                 <View
                   style={[
                     styles.bannerServerDot,
-                    { backgroundColor: isPdfServerConfigured() ? '#10B981' : colors.textMuted },
+                    { backgroundColor: '#10B981' },
                   ]}
                 />
                 <Text
                   style={[
                     styles.bannerServerPillText,
-                    { color: isPdfServerConfigured() ? '#10B981' : colors.textSecondary },
+                    { color: '#10B981' },
                   ]}
                 >
-                  {isPdfServerConfigured() ? 'Online' : '100% Offline'}
+                  100% Integrado
                 </Text>
               </View>
             </View>
             <Text style={styles.pipelineDesc}>
               Todas as 1.261 páginas oficiais estão conectadas diretamente ao leitor integrado com suporte a busca textual,
-              sumário hierárquico e visualização offline. Faça upload dos PDFs que você tem acesso (ou use o código de e-mail) para liberar os dados no Compêndio e ler os livros offline.
+              sumário hierárquico e visualização offline. Faça upload dos PDFs que você tem acesso (ou use a Senha do Mestre) para liberar os dados no Compêndio e ler os livros offline.
             </Text>
             <TouchableOpacity
               style={{
@@ -257,7 +262,7 @@ export default function BooksScreen() {
             >
               <Ionicons name="key-outline" size={15} color={colors.primary} />
               <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800' }}>
-                Enviar PDFs / Liberar com Código no E-mail ({sortedBooks.length}/{catalogBooks.length} liberados)
+                Enviar PDFs / Liberar com Senha do Mestre ({sortedBooks.length}/{catalogBooks.length} liberados)
               </Text>
             </TouchableOpacity>
           </View>
@@ -274,11 +279,11 @@ export default function BooksScreen() {
                   Nenhum PDF disponibilizado ainda
                 </Text>
                 <Text style={[styles.pipelineDesc, { textAlign: 'center' }]}>
-                  Envie seus arquivos PDF (ex.: Livro Base, Arquivos Secretos #01, #03) ou solicite um código para pedro.eduardo1777@gmail.com para liberar os livros no leitor e no Compêndio.
+                  Envie seus arquivos PDF (ex.: Livro Base, Arquivos Secretos #01, #03) ou digite a Senha do Mestre para liberar os livros no leitor e no Compêndio.
                 </Text>
                 <TouchableOpacity style={styles.readBookBtn} onPress={openPdfAccessModal}>
                   <Ionicons name="cloud-upload-outline" size={15} color="#FFF" />
-                  <Text style={styles.readBookBtnText}>Disponibilizar Meus PDFs / Código</Text>
+                  <Text style={styles.readBookBtnText}>Disponibilizar Meus PDFs / Senha Mestre</Text>
                 </TouchableOpacity>
               </View>
             </View>

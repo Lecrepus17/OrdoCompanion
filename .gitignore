@@ -21,6 +21,8 @@ data/raw_books.json
 data/cache/rendered_pages/
 public/pdfs/
 public/pdfjs/
+pdfs/
+*.pdf
 
 # Environment files
 .env

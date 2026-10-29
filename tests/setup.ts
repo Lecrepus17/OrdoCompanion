@@ -249,6 +249,11 @@ Module.prototype.require = function (id: string) {
       CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
     };
   }
+  if (id === 'expo-document-picker') {
+    return {
+      getDocumentAsync: async () => ({ canceled: true, assets: null }),
+    };
+  }
   if (id === 'expo-print') {
     return {
       printAsync: async () => {},

@@ -104,9 +104,6 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   const [lastSubmittedTicket, setLastSubmittedTicket] = useState<SupportTicketRecord | null>(null);
   const [ticketHistory, setTicketHistory] = useState<SupportTicketRecord[]>([]);
 
-  // Configuração opcional de Webhook customizado
-  const [showWebhookConfig, setShowWebhookConfig] = useState(false);
-  const [customWebhookInput, setCustomWebhookInput] = useState('');
 
   const contactConfig = useMemo(() => supportService.getConfig(), []);
 
@@ -127,18 +124,14 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
     }
   }, [userProfile, syncAuthState]);
 
-  const loadHistoryAndWebhook = useCallback(async () => {
-    const [history, savedWebhook] = await Promise.all([
-      supportService.getTicketHistory(),
-      supportService.getEffectiveWebhookUrl(),
-    ]);
+  const loadHistory = useCallback(async () => {
+    const history = await supportService.getTicketHistory();
     setTicketHistory(history);
-    setCustomWebhookInput(savedWebhook);
   }, []);
 
   useEffect(() => {
-    loadHistoryAndWebhook();
-  }, [loadHistoryAndWebhook]);
+    loadHistory();
+  }, [loadHistory]);
 
   const diagnostics = useMemo(() => {
     return supportService.collectDiagnostics({
@@ -297,15 +290,6 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
     );
   };
 
-  const handleSaveWebhookUrl = async () => {
-    await supportService.setCustomWebhookUrl(customWebhookInput);
-    showAlert(
-      'Canal de Suporte Atualizado',
-      customWebhookInput.trim()
-        ? 'A URL do Webhook foi salva! Os envios diretos pelo app serão entregues neste canal.'
-        : 'Webhook customizado removido. O app usará a configuração padrão.'
-    );
-  };
 
   const handleClearHistory = async () => {
     await supportService.clearTicketHistory();
@@ -865,54 +849,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
         </View>
       )}
 
-      {/* Bloco 4: Configuração Avançada de Webhook (Para o Desenvolvedor / Mestre da Ordem) */}
-      <View style={styles.sectionCard}>
-        <TouchableOpacity
-          style={styles.advancedToggleHeader}
-          onPress={() => setShowWebhookConfig((prev) => !prev)}
-          activeOpacity={0.7}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-            <Ionicons name="settings-outline" size={16} color={colors.textSecondary} />
-            <Text style={styles.advancedToggleTitle}>
-              Configuração de Webhook de Suporte (Opcional)
-            </Text>
-          </View>
-          <Ionicons
-            name={showWebhookConfig ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
 
-        {showWebhookConfig && (
-          <View style={styles.advancedBody}>
-            <Text style={styles.fieldHint}>
-              Se você possui um Webhook do Discord para receber os chamados em tempo real na sua central,
-              pode colar a URL abaixo (ou definir via variável EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL no .env):
-            </Text>
-            <TextInput
-              testID="support-webhook-input"
-              style={[styles.input, { marginTop: 8 }]}
-              placeholder="https://discord.com/api/webhooks/..."
-              placeholderTextColor={colors.textMuted}
-              value={customWebhookInput}
-              onChangeText={setCustomWebhookInput}
-              autoCapitalize="none"
-            />
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <TouchableOpacity
-                testID="support-save-webhook-btn"
-                style={[styles.smallConfigBtn, { backgroundColor: colors.primary }]}
-                onPress={handleSaveWebhookUrl}
-              >
-                <Ionicons name="save-outline" size={14} color="#FFF" />
-                <Text style={styles.smallConfigBtnText}>Salvar Webhook</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </View>
     </View>
   );
 

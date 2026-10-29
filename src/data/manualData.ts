@@ -1313,7 +1313,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     route: '/(tabs)/oracle',
     badge: 'G.L.I.T.C.H.',
     summary:
-      'O G.L.I.T.C.H. (Guia Lógico de Interferências Transcendentais do Caos Humano) é o assistente inteligente tático do OrdoCompanion. Dotado de arquitetura RAG (Retrieval-Augmented Generation), pesquisa instantaneamente nas 1.261 páginas dos 10 livros canônicos, 1.367 entidades do compêndio e manuais do app. Suporta Google Gemini, Groq Cloud (Llama 3), modelos locais via Ollama (100% offline no PC), OpenRouter e motor offline nativo no celular.',
+      'O G.L.I.T.C.H. (Guia Lógico de Interferências Transcendentais do Caos Humano) é o assistente inteligente tático do OrdoCompanion. Dotado de arquitetura RAG (Retrieval-Augmented Generation), pesquisa instantaneamente nas 1.261 páginas dos 10 livros canônicos, 1.367 entidades do compêndio e manuais do app. Suporta Google Gemini, Groq Cloud (Llama 3), Ollama e motor offline nativo no celular.',
     purpose:
       'Solucionar dúvidas de regras, custos de PE, rituais, criaturas e operação do app em tempo real durante a sessão, fornecendo botões interativos para saltar diretamente para páginas de livros, rolar dados e ver fichas.',
     features: [
@@ -1322,7 +1322,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
         title: 'Visão Geral de Provedores de IA & Chaves de Acesso',
         badge: 'Arquitetura',
         description:
-          'O OrdoCompanion adota uma arquitetura aberta e flexível de IA. Você pode usar a chave padrão inclusa no app, conectar sua própria chave gratuita do Google Gemini ou Groq Cloud, rodar o Ollama localmente no seu computador sem internet, ou usar o sintetizador offline embutido.',
+          'O OrdoCompanion adota uma arquitetura aberta e flexível de IA. Você pode usar a chave padrão inclusa no app, conectar sua própria chave gratuita do Google Gemini ou Groq Cloud, ou usar o sintetizador offline embutido diretamente no aparelho.',
         howToUse: [
           'No topo do chat do G.L.I.T.C.H., toque no ícone de engrenagem para abrir as Configurações de IA.',
           'Veja o indicador de status: se o escudo verde estiver visível, a Chave Padrão do Sistema está ativa e você já pode conversar imediatamente.',
@@ -1359,41 +1359,27 @@ export const MANUAL_SECTIONS: ManualSection[] = [
       },
       {
         id: 'glitch-ollama',
-        title: 'Ollama Local: 100% Offline no seu PC (Sem Internet e Sem Chave)',
+        title: 'Ollama Local no Computador (Web/Desktop)',
         badge: 'Ollama Local',
         description:
-          'Para quem deseja privacidade absoluta ou jogar em ambientes totalmente sem conexão à internet. O Ollama executa modelos de inteligência artificial diretamente no processador e placa de vídeo do seu computador (Windows, Mac ou Linux).',
+          'Para quem executa a versão Web ou Desktop no computador com privacidade absoluta. O Ollama executa modelos de IA diretamente na sua placa de vídeo sem necessidade de internet.',
         howToUse: [
-          'Passo 1: Baixe e instale o Ollama gratuitamente no seu computador pelo site oficial (ollama.com).',
-          'Passo 2: Abra o terminal do computador e baixe o modelo desejado digitando: "ollama run llama3.3" (ou "ollama run mistral").',
-          'Passo 3: O Ollama inicia automaticamente o servidor local na porta 11434, disponibilizando o endpoint compatível http://localhost:11434/v1/chat/completions.',
-          'Passo 4: No OrdoCompanion, selecione o endpoint correspondente e digite o nome do modelo (ex: llama3.3).',
-          'Passo 5 (Celular na rede local): Se estiver usando o app pelo celular, substitua "localhost" pelo IP do seu computador na rede Wi-Fi (ex: http://192.168.1.100:11434/v1/chat/completions).',
-          'Vantagens: Nenhuma chave de API necessária, zero custo, zero consumo de dados móveis e privacidade total.',
-        ],
-      },
-      {
-        id: 'glitch-openrouter',
-        title: 'OpenRouter: Acesso a Centenas de Modelos Abertos e Proprietários',
-        badge: 'OpenRouter',
-        description:
-          'Plataforma agregadora que conecta a centenas de inteligências artificiais através de um único endpoint padrão OpenAI-compatível, incluindo modelos gratuitos de alta capacidade.',
-        howToUse: [
-          'Crie uma chave de API em openrouter.ai/keys.',
-          'Nas configurações de IA, informe a chave sk-or-v1-... e selecione ou digite o modelo desejado (ex: meta-llama/llama-3.3-70b-instruct:free).',
-          'Permite testar e comparar modelos diferentes mantendo todo o histórico e RAG do OrdoCompanion.',
+          'Instale o Ollama no computador através do site oficial (ollama.com).',
+          'Execute o modelo desejado no terminal digitando "ollama run llama3.3".',
+          'No navegador do computador, o assistente conecta-se diretamente ao serviço local.',
+          'Para o celular de forma direta e sem vínculo com servidores, utilize o Modo Offline Nativo ou as chaves gratuitas do Gemini/Groq.',
         ],
       },
       {
         id: 'glitch-offline',
-        title: 'Modo Offline Local Nativo (Motor Interno do Aplicativo)',
+        title: 'Modo Offline Local Nativo (Motor Interno do Celular)',
         badge: 'Offline Nativo',
         description:
-          'Quando você não possui internet, chave de API e nem um computador executando o Ollama, o sintetizador interno do OrdoCompanion responde com precisão às dúvidas sobre regras, entidades e tabelas.',
+          'Quando você não possui internet ou chave de API, o sintetizador interno do OrdoCompanion responde com precisão às dúvidas sobre regras, entidades e tabelas diretamente no aparelho, sem depender de nenhum computador ou servidor externo.',
         howToUse: [
           'Abra as configurações do G.L.I.T.C.H. e selecione o botão "Modo Offline Local (Sem chave)".',
           'O app utiliza sua base local de 1.367 entidades e 1.261 páginas de regras para responder perguntas frequentes.',
-          'Funciona mesmo no modo avião, em acampamentos ou locais sem qualquer cobertura de rede.',
+          'Funciona 100% offline no celular, sem precisar de computador, rede Wi-Fi ou configurações técnicas de servidor.',
         ],
       },
       {
