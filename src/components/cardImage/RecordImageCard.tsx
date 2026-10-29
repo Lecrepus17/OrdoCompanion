@@ -38,7 +38,7 @@ export const RecordImageCard: React.FC<RecordImageCardProps> = ({
         <View style={styles.headerBadgesRow}>
           <View style={[styles.badge, { backgroundColor: colors.badgeBg, borderColor: colors.borderColor }]}>
             <Text style={[styles.badgeText, { color: colors.badgeText }]}>
-              {(data.categoryLabel || data.category).toUpperCase()}
+              {((data.categoryLabel || data.category) || 'REGISTRO').toUpperCase()}
             </Text>
           </View>
 
@@ -59,7 +59,7 @@ export const RecordImageCard: React.FC<RecordImageCardProps> = ({
 
         {/* 2. Título do Registro */}
         <Text style={[styles.title, { color: colors.textColor }]} numberOfLines={2}>
-          {data.name}
+          {data.name || 'Registro'}
         </Text>
 
         {data.subCategory && data.subCategory !== data.name && (
@@ -72,7 +72,7 @@ export const RecordImageCard: React.FC<RecordImageCardProps> = ({
         <View style={[styles.divider, { backgroundColor: colors.accent }]} />
 
         {/* 3. Grid de Estatísticas / Parâmetros */}
-        {data.stats.length > 0 && (
+        {data.stats && data.stats.length > 0 && (
           <View style={styles.statsGrid}>
             {data.stats.slice(0, 6).map((st, i) => (
               <View
@@ -87,7 +87,7 @@ export const RecordImageCard: React.FC<RecordImageCardProps> = ({
                 ]}
               >
                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-                  {st.label.toUpperCase()}
+                  {(st.label || 'INFO').toUpperCase()}
                 </Text>
                 <Text
                   style={[
@@ -96,7 +96,7 @@ export const RecordImageCard: React.FC<RecordImageCardProps> = ({
                   ]}
                   numberOfLines={1}
                 >
-                  {st.value}
+                  {st.value || '—'}
                 </Text>
               </View>
             ))}
@@ -104,7 +104,7 @@ export const RecordImageCard: React.FC<RecordImageCardProps> = ({
         )}
 
         {/* 4. Resumo em Itálico (se houver) */}
-        {data.summary && (
+        {data.summary ? (
           <View
             style={[
               styles.summaryBox,
@@ -119,15 +119,15 @@ export const RecordImageCard: React.FC<RecordImageCardProps> = ({
               "{data.summary}"
             </Text>
           </View>
-        )}
+        ) : null}
 
         {/* 5. Descrição do Registro */}
         <View style={styles.descriptionWrap}>
           <Text
             style={[styles.descriptionText, { color: colors.textColor }]}
-            numberOfLines={compact ? 4 : 12}
+            numberOfLines={compact ? 4 : 14}
           >
-            {data.description}
+            {data.description || 'Nenhum detalhe adicional disponível.'}
           </Text>
         </View>
 
@@ -139,7 +139,7 @@ export const RecordImageCard: React.FC<RecordImageCardProps> = ({
                 <Text style={[styles.extraSecTitle, { color: sec.accentColor || colors.accent }]}>
                   {sec.title}
                 </Text>
-                <Text style={[styles.extraSecContent, { color: colors.textSecondary }]} numberOfLines={2}>
+                <Text style={[styles.extraSecContent, { color: colors.textSecondary }]} numberOfLines={3}>
                   {sec.content}
                 </Text>
               </View>
@@ -168,6 +168,7 @@ export const RecordImageCard: React.FC<RecordImageCardProps> = ({
 
 const styles = StyleSheet.create({
   cardContainer: {
+    width: '100%',
     borderRadius: 16,
     borderWidth: 2,
     padding: 10,
@@ -182,6 +183,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 16,
     position: 'relative',
+    minHeight: 280,
   },
   cornerTL: {
     position: 'absolute',
@@ -271,6 +273,7 @@ const styles = StyleSheet.create({
   statBox: {
     flexGrow: 1,
     flexBasis: '30%',
+    minWidth: 85,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 6,

@@ -1,4 +1,5 @@
 import { Platform, Share } from 'react-native';
+import * as Print from 'expo-print';
 import { generateCardSvg } from './svgCardRenderer';
 import { CardThemeDefinition, ExportCardOptions, RecordCardData } from './types';
 
@@ -85,6 +86,65 @@ function dataUrlToBlob(dataUrl: string): Blob | null {
 }
 
 /**
+ * Empacota o SVG em uma página HTML autônoma de alta definição para impressão / salvar PDF no Android/iOS
+ */
+export function wrapCardSvgForPrint(
+  svgString: string,
+  title: string,
+  theme: CardThemeDefinition
+): string {
+  const bgColor = theme.colors.bgGradientStart || '#05070B';
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${title} - Ordo Realitas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    @page {
+      size: auto;
+      margin: 8mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: ${bgColor};
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .card-wrapper {
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    svg {
+      width: 100%;
+      height: auto;
+      max-height: 94vh;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="card-wrapper">
+    ${svgString}
+  </div>
+</body>
+</html>`;
+}
+
+/**
  * Formata os dados do registro como texto estilizado para Discord ou WhatsApp
  */
 export function formatRecordTextForSharing(
@@ -94,8 +154,8 @@ export function formatRecordTextForSharing(
   const parts: string[] = [];
   const glyph = theme.elementGlyph ? `${theme.elementGlyph} ` : '';
 
-  parts.push(`*${glyph}${data.name.toUpperCase()}*`);
-  parts.push(`Categoria: ${data.categoryLabel}${data.subCategory ? ` • ${data.subCategory}` : ''}`);
+  parts.push(`*${glyph}${(data.name || 'REGISTRO').toUpperCase()}*`);
+  parts.push(`Categoria: ${data.categoryLabel || data.category}${data.subCategory ? ` • ${data.subCategory}` : ''}`);
   if (data.element) {
     parts.push(`Elemento: ${data.element}`);
   }
@@ -103,7 +163,7 @@ export function formatRecordTextForSharing(
     parts.push(`Fonte: ${data.bookTitle}${data.pageNumber ? ` • Pág. ${data.pageNumber}` : ''}`);
   }
 
-  if (data.stats.length > 0) {
+  if (data.stats && data.stats.length > 0) {
     parts.push('');
     parts.push('━━━ PARÂMETROS ━━━');
     for (const st of data.stats) {
@@ -145,7 +205,7 @@ export interface DownloadResult {
 }
 
 /**
- * Realiza o download da imagem estilizada (PNG ou SVG)
+ * Realiza o download da imagem estilizada (PNG/SVG no Web, ou Salvar PDF/Imprimir no APK nativo)
  */
 export async function downloadCardImage(
   data: RecordCardData,
@@ -189,16 +249,29 @@ export async function downloadCardImage(
     }
   }
 
-  // Mobile / Fallback Nativo: Compartilha dados textuais ou salva link
+  // Mobile / APK Nativo: Usa Expo Print para acionar a folha oficial do Android com visualização completa e 'Salvar como PDF'
   try {
-    const text = formatRecordTextForSharing(data, theme);
-    await Share.share({
-      title: data.name,
-      message: text,
-    });
-    return { success: true, fileName, format };
+    const html = wrapCardSvgForPrint(rawSvg, data.name, theme);
+    await Print.printAsync({ html });
+    return { success: true, fileName: `${fileName}.pdf`, format };
   } catch (err: any) {
-    return { success: false, fileName, format, error: err?.message || 'Erro no compartilhamento móvel' };
+    // Se o usuário dispensar ou cancelar o diálogo de impressão
+    const msg = String(err?.message || '').toLowerCase();
+    if (msg.includes('cancel') || msg.includes('dismiss')) {
+      return { success: true, fileName, format };
+    }
+
+    // Fallback: compartilha os dados textuais do registro
+    try {
+      const text = formatRecordTextForSharing(data, theme);
+      await Share.share({
+        title: data.name,
+        message: text,
+      });
+      return { success: true, fileName, format };
+    } catch {
+      return { success: false, fileName, format, error: err?.message || 'Erro ao exportar card' };
+    }
   }
 }
 

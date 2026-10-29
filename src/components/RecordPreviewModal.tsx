@@ -582,8 +582,9 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={true}
+    <>
+      <Modal
+        visible={!cardImageModalOpen}
       transparent
       animationType="fade"
       onRequestClose={onClose}
@@ -1185,14 +1186,16 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
           </View>
         </View>
       </View>
-      {/* Modal Gerador de Imagem Estilizada */}
-      <RecordImageExportModal
-        visible={cardImageModalOpen}
-        target={resolvedEntity || target}
-        onClose={() => setCardImageModalOpen(false)}
-      />
     </Modal>
-  );
+
+    {/* Modal Gerador de Imagem Estilizada (fora do Modal principal para evitar bug de modais aninhados no Android) */}
+    <RecordImageExportModal
+      visible={cardImageModalOpen}
+      target={resolvedEntity || target}
+      onClose={() => setCardImageModalOpen(false)}
+    />
+  </>
+);
 };
 
 const PreviewStat: React.FC<{ label: string; value: string; highlight?: boolean }> = ({

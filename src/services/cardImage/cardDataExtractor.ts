@@ -63,7 +63,7 @@ export function extractRecordCardData(
         { label: 'Dano', value: dmg, highlight: true },
         { label: 'Crítico', value: crit },
         { label: 'Categoria', value: `Cat. ${cat}` },
-        { label: 'Espaços', value: `${sp} ESP` },
+        { label: 'Espaços', value: `${sp ?? 1} ESP` },
       ];
       return {
         id: w.id,
@@ -101,7 +101,10 @@ export function extractRecordCardData(
         category: 'power',
         categoryLabel: 'Habilidade de Agente',
         subCategory: ab.originPage || ab.type,
-        stats: ab.cost ? [{ label: 'Custo', value: ab.cost, highlight: true }] : [],
+        stats: [
+          { label: 'Custo', value: ab.cost || 'Passivo', highlight: true },
+          { label: 'Tipo', value: ab.type || 'Habilidade' },
+        ],
         description: ab.description,
       };
     }
@@ -131,8 +134,8 @@ export function extractRecordCardData(
         category: 'item',
         categoryLabel: 'Item do Inventário',
         stats: [
-          { label: 'Espaços', value: String(it.spaces ?? 0), highlight: true },
-          { label: 'Categoria', value: it.category ? `Cat. ${it.category}` : '0' },
+          { label: 'Espaços', value: `${it.spaces ?? 0} ESP`, highlight: true },
+          { label: 'Categoria', value: it.category ? `Cat. ${it.category}` : 'Cat. 0' },
         ],
         description: it.details || 'Equipamento ou utilitário do agente.',
       };
@@ -229,9 +232,9 @@ function extractFromCompendiumEntity(ent: CompendiumEntity): RecordCardData {
 
   // 2. Ameaças / Criaturas
   else if (ent.category === 'creature') {
-    if (ent.vd !== undefined) stats.push({ label: 'VD', value: String(ent.vd), highlight: true });
-    if (ent.pv !== undefined) stats.push({ label: 'PV', value: String(ent.pv), highlight: true });
-    if (ent.defense !== undefined) stats.push({ label: 'Defesa', value: String(ent.defense) });
+    if (ent.vd !== undefined && ent.vd !== null) stats.push({ label: 'VD', value: String(ent.vd), highlight: true });
+    if (ent.pv !== undefined && ent.pv !== null) stats.push({ label: 'PV', value: String(ent.pv), highlight: true });
+    if (ent.defense !== undefined && ent.defense !== null) stats.push({ label: 'Defesa', value: String(ent.defense) });
     if (ent.disturbingPresence) {
       stats.push({ label: 'Presença Pert.', value: ent.disturbingPresence });
     }
@@ -252,8 +255,12 @@ function extractFromCompendiumEntity(ent: CompendiumEntity): RecordCardData {
   else if (ent.category === 'weapon' || ent.category === 'item') {
     if (ent.damage) stats.push({ label: 'Dano', value: ent.damage, highlight: true });
     if (ent.critical) stats.push({ label: 'Crítico', value: ent.critical });
-    if (ent.itemCategory) stats.push({ label: 'Categoria', value: `Cat. ${ent.itemCategory}` });
-    if (ent.spaces) stats.push({ label: 'Espaços', value: `${ent.spaces} ESP` });
+    if (ent.itemCategory !== undefined && ent.itemCategory !== null && String(ent.itemCategory).trim() !== '') {
+      stats.push({ label: 'Categoria', value: `Cat. ${ent.itemCategory}` });
+    }
+    if (ent.spaces !== undefined && ent.spaces !== null) {
+      stats.push({ label: 'Espaços', value: `${ent.spaces} ESP` });
+    }
     if (ent.proficiency) stats.push({ label: 'Proficiência', value: ent.proficiency });
     if (ent.handedness) stats.push({ label: 'Empunhadura', value: ent.handedness });
   }
@@ -288,7 +295,14 @@ function extractFromCompendiumEntity(ent: CompendiumEntity): RecordCardData {
 
   // 6. Poderes
   else if (ent.category === 'power') {
-    if (ent.prerequisite) stats.push({ label: 'Pré-requisito', value: ent.prerequisite, highlight: true });
+    if (ent.prerequisite) {
+      stats.push({ label: 'Pré-requisito', value: ent.prerequisite, highlight: true });
+    } else {
+      stats.push({ label: 'Tipo', value: ent.subCategory || 'Poder Paranormal', highlight: true });
+    }
+    if (ent.element && ent.element !== 'Nenhum') {
+      stats.push({ label: 'Elemento', value: ent.element });
+    }
     if (ent.affinity) {
       extraSections.push({
         title: 'Afinidade Elemental',
@@ -301,13 +315,36 @@ function extractFromCompendiumEntity(ent: CompendiumEntity): RecordCardData {
   // 7. Perícias
   else if (ent.category === 'skill') {
     if (ent.baseAttribute) stats.push({ label: 'Atributo', value: ent.baseAttribute, highlight: true });
-    if (ent.trainedOnly) stats.push({ label: 'Apenas Treinada', value: 'Sim' });
-    if (ent.armorPenalty) stats.push({ label: 'Penalidade Carga', value: 'Sim' });
+    if (ent.trainedOnly !== undefined) stats.push({ label: 'Apenas Treinada', value: ent.trainedOnly ? 'Sim' : 'Não' });
+    if (ent.armorPenalty !== undefined) stats.push({ label: 'Penalidade Carga', value: ent.armorPenalty ? 'Sim' : 'Não' });
+  }
+
+  // 8. Condições
+  else if (ent.category === 'condition') {
+    stats.push({ label: 'Tipo', value: 'Condição', highlight: true });
+    if (ent.tags && ent.tags.length > 0) {
+      stats.push({ label: 'Efeito', value: ent.tags.slice(0, 3).join(', ') });
+    }
+  }
+
+  // 9. Fallback universal garantindo que nenhum card fique sem parâmetros
+  if (stats.length === 0) {
+    if (ent.subCategory && ent.subCategory !== ent.name) {
+      stats.push({ label: 'Tipo', value: ent.subCategory, highlight: true });
+    } else {
+      stats.push({ label: 'Categoria', value: catInfo.singular, highlight: true });
+    }
+    if (ent.element && ent.element !== 'Nenhum') {
+      stats.push({ label: 'Elemento', value: ent.element });
+    }
+    if (ent.bookTitle) {
+      stats.push({ label: 'Fonte', value: ent.bookTitle });
+    }
   }
 
   return {
     id: ent.id,
-    name: ent.name,
+    name: ent.name || 'Registro',
     category: ent.category,
     categoryLabel: catInfo.singular,
     subCategory: ent.subCategory || catInfo.singular,
@@ -316,7 +353,7 @@ function extractFromCompendiumEntity(ent: CompendiumEntity): RecordCardData {
     pageNumber: ent.pageNumber,
     stats,
     summary: ent.summary,
-    description: ent.description || '',
+    description: ent.description || ent.shortDescription || ent.summary || 'Registro oficial do compêndio.',
     extraSections: extraSections.length > 0 ? extraSections : undefined,
     tags: ent.tags,
   };

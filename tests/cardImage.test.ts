@@ -271,4 +271,42 @@ test('Sistema de Geração de Imagem Estilizada do Compêndio', async (t) => {
     const shareRes = await shareCardImage(data, theme);
     assert.ok(typeof shareRes.success === 'boolean');
   });
+
+  await t.test('7. Robustez de Extração e Exportação para APK (Cat 0, Espaço 0 e Print)', async () => {
+    const { wrapCardSvgForPrint } = await import('../src/services/cardImage/cardExportService');
+
+    // Item geral com Categoria 0 e Espaço 0
+    const generalItem = {
+      id: 'item_lanterna',
+      name: 'Lanterna Tática',
+      category: 'item',
+      itemCategory: 0,
+      spaces: 0,
+      description: 'Ilumina uma área de 9 metros.',
+    } as unknown as CompendiumEntity;
+    const dataItem = extractRecordCardData(generalItem);
+    assert.equal(dataItem.stats.length >= 2, true);
+    assert.ok(dataItem.stats.some(s => s.label === 'Categoria' && s.value === 'Cat. 0'));
+    assert.ok(dataItem.stats.some(s => s.label === 'Espaços' && s.value === '0 ESP'));
+
+    // Poder sem pré-requisito
+    const powerWithoutReq = {
+      id: 'pow_visagem',
+      name: 'Visagem do Horror',
+      category: 'power',
+      subCategory: 'Poder de Ocultista',
+      element: 'Medo',
+    } as unknown as CompendiumEntity;
+    const dataPower = extractRecordCardData(powerWithoutReq);
+    assert.equal(dataPower.stats.length >= 2, true);
+    assert.ok(dataPower.stats.some(s => s.label === 'Elemento' && s.value === 'Medo'));
+
+    // Teste de wrapCardSvgForPrint
+    const theme = resolveRecordTheme(generalItem);
+    const svg = generateCardSvg(dataItem, theme);
+    const html = wrapCardSvgForPrint(svg, generalItem.name, theme);
+    assert.ok(html.includes('<!DOCTYPE html>'));
+    assert.ok(html.includes(generalItem.name));
+    assert.ok(html.includes('<svg'));
+  });
 });

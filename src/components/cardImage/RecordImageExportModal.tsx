@@ -89,9 +89,13 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
       setIsExporting(true);
       const res = await downloadCardImage(cardData, activeTheme, { format: exportFormat });
       if (res.success) {
-        showFeedback(`Download concluído: ${res.fileName}`);
+        if (Platform.OS === 'web') {
+          showFeedback(`Download concluído: ${res.fileName}`);
+        } else {
+          showFeedback('Pronto! Salve como PDF ou imprima seu card.');
+        }
       } else {
-        showFeedback(`Aviso: ${res.error || 'Não foi possível baixar'}`);
+        showFeedback(`Aviso: ${res.error || 'Não foi possível exportar'}`);
       }
     } catch (err: any) {
       showFeedback(`Erro: ${err?.message || 'Falha ao baixar imagem'}`);
@@ -142,6 +146,13 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
           },
         ]}
       >
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+          accessibilityLabel="Fechar ao tocar fora"
+        />
+
         <View style={[styles.modalBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {/* 1. Header do Modal */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -340,6 +351,7 @@ const styles = StyleSheet.create({
   modalBox: {
     width: '100%',
     maxWidth: 620,
+    height: '92%',
     maxHeight: '94%',
     borderRadius: 16,
     borderWidth: 1.5,
@@ -438,11 +450,14 @@ const styles = StyleSheet.create({
   },
   previewScrollView: {
     flex: 1,
+    flexGrow: 1,
+    minHeight: 280,
     backgroundColor: '#05070B',
   },
   previewScrollContent: {
     padding: 16,
     alignItems: 'center',
+    flexGrow: 1,
   },
   cardWrapper: {
     width: '100%',
