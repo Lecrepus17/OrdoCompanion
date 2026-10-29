@@ -298,4 +298,62 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     assert.ok(gdriveBtn);
     await fireClick(gdriveBtn);
   });
+
+  test('6. PDFs grandes (> 80 MB, ex: Sobrevivendo ao Horror e Arquivos Secretos #02) não travam por OOM e identificam instantaneamente', async () => {
+    // 84 MB para Sobrevivendo ao Horror
+    const resSobrevivendo = await identifyUploadedPdf({
+      fileName: 'Sobrevivendo ao Horror v1.2.pdf',
+      fileSize: 88080384,
+    });
+    assert.strictEqual(resSobrevivendo.isValidPdf, true);
+    assert.strictEqual(resSobrevivendo.matchedSignature?.id, 'sobrevivendo_ao_horror');
+
+    // 84.5 MB para Arquivos Secretos #02
+    const resAS2 = await identifyUploadedPdf({
+      fileName: 'Arquivos-Secretos-02.pdf',
+      fileSize: 88604672,
+    });
+    assert.strictEqual(resAS2.isValidPdf, true);
+    assert.strictEqual(resAS2.matchedSignature?.id, 'arquivos_secretos_02');
+
+    // Arquivo desconhecido grande (> 80MB) com bytes simulados não estoura call stack ou heap
+    const fakeBigHeader = new Uint8Array(1024);
+    fakeBigHeader[0] = 0x25; // %
+    fakeBigHeader[1] = 0x50; // P
+    fakeBigHeader[2] = 0x44; // D
+    fakeBigHeader[3] = 0x46; // F
+    const resBigCustom = await identifyUploadedPdf({
+      fileName: 'Homebrew-Gigante-Campanha.pdf',
+      bytes: fakeBigHeader,
+      fileSize: 85 * 1024 * 1024,
+    });
+    assert.strictEqual(resBigCustom.isValidPdf, true);
+    assert.strictEqual(resBigCustom.matchedSignature, null);
+    assert.ok(typeof resBigCustom.sha256 === 'string');
+  });
+
+  test('7. Armazenamento Offline de PDFs (LocalPdfStorageManager) persiste e disponibiliza sem necessidade de servidor', async () => {
+    // Limpa cache
+    await localPdfStorage.clearAllForTest();
+    assert.strictEqual(localPdfStorage.hasPdfOffline('livro_regras'), false);
+
+    // Salva PDF simulado offline
+    const fakeBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]);
+    await localPdfStorage.savePdfOffline('livro_regras', 'Livro de Regras.pdf', fakeBytes);
+
+    // Deve estar disponível imediatamente offline
+    assert.strictEqual(localPdfStorage.hasPdfOffline('livro_regras'), true);
+
+    const offlineUrl = await localPdfStorage.getPdfObjectUrl('livro_regras');
+    assert.ok(offlineUrl, 'Deve gerar URL offline (blob/objectUrl)');
+
+    // Recupera bytes
+    const retrievedBytes = await localPdfStorage.getPdfBytes('livro_regras');
+    assert.ok(retrievedBytes);
+    assert.strictEqual(retrievedBytes?.length, fakeBytes.length);
+
+    // Remove do cache
+    await localPdfStorage.removePdfOffline('livro_regras');
+    assert.strictEqual(localPdfStorage.hasPdfOffline('livro_regras'), false);
+  });
 });

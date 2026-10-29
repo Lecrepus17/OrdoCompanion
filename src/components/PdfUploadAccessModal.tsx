@@ -17,7 +17,12 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { getMasterGoogleDriveFolderUrl } from '../utils/pdfUrl';
+import { confirmAction } from '../utils/alert';
 import { CatalogBookInfo } from '../types/compendium';
+import {
+  downloadBookPdfOffline,
+  downloadAllUnlockedBooksOffline,
+} from '../services/pdf/PdfAccessService';
 
 interface PdfUploadAccessModalProps {
   visible: boolean;
@@ -33,6 +38,7 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
     uploadAndUnlockPdf,
     unlockWithMasterPassword,
     lockBook,
+    deletePdfBook,
     syncAuthState,
   } = useApp();
   const { colors } = useTheme();
@@ -48,6 +54,8 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
   const [masterPasswordInput, setMasterPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
+  const [downloadingOffline, setDownloadingOffline] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState('');
 
   const fileInputRef = useRef<any>(null);
   const targetBookFileNameRef = useRef<string | null>(null);
@@ -238,6 +246,85 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
     }
   }, []);
 
+  const handleDownloadAllOffline = useCallback(async () => {
+    if (downloadingOffline) return;
+    setDownloadingOffline(true);
+    setDownloadProgress('Iniciando download dos PDFs...');
+    setStatusBanner({
+      type: 'info',
+      text: 'Baixando livros liberados para o armazenamento offline do aparelho...',
+    });
+    try {
+      const res = await downloadAllUnlockedBooksOffline((cur, tot, title) => {
+        setDownloadProgress(`Baixando ${cur} de ${tot}: ${title}...`);
+      });
+      setDownloadingOffline(false);
+      setDownloadProgress('');
+      if (res.downloaded > 0) {
+        setStatusBanner({
+          type: 'success',
+          text: `${res.downloaded} livro(s) salvo(s) offline no aparelho! Agora disponíveis sem precisar do servidor.`,
+        });
+      } else {
+        setStatusBanner({
+          type: 'info',
+          text: 'Servidor local não encontrado ou livros já baixados. Você também pode enviar os PDFs diretamente pelo botão "Enviar PDF" para tê-los offline.',
+        });
+      }
+    } catch (err: any) {
+      setDownloadingOffline(false);
+      setDownloadProgress('');
+      setStatusBanner({
+        type: 'error',
+        text: `Erro ao baixar acervo: ${err?.message || 'Falha de conexão'}`,
+      });
+    }
+  }, [downloadingOffline]);
+
+  const handleDownloadSingleBook = useCallback(async (book: CatalogBookInfo) => {
+    setStatusBanner({
+      type: 'info',
+      text: `Baixando "${book.title}" para o aparelho (leitura offline)...`,
+    });
+    try {
+      const res = await downloadBookPdfOffline(book.id, (msg) => {
+        setStatusBanner({ type: 'info', text: msg });
+      });
+      setStatusBanner({
+        type: res.ok ? 'success' : 'error',
+        text: res.message,
+      });
+    } catch (err: any) {
+      setStatusBanner({
+        type: 'error',
+        text: `Erro ao baixar ${book.title}: ${err?.message || 'Falha desconhecida'}`,
+      });
+    }
+  }, []);
+
+  const handleDeleteBook = useCallback(
+    (book: CatalogBookInfo) => {
+      const isCustom = Boolean(book.isCustomBook);
+      confirmAction({
+        title: isCustom ? 'Excluir PDF Personalizado' : 'Excluir Arquivo do PDF',
+        message: isCustom
+          ? `Deseja realmente excluir permanentemente o PDF "${book.title}" e todos os seus dados vinculados?`
+          : `Deseja remover o arquivo offline de "${book.title}" e bloquear seu acesso? Você poderá adicioná-lo novamente a qualquer momento.`,
+        confirmText: 'Excluir',
+        cancelText: 'Cancelar',
+        destructive: true,
+        onConfirm: async () => {
+          const res = await deletePdfBook(book.id);
+          setStatusBanner({
+            type: res.ok ? 'success' : 'error',
+            text: res.message,
+          });
+        },
+      });
+    },
+    [deletePdfBook]
+  );
+
   const renderBookRow = (book: CatalogBookInfo) => {
     return (
       <View
@@ -305,23 +392,56 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
 
         <View style={styles.bookItemActions}>
           {!book.isUnlocked ? (
-            <TouchableOpacity
-              testID={`btn-upload-book-${book.id}`}
-              style={styles.uploadBookBtn}
-              onPress={() => triggerFilePicker(book.fileName)}
-            >
-              <Ionicons name="cloud-upload-outline" size={14} color="#FFF" />
-              <Text style={styles.uploadBookBtnText}>Enviar PDF</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {book.isCustomBook && (
+                <TouchableOpacity
+                  testID={`btn-delete-catalog-book-${book.id}`}
+                  style={styles.deleteBookBtn}
+                  onPress={() => handleDeleteBook(book)}
+                  accessibilityLabel={`Excluir ${book.title}`}
+                >
+                  <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                  <Text style={styles.deleteBookBtnText}>Excluir</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                testID={`btn-upload-book-${book.id}`}
+                style={styles.uploadBookBtn}
+                onPress={() => triggerFilePicker(book.fileName)}
+              >
+                <Ionicons name="cloud-upload-outline" size={14} color="#FFF" />
+                <Text style={styles.uploadBookBtnText}>Enviar PDF</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            <TouchableOpacity
-              testID={`btn-lock-book-${book.id}`}
-              style={styles.lockBookBtn}
-              onPress={() => lockBook(book.id)}
-            >
-              <Ionicons name="lock-closed-outline" size={13} color={colors.textMuted} />
-              <Text style={styles.lockBookBtnText}>Bloquear</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {!book.localPdfAvailable && (
+                <TouchableOpacity
+                  style={[styles.uploadBookBtn, { backgroundColor: '#2563EB', paddingHorizontal: 10 }]}
+                  onPress={() => handleDownloadSingleBook(book)}
+                >
+                  <Ionicons name="download-outline" size={13} color="#FFF" />
+                  <Text style={styles.uploadBookBtnText}>Baixar</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                testID={`btn-lock-book-${book.id}`}
+                style={styles.lockBookBtn}
+                onPress={() => lockBook(book.id)}
+              >
+                <Ionicons name="lock-closed-outline" size={13} color={colors.textMuted} />
+                <Text style={styles.lockBookBtnText}>Bloquear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID={`btn-delete-catalog-book-${book.id}`}
+                style={styles.deleteBookBtn}
+                onPress={() => handleDeleteBook(book)}
+                accessibilityLabel={`Excluir PDF de ${book.title}`}
+              >
+                <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                <Text style={styles.deleteBookBtnText}>Excluir</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </View>
@@ -485,6 +605,29 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
                     : 'Pasta de Livros no Google Drive'}
                 </Text>
               </TouchableOpacity>
+
+              {unlockedBooksCount > 0 && (
+                <TouchableOpacity
+                  testID="btn-download-all-offline"
+                  style={[
+                    styles.primaryUploadBtn,
+                    { backgroundColor: '#059669', marginTop: 10 },
+                  ]}
+                  onPress={handleDownloadAllOffline}
+                  disabled={downloadingOffline}
+                >
+                  {downloadingOffline ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
+                  )}
+                  <Text style={styles.primaryUploadBtnText}>
+                    {downloadingOffline
+                      ? downloadProgress || 'Baixando acervo offline...'
+                      : 'Baixar PDFs Liberados para o Celular (Uso Offline)'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* SEÇÃO 3: CATÁLOGO DE ORIGENS (LIVROS REGISTRADOS + EXTRAS .PY) */}
@@ -802,6 +945,22 @@ const createStyles = (colors: ThemeColors) =>
     },
     lockBookBtnText: {
       color: colors.textMuted,
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    deleteBookBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+      borderWidth: 1,
+      borderColor: 'rgba(239, 68, 68, 0.3)',
+      paddingHorizontal: 9,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    deleteBookBtnText: {
+      color: '#EF4444',
       fontSize: 11,
       fontWeight: '700',
     },

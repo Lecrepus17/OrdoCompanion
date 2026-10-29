@@ -19,6 +19,7 @@ import { BookInfo } from '../../types/compendium';
 import { PdfViewerModal, PdfViewerMode } from '../../components/PdfViewerModal';
 import { getRawPdfUrl, getRenderedPdfPageUrl, isPdfServerConfigured, openPdfDocument } from '../../utils/pdfUrl';
 import { sortBooksCanonical } from '../../repositories/OfflineDataRepository';
+import { confirmAction } from '../../utils/alert';
 import { localPdfStorage } from '../../services/pdf/PdfAccessService';
 
 const BookCoverCard: React.FC<{
@@ -74,7 +75,7 @@ const BookCoverCard: React.FC<{
 };
 
 export default function BooksScreen() {
-  const { books, catalogBooks, searchInBookPages, openManual, openPdfAccessModal } = useApp();
+  const { books, catalogBooks, searchInBookPages, openManual, openPdfAccessModal, deletePdfBook } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 10);
@@ -101,6 +102,7 @@ export default function BooksScreen() {
     setCurrentPageNo(Math.max(1, Math.min(book.pageCount, pageNo)));
     const hasDirect = Boolean(
       book.hasLocalPdf ||
+      book.localPdfAvailable ||
       book.driveSynced ||
       book.driveFileId ||
       localPdfStorage.hasPdfOffline(book.id)
@@ -116,6 +118,25 @@ export default function BooksScreen() {
       openBookAtPage(book, pageNo, 'text');
     }
   }, [openBookAtPage]);
+
+  const handleDeletePdf = useCallback(
+    (book: BookInfo) => {
+      const isCustom = Boolean(book.isCustomBook);
+      confirmAction({
+        title: isCustom ? 'Excluir PDF Personalizado' : 'Excluir Arquivo do PDF',
+        message: isCustom
+          ? `Deseja realmente excluir permanentemente o PDF "${book.title}" e todos os seus dados vinculados?`
+          : `Deseja remover o arquivo offline de "${book.title}" e bloquear seu acesso? Você poderá adicioná-lo novamente a qualquer momento.`,
+        confirmText: 'Excluir',
+        cancelText: 'Cancelar',
+        destructive: true,
+        onConfirm: async () => {
+          await deletePdfBook(book.id);
+        },
+      });
+    },
+    [deletePdfBook]
+  );
 
   const renderSnippetItem = useCallback(({ item }: { item: ReturnType<typeof searchInBookPages>[0] }) => {
     const bookObj = booksMap.get(item.bookId);
@@ -324,6 +345,16 @@ export default function BooksScreen() {
                         <Text style={styles.secondaryBookBtnText}>
                           {Platform.OS === 'web' ? 'Nova Aba' : 'Abrir PDF'}
                         </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        testID={`btn-delete-pdf-${book.id}`}
+                        style={styles.deleteBookBtn}
+                        onPress={() => handleDeletePdf(book)}
+                        accessibilityLabel={`Excluir PDF de ${book.title}`}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                        <Text style={styles.deleteBookBtnText}>Excluir PDF</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -634,5 +665,21 @@ const createStyles = (colors: ThemeColors) =>
     bannerServerPillText: {
       fontSize: 10,
       fontWeight: '800',
+    },
+    deleteBookBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 7,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+      borderWidth: 1,
+      borderColor: 'rgba(239, 68, 68, 0.3)',
+    },
+    deleteBookBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#EF4444',
     },
   });

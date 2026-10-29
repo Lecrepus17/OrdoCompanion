@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { BookInfo } from '../types/compendium';
+import { confirmAction } from '../utils/alert';
 import { localPdfStorage, slugifyPdfName } from '../services/pdf/PdfAccessService';
 import { GoogleDriveService } from '../services/sync/GoogleDriveService';
 import {
@@ -152,9 +153,44 @@ async function getOrLoadPdfJsDocument(
     return doc;
   }
 
-  // 4. Fallback: Se não houver bytes locais nem no Drive do usuário, tenta a URL direta
+  // Se temos um objectUrl local persistido (Blob no IndexedDB)
+  const localBlobUrl =
+    localPdfStorage.getPdfObjectUrlByFileNameSync(fileName) ||
+    (effectiveId ? localPdfStorage.getPdfObjectUrlSync(effectiveId) : null);
+  if (localBlobUrl) {
+    const loadingTask = pdfjsLib.getDocument({
+      url: localBlobUrl,
+      disableAutoFetch: false,
+      disableStream: true,
+    });
+    const doc = await loadingTask.promise;
+    pdfDocsCache[cacheKey] = doc;
+    return doc;
+  }
+
+  // 4. Fallback: Se não houver bytes locais, tenta a URL direta (do servidor ativo)
   const cleanUrl = getCleanPdfUrl(fileName);
   if (cleanUrl) {
+    // Tenta baixar e salvar offline no aparelho para que os próximos acessos nunca mais precisem do servidor!
+    try {
+      const res = await fetch(cleanUrl);
+      if (res.ok) {
+        const buf = await res.arrayBuffer();
+        if (buf && buf.byteLength > 100) {
+          bytes = new Uint8Array(buf);
+          await localPdfStorage.savePdfOffline(effectiveId || fileName, fileName, bytes);
+          const loadingTask = pdfjsLib.getDocument({
+            data: bytes,
+            disableAutoFetch: false,
+            disableStream: true,
+          });
+          const doc = await loadingTask.promise;
+          pdfDocsCache[cacheKey] = doc;
+          return doc;
+        }
+      }
+    } catch {}
+
     const loadingTask = pdfjsLib.getDocument({
       url: cleanUrl,
       disableAutoFetch: true,
@@ -220,8 +256,8 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
     [bookFileName, pageNumber, dpi, isServerConfigured]
   );
   const [retryKey, setRetryKey] = useState(0);
-  const [loading, setLoading] = useState(Boolean(rawImageUrl));
-  const [error, setError] = useState(!rawImageUrl);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [webCanvasReady, setWebCanvasReady] = useState(false);
   const itemCanvasRef = useRef<any>(null);
 
@@ -232,7 +268,8 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
 
   // Na Web, renderiza diretamente o PDF do usuário via PDF.js <canvas> sem precisar de servidor
   useEffect(() => {
-    if (Platform.OS !== 'web' || !error || !bookFileName) return;
+    if (Platform.OS !== 'web' || !bookFileName) return;
+    if (rawImageUrl && !error) return;
     let cancelled = false;
     let renderTask: any = null;
 
@@ -263,10 +300,12 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
         if (!cancelled) {
           setWebCanvasReady(true);
           setLoading(false);
+          setError(false);
         }
       } catch {
         if (!cancelled) {
           setLoading(false);
+          setError(true);
         }
       }
     })();
@@ -279,9 +318,9 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
         } catch {}
       }
     };
-  }, [error, bookFileName, pageNumber, pageWidth]);
+  }, [error, rawImageUrl, bookFileName, pageNumber, pageWidth, retryKey]);
 
-  const showFallbackTextSheet = error && !webCanvasReady;
+  const showFallbackTextSheet = error && !webCanvasReady && !loading;
 
   return (
     <View style={[styles.scrollPageWrap, { height: containerHeight }]}>
@@ -429,15 +468,17 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   highlightTerm = '',
   initialMode = 'pdf_scroll',
 }) => {
-  const { getBookPage, searchInBookPages, openManual } = useApp();
+  const { getBookPage, searchInBookPages, openManual, deletePdfBook } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
 
   const hasDirectPdf = Boolean(
     book?.hasLocalPdf ||
+    book?.localPdfAvailable ||
     book?.driveFileId ||
     book?.driveSynced ||
+    book?.pdfUrl ||
     (book?.id ? localPdfStorage.hasPdfOffline(book.id) : false)
   );
   const serverConfigured = isPdfServerConfigured();
@@ -605,8 +646,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     if (visible && book) {
       const hasDirectPdf = Boolean(
         book.hasLocalPdf ||
+        book.localPdfAvailable ||
         book.driveFileId ||
         book.driveSynced ||
+        book.pdfUrl ||
         (book.id ? localPdfStorage.hasPdfOffline(book.id) : false)
       );
       const isServerActive = isPdfServerConfigured();
@@ -854,6 +897,24 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     await downloadPdfDocument(book.fileName);
   }, [book]);
 
+  const handleDeletePdf = useCallback(() => {
+    if (!book) return;
+    const isCustom = Boolean(book.isCustomBook);
+    confirmAction({
+      title: isCustom ? 'Excluir PDF Personalizado' : 'Excluir Arquivo do PDF',
+      message: isCustom
+        ? `Deseja realmente excluir permanentemente o PDF "${book.title}" e todos os seus dados vinculados?`
+        : `Deseja remover o arquivo offline de "${book.title}" e bloquear seu acesso? Você poderá adicioná-lo novamente a qualquer momento.`,
+      confirmText: 'Excluir',
+      cancelText: 'Cancelar',
+      destructive: true,
+      onConfirm: async () => {
+        onClose();
+        await deletePdfBook(book.id);
+      },
+    });
+  }, [book, deletePdfBook, onClose]);
+
   const renderScrollPageItem = useCallback(
     ({ item }: { item: number }) => {
       if (!book) return null;
@@ -1035,6 +1096,15 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                   {!isCompact && <Text style={styles.externalBtnText}>Abrir PDF</Text>}
                 </TouchableOpacity>
               )}
+
+              <TouchableOpacity
+                testID="btn-delete-pdf-viewer"
+                style={styles.iconBtn}
+                onPress={handleDeletePdf}
+                accessibilityLabel="Excluir este PDF"
+              >
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              </TouchableOpacity>
 
               <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="Fechar">
                 <Ionicons name="close" size={24} color={colors.text} />
@@ -1508,42 +1578,33 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
           {/* MODO 3: PDF NATIVO / COMPLETO (WEB IFRAME) */}
           {viewMode === 'pdf_native' && Platform.OS === 'web' && (
-            isMobile ? (
-              <View style={styles.mobileNativeNotice}>
-                <Ionicons name="document-attach-outline" size={46} color={colors.primary} />
-                <Text style={styles.mobileNativeTitle}>Leitor Nativo no Celular</Text>
-                <Text style={styles.mobileNativeSub}>
-                  Toque no botão abaixo para abrir ou baixar o arquivo "{book.fileName}" diretamente no seu aparelho:
-                </Text>
-                <TouchableOpacity
-                  style={styles.mobileOpenBtn}
-                  onPress={handleDownloadPdf}
-                >
-                  <Ionicons name="download-outline" size={18} color="#FFF" />
-                  <Text style={styles.mobileOpenBtnText}>Baixar PDF no Aparelho</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.retryBtn, { marginTop: 12 }]}
-                  onPress={() => setViewMode('pdf_scroll')}
-                >
-                  <Text style={styles.retryBtnText}>Voltar para Leitor PDF</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.iframeContainer}>
-                {React.createElement('iframe', {
-                  key: `${book.fileName}_p${safeCurrentPage}`,
-                  src: nativePdfIframeUrl,
-                  title: `${book.title} - Página ${safeCurrentPage}`,
-                  style: {
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    backgroundColor: '#18181B',
-                  },
-                })}
-              </View>
-            )
+            <View style={styles.iframeContainer}>
+              {isMobile && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#27272A' }}>
+                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', flex: 1 }} numberOfLines={1}>
+                    {book.title} (Pág. {safeCurrentPage})
+                  </Text>
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
+                    onPress={handleOpenExternalPdf}
+                  >
+                    <Ionicons name="open-outline" size={13} color="#FFF" />
+                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700' }}>Abrir no Celular</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {React.createElement('iframe', {
+                key: `${book.fileName}_p${safeCurrentPage}`,
+                src: nativePdfIframeUrl,
+                title: `${book.title} - Página ${safeCurrentPage}`,
+                style: {
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  backgroundColor: '#18181B',
+                },
+              })}
+            </View>
           )}
 
           {/* MODO 4: TEXTO OFICIAL (100% OFFLINE) */}

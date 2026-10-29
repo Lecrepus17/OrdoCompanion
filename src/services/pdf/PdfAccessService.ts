@@ -12,6 +12,7 @@ import {
   getServerBaseUrl,
   registerLocalPdfUrlResolver,
 } from '../../utils/pdfUrl';
+import { GoogleDriveService } from '../sync/GoogleDriveService';
 
 const STORAGE_KEYS = {
   LOCAL_PDFS_META: '@ordem_paranormal:local_pdfs_meta_v1',
@@ -136,19 +137,43 @@ export const KNOWN_SIGNATURES_BY_ID = new Map<string, KnownPdfSignature>(
  * Implementação SHA-256 compatível com Web, Node e React Native sem dependências nativas externas.
  */
 export async function computeSha256Hex(bytes: Uint8Array): Promise<string> {
-  try {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle) {
-      const hashBuffer = await (globalThis as any).crypto.subtle.digest('SHA-256', bytes);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-    }
-  } catch {
-    // Fallback para cálculo JS puro abaixo
+  if (bytes.length <= 15_000_000) {
+    try {
+      if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle) {
+        const hashBuffer = await (globalThis as any).crypto.subtle.digest('SHA-256', bytes);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch {}
+  } else {
+    try {
+      if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle) {
+        const hashBuffer = await (globalThis as any).crypto.subtle.digest('SHA-256', bytes);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch {}
   }
   return computeSha256Sync(bytes);
 }
 
 export function computeSha256Sync(bytes: Uint8Array): string {
+  // Proteção contra Out-of-Memory e travamento no celular com arquivos grandes (> 5MB)
+  if (bytes.length > 5_000_000) {
+    const headLen = 500_000;
+    const tailLen = 500_000;
+    const sample = new Uint8Array(headLen + tailLen + 8);
+    sample.set(bytes.subarray(0, headLen), 0);
+    sample.set(bytes.subarray(bytes.length - tailLen), headLen);
+    const view = new DataView(sample.buffer);
+    view.setUint32(sample.length - 8, Math.floor(bytes.length / 0x100000000), false);
+    view.setUint32(sample.length - 4, bytes.length >>> 0, false);
+    return computeSha256InternalSync(sample);
+  }
+  return computeSha256InternalSync(bytes);
+}
+
+function computeSha256InternalSync(bytes: Uint8Array): string {
   const K = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -301,40 +326,23 @@ export async function identifyUploadedPdf(input: {
     return { isValidPdf: false, matchedSignature: null };
   }
 
-  let sha256: string | undefined;
-  if (input.bytes && input.bytes.length > 0) {
-    sha256 = await computeSha256Hex(input.bytes);
-    // 1. Verificação exata pelo hash SHA-256
-    const exactHashMatch = KNOWN_PDF_SIGNATURES.find(
-      (sig) => sig.sha256.toLowerCase() === sha256!.toLowerCase()
-    );
-    if (exactHashMatch) {
-      return {
-        isValidPdf: true,
-        matchedSignature: exactHashMatch,
-        sha256,
-        detectedPageCount: exactHashMatch.pageCount,
-      };
-    }
-  }
-
   const effectiveSize = input.fileSize ?? input.bytes?.length ?? 0;
   const detectedPageCount = input.pageCount ?? estimatePdfPageCountFromBytes(input.bytes);
 
-  // 2. Verificação por tamanho exato de bytes dos arquivos oficiais
+  // 1. Verificação instantânea por tamanho exato de bytes dos arquivos oficiais (0ms, 0 memória, evita crash em 80MB+)
   if (effectiveSize > 100000) {
     const sizeMatch = KNOWN_PDF_SIGNATURES.find((sig) => sig.fileSize === effectiveSize);
     if (sizeMatch) {
       return {
         isValidPdf: true,
         matchedSignature: sizeMatch,
-        sha256,
+        sha256: sizeMatch.sha256,
         detectedPageCount: sizeMatch.pageCount,
       };
     }
   }
 
-  // 3. Verificação por nome / slug normalizado (suporta arquivos renomeados como "Arquivos Secretos 1.pdf", "Livro Base RPG.pdf", etc.)
+  // 2. Verificação por nome / slug normalizado / aliases oficiais
   const slug = slugifyPdfName(fileName);
   const lowerName = fileName
     .normalize('NFD')
@@ -342,11 +350,15 @@ export async function identifyUploadedPdf(input: {
     .toLowerCase();
 
   for (const sig of KNOWN_PDF_SIGNATURES) {
-    if (sig.id === slug || slugifyPdfName(sig.fileName) === slug) {
+    if (
+      sig.id === slug ||
+      slugifyPdfName(sig.fileName) === slug ||
+      sig.aliases.some((a) => slugifyPdfName(a) === slug)
+    ) {
       return {
         isValidPdf: true,
         matchedSignature: sig,
-        sha256,
+        sha256: sig.sha256,
         detectedPageCount: detectedPageCount || sig.pageCount,
       };
     }
@@ -362,7 +374,7 @@ export async function identifyUploadedPdf(input: {
       return {
         isValidPdf: true,
         matchedSignature: foundAs,
-        sha256,
+        sha256: foundAs.sha256,
         detectedPageCount: detectedPageCount || foundAs.pageCount,
       };
     }
@@ -373,7 +385,7 @@ export async function identifyUploadedPdf(input: {
     return {
       isValidPdf: true,
       matchedSignature: sh,
-      sha256,
+      sha256: sh.sha256,
       detectedPageCount: detectedPageCount || sh.pageCount,
     };
   }
@@ -383,9 +395,28 @@ export async function identifyUploadedPdf(input: {
     return {
       isValidPdf: true,
       matchedSignature: lb,
-      sha256,
+      sha256: lb.sha256,
       detectedPageCount: detectedPageCount || lb.pageCount,
     };
+  }
+
+  // 3. Verificação por hash SHA-256 (para arquivos não identificados por nome/tamanho)
+  let sha256: string | undefined;
+  if (input.bytes && input.bytes.length > 0) {
+    try {
+      sha256 = await computeSha256Hex(input.bytes);
+      const exactHashMatch = KNOWN_PDF_SIGNATURES.find(
+        (sig) => sig.sha256.toLowerCase() === sha256!.toLowerCase()
+      );
+      if (exactHashMatch) {
+        return {
+          isValidPdf: true,
+          matchedSignature: exactHashMatch,
+          sha256,
+          detectedPageCount: exactHashMatch.pageCount,
+        };
+      }
+    } catch {}
   }
 
   // 4. Verificação por contagem de páginas + texto de amostra (caso o usuário tenha renomeado totalmente para ex: "rpg.pdf")
@@ -440,7 +471,7 @@ interface StoredPdfMeta {
 class LocalPdfStorageManager {
   private memoryCache = new Map<
     string,
-    { fileName: string; bytes: Uint8Array; objectUrl?: string; storedAt: string }
+    { fileName: string; bytes?: Uint8Array; objectUrl?: string; storedAt: string }
   >();
   private metaMap = new Map<string, StoredPdfMeta>();
   private initialized = false;
@@ -453,6 +484,45 @@ class LocalPdfStorageManager {
         const parsed: Record<string, StoredPdfMeta> = JSON.parse(raw);
         for (const [bookId, meta] of Object.entries(parsed)) {
           this.metaMap.set(bookId, meta);
+        }
+      }
+
+      // No navegador, pré-hidrata os objectUrls a partir do IndexedDB para acesso offline instantâneo
+      if (Platform.OS === 'web' && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+        const db = await this.openIndexedDb();
+        if (db) {
+          await new Promise<void>((resolve) => {
+            try {
+              const tx = db.transaction(IDB_STORE, 'readonly');
+              const store = tx.objectStore(IDB_STORE);
+              const req = store.getAll();
+              req.onsuccess = () => {
+                const records = req.result;
+                if (Array.isArray(records)) {
+                  for (const rec of records) {
+                    if (rec && rec.bookId && rec.bytes) {
+                      try {
+                        const blob =
+                          rec.bytes instanceof Blob
+                            ? rec.bytes
+                            : new Blob([rec.bytes], { type: 'application/pdf' });
+                        const objectUrl = URL.createObjectURL(blob);
+                        this.memoryCache.set(rec.bookId, {
+                          fileName: rec.fileName || `${rec.bookId}.pdf`,
+                          objectUrl,
+                          storedAt: rec.storedAt || new Date().toISOString(),
+                        });
+                      } catch {}
+                    }
+                  }
+                }
+                resolve();
+              };
+              req.onerror = () => resolve();
+            } catch {
+              resolve();
+            }
+          });
         }
       }
     } catch {}
@@ -490,6 +560,7 @@ class LocalPdfStorageManager {
     const storedAt = new Date().toISOString();
 
     let objectUrl: string | undefined;
+    let blob: Blob | undefined;
     try {
       if (
         Platform.OS === 'web' &&
@@ -497,14 +568,27 @@ class LocalPdfStorageManager {
         typeof URL !== 'undefined' &&
         typeof URL.createObjectURL === 'function'
       ) {
-        const blob = new Blob([bytes as any], { type: 'application/pdf' });
+        blob = new Blob([bytes as any], { type: 'application/pdf' });
         objectUrl = URL.createObjectURL(blob);
       }
     } catch {}
 
+    // Revoga objectUrl anterior se houver para liberar memória no celular
+    const prev = this.memoryCache.get(bookId);
+    if (prev?.objectUrl && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+      try {
+        URL.revokeObjectURL(prev.objectUrl);
+      } catch {}
+    }
+
+    // Para evitar Out of Memory no celular com PDFs de 80MB+,
+    // só mantemos o buffer 'bytes' em memória RAM se o arquivo for menor que 15MB.
+    // O PDF completo fica salvo no IndexedDB (como Blob/Bytes) e acessível via objectUrl.
+    const keepBytesInMem = bytes.length < 15_000_000;
+
     this.memoryCache.set(bookId, {
       fileName,
-      bytes,
+      bytes: keepBytesInMem ? bytes : undefined,
       objectUrl,
       storedAt,
     });
@@ -529,8 +613,9 @@ class LocalPdfStorageManager {
           store.put({
             bookId,
             fileName,
-            bytes,
+            bytes: blob || bytes,
             sha256,
+            size: bytes.length,
             storedAt,
           });
           tx.oncomplete = () => resolve();
@@ -577,25 +662,30 @@ class LocalPdfStorageManager {
       });
 
       if (record && record.bytes) {
-        const bytes =
-          record.bytes instanceof Uint8Array
-            ? record.bytes
-            : new Uint8Array(record.bytes);
-        let objectUrl: string | undefined;
-        try {
-          if (
-            Platform.OS === 'web' &&
-            typeof Blob !== 'undefined' &&
-            typeof URL !== 'undefined' &&
-            typeof URL.createObjectURL === 'function'
-          ) {
-            const blob = new Blob([bytes as any], { type: 'application/pdf' });
-            objectUrl = URL.createObjectURL(blob);
-          }
-        } catch {}
+        let bytes: Uint8Array;
+        let blob: Blob | undefined;
+        if (typeof Blob !== 'undefined' && record.bytes instanceof Blob) {
+          const recordBlob: Blob = record.bytes;
+          blob = recordBlob;
+          const buf = await recordBlob.arrayBuffer();
+          bytes = new Uint8Array(buf);
+        } else if (record.bytes instanceof Uint8Array) {
+          bytes = record.bytes;
+        } else {
+          bytes = new Uint8Array(record.bytes);
+        }
+
+        let objectUrl = mem?.objectUrl;
+        if (!objectUrl && typeof Blob !== 'undefined' && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+          try {
+            const b = blob || new Blob([bytes as any], { type: 'application/pdf' });
+            objectUrl = URL.createObjectURL(b);
+          } catch {}
+        }
+
         this.memoryCache.set(bookId, {
           fileName: record.fileName || `${bookId}.pdf`,
-          bytes,
+          bytes: bytes.length < 15_000_000 ? bytes : undefined,
           objectUrl,
           storedAt: record.storedAt || new Date().toISOString(),
         });
@@ -603,6 +693,42 @@ class LocalPdfStorageManager {
       }
     }
 
+    return null;
+  }
+
+  public async getPdfObjectUrl(bookId: string): Promise<string | null> {
+    await this.initialize();
+    const mem = this.memoryCache.get(bookId);
+    if (mem?.objectUrl) return mem.objectUrl;
+
+    const db = await this.openIndexedDb();
+    if (db) {
+      const record = await new Promise<any>((resolve) => {
+        try {
+          const tx = db.transaction(IDB_STORE, 'readonly');
+          const store = tx.objectStore(IDB_STORE);
+          const req = store.get(bookId);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        } catch {
+          resolve(null);
+        }
+      });
+      if (record && record.bytes) {
+        try {
+          if (typeof Blob !== 'undefined' && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+            const blob = record.bytes instanceof Blob ? record.bytes : new Blob([record.bytes], { type: 'application/pdf' });
+            const objectUrl = URL.createObjectURL(blob);
+            this.memoryCache.set(bookId, {
+              fileName: record.fileName || `${bookId}.pdf`,
+              objectUrl,
+              storedAt: record.storedAt || new Date().toISOString(),
+            });
+            return objectUrl;
+          }
+        } catch {}
+      }
+    }
     return null;
   }
 
@@ -777,6 +903,68 @@ export async function requestUnlockCodeForAdminEmail(): Promise<{
 }
 
 /**
+ * Baixa um PDF oficial específico para o armazenamento offline do aparelho
+ * utilizando o servidor local ou Google Drive.
+ */
+export async function downloadBookPdfOffline(
+  bookId: string,
+  onProgress?: (message: string) => void
+): Promise<{ ok: boolean; message: string }> {
+  await localPdfStorage.initialize();
+  const sig = KNOWN_SIGNATURES_BY_ID.get(bookId);
+  const fileName = sig?.fileName || `${bookId}.pdf`;
+
+  // 1. Verifica se já tem bytes locais
+  const existing = await localPdfStorage.getPdfBytes(bookId);
+  if (existing && existing.length > 100) {
+    return { ok: true, message: `PDF "${fileName}" já está disponível offline no aparelho.` };
+  }
+
+  onProgress?.(`Baixando "${sig?.title || fileName}" para uso offline...`);
+
+  // 2. Tenta baixar da URL direta do servidor local / Metro
+  const cleanUrl = getCleanPdfUrl(fileName);
+  if (cleanUrl && typeof fetch === 'function') {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 180000);
+      const res = await fetch(cleanUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const buf = await res.arrayBuffer();
+        if (buf && buf.byteLength > 100) {
+          const bytes = new Uint8Array(buf);
+          await localPdfStorage.savePdfOffline(bookId, fileName, bytes, sig?.sha256);
+          return { ok: true, message: `PDF "${fileName}" salvo offline no aparelho com sucesso!` };
+        }
+      }
+    } catch (e: any) {
+      console.warn(`[PDF] Falha ao baixar de ${cleanUrl}:`, e?.message);
+    }
+  }
+
+  // 3. Tenta baixar do Google Drive se o usuário estiver autenticado
+  if (GoogleDriveService.getInstance().getAuthState().isAuthenticated) {
+    try {
+      const driveFiles = await GoogleDriveService.getInstance().listDrivePdfFiles();
+      const matched = driveFiles.find((f: any) => f.name.includes(bookId) || f.name.includes(fileName));
+      if (matched) {
+        const bytes = await GoogleDriveService.getInstance().downloadPdfFromDrive(matched.id);
+        if (bytes && bytes.length > 100) {
+          await localPdfStorage.savePdfOffline(bookId, fileName, bytes, sig?.sha256);
+          return { ok: true, message: `PDF "${fileName}" recuperado do seu Google Drive e salvo offline!` };
+        }
+      }
+    } catch {}
+  }
+
+  return {
+    ok: false,
+    message: `Não foi possível baixar o PDF "${fileName}". Conecte-se ao servidor ou envie o arquivo diretamente do aparelho.`,
+  };
+}
+
+/**
  * Baixa e armazena em cache offline (e prepara para o Google Drive) os PDFs dos livros liberados
  * quando um servidor de PDFs estiver acessível, garantindo disponibilidade offline completa.
  */
@@ -794,7 +982,7 @@ export async function cacheUnlockedBooksOffline(bookIds: string[]): Promise<numb
   const isJsdomTest =
     typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent || '');
 
-  // Dispara download em segundo plano dos binários caso o servidor de PDFs esteja ativo
+  // Dispara download em segundo plano dos binários caso o servidor de PDFs esteja ativo (com timeout adequado de 3 min por livro)
   if (!isJsdomTest && typeof fetch === 'function') {
     (async () => {
       for (const bookId of bookIds) {
@@ -806,7 +994,7 @@ export async function cacheUnlockedBooksOffline(bookIds: string[]): Promise<numb
           const cleanUrl = getCleanPdfUrl(fileName);
           if (!cleanUrl) continue;
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 6000);
+          const timeout = setTimeout(() => controller.abort(), 180000);
           const res = await fetch(cleanUrl, { signal: controller.signal });
           clearTimeout(timeout);
           if (res.ok) {
@@ -826,6 +1014,29 @@ export async function cacheUnlockedBooksOffline(bookIds: string[]): Promise<numb
   }
 
   return cachedCount;
+}
+
+/**
+ * Baixa em lote todos os livros já desbloqueados que ainda não estão salvos offline no aparelho.
+ */
+export async function downloadAllUnlockedBooksOffline(
+  onProgress?: (current: number, total: number, title: string) => void
+): Promise<{ downloaded: number; failed: number }> {
+  await localPdfStorage.initialize();
+  const unlockedIds = localPdfStorage.getAllOfflineBookIds();
+  let downloaded = 0;
+  let failed = 0;
+
+  for (let i = 0; i < unlockedIds.length; i++) {
+    const bookId = unlockedIds[i];
+    const sig = KNOWN_SIGNATURES_BY_ID.get(bookId);
+    onProgress?.(i + 1, unlockedIds.length, sig?.title || bookId);
+    const res = await downloadBookPdfOffline(bookId);
+    if (res.ok) downloaded++;
+    else failed++;
+  }
+
+  return { downloaded, failed };
 }
 
 // ============================================================================
