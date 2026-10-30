@@ -533,7 +533,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
     await defaultRepository.markCharacterDeleted(sheetId);
-    setActiveAgentId((prev) => (prev === sheetId ? null : prev));
     cloudSyncManager.scheduleAutoSync();
   }, []);
 

@@ -1,15 +1,16 @@
 {
-  "version": "1.0.1-beta.1",
+  "version": "1.1.0-beta.1",
   "minVersion": "1.0.0-beta.1",
-  "releaseName": "Ordo Companion v1.0.1-beta.1",
-  "releaseDate": "2026-10-27",
-  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.0.1-beta.1",
-  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.0.1-beta.1/OrdoCompanion.apk",
+  "releaseName": "Ordo Companion v1.1.0-beta.1",
+  "releaseDate": "2026-10-30",
+  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.1.0-beta.1",
+  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.1.0-beta.1/OrdoCompanion.apk",
   "changelog": [
-    "Correção e meçhorias na interface do usuário.",
-    "Adicionado suporte para novos recursos.",
-    "Melhorias de desempenho e estabilidade.",
-    "Correção de bugs relatados pelos usuários."
+    "Novo Visualizador & Gerenciador de PDFs",
+    "Exportação de Cards em Imagem",
+    "Resumo Inteligente de Habilidades",
+    "Evolução de Agente Aprimorada",
+    "Governança de Agentes de IA e Automação"
   ],
   "forceUpdate": false
 }

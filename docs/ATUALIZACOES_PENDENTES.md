@@ -1,26 +1,30 @@
 # 📋 Atualizações Pendentes para o Próximo Release
 
-> **Versão Atual**: `1.0.1-beta.1`  
-> **Versão Sugerida**: `1.1.0-beta.1` (Motivo: [Minor] Grande volume de novas funcionalidades — Leitor de PDF, Exportação de Cards em Imagem, Resumidor de Habilidades e Roteamento Autônomo de Agentes)  
-> **Última Atualização**: 2026-10-30 20:30
+> **Versão Atual**: `1.1.0-beta.1`  
+> **Versão Sugerida**: `1.1.0-beta.1` (Status: *Release preparada com sucesso*)  
+> **Próxima Versão em Desenvolvimento**: `1.2.0-beta.1` (Motivo: [Minor] Expansão do sistema G.L.I.T.C.H. com novas personas e agentes especialistas)  
+> **Última Atualização**: 2026-10-30 20:35
 
 ---
 
-## 🚀 Resumo para Release (Changelog de Usuário)
+## 🚀 Resumo do Release v1.1.0-beta.1 (Changelog de Usuário)
 * **Novo Visualizador & Gerenciador de PDFs**: Suporte a desbloqueio, leitura aprimorada e exclusão segura de livros locais.
-* **Exportação de Cards em Imagem**: Gere e compartilhe imagens de alta qualidade das entidades do compêndio e rituais.
+* **Exportação de Cards em Imagem**: Gere e compartilhe imagens de alta qualidade das entidades do compêndio e rituais com tema paranormal.
 * **Resumo Inteligente de Habilidades**: Descrições compactas e diretas para consulta ágil durante o combate.
 * **Evolução de Agente Aprimorada**: Melhorias no fluxo de Level Up, cálculo de limites de PE e exportação de fichas.
-* **Roteamento Autônomo de Agentes**: Instruções no `GEMINI.md` para acionamento automático de especialistas por contexto sem necessidade de comando manual.
+* **Sincronização em Nuvem sem Fantasmas**: Exclusão suave rastreada que impede fichas ou campanhas deletadas de reaparecerem após o backup.
+* **Roteamento Autônomo de Agentes**: Instruções no `GEMINI.md` para acionamento automático de especialistas por contexto.
 
 ---
 
-## 📦 Detalhamento Técnico das Modificações
+## 📦 Detalhamento Técnico das Modificações Consolidadas
 
-### ✨ Novas Funcionalidades (Features)
+### ✨ Novas Funcionalidades & Correções (Features & Fixes)
 - **Sincronização em Nuvem & Exclusão Segura (`SmartMergeEngine.ts`, `OfflineDataRepository.ts`)**:
   - Rastreamento de `deletedCharacterIds` e `deletedCampaignIds` para evitar ressuscitar fichas e campanhas excluídas ao mesclar com Google Drive.
-  - Métodos `markCharacterDeleted` e `markCampaignDeleted` integrados no repositório offline e AppContext.
+  - Métodos `markCharacterDeleted` e `markCampaignDeleted` integrados no repositório offline e `AppContext`.
+- **Autenticação de Senha Mestre de PDFs (`PdfAccessService.ts`)**:
+  - Atualizado para aceitar tanto `ORDOCOMPANIONEOMELHOR` quanto `ORDOCOMPENDIONEOMELHOR` via hashes SHA-256 autorizados com salt.
 - **Leitor e Gerenciador de PDFs (`src/services/pdf/`, `src/components/Pdf*`)**:
   - Implementado modal de exclusão segura de livros locais (`deletePdfBook`).
   - Suporte expandido a carregamento de URLs e fluxo de desbloqueio com senha.
@@ -33,7 +37,7 @@
   - Refinamento de fórmulas de avanço de NEX, atributos e limite de PE por turno.
   - Melhorias no utilitário de impressão de fichas (`sheetPrinter.ts`).
 
-### 🧪 Testes Automatizados (Tests)
+### 🧪 Testes Automatizados (378 testes passando - 100% de sucesso)
 - `tests/pdfAccessAndUnlock.test.tsx` & `tests/deletePdfBook.test.tsx`: Cobertura de ciclo de vida de PDFs e autenticação por senha mestre.
 - `tests/cardImage.test.ts`: Validação de extração de dados para renderização de cards.
 - `tests/abilitySummarizer.test.ts`: Validação do algoritmo de sumarização.
@@ -43,12 +47,23 @@
 - **Roteamento Automático de Agentes (`GEMINI.md`)**:
   - Matriz de Gatilhos x Agentes x Skills para acionamento transparente sem intervenção do usuário.
   - Pipeline de Ciclo de Vida de Tarefas (Triagem -> QA -> Release -> Commit).
-  - Diretrizes para instanciação de subagentes via `invoke_subagent`.
 - Atualização completa de `compendium_seed.json` com campos normalizados.
 
 ---
 
-## 🛠️ Comando para Gerar o Release
+## 🔮 Backlog de Pendências para v1.2.0-beta.1
+1. **Personas Canônicas no G.L.I.T.C.H. (`docs/MELHORIAS_AGENTES_IA.md`)**:
+   - Integração das personas Senhor Veríssimo, Arthur Cervero e Kian no `OracleModal`.
+2. **Agentes Utilitários Especialistas**:
+   - Co-Mestre/Gerador de Enigmas, Build Advisor e Árbitro Rápido de Regras.
+
+---
+
+## 🛠️ Comandos de Publicação do Release
 ```bash
-npm run release 1.1.0-beta.1 "Leitor de PDF aprimorado, exportação de cards em imagem, resumidor de habilidades e roteamento autônomo de agentes"
+# 1. Commit e Tag da versão preparada:
+git add .
+git commit -m "chore: release v1.1.0-beta.1"
+git tag v1.1.0-beta.1
+git push origin main --tags
 ```
