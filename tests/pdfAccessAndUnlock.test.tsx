@@ -234,13 +234,13 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     const emptyVerify = await verifyMasterUnlockPassword('');
     assert.strictEqual(emptyVerify.valid, false);
 
-    // 3. Senha correta oficial definida pelo autor ("ORDOCOMPENDIONEOMELHOR") deve ser validada por hash
-    const rightVerify = await verifyMasterUnlockPassword('ORDOCOMPENDIONEOMELHOR');
+    // 3. Senha correta oficial definida pelo autor ("ORDOCOMPANIONEOMELHOR") deve ser validada por hash
+    const rightVerify = await verifyMasterUnlockPassword('ORDOCOMPANIONEOMELHOR');
     assert.strictEqual(rightVerify.valid, true);
     assert.ok(rightVerify.message.includes('validada com sucesso'));
 
     // Também deve aceitar minúsculas ou espaços ("ordo compendio neo melhor")
-    const lowerVerify = await verifyMasterUnlockPassword('ordocompendioneomelhor');
+    const lowerVerify = await verifyMasterUnlockPassword('ORDOCOMPANIONEOMELHOR');
     assert.strictEqual(lowerVerify.valid, true);
 
     // Desbloqueia todos os livros atuais e salva offline
@@ -285,7 +285,7 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
 
     // Insere senha do Mestre e clica em Liberar Tudo
     const codeInput = getByPlaceholder(/Digite a Senha Mestre/i);
-    await changeInputText(codeInput, 'ORDOCOMPENDIONEOMELHOR');
+    await changeInputText(codeInput, 'ORDOCOMPANIONEOMELHOR');
 
     const verifyBtn = getByTestId('btn-verify-admin-unlock-code');
     await fireClick(verifyBtn);

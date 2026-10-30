@@ -37,6 +37,8 @@ const STORAGE_KEYS = {
   CAMPAIGNS: '@ordem_paranormal:campaigns_v1',
   CUSTOM_WEAPONS: '@ordem_paranormal:custom_weapons_v1',
   USER_PROFILE: '@ordem_paranormal:user_profile_v1',
+  DELETED_CHARACTER_IDS: '@ordem_paranormal:deleted_character_ids_v1',
+  DELETED_CAMPAIGN_IDS: '@ordem_paranormal:deleted_campaign_ids_v1',
 };
 
 export function normalizeText(str: string): string {
@@ -1007,6 +1009,40 @@ export class OfflineDataRepository implements IDataRepository {
     await AsyncStorage.setItem(STORAGE_KEYS.SAVED_LISTS, JSON.stringify(lists));
   }
 
+  async getDeletedCharacterIds(): Promise<string[]> {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.DELETED_CHARACTER_IDS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async markCharacterDeleted(sheetId: string): Promise<void> {
+    const list = await this.getDeletedCharacterIds();
+    if (!list.includes(sheetId)) {
+      list.push(sheetId);
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CHARACTER_IDS, JSON.stringify(list));
+    }
+  }
+
+  async getDeletedCampaignIds(): Promise<string[]> {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.DELETED_CAMPAIGN_IDS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async markCampaignDeleted(campaignId: string): Promise<void> {
+    const list = await this.getDeletedCampaignIds();
+    if (!list.includes(campaignId)) {
+      list.push(campaignId);
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CAMPAIGN_IDS, JSON.stringify(list));
+    }
+  }
+
   async getCharacters(): Promise<CharacterSheet[]> {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEYS.CHARACTERS);
@@ -1059,13 +1095,15 @@ export class OfflineDataRepository implements IDataRepository {
   }
 
   async exportUserDataJson(): Promise<string> {
-    const [favorites, savedLists, characters, campaigns, customWeapons, userProfile] = await Promise.all([
+    const [favorites, savedLists, characters, campaigns, customWeapons, userProfile, deletedCharacterIds, deletedCampaignIds] = await Promise.all([
       this.getFavorites(),
       this.getSavedLists(),
       this.getCharacters(),
       this.getCampaigns(),
       this.getCustomWeapons(),
       this.getUserProfile(),
+      this.getDeletedCharacterIds(),
+      this.getDeletedCampaignIds(),
     ]);
 
     const payload = {
@@ -1081,6 +1119,8 @@ export class OfflineDataRepository implements IDataRepository {
       characters,
       campaigns,
       customWeapons,
+      deletedCharacterIds,
+      deletedCampaignIds,
     };
 
     return JSON.stringify(payload, null, 2);
@@ -1161,6 +1201,18 @@ export class OfflineDataRepository implements IDataRepository {
 
     if (Array.isArray(parsed.customWeapons)) {
       await this.saveCustomWeapons(parsed.customWeapons);
+    }
+
+    if (Array.isArray(parsed.deletedCharacterIds)) {
+      const existing = await this.getDeletedCharacterIds();
+      const union = Array.from(new Set([...existing, ...parsed.deletedCharacterIds]));
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CHARACTER_IDS, JSON.stringify(union));
+    }
+
+    if (Array.isArray(parsed.deletedCampaignIds)) {
+      const existing = await this.getDeletedCampaignIds();
+      const union = Array.from(new Set([...existing, ...parsed.deletedCampaignIds]));
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CAMPAIGN_IDS, JSON.stringify(union));
     }
 
     this.invalidateEntityCache();

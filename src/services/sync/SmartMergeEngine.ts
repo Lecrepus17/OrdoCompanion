@@ -42,7 +42,25 @@ export class SmartMergeEngine {
       ...remoteChars.map((c) => c.id),
     ]);
 
+    // Rastreia IDs explicitamente excluídos para evitar ressuscitar agentes deletados no Google Drive
+    const mergedDeletedCharIds = Array.from(new Set([
+      ...(local.deletedCharacterIds || []),
+      ...(remote.deletedCharacterIds || []),
+    ]));
+    const deletedCharSet = new Set(mergedDeletedCharIds);
+    if (mergedDeletedCharIds.length > (local.deletedCharacterIds || []).length) {
+      hasLocalChangesToApply = true;
+    }
+    if (mergedDeletedCharIds.length > (remote.deletedCharacterIds || []).length) {
+      hasRemoteChangesToUpload = true;
+    }
+
     for (const id of allCharIds) {
+      if (deletedCharSet.has(id)) {
+        if (remoteChars.some((c) => c.id === id)) hasRemoteChangesToUpload = true;
+        if (localChars.some((c) => c.id === id)) hasLocalChangesToApply = true;
+        continue;
+      }
       const loc = localChars.find((c) => c.id === id);
       const rem = remoteChars.find((c) => c.id === id);
 
@@ -81,7 +99,24 @@ export class SmartMergeEngine {
       ...remoteCampaigns.map((c) => c.id),
     ]);
 
+    const mergedDeletedCampIds = Array.from(new Set([
+      ...(local.deletedCampaignIds || []),
+      ...(remote.deletedCampaignIds || []),
+    ]));
+    const deletedCampSet = new Set(mergedDeletedCampIds);
+    if (mergedDeletedCampIds.length > (local.deletedCampaignIds || []).length) {
+      hasLocalChangesToApply = true;
+    }
+    if (mergedDeletedCampIds.length > (remote.deletedCampaignIds || []).length) {
+      hasRemoteChangesToUpload = true;
+    }
+
     for (const id of allCampaignIds) {
+      if (deletedCampSet.has(id)) {
+        if (remoteCampaigns.some((c) => c.id === id)) hasRemoteChangesToUpload = true;
+        if (localCampaigns.some((c) => c.id === id)) hasLocalChangesToApply = true;
+        continue;
+      }
       const loc = localCampaigns.find((c) => c.id === id);
       const rem = remoteCampaigns.find((c) => c.id === id);
 
@@ -414,6 +449,8 @@ export class SmartMergeEngine {
       characters: mergedCharacters,
       campaigns: mergedCampaigns,
       customWeapons: mergedWeapons,
+      deletedCharacterIds: mergedDeletedCharIds,
+      deletedCampaignIds: mergedDeletedCampIds,
     };
 
     return {

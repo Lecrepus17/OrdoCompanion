@@ -225,6 +225,44 @@ describe('Mecanismo de Sincronização e Resolução de Conflitos (SmartMergeEng
     assert.ok(mergedList.entityIds.includes('ritual_3'));
   });
 
+  it('deve respeitar deletedCharacterIds e não ressuscitar agentes deletados ao sincronizar com Google Drive', () => {
+    const charAlive = makeDummyChar({
+      id: 'char_arthur',
+      name: 'Arthur Cervero',
+      updatedAt: '2026-10-25T01:00:00.000Z',
+    });
+
+    const charDeletedLocally = makeDummyChar({
+      id: 'char_excluido',
+      name: 'Agente Que Foi Deletado',
+      updatedAt: '2026-10-25T01:00:00.000Z',
+    });
+
+    // Local: apagou o agente char_excluido e gravou seu ID em deletedCharacterIds
+    const local = createDummyPayload({
+      characters: [charAlive],
+      deletedCharacterIds: ['char_excluido'],
+    });
+
+    // Remoto (Google Drive): ainda contém char_excluido de uma sincronização anterior
+    const remote = createDummyPayload({
+      characters: [charAlive, charDeletedLocally],
+      deletedCharacterIds: [],
+    });
+
+    const result = SmartMergeEngine.merge(local, remote);
+    const chars = result.merged.characters || [];
+
+    // O agente deletado NÃO pode ser ressuscitado!
+    assert.strictEqual(chars.length, 1);
+    assert.strictEqual(chars[0].id, 'char_arthur');
+
+    // O Drive remoto precisa ser atualizado para remover o agente deletado
+    assert.strictEqual(result.hasRemoteChangesToUpload, true);
+    // E a lista consolidada de deletados deve conter o ID
+    assert.ok(result.merged.deletedCharacterIds?.includes('char_excluido'));
+  });
+
   it('deve mesclar perfil do usuário preservando o cloudSyncEnabled e dados mais recentes', () => {
     const local = createDummyPayload({
       userProfile: {

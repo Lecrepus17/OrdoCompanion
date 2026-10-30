@@ -817,10 +817,11 @@ export const MASTER_PASSWORD_SALT = 'ordo_companion_master_auth_v1:';
 /**
  * Hashes autorizados de senhas mestres (SHA-256 de salt + senha em maiúsculas normalizada).
  * A senha em texto claro NUNCA fica exposta no repositório público do GitHub.
- * Hash correspondente à senha definida pelo autor: "ORDOCOMPENDIONEOMELHOR"
+ * Hash correspondente à senha definida pelo autor: "ORDOCOMPANIONEOMELHOR"
  */
 export const AUTHORIZED_MASTER_HASHES = new Set([
-  '96f39a6d43c45d21f91b88a904ae7cb108d124e4a10706282f5a9772a7db37ad',
+  '74f4cb32b2f795c2c4c7f30f657eab4e08ede01c452c1e7e8d75681a13e1d0c1', // ORDOCOMPANIONEOMELHOR
+  '96f39a6d43c45d21f91b88a904ae7cb108d124e4a10706282f5a9772a7db37ad', // ORDOCOMPENDIONEOMELHOR
 ]);
 
 /**
@@ -897,7 +898,7 @@ export async function requestUnlockCodeForAdminEmail(): Promise<{
   return {
     ok: true,
     deliveredViaServer: false,
-    generatedCodeForTest: 'ORDOCOMPENDIONEOMELHOR',
+    generatedCodeForTest: 'ORDOCOMPANIONEOMELHOR',
     message: 'O envio por e-mail foi descontinuado por segurança. Digite a Senha Mestre para liberar o acervo.',
   };
 }

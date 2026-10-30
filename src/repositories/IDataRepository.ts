@@ -67,6 +67,10 @@ export interface IDataRepository {
   toggleFavorite(entityId: string): Promise<string[]>;
   getSavedLists(): Promise<SavedList[]>;
   saveLists(lists: SavedList[]): Promise<void>;
+  getDeletedCharacterIds(): Promise<string[]>;
+  markCharacterDeleted(sheetId: string): Promise<void>;
+  getDeletedCampaignIds(): Promise<string[]>;
+  markCampaignDeleted(campaignId: string): Promise<void>;
   getCharacters(): Promise<CharacterSheet[]>;
   saveCharacters(characters: CharacterSheet[]): Promise<void>;
   getCampaigns(): Promise<Campaign[]>;

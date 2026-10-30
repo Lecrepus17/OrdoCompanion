@@ -33,6 +33,8 @@ export interface UserDataBackupPayload {
   dynamicBooks?: BookWithPages[];
   dynamicEntities?: CompendiumEntity[];
   drivePdfFiles?: Record<string, DriveStoredPdfRef>;
+  deletedCharacterIds?: string[];
+  deletedCampaignIds?: string[];
 }
 
 export type SyncStatus = 'idle' | 'checking' | 'syncing' | 'synced' | 'error';

@@ -60,11 +60,82 @@ Qualquer agente trabalhando em regras, fichas ou compêndio deve respeitar as me
 
 ---
 
-## 4. Papéis de Agentes Especializados
+## 4. Agentes Especializados & Roteamento Automático
 
-Quando solicitado a assumir um papel ou invocar subagentes, utilize as seguintes personas:
+> [!IMPORTANT]
+> **Acionamento Automático Obrigatório**: O usuário **não precisa solicitar** a ativação ou chamada de agentes. O assistente principal DEVE identificar automaticamente a natureza de cada demanda e acionar/adotar o agente especializado correspondente (seja assumindo seu papel técnico imediatamente, seja instanciando subagentes via `invoke_subagent` quando a tarefa exigir isolamento ou processamento em paralelo).
 
-### 🛡️ Agente Auditor de Regras (`rpg-rules-expert`)
+### 🗺️ Matriz de Roteamento Automático (Gatilhos x Agentes)
+
+| Domínio da Alteração | Gatilhos & Arquivos Afetados | Agente Especializado | Skill Vinculada | Ação Automática Obrigatória |
+| :--- | :--- | :--- | :--- | :--- |
+| **Regras e Fórmulas de RPG** | Alterações em fórmulas, PV/PE/SAN, NEX, perícias, rituais, poderes, itens amaldiçoados, patentes ou CD/DT.<br>• `src/utils/progression.ts`<br>• `src/types/character.ts`<br>• `data/*.json`<br>• `src/services/rules/` | 🛡️ `rpg-rules-expert`<br>*(Auditor de Regras)* | `rpg-rules-audit` | Auditar conformidade estrita com o livro canônico v1.1 e suplementos; validar limites de PE (`NEX / 5`), CD de rituais (`10 + limite PE + PRE`) e pré-requisitos antes de aprovar. |
+| **Interface, Telas & UX** | Telas Expo Router, componentes visuais, modais, estilização tática, temas sombrios, responsividade ou áudio.<br>• `app/**/*.tsx`<br>• `src/components/**`<br>• `src/theme/**` | 📱 `mobile-ui-expert`<br>*(Frontend & Mobile UX)* | — | Implementar seguindo o tema tático sombrio (Ordo/Outro Lado), `SafeAreaView`, prevenção de quebras de layout/overflow e suporte multiplataforma (Android, iOS, Web). |
+| **Testes, Lógica & Integridade** | Qualquer alteração de código, correção de bugs, refatoração de utilitários ou mudanças nos JSONs do compêndio.<br>• `tests/**`<br>• `scripts/test_database_integrity.py`<br>• `src/types/**` | 🧪 `qa-reliability-engineer`<br>*(QA & Integridade)* | `run-suite` | Executar automaticamente validações (`npm run test:all`, `npm run typecheck`, `npm run test:db`) e escrever novos testes para evitar regressões em cada alteração. |
+| **Finalização de Recurso (Changelog)** | Conclusão de qualquer funcionalidade, melhoria, refatoração ou correção de bug aprovada. | 📋 `release-manager`<br>*(Gerente de Releases)* | `update-recorder` | Atualizar imediatamente `docs/ATUALIZACOES_PENDENTES.md`, classificar SemVer (Patch, Minor ou Major) e fornecer comando pronto de release sem o usuário pedir. |
+| **Registro de Commits Git** | Finalização do ciclo de trabalho e preparação para persistir alterações no Git. | 🎯 `git-commit-architect`<br>*(Arquiteto de Commits)* | `commit-generator` | Inspecionar `git status`, redigir mensagem semântica (Conventional Commits) e atualizar `docs/COMMITS_PENDENTES.md` com comando pronto de terminal. |
+
+---
+
+### 🔄 Pipeline de Execução Autônoma (Ciclo de Vida da Tarefa)
+
+Sempre que uma alteração ou nova funcionalidade for solicitada, siga rigorosamente o ciclo abaixo **sem intervenção manual**:
+
+```
+[Demanda do Usuário]
+        │
+        ▼
+┌────────────────────────────────────────────────────────┐
+│ 1. Triagem Automática de Domínio                       │
+│    • Regras/Fichas/Compêndio ➔ 🛡️ rpg-rules-expert     │
+│    • Telas/Componentes/UX   ➔ 📱 mobile-ui-expert     │
+└────────────────────────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────────────────┐
+│ 2. Execução & Validação Técnica                        │
+│    ➔ 🧪 qa-reliability-engineer                        │
+│    • Executa typecheck estrito e suíte de testes       │
+│    • Adiciona/atualiza testes de cobertura em tests/   │
+└────────────────────────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────────────────┐
+│ 3. Governança de Release & Versão                      │
+│    ➔ 📋 release-manager                                │
+│    • Registra em docs/ATUALIZACOES_PENDENTES.md        │
+│    • Recalcula SemVer para a próxima versão            │
+└────────────────────────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────────────────┐
+│ 4. Registro de Commit Semântico                        │
+│    ➔ 🎯 git-commit-architect                           │
+│    • Registra em docs/COMMITS_PENDENTES.md             │
+│    • Fornece bloco git pronto para execução rápida     │
+└────────────────────────────────────────────────────────┘
+        │
+        ▼
+[Resposta Sucinta ao Usuário com Resultados Prontos]
+```
+
+---
+
+### 🤖 Diretrizes para Invocação de Subagentes (`invoke_subagent`)
+
+Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução em segundo plano, utilize a ferramenta `invoke_subagent` com:
+
+1. **`TypeName: "self"`**: Para subagentes que precisam de acesso completo de escrita, testes e ferramentas de terminal.
+2. **`TypeName: "research"`**: Para subagentes de exploração profunda e somente leitura de arquivos e documentação.
+3. **Parâmetros Mandatórios**:
+   * `Role`: Papel claro alinhado à persona (ex: `"RPG Rules Auditor"`, `"QA Automation Specialist"`, `"Mobile UI Refactorer"`).
+   * `Prompt`: Objetivo específico, contexto do arquivo e critérios de aceite esperados.
+
+---
+
+### Detalhamento dos Papéis de Agentes Especializados
+
+#### 🛡️ Agente Auditor de Regras (`rpg-rules-expert`)
 * **Foco**: Fidelidade estrita ao livro de regras de Ordem Paranormal v1.1 e suplementos.
 * **Responsabilidades**:
   * Validar fórmulas em `src/utils/progression.ts`.
@@ -72,7 +143,7 @@ Quando solicitado a assumir um papel ou invocar subagentes, utilize as seguintes
   * Conferir pré-requisitos de poderes e requisitos de atributos para itens de prestígio.
   * Auditar consistência das 59 origens oficiais e poderes de classe.
 
-### 📱 Agente Frontend & Mobile UX (`mobile-ui-expert`)
+#### 📱 Agente Frontend & Mobile UX (`mobile-ui-expert`)
 * **Foco**: Interface tática, fluida e responsiva em React Native / Expo.
 * **Responsabilidades**:
   * Desenvolver componentes seguindo o tema tático sombrio (paleta Ordo Realitas / Outro Lado).
@@ -80,21 +151,21 @@ Quando solicitado a assumir um papel ou invocar subagentes, utilize as seguintes
   * Usar `SafeAreaView`, animações performáticas e feedback tátil/sonoro adequado.
   * Evitar regressões visuais em modais complexos (`CreateAgentModal`, `OracleModal`).
 
-### 🧪 Agente de QA & Integridade (`qa-reliability-engineer`)
+#### 🧪 Agente de QA & Integridade (`qa-reliability-engineer`)
 * **Foco**: Cobertura de testes, estabilidade de dados e prevenção de bugs.
 * **Responsabilidades**:
   * Escrever testes em `tests/` para novos fluxos utilizando `node:test` e `@testing-library/react-native`.
   * Auditar integridade referencial dos dados em `data/*.json` contra `scripts/test_database_integrity.py`.
   * Garantir tipagem semântica rigorosa em `src/types/`.
 
-### 📋 Agente de Releases & Versões (`release-manager`)
+#### 📋 Agente de Releases & Versões (`release-manager`)
 * **Foco**: Manter o changelog atualizado e calcular a versão sugerida (SemVer) para o próximo release.
 * **Responsabilidades**:
   * Manter `docs/ATUALIZACOES_PENDENTES.md` com as alterações consolidadas e bullets prontos para o `version.json`.
   * Determinar o impacto das mudanças (Patch, Minor ou Major) com base nas funcionalidades entregues.
   * Fornecer o comando pronto de `npm run release <versao> "..."`.
 
-### 🎯 Arquiteto de Commits Git (`git-commit-architect`)
+#### 🎯 Arquiteto de Commits Git (`git-commit-architect`)
 * **Foco**: Histórico do Git limpo, atômico e semântico (Conventional Commits).
 * **Responsabilidades**:
   * Analisar arquivos alterados via `git status` e compor commits com `<tipo>(<escopo>): <mensagem>`.
@@ -112,7 +183,7 @@ Quando solicitado a assumir um papel ou invocar subagentes, utilize as seguintes
 
 ## 6. Registro Obrigatório de Atualizações e Commits
 
-Sempre que concluir uma alteração no código ou compêndio:
+Executado **automaticamente** pelos agentes `release-manager` e `git-commit-architect` ao concluir qualquer modificação:
 1. **Atualizar `docs/ATUALIZACOES_PENDENTES.md`** (via skill `update-recorder`):
    * Recalcular e exibir no topo a **Versão Sugerida** com base em SemVer.
    * Categorizar as mudanças em Features, Fixes, Refactor ou Docs.
