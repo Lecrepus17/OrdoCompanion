@@ -42,13 +42,26 @@ const QUICK_PROMPTS = [
   'Como subir de nível (NEX) na ficha do agente?',
 ];
 
-const RELIC_QUICK_OPTIONS: ParanormalRelic[] = [
+const ALL_PERSONA_OPTIONS: ParanormalRelic[] = [
   'none',
+  'arbitro_regras',
+  'co_mestre',
+  'build_advisor',
+  'verissimo',
+  'cervero',
+  'kian',
   'anfitriao',
   'magistrada',
   'deus_da_morte',
   'diabo',
   'random',
+];
+
+const ORACLE_CATEGORY_TABS: Array<{ id: 'all' | 'specialist' | 'canon' | 'relics'; label: string; emoji: string }> = [
+  { id: 'all', label: 'Todos', emoji: '✨' },
+  { id: 'specialist', label: 'Táticos', emoji: '🛡️' },
+  { id: 'canon', label: 'Ordem', emoji: '👥' },
+  { id: 'relics', label: 'Relíquias', emoji: '🌀' },
 ];
 
 export default function OracleScreen() {
@@ -71,6 +84,7 @@ export default function OracleScreen() {
 
   // Seleção de Agente Ativo para Contexto da conversa
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [personaTab, setPersonaTab] = useState<'all' | 'specialist' | 'canon' | 'relics'>('all');
 
   // Modais
   const [configModalVisible, setConfigModalVisible] = useState(false);
@@ -261,89 +275,14 @@ export default function OracleScreen() {
     [router]
   );
 
-  const inputPlaceholder = (() => {
-    switch (activeRelic) {
-      case 'anfitriao':
-        return 'Faça sua aposta... Diga, o que quer saber?';
-      case 'magistrada':
-        return 'Apresente os fatos ao tribunal do Conhecimento...';
-      case 'deus_da_morte':
-        return 'O tempo escorre... o que deseja consultar na espiral?';
-      case 'diabo':
-        return 'Fale logo, mortal! Qual combate ou regra quer devorar?';
-      case 'random':
-        return 'Qualquer Relíquia pode responder... faça sua pergunta!';
-      case 'none':
-      default:
-        return 'Pergunte sobre regras, livros ou o aplicativo...';
-    }
-  })();
-
-  const typingText = (() => {
-    switch (activeRelic) {
-      case 'anfitriao':
-        return 'O Anfitrião está preparando o espetáculo...';
-      case 'magistrada':
-        return 'A Magistrada está deliberando nos autos...';
-      case 'deus_da_morte':
-        return 'O Deus da Morte está consultando a espiral do tempo...';
-      case 'diabo':
-        return 'O Diabo está farejando os registros de combate...';
-      case 'random':
-        return 'Uma Relíquia está sendo invocada ao acaso...';
-      case 'none':
-      default:
-        return 'G.L.I.T.C.H. analisando manuais e compêndio...';
-    }
-  })();
-
-  const welcomeContent = (() => {
-    switch (activeRelic) {
-      case 'anfitriao':
-        return {
-          emoji: '⚡🎭',
-          title: 'BEM-VINDO AO MAIOR SHOW DA ORDEM!',
-          subtitle:
-            'Eu sou o Anfitrião! Pergunte sobre qualquer regra, ritual ou como operar essa engrenagem chamada OrdoCompanion. O espetáculo é seu, o caos é meu, mas as regras são sagradas!',
-        };
-      case 'magistrada':
-        return {
-          emoji: '👁️⚖️',
-          title: 'O TRIBUNAL DO EQUILÍBRIO ESTÁ ABERTO',
-          subtitle:
-            'Eu sou a Magistrada. Todos os fatos, rituais e memórias da Realidade estão gravados na Máscara do Desespero. Apresente seus questionamentos para que a verdade seja lavrada.',
-        };
-      case 'deus_da_morte':
-        return {
-          emoji: '⏳🌀',
-          title: 'A ESPIRAL DO TEMPO E DO DESTINO',
-          subtitle:
-            'Eu sou o Deus da Morte. O tempo escorre gota a gota... consulte as eras passadas, as regras imutáveis e os rituais que a cinza e o lodo preservaram.',
-        };
-      case 'diabo':
-        return {
-          emoji: '🩸🔥',
-          title: 'O TRONO DE SANGUE AGUARDA O COMBATE',
-          subtitle:
-            'Eu sou o Diabo! A carne ferve e o sangue pulsa! Traga suas dúvidas de combate, armas, dano letal e rituais mortíferos. Aqui a força não vacila!',
-        };
-      case 'random':
-        return {
-          emoji: '🎲🔮',
-          title: 'O CAOS DAS 4 RELÍQUIAS DO OUTRO LADO',
-          subtitle:
-            'A cada resposta, uma das 4 Relíquias primordiais (Anfitrião, Magistrada, Deus da Morte ou Diabo) se manifestará para responder seu questionamento!',
-        };
-      case 'none':
-      default:
-        return {
-          emoji: '🔮🛡️',
-          title: 'Central de Operações G.L.I.T.C.H. — Ordo Realitas',
-          subtitle:
-            'Saudações, Agente! Sou o operador de suporte tático da Ordem. Estou à disposição para orientar seus procedimentos de campo, esclarecer regras canônicas dos livros e apoiar você e sua equipe pelo OrdoCompanion.',
-        };
-    }
-  })();
+  const inputPlaceholder = currentRelicMeta.placeholder || 'Pergunte sobre regras, livros ou o aplicativo...';
+  const typingText = currentRelicMeta.typingText || 'G.L.I.T.C.H. analisando compêndio e manuais...';
+  const welcomeContent = {
+    emoji: currentRelicMeta.emoji || '🔮',
+    title: currentRelicMeta.welcomeTitle || currentRelicMeta.name,
+    subtitle: currentRelicMeta.welcomeSubtitle || currentRelicMeta.description,
+  };
+  const activeQuickPrompts = currentRelicMeta.quickPrompts || QUICK_PROMPTS;
 
   const bottomInset = Math.max(insets.bottom, 12);
   const activeColor = activeRelic === 'none' ? colors.primary : currentRelicMeta.color;
@@ -449,14 +388,53 @@ export default function OracleScreen() {
           </View>
         </View>
 
-        {/* SELETOR RÁPIDO DE RELÍQUIA / ENTIDADE RESPONSÁVEL */}
+        {/* ABAS DE CATEGORIA DE PERSONAS */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 2 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            {ORACLE_CATEGORY_TABS.map((tab) => {
+              const isTabActive = personaTab === tab.id;
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  onPress={() => setPersonaTab(tab.id)}
+                  style={[
+                    styles.personaFilterPill,
+                    {
+                      backgroundColor: isTabActive ? colors.primary : colors.surfaceElevated,
+                      borderColor: isTabActive ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={{ fontSize: 11 }}>{tab.emoji}</Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: isTabActive ? '800' : '600',
+                      color: isTabActive ? '#FFFFFF' : colors.textSecondary,
+                    }}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* SELETOR RÁPIDO DE PERSONA / AGENTE */}
         <View style={styles.relicSelectorRow}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.relicScrollContent}
           >
-            {RELIC_QUICK_OPTIONS.map((opt) => {
+            {ALL_PERSONA_OPTIONS
+              .filter((opt) => {
+                if (personaTab === 'all') return true;
+                const meta = RELIC_PERSONAS[opt];
+                return meta?.category === personaTab;
+              })
+              .map((opt) => {
               const meta = RELIC_PERSONAS[opt];
               const isSelected = activeRelic === opt;
               const itemColor = opt === 'none' ? colors.primary : meta.color;
@@ -593,7 +571,7 @@ export default function OracleScreen() {
             Sugestões para começar:
           </Text>
           <View style={styles.quickPromptsWrap}>
-            {QUICK_PROMPTS.map((prompt, index) => (
+            {activeQuickPrompts.map((prompt, index) => (
               <TouchableOpacity
                 key={index}
                 onPress={() => handleSendMessage(prompt)}
@@ -837,6 +815,15 @@ const styles = StyleSheet.create({
   providerBadgeText: {
     fontSize: 10.5,
     fontWeight: '700',
+  },
+  personaFilterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
   },
   relicSelectorRow: {
     marginTop: 8,

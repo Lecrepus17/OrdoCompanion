@@ -25,11 +25,26 @@ interface AiConfigModalProps {
 
 const RELIC_OPTIONS: ParanormalRelic[] = [
   'none',
+  'arbitro_regras',
+  'co_mestre',
+  'build_advisor',
+  'verissimo',
+  'cervero',
+  'kian',
   'anfitriao',
   'magistrada',
   'deus_da_morte',
   'diabo',
   'random',
+];
+
+const ALL_PERSONA_OPTIONS = RELIC_OPTIONS;
+
+const CATEGORY_TABS: Array<{ id: 'all' | 'specialist' | 'canon' | 'relics'; label: string; emoji: string }> = [
+  { id: 'all', label: 'Todas', emoji: '✨' },
+  { id: 'specialist', label: 'Táticos & Juiz', emoji: '🛡️' },
+  { id: 'canon', label: 'Personas da Ordem', emoji: '👥' },
+  { id: 'relics', label: 'Relíquias', emoji: '🌀' },
 ];
 
 export function AiConfigModal({
@@ -53,6 +68,7 @@ export function AiConfigModal({
   const [customInstructions, setCustomInstructions] = useState(config.customInstructions || '');
   const [offlineFallback, setOfflineFallback] = useState(config.offlineFallback);
   const [showKey, setShowKey] = useState(false);
+  const [selectedPersonaTab, setSelectedPersonaTab] = useState<'all' | 'specialist' | 'canon' | 'relics'>('all');
 
   const defaultKeyAvailable = hasDefaultApiKey(provider);
   const isUsingDefault = !apiKey.trim() && defaultKeyAvailable;
@@ -695,6 +711,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
+  },
+  categoryTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   relicGrid: {
     flexDirection: 'column',

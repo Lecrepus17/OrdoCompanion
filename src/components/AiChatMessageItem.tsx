@@ -120,6 +120,24 @@ export function AiChatMessageItem({
     if (content.includes('O DIABO') || content.includes('TRONO DE SANGUE') || content.includes('SANGUE FERVILHA')) {
       return 'diabo';
     }
+    if (content.includes('VERÍSSIMO') || content.includes('SENHOR VERÍSSIMO') || content.includes('COMANDO DA ORDO REALITAS')) {
+      return 'verissimo';
+    }
+    if (content.includes('ARTHUR CERVERO') || content.includes('ARTHUR')) {
+      return 'cervero';
+    }
+    if (content.includes('KIAN') || content.includes('O PRIMEIRO OCULTISTA')) {
+      return 'kian';
+    }
+    if (content.includes('ÁRBITRO RÁPIDO') || content.includes('FAST ARBITER')) {
+      return 'arbitro_regras';
+    }
+    if (content.includes('CO-MESTRE') || content.includes('SUPORTE DO NARRADOR')) {
+      return 'co_mestre';
+    }
+    if (content.includes('AVALIADOR TÁTICO') || content.includes('BUILD ADVISOR')) {
+      return 'build_advisor';
+    }
 
     if (activeRelic && activeRelic !== 'random') {
       return activeRelic;
@@ -130,7 +148,7 @@ export function AiChatMessageItem({
     return 'none';
   })();
 
-  const relicInfo = RELIC_PERSONAS[personaKey];
+  const relicInfo = RELIC_PERSONAS[personaKey] || RELIC_PERSONAS.none;
   const accentColor = personaKey === 'none' ? colors.primary : relicInfo.color;
   const accentBg = personaKey === 'none' ? colors.primarySoft : relicInfo.accentBg;
 

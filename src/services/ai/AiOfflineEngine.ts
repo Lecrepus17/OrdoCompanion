@@ -3,7 +3,7 @@ import { AiMessage, ConcreteRelicPersona } from '../../types/ai';
 
 /**
  * Sintetizador inteligente para funcionamento 100% Offline ou quando não houver chave de API configurada,
- * adaptando a voz e o tom para cada uma das Relíquias ou para o G.L.I.T.C.H.
+ * adaptando a voz e o tom para cada uma das Personas, Relíquias ou Especialistas.
  */
 export function generateOfflineResponse(
   userQuery: string,
@@ -28,6 +28,69 @@ export function generateOfflineResponse(
   let footer = '';
 
   switch (persona) {
+    // --- PERSONAS CANÔNICAS ---
+    case 'verissimo':
+      greeting = `**🛡️ [COMANDO DA ORDO REALITAS — SENHOR VERÍSSIMO]**\n*Agente, o canal de transmissão externo está inativo, mas a Ordem não opera no escuro. Consultei os arquivos de contingência da base para dar o direcionamento tático à sua equipe. Que a Realidade não se curve!*`;
+      manualIntroHeader = `### 📋 Procedimentos Operacionais no OrdoCompanion:`;
+      compendiumIntroHeader = `### 🗂️ Arquivos e Registros Oficiais da Ordem:`;
+      bookIntroHeader = `### 📖 Diretrizes nos Manuais Oficiais:`;
+      tipPrefix = `🛡️ **Ordem de Comando:**`;
+      notFoundText = `*Agente, não localizamos registros para este protocolo nos arquivos locais da Ordem. Mantenha os pés no chão e refine a busca com termos canônicos.*`;
+      footer = `*(Para briefings estratégicos gerados por IA avançada, ative sua chave gratuita da API nas configurações acima).*`;
+      break;
+
+    case 'cervero':
+      greeting = `**🎸 [ARTHUR CERVERO — FREQUÊNCIA DE CAMPO]**\n*E aí, parceiro! O sinal com a rede caiu, mas quem é de campo nunca fica na mão. Já revirei as anotações e a bagagem pra te passar o que funciona na prática.*`;
+      manualIntroHeader = `### 🔧 Como se virar com o OrdoCompanion:`;
+      compendiumIntroHeader = `### 🗡️ Equipamento e Fichas de Campo:`;
+      bookIntroHeader = `### 📖 O que tá escrito nos manuais de sobrevivência:`;
+      tipPrefix = `💡 **Dica de Quem Já Sangrou:**`;
+      notFoundText = `*Olha, parceiro, procurei aqui mas não achei nada com esse nome. Tenta palavras como combate, perícia, dano ou o nome de alguma arma.*`;
+      footer = `*(Quer trocar ideias mais profundas sobre sobrevivência paranormal? Adicione sua chave gratuita de IA nas configurações).*`;
+      break;
+
+    case 'kian':
+      greeting = `**👁️‍🗨️ [KIAN — O SABER PRIMORDIAL]**\n*As ondas humanas de transmissão se calam, mas as verdades do Outro Lado não dependem de sinais efêmeros. O que você busca está registrado nos escritos fundamentais.*`;
+      manualIntroHeader = `### 📜 A manipulação das ferramentas da Realidade:`;
+      compendiumIntroHeader = `### 🌀 Sigilos e Entidades Catalogadas:`;
+      bookIntroHeader = `### 📖 O Cânone Imutável nos Livros Antigos:`;
+      tipPrefix = `👁️‍🗨️ **Enigma Revelado:**`;
+      notFoundText = `*Tal conceito não encontra ressonância nos registros ancestrais preservados. Procure pelas correntes verdadeiras do Outro Lado.*`;
+      footer = `*(Para perscrutar o Outro Lado com síntese neural profunda, conecte uma chave de IA nas configurações).*`;
+      break;
+
+    // --- AGENTES ESPECIALISTAS ---
+    case 'arbitro_regras':
+      greeting = `**⚖️ [ÁRBITRO RÁPIDO DE REGRAS EM MESA]**\n*Dúvida mecânica em combate resolvida diretamente pelos manuais locais:*`;
+      manualIntroHeader = `### ⚙️ Procedimento Rápido no App:`;
+      compendiumIntroHeader = `### ⚡ Resolução Mecânica Direta:`;
+      bookIntroHeader = `### 📖 Regra Oficial & Página:`;
+      tipPrefix = `⚡ **Veredito:**`;
+      notFoundText = `*Regra não encontrada com este termo exato. Consulte termos mecânicos como "agarrar", "manobra", "cobertura", "morrendo" ou o nome do ritual.*`;
+      footer = `*(Dúvidas complexas em tempo recorde: ative a API gratuita do Google Gemini nas configurações).*`;
+      break;
+
+    case 'co_mestre':
+      greeting = `**📜 [CENTRAL DO CO-MESTRE & SUPORTE DO NARRADOR]**\n*Mestre, registros locais abertos para municiar sua cena, pistas investigativas e balanceamento de criaturas:*`;
+      manualIntroHeader = `### 🎲 Ferramentas do Narrador no OrdoCompanion:`;
+      compendiumIntroHeader = `### 🧟 Ameaças, Enigmas e Itens Catalogados:`;
+      bookIntroHeader = `### 📖 Diretrizes para o Mestre nos Livros:`;
+      tipPrefix = `🎭 **Ideia de Cena:**`;
+      notFoundText = `*Mestre, não localizei registros com este nome. Tente consultar ameaças (ex: Zumbi, Esqueleto), rituais ou termos de investigação.*`;
+      footer = `*(Para geração dinâmica de pistas e enigmas inéditos sob medida, adicione uma chave de IA nas configurações).*`;
+      break;
+
+    case 'build_advisor':
+      greeting = `**🎯 [AVALIADOR TÁTICO DE FICHAS & BUILDS]**\n*Análise tática dos compêndios locais para otimização de poderes, sinergias e caminhos de NEX:*`;
+      manualIntroHeader = `### 📋 Gerenciando a Ficha no OrdoCompanion:`;
+      compendiumIntroHeader = `### ⚡ Poderes, Perícias e Rituais Compatíveis:`;
+      bookIntroHeader = `### 📖 Requisitos Oficiais de Progressão:`;
+      tipPrefix = `🎯 **Sinergia Tática:**`;
+      notFoundText = `*Não localizei poderes ou trilhas com essa nomenclatura. Tente termos como o nome de uma classe, afinidade elemental ou atributo.*`;
+      footer = `*(Para consultoria tática personalizada analisando cada linha da sua ficha com IA, adicione uma chave gratuita nas configurações).*`;
+      break;
+
+    // --- RELÍQUIAS DO OUTRO LADO ---
     case 'anfitriao':
       greeting = `**⚡ OOOPS! O ANFITRIÃO CHEGOU! SENHORAS E SENHORES DO CAOS!**\n*Parece que os cabos da transmissão com a nuvem estão faiscando, mas o show nunca para! O Anfitrião tirou a poeira dos registros locais e trouxe a resposta fresquinha do Outro Lado para você!*`;
       manualIntroHeader = `### 🎭 Como realizar essa proeza no OrdoCompanion:`;

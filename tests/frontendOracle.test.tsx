@@ -83,7 +83,7 @@ describe('Frontend - Tela do Oráculo G.L.I.T.C.H. (oracle.tsx)', () => {
   });
 
   test('deve permitir enviar mensagem através dos atalhos rápidos e exibir resposta', async () => {
-    const { getByText, queryByText } = await renderWithProviders(<OracleScreen />);
+    const { getByText, queryByText, container } = await renderWithProviders(<OracleScreen />);
 
     // Clica em um prompt rápido sugerido
     const promptBtn = getByText(/Como funciona teste de atributo e penalidade/i);
@@ -239,5 +239,30 @@ $$\\text{Dano Final Brutal: } 9d8+6$$ [Aba: dice]`,
     assert.ok(aleatorioChip);
     await fireClick(aleatorioChip);
     assert.ok(queryByText(/Aleatório/i));
+  });
+
+  test('OracleScreen deve permitir alternar para Árbitro Rápido, Senhor Veríssimo e Co-Mestre atualizando prompts rápidos', async () => {
+    const { getByText, queryByText, container } = await renderWithProviders(<OracleScreen />);
+
+    // Clica no chip do Árbitro Rápido
+    const arbitroChip = getByText('Árbitro Rápido');
+    assert.ok(arbitroChip);
+    await fireClick(arbitroChip);
+    assert.ok(queryByText(/Árbitro Rápido/i));
+    assert.ok(queryByText(/Juiz de Mesa/i));
+
+    // Clica no chip do Senhor Veríssimo
+    const verissimoChip = getByText('Senhor Veríssimo');
+    assert.ok(verissimoChip);
+    await fireClick(verissimoChip); 
+    assert.ok(queryByText(/Senhor Veríssimo/i));
+    assert.ok(queryByText(/Que a Realidade Não Se Curve!/i));
+
+    // Clica no chip do Co-Mestre
+    const coMestreChip = getByText('Co-Mestre');
+    assert.ok(coMestreChip);
+    await fireClick(coMestreChip);
+    assert.ok(queryByText(/Co-Mestre/i));
+    assert.ok(queryByText(/Suporte ao Narrador/i));
   });
 });

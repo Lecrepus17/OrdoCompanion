@@ -349,6 +349,35 @@ describe('G.L.I.T.C.H. - Motor Offline de Relíquias (AiOfflineEngine.ts)', () =
     assert.equal(msg.relicPersona, 'diabo');
   });
 
+  test('generateOfflineResponse deve adotar a voz de Senhor Veríssimo, Arthur Cervero e Kian', () => {
+    const knowledgeVerissimo = retrieveAiKnowledge('missao', { ...DEFAULT_AI_CONFIG, relicPersona: 'verissimo' });
+    const msgV = generateOfflineResponse('missao', knowledgeVerissimo, 'verissimo');
+    assert.ok(msgV.content.includes('COMANDO DA ORDO REALITAS — SENHOR VERÍSSIMO'));
+    assert.ok(msgV.content.includes('Que a Realidade não se curve!'));
+
+    const knowledgeCervero = retrieveAiKnowledge('sobrevivencia', { ...DEFAULT_AI_CONFIG, relicPersona: 'cervero' });
+    const msgC = generateOfflineResponse('sobrevivencia', knowledgeCervero, 'cervero');
+    assert.ok(msgC.content.includes('ARTHUR CERVERO — FREQUÊNCIA DE CAMPO'));
+
+    const knowledgeKian = retrieveAiKnowledge('ritual antigo', { ...DEFAULT_AI_CONFIG, relicPersona: 'kian' });
+    const msgK = generateOfflineResponse('ritual antigo', knowledgeKian, 'kian');
+    assert.ok(msgK.content.includes('KIAN — O SABER PRIMORDIAL'));
+  });
+
+  test('generateOfflineResponse deve adotar a voz do Árbitro Rápido, Co-Mestre e Build Advisor', () => {
+    const knowledgeArbitro = retrieveAiKnowledge('agarrar', { ...DEFAULT_AI_CONFIG, relicPersona: 'arbitro_regras' });
+    const msgA = generateOfflineResponse('agarrar', knowledgeArbitro, 'arbitro_regras');
+    assert.ok(msgA.content.includes('ÁRBITRO RÁPIDO DE REGRAS EM MESA'));
+
+    const knowledgeMestre = retrieveAiKnowledge('enigma', { ...DEFAULT_AI_CONFIG, relicPersona: 'co_mestre' });
+    const msgM = generateOfflineResponse('enigma', knowledgeMestre, 'co_mestre');
+    assert.ok(msgM.content.includes('CENTRAL DO CO-MESTRE & SUPORTE DO NARRADOR'));
+
+    const knowledgeBuild = retrieveAiKnowledge('build', { ...DEFAULT_AI_CONFIG, relicPersona: 'build_advisor' });
+    const msgB = generateOfflineResponse('build', knowledgeBuild, 'build_advisor');
+    assert.ok(msgB.content.includes('AVALIADOR TÁTICO DE FICHAS & BUILDS'));
+  });
+
   test('generateOfflineResponse deve citar o livro fonte correto de uma entidade', () => {
     const mockKnowledge = {
       systemPrompt: '',
