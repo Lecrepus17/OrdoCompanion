@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { defaultRepository } from '../../repositories/OfflineDataRepository';
 import {
   cacheUnlockedBooksOffline,
+  KNOWN_SIGNATURES_BY_ID,
   localPdfStorage,
 } from '../pdf/PdfAccessService';
 import { GoogleDriveService } from './GoogleDriveService';
@@ -235,6 +237,7 @@ export class CloudSyncManager {
       for (const bookId of allUnlockedIds) {
         const rec = unlockedMap[bookId];
         const remoteDriveId = rec?.driveFileId || driveByBookId.get(bookId);
+        const hasLocalOffline = localPdfStorage.hasPdfOffline(bookId) || Boolean(localPdfStorage.getLocalPdfFileUriSync(bookId));
         const localBytes = await localPdfStorage.getPdfBytes(bookId);
 
         if (localBytes && localBytes.length > 0 && !remoteDriveId) {
@@ -251,22 +254,46 @@ export class CloudSyncManager {
             });
             syncedCount++;
           }
-        } else if ((!localBytes || localBytes.length === 0) && remoteDriveId) {
-          // O PDF está salvo no Google Drive do usuário, mas ainda não foi baixado neste aparelho -> baixa para offline!
+        } else if (!hasLocalOffline && remoteDriveId) {
+          // O PDF está salvo no Google Drive do usuário, mas ainda não foi baixado neste aparelho
           try {
-            const downloadedBytes = await this.driveService.downloadPdfFromDrive(remoteDriveId);
-            if (downloadedBytes && downloadedBytes.length > 0) {
-              await localPdfStorage.savePdfOffline(
+            if (Platform.OS !== 'web') {
+              // No celular: baixa via streaming nativo direto para o arquivo em disco (0 bytes em RAM)
+              const savedUri = await this.driveService.downloadPdfFromDriveToFile(
+                remoteDriveId,
                 bookId,
-                rec?.fileName || `${bookId}.pdf`,
-                downloadedBytes,
-                rec?.sha256
+                rec?.fileName
               );
-              await defaultRepository.unlockBook(bookId, {
-                driveFileId: remoteDriveId,
-                localPdfStored: true,
-              });
-              syncedCount++;
+              if (savedUri) {
+                await localPdfStorage.savePdfOfflineFromUri(
+                  bookId,
+                  rec?.fileName || `${bookId}.pdf`,
+                  savedUri,
+                  KNOWN_SIGNATURES_BY_ID.get(bookId)?.fileSize,
+                  rec?.sha256
+                );
+                await defaultRepository.unlockBook(bookId, {
+                  driveFileId: remoteDriveId,
+                  localPdfStored: true,
+                });
+                syncedCount++;
+              }
+            } else {
+              // Na Web: baixa os bytes para o IndexedDB
+              const downloadedBytes = await this.driveService.downloadPdfFromDrive(remoteDriveId);
+              if (downloadedBytes && downloadedBytes.length > 0) {
+                await localPdfStorage.savePdfOffline(
+                  bookId,
+                  rec?.fileName || `${bookId}.pdf`,
+                  downloadedBytes,
+                  rec?.sha256
+                );
+                await defaultRepository.unlockBook(bookId, {
+                  driveFileId: remoteDriveId,
+                  localPdfStored: true,
+                });
+                syncedCount++;
+              }
             }
           } catch {}
         } else if (remoteDriveId && !rec?.driveFileId) {
