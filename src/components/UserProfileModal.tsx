@@ -28,6 +28,7 @@ import {
 } from '../types/compendium';
 import {
   hideTab,
+  isLegacyDefaultNavigationConfig,
   pinTab,
   reorderPinnedTabs,
   resetNavigationConfig,
@@ -116,13 +117,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
 
 
       const navConfig = userProfile.navigationConfig;
+      const isLegacy = isLegacyDefaultNavigationConfig(navConfig);
       setPinnedTabs(
-        navConfig?.pinnedTabs && Array.isArray(navConfig.pinnedTabs)
+        !isLegacy && navConfig?.pinnedTabs && Array.isArray(navConfig.pinnedTabs)
           ? navConfig.pinnedTabs
           : DEFAULT_PINNED_TABS
       );
       setHiddenTabs(
-        navConfig?.hiddenTabs && Array.isArray(navConfig.hiddenTabs)
+        !isLegacy && navConfig?.hiddenTabs && Array.isArray(navConfig.hiddenTabs)
           ? navConfig.hiddenTabs
           : DEFAULT_HIDDEN_TABS
       );

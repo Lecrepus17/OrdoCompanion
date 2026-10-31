@@ -1,6 +1,7 @@
 import {
   DEFAULT_HIDDEN_TABS,
   DEFAULT_PINNED_TABS,
+  LEGACY_DEFAULT_PINNED_TABS,
   TabNavigationConfig,
 } from '../types/compendium';
 
@@ -15,6 +16,21 @@ export interface ResolvedNavigationTabs {
  * Descobre automaticamente novas rotas presentes no navegador que ainda não
  * tenham sido configuradas pelo usuário.
  */
+/**
+ * Verifica se a configuração fornecida é a legada (padrão antigo das versões anteriores)
+ * ou não foi customizada pelo usuário.
+ */
+export function isLegacyDefaultNavigationConfig(config?: TabNavigationConfig | null): boolean {
+  if (!config || !config.pinnedTabs || !Array.isArray(config.pinnedTabs)) {
+    return true;
+  }
+  const isLegacyPinned =
+    config.pinnedTabs.length === LEGACY_DEFAULT_PINNED_TABS.length &&
+    config.pinnedTabs.every((tab, idx) => tab === LEGACY_DEFAULT_PINNED_TABS[idx]);
+  const isLegacyHidden = !config.hiddenTabs || config.hiddenTabs.length === 0;
+  return isLegacyPinned && isLegacyHidden;
+}
+
 export function resolveNavigationTabs(
   availableRouteNames: string[],
   config?: TabNavigationConfig
@@ -23,12 +39,16 @@ export function resolveNavigationTabs(
     return { pinnedTabs: [], overflowTabs: [], hiddenTabs: [] };
   }
 
-  const rawPinned = config?.pinnedTabs && Array.isArray(config.pinnedTabs)
-    ? config.pinnedTabs
+  const effectiveConfig = isLegacyDefaultNavigationConfig(config)
+    ? { pinnedTabs: DEFAULT_PINNED_TABS, hiddenTabs: DEFAULT_HIDDEN_TABS }
+    : config;
+
+  const rawPinned = effectiveConfig?.pinnedTabs && Array.isArray(effectiveConfig.pinnedTabs)
+    ? effectiveConfig.pinnedTabs
     : DEFAULT_PINNED_TABS;
 
-  const rawHidden = config?.hiddenTabs && Array.isArray(config.hiddenTabs)
-    ? config.hiddenTabs
+  const rawHidden = effectiveConfig?.hiddenTabs && Array.isArray(effectiveConfig.hiddenTabs)
+    ? effectiveConfig.hiddenTabs
     : DEFAULT_HIDDEN_TABS;
 
   // Filtra as abas fixadas mantendo a ordem do usuário, mas garantindo que a rota realmente existe

@@ -8,26 +8,74 @@ import {
   hideTab,
   unhideTab,
   resetNavigationConfig,
+  isLegacyDefaultNavigationConfig,
 } from '../src/utils/tabNavigation';
 import {
   DEFAULT_HIDDEN_TABS,
   DEFAULT_PINNED_TABS,
+  LEGACY_DEFAULT_PINNED_TABS,
   getTabMetadata,
   KNOWN_TAB_DEFINITIONS,
   TabNavigationConfig,
 } from '../src/types/compendium';
 
 describe('Sistema Dinâmico de Navegação e Abas (tabNavigation.ts)', () => {
-  const standardRoutes = ['index', 'characters', 'weapons', 'books', 'dice', 'favorites'];
+  const allAppRoutes = [
+    'index',
+    'characters',
+    'weapons',
+    'books',
+    'dice',
+    'favorites',
+    'master',
+    'table',
+    'oracle',
+    'support',
+  ];
 
-  test('resolveNavigationTabs com configuração padrão inicial', () => {
-    const res = resolveNavigationTabs(standardRoutes);
-    // As abas fixadas respeitam DEFAULT_PINNED_TABS presentes em standardRoutes
-    assert.ok(res.pinnedTabs.includes('index'));
-    assert.ok(res.pinnedTabs.includes('characters'));
-    // Livros e Salvos vão para o modal (overflow)
-    assert.ok(res.overflowTabs.includes('books'));
-    assert.ok(res.overflowTabs.includes('favorites'));
+  test('resolveNavigationTabs com novo padrão oficial do app (5 fixadas, 2 menu mais, 3 ocultas)', () => {
+    const res = resolveNavigationTabs(allAppRoutes);
+
+    // 1. ABAS FIXADAS NA BARRA (5)
+    assert.deepEqual(res.pinnedTabs, ['index', 'characters', 'books', 'favorites', 'dice']);
+
+    // 2. ABAS NO MENU MAIS (2)
+    assert.deepEqual(res.overflowTabs, ['weapons', 'support']);
+
+    // 3. ABAS OCULTAS (3)
+    assert.deepEqual(res.hiddenTabs, ['master', 'oracle', 'table']);
+  });
+
+  test('migração automática do padrão legado antigo para o novo padrão', () => {
+    const legacyConfig: TabNavigationConfig = {
+      pinnedTabs: ['index', 'characters', 'master', 'weapons', 'dice'],
+      hiddenTabs: [],
+    };
+
+    assert.strictEqual(isLegacyDefaultNavigationConfig(legacyConfig), true);
+
+    const res = resolveNavigationTabs(allAppRoutes, legacyConfig);
+    // Deve migrar para o novo padrão do app
+    assert.deepEqual(res.pinnedTabs, ['index', 'characters', 'books', 'favorites', 'dice']);
+    assert.deepEqual(res.overflowTabs, ['weapons', 'support']);
+    assert.deepEqual(res.hiddenTabs, ['master', 'oracle', 'table']);
+  });
+
+  test('respeito irrestrito a alterações do usuário (a menos que o usuário altere)', () => {
+    // Usuário customizou voluntariamente as abas
+    const userCustomConfig: TabNavigationConfig = {
+      pinnedTabs: ['characters', 'index', 'oracle'],
+      hiddenTabs: ['dice'],
+    };
+
+    assert.strictEqual(isLegacyDefaultNavigationConfig(userCustomConfig), false);
+
+    const res = resolveNavigationTabs(allAppRoutes, userCustomConfig);
+    // Mantém exatamente as abas escolhidas pelo usuário
+    assert.deepEqual(res.pinnedTabs, ['characters', 'index', 'oracle']);
+    assert.ok(res.hiddenTabs.includes('dice'));
+    assert.strictEqual(res.pinnedTabs.includes('dice'), false);
+    assert.strictEqual(res.overflowTabs.includes('dice'), false);
   });
 
   test('resolveNavigationTabs com rota oculta configurada (ex: master ou campanhas)', () => {
@@ -35,8 +83,7 @@ describe('Sistema Dinâmico de Navegação e Abas (tabNavigation.ts)', () => {
       pinnedTabs: ['index', 'characters', 'weapons', 'dice'],
       hiddenTabs: ['master'],
     };
-    const routesWithMaster = [...standardRoutes, 'master'];
-    const res = resolveNavigationTabs(routesWithMaster, customConfig);
+    const res = resolveNavigationTabs(allAppRoutes, customConfig);
 
     assert.ok(res.hiddenTabs.includes('master'));
     assert.strictEqual(res.overflowTabs.includes('master'), false);
@@ -44,7 +91,7 @@ describe('Sistema Dinâmico de Navegação e Abas (tabNavigation.ts)', () => {
   });
 
   test('resolveNavigationTabs descobre automaticamente rotas não mapeadas e as coloca no modal', () => {
-    const routesWithFuture = [...standardRoutes, 'futura_tela_secreta'];
+    const routesWithFuture = [...allAppRoutes, 'futura_tela_secreta'];
     const res = resolveNavigationTabs(routesWithFuture);
 
     // Nova rota desconhecida deve ir automaticamente para overflow (modal)
@@ -52,23 +99,22 @@ describe('Sistema Dinâmico de Navegação e Abas (tabNavigation.ts)', () => {
   });
 
   test('remover botão Mais quando todas as abas ativas estiverem fixadas na barra', () => {
-    // Se o usuário fixar todas as abas
+    // Se o usuário fixar todas as rotas ativas
     const customConfig: TabNavigationConfig = {
-      pinnedTabs: ['index', 'characters', 'weapons', 'books', 'dice', 'favorites'],
-      hiddenTabs: [],
+      pinnedTabs: ['index', 'characters', 'weapons', 'books', 'dice', 'favorites', 'support'],
+      hiddenTabs: ['master', 'table', 'oracle'],
     };
-    const res = resolveNavigationTabs(standardRoutes, customConfig);
+    const res = resolveNavigationTabs(allAppRoutes, customConfig);
 
-    assert.strictEqual(res.pinnedTabs.length, 6);
     assert.strictEqual(res.overflowTabs.length, 0); // Modal vazio! Botão 'Mais' deve desaparecer
   });
 
   test('reordenar abas fixadas com segurança (reorderPinnedTabs)', () => {
-    const tabs = ['index', 'characters', 'weapons', 'dice'];
+    const tabs = ['index', 'characters', 'books', 'favorites', 'dice'];
 
-    // Mover 'dice' do índice 3 para o índice 0 (primeira posição)
-    const reordered = reorderPinnedTabs(tabs, 3, 0);
-    assert.deepEqual(reordered, ['dice', 'index', 'characters', 'weapons']);
+    // Mover 'dice' do índice 4 para o índice 0 (primeira posição)
+    const reordered = reorderPinnedTabs(tabs, 4, 0);
+    assert.deepEqual(reordered, ['dice', 'index', 'characters', 'books', 'favorites']);
 
     // Mover com índices inválidos deve retornar cópia inalterada
     assert.deepEqual(reorderPinnedTabs(tabs, -1, 2), tabs);
@@ -132,9 +178,11 @@ describe('Sistema Dinâmico de Navegação e Abas (tabNavigation.ts)', () => {
     assert.strictEqual(metaUnknown.icon, 'apps-outline');
   });
 
-  test('resetNavigationConfig restaura os padrões recomendados', () => {
+  test('resetNavigationConfig restaura os novos padrões recomendados do app', () => {
     const reset = resetNavigationConfig();
     assert.deepEqual(reset.pinnedTabs, DEFAULT_PINNED_TABS);
+    assert.deepEqual(reset.pinnedTabs, ['index', 'characters', 'books', 'favorites', 'dice']);
     assert.deepEqual(reset.hiddenTabs, DEFAULT_HIDDEN_TABS);
+    assert.deepEqual(reset.hiddenTabs, ['master', 'oracle', 'table']);
   });
 });

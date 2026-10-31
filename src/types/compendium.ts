@@ -237,6 +237,7 @@ export interface CharacterAttack {
   range: string; // e.g., "Médio", "Curto", "Corpo a corpo"
   special: string; // e.g., "Balístico • Mira Laser • Perigosa"
   customWeaponId?: string;
+  proficiency?: WeaponProficiency;
 }
 
 export interface CharacterAbility {
@@ -255,6 +256,26 @@ export interface CharacterInventoryItem {
   spaces: number;
   details?: string;
   equipped?: boolean;
+  itemType?: 'geral' | 'vestimenta' | 'utensilio' | 'protecao' | 'escudo';
+  isVestimenta?: boolean;
+  isUtensilio?: boolean;
+  skillBonus?: number;
+  targetSkill?: string;
+  secondarySkill?: string;
+  secondaryBonus?: number;
+  justification?: string;
+}
+
+export interface CharacterProficiencies {
+  simpleWeapons: boolean;
+  tacticalWeapons: boolean;
+  heavyWeapons: boolean;
+  tacticalFirearms: boolean;
+  tacticalMelee: boolean;
+  longBulletsFirearms: boolean;
+  operarioWeaponName?: string;
+  lightProtection: boolean;
+  heavyProtection: boolean;
 }
 
 export interface CharacterSkillEntry {
@@ -515,8 +536,9 @@ export const KNOWN_TAB_DEFINITIONS: Record<string, TabMetadata> = {
   },
 };
 
-export const DEFAULT_PINNED_TABS: string[] = ['index', 'characters', 'master', 'weapons', 'dice'];
-export const DEFAULT_HIDDEN_TABS: string[] = [];
+export const DEFAULT_PINNED_TABS: string[] = ['index', 'characters', 'books', 'favorites', 'dice'];
+export const DEFAULT_HIDDEN_TABS: string[] = ['master', 'oracle', 'table'];
+export const LEGACY_DEFAULT_PINNED_TABS: string[] = ['index', 'characters', 'master', 'weapons', 'dice'];
 
 export function getTabMetadata(routeKey: string, customOptions?: { title?: string }): TabMetadata {
   if (KNOWN_TAB_DEFINITIONS[routeKey]) {

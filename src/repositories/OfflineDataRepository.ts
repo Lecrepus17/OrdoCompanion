@@ -16,7 +16,10 @@ import {
   UnlockedBookRecord,
   UserProfile,
   DEFAULT_USER_PROFILE,
+  DEFAULT_PINNED_TABS,
+  DEFAULT_HIDDEN_TABS,
 } from '../types/compendium';
+import { isLegacyDefaultNavigationConfig } from '../utils/tabNavigation';
 import { IDataRepository } from './IDataRepository';
 import { localPdfStorage } from '../services/pdf/PdfAccessService';
 
@@ -254,6 +257,12 @@ export class OfflineDataRepository implements IDataRepository {
       if (profileRaw) {
         try {
           this.userProfile = { ...DEFAULT_USER_PROFILE, ...JSON.parse(profileRaw) };
+          if (isLegacyDefaultNavigationConfig(this.userProfile.navigationConfig)) {
+            this.userProfile.navigationConfig = {
+              pinnedTabs: [...DEFAULT_PINNED_TABS],
+              hiddenTabs: [...DEFAULT_HIDDEN_TABS],
+            };
+          }
         } catch {}
       }
 

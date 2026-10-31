@@ -1,12 +1,17 @@
 # 📋 Atualizações Pendentes para o Próximo Release
 
 > **Versão Atual**: `1.1.0-beta.3`  
-> **Versão Sugerida**: `1.1.0-beta.4` (Motivo: [Patch] Correção de OutOfMemoryError no Android ao manipular PDFs grandes, leitor in-app e blindagem EAS)  
-> **Última Atualização**: 2026-10-31 17:32
+> **Versão Sugerida**: `1.1.0-beta.4` (Motivo: [Patch] Padronização das 5 abas fixadas na barra, menu Mais e telas ocultas, correção de OutOfMemoryError no Android ao manipular PDFs grandes, leitor in-app e blindagem EAS)  
+> **Última Atualização**: 2026-10-31 18:07
 
 ---
 
 ## 🚀 Resumo do Próximo Release v1.1.0-beta.4 (Changelog de Usuário)
+* **Novo Padrão Canônico da Barra de Abas & Menu "+ Mais"**:
+  * **Abas Fixadas na Barra Inferior (5)**: Compêndio (`#1`), Agentes (`#2`), Livros (`#3`), Salvos (`#4`) e Dados (`#5`) agora são as telas principais de acesso imediato por padrão.
+  * **Abas no Menu "+ Mais" (2)**: Armaria e Suporte organizadas com facilidade no modal de opções complementares.
+  * **Abas Ocultas por Padrão (3)**: Central do Mestre, G.L.I.T.C.H. e Mesa Virtual iniciam desativadas da navegação para maior limpeza visual (com o assistente G.L.I.T.C.H. acessível a qualquer instante pelo botão com ícone de brilho no topo de qualquer tela).
+  * **Respeito Integral às Preferências do Usuário ("a menos que o usuário altere")**: Perfis que personalizaram a organização das abas mantêm suas escolhas intactas, e perfis legados são migrados suavemente para o novo padrão oficial.
 * **Correção Crítica de OutOfMemoryError no APK Android (`java.lang.OutOfMemoryError`)**:
   * Resolvido crash espontâneo que ocorria em segundo plano sem ação do usuário ("sem eu fazer nada"). O aplicativo tentava alocar até 84.030.125 bytes (~84 MB) de uma só vez na memória heap do Android ao tentar baixar o livro *Sobrevivendo ao Horror*.
   * O download e cache automático de PDFs em segundo plano (`cacheUnlockedBooksOffline`) no celular agora grava apenas metadados (consumo ZERO de RAM). O download de binários pesados ocorre exclusivamente sob demanda.
@@ -26,6 +31,12 @@
 ## 📦 Detalhamento Técnico das Modificações Consolidadas
 
 ### ✨ Novas Funcionalidades & Correções (Features & Fixes)
+- **Padronização da Barra de Navegação e Menu Mais (`src/types/compendium.ts`, `src/utils/tabNavigation.ts`, `src/components/UserProfileModal.tsx`, `src/repositories/OfflineDataRepository.ts`)**:
+  - `DEFAULT_PINNED_TABS`: Padronizado para `['index', 'characters', 'books', 'favorites', 'dice']` (5 abas fixadas na barra).
+  - `DEFAULT_HIDDEN_TABS`: Padronizado para `['master', 'oracle', 'table']` (3 abas ocultas por padrão).
+  - O overflow automático de telas ativas direciona Armaria (`weapons`) e Suporte (`support`) para o menu "+ Mais" (2 abas no modal).
+  - Implementada a função `isLegacyDefaultNavigationConfig` em `src/utils/tabNavigation.ts`, detectando o padrão antigo de versões anteriores e migrando suavemente para o novo padrão sem sobrepor preferências customizadas pelo usuário.
+  - No `UserProfileModal.tsx` e `OfflineDataRepository.ts`, a restauração de padrões e o carregamento do perfil reconhecem e aplicam a nova configuração.
 - **Blindagem Definitiva Contra OutOfMemoryError no Android (`PdfCacheService.ts`, `PdfAccessService.ts`, `CloudSyncManager.ts`, `AndroidManifest.xml`)**:
   - `src/services/pdf/PdfCacheService.ts`: Atualizada a importação de `expo-file-system` para `expo-file-system/legacy`. No Expo SDK 58, métodos legados como `downloadAsync` e `getInfoAsync` lançam exceções em runtime se importados da raiz; a importação do submódulo oficial `/legacy` restaura o streaming direto nativo para disco sem alocar buffers na RAM.
   - `src/services/pdf/PdfAccessService.ts`: Em `cacheUnlockedBooksOffline`, adicionada guarda precoce para celular (`Platform.OS !== 'web'`), registrando apenas os metadados dos livros desbloqueados e impedindo qualquer loop de background que tente baixar 600 MB de binários silenciosamente.
@@ -58,9 +69,10 @@
   - Criados scripts `scripts/iniciar_emulador_e_app.bat` e `scripts/iniciar_emulador_e_app.ps1` com comandos `npm run android:emu` e `npm run android:emu:ps`, aguardando estabilização do dispositivo via `adb wait-for-device` sem erros de redirecionamento.
   - Elaborado manual completo em `docs/GUIA_EMULADOR_E_BUILD_LOCAL.md`.
 
-### 🧪 Testes Automatizados (395 testes passando - 100% de sucesso)
-- `tests/pdfOutOfMemoryPrevention.test.tsx`: 3 novos testes automatizados cobrindo a execução segura de `cacheUnlockedBooksOffline` no Android (apenas metadados), verificação da presença de `android:largeHeap="true"` no `AndroidManifest.xml` e streaming de disco no `downloadBookPdfOffline`.
-- `tests/compendiumPdfIntegration.test.tsx`: 5 novos testes cobrindo disparo de `onPressPageBadge`, validação da senha mestre canônica, resolução de base URLs seguras, execução sem erros de `openPdfDocument` com `WebBrowser` e integridade de dados retornados por `getBookPage`.
+### 🧪 Testes Automatizados (397 testes passando - 100% de sucesso)
+- `tests/tabNavigation.test.ts`: 11 testes unitários cobrindo o novo padrão canônico (5 fixadas, 2 no menu Mais, 3 ocultas), salvaguarda contra barras vazias, migração automática do padrão legado antigo e respeito irrestrito a configurações customizadas pelo usuário.
+- `tests/pdfOutOfMemoryPrevention.test.tsx`: 3 testes automatizados cobrindo a execução segura de `cacheUnlockedBooksOffline` no Android (apenas metadados), verificação da presença de `android:largeHeap="true"` no `AndroidManifest.xml` e streaming de disco no `downloadBookPdfOffline`.
+- `tests/compendiumPdfIntegration.test.tsx`: 5 testes cobrindo disparo de `onPressPageBadge`, validação da senha mestre canônica, resolução de base URLs seguras, execução sem erros de `openPdfDocument` com `WebBrowser` e integridade de dados retornados por `getBookPage`.
 - Suíte completa verificada com `npm run typecheck`, `npm run test:front`, `npm run test:rules`, `npm run test:sync` e `npm run test:db`.
 
 ---
