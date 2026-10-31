@@ -45,6 +45,31 @@ interface PdfViewerModalProps {
 
 // Cache global em memória de documentos PDF.js já abertos na sessão Web
 const pdfDocsCache: Record<string, any> = {};
+
+/**
+ * Limpa instâncias de documentos PDF.js mantidas em cache na memória da aplicação,
+ * garantindo liberação de memória RAM quando um PDF for excluído ou descarregado.
+ */
+export function clearPdfJsCache(bookId?: string, fileName?: string): void {
+  const keysToDelete: string[] = [];
+  if (bookId) keysToDelete.push(bookId);
+  if (fileName) {
+    keysToDelete.push(fileName);
+    keysToDelete.push(slugifyPdfName(fileName));
+  }
+  if (!bookId && !fileName) {
+    keysToDelete.push(...Object.keys(pdfDocsCache));
+  }
+
+  for (const key of keysToDelete) {
+    if (pdfDocsCache[key]) {
+      try {
+        pdfDocsCache[key].destroy?.();
+      } catch {}
+      delete pdfDocsCache[key];
+    }
+  }
+}
 let pdfJsLoadPromise: Promise<any> | null = null;
 
 const PDFJS_CDN_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';

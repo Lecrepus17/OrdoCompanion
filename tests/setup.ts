@@ -87,6 +87,21 @@ if (!(globalThis as unknown as { expo?: unknown }).expo) {
 // Storage Map & localStorage polyfill
 const storageMap = new Map<string, string>();
 
+// Mock FileSystem Map for native cache & storage tests
+const mockFileSystemFiles = new Set<string>();
+
+export function addMockFileSystemFile(uri: string): void {
+  mockFileSystemFiles.add(uri);
+}
+
+export function hasMockFileSystemFile(uri: string): boolean {
+  return mockFileSystemFiles.has(uri);
+}
+
+export function clearMockFileSystem(): void {
+  mockFileSystemFiles.clear();
+}
+
 const DEFAULT_TEST_UNLOCKED_BOOKS = [
   'livro_base',
   'sobrevivendo_ao_horror',
@@ -125,6 +140,7 @@ const mockLocalStorage = {
   },
   clear: (): void => {
     storageMap.clear();
+  clearMockFileSystem();
   },
   key: (index: number): string | null => {
     const keys = Array.from(storageMap.keys());
@@ -262,6 +278,53 @@ Module.prototype.require = function (id: string) {
       CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
     };
   }
+  if (id === 'expo-file-system' || id === 'expo-file-system/legacy') {
+    const CACHE_DIR = 'file:///mock-cache/';
+    const DOC_DIR = 'file:///mock-documents/';
+    return {
+      cacheDirectory: CACHE_DIR,
+      documentDirectory: DOC_DIR,
+      getInfoAsync: async (uri: string) => {
+        const cleanUri = uri.endsWith('/') ? uri : `${uri}/`;
+        const isDir = uri.endsWith('/') || Array.from(mockFileSystemFiles).some((f) => f.startsWith(cleanUri));
+        const exists = mockFileSystemFiles.has(uri) || isDir;
+        return { exists, isDirectory: isDir, size: 100 };
+      },
+      makeDirectoryAsync: async (_uri: string) => {},
+      copyAsync: async ({ from, to }: { from: string; to: string }) => {
+        mockFileSystemFiles.add(to);
+      },
+      moveAsync: async ({ from, to }: { from: string; to: string }) => {
+        mockFileSystemFiles.delete(from);
+        mockFileSystemFiles.add(to);
+      },
+      downloadAsync: async (_url: string, fileUri: string) => {
+        mockFileSystemFiles.add(fileUri);
+        return { uri: fileUri, status: 200, headers: {} };
+      },
+      readAsStringAsync: async () => '',
+      deleteAsync: async (uri: string) => {
+        mockFileSystemFiles.delete(uri);
+        const prefix = uri.endsWith('/') ? uri : `${uri}/`;
+        for (const item of Array.from(mockFileSystemFiles)) {
+          if (item === uri || item.startsWith(prefix)) {
+            mockFileSystemFiles.delete(item);
+          }
+        }
+      },
+      readDirectoryAsync: async (dirUri: string) => {
+        const cleanDir = dirUri.endsWith('/') ? dirUri : `${dirUri}/`;
+        const entries = new Set<string>();
+        for (const f of mockFileSystemFiles) {
+          if (f.startsWith(cleanDir)) {
+            const rel = f.slice(cleanDir.length).split('/')[0];
+            if (rel) entries.add(rel);
+          }
+        }
+        return Array.from(entries);
+      },
+    };
+  }
   if (id === 'expo-document-picker') {
     return {
       getDocumentAsync: async () => ({ canceled: true, assets: null }),
@@ -350,6 +413,7 @@ try {
 
 export function resetMockStorage(): void {
   storageMap.clear();
+  clearMockFileSystem();
   seedDefaultUnlockedBooksForTest();
   clearMockAlerts();
   mockRouter.reset();

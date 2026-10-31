@@ -8,7 +8,11 @@ import {
   processUnregisteredPdfWithPythonPipeline,
 } from '../src/services/pdf/PdfAccessService';
 import BooksScreen from '../src/app/(tabs)/books';
-import { PdfViewerModal } from '../src/components/PdfViewerModal';
+import { PdfViewerModal, clearPdfJsCache } from '../src/components/PdfViewerModal';
+import {
+  deleteCachedFile,
+  removePdfFilesFromCacheAndStorage,
+} from '../src/services/pdf/PdfCacheService';
 import {
   renderWithProviders,
   cleanup,
@@ -18,6 +22,8 @@ import {
   clearUnlockedBooksForTest,
   seedDefaultUnlockedBooksForTest,
   resetMockStorage,
+  addMockFileSystemFile,
+  hasMockFileSystemFile,
 } from './setup';
 
 describe('Exclusão de PDFs e Limpeza Completa (deleteDynamicPdfBook & deletePdfBook)', () => {
@@ -185,5 +191,42 @@ describe('Exclusão de PDFs e Limpeza Completa (deleteDynamicPdfBook & deletePdf
 
     const deleteBtn = getByTestId('btn-delete-pdf-viewer');
     assert.ok(deleteBtn, 'Deve exibir o botão de excluir PDF no leitor');
+  });
+
+  test('6. Ao excluir PDF, deve remover o arquivo físico da pasta cache e da pasta DocumentPicker', async () => {
+    // 1. Simula que o DocumentPicker gerou arquivos na pasta cache ao selecionar o PDF errado
+    const cachedPickerUri = 'file:///mock-cache/DocumentPicker/pdf_errado_trabalho.pdf';
+    const rootCacheUri = 'file:///mock-cache/pdf_errado_trabalho.pdf';
+    addMockFileSystemFile(cachedPickerUri);
+    addMockFileSystemFile(rootCacheUri);
+
+    assert.strictEqual(hasMockFileSystemFile(cachedPickerUri), true);
+    assert.strictEqual(hasMockFileSystemFile(rootCacheUri), true);
+
+    // 2. Aciona remoção de cache pelo nome do arquivo ou ID
+    const removedCount = await removePdfFilesFromCacheAndStorage('livro_errado', 'pdf_errado_trabalho.pdf');
+    assert.ok(removedCount >= 2, 'Deve ter removido pelo menos os 2 arquivos do cache');
+
+    // 3. Verifica que os arquivos não existem mais no cache
+    assert.strictEqual(hasMockFileSystemFile(cachedPickerUri), false, 'Arquivo na pasta DocumentPicker deve ser excluído');
+    assert.strictEqual(hasMockFileSystemFile(rootCacheUri), false, 'Arquivo na raiz do cache deve ser excluído');
+  });
+
+  test('7. deleteCachedFile deve remover arquivo temporário individual gerado pelo seletor de arquivos', async () => {
+    const tempUri = 'file:///mock-cache/DocumentPicker/temp_upload_123.pdf';
+    addMockFileSystemFile(tempUri);
+    assert.strictEqual(hasMockFileSystemFile(tempUri), true);
+
+    const deleted = await deleteCachedFile(tempUri);
+    assert.strictEqual(deleted, true);
+    assert.strictEqual(hasMockFileSystemFile(tempUri), false, 'Arquivo temporário deve ter sido excluído');
+  });
+
+  test('8. clearPdfJsCache deve descarregar instâncias de documentos em memória ao excluir PDF', () => {
+    // Não deve lançar erros ao descarregar instâncias com chave específica ou geral
+    assert.doesNotThrow(() => {
+      clearPdfJsCache('livro_base', 'Livro base.pdf');
+      clearPdfJsCache();
+    });
   });
 });

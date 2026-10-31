@@ -4,15 +4,29 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ---
 
-## ✅ Fila Atual: Vazia (Todos os commits executados com sucesso)
+## ⏳ Fila de Commits Pendentes
 
-Todos os arquivos modificados e novas funcionalidades foram commitados em commits atômicos e semânticos.
+*(Nenhum commit pendente no momento. Todo o código de funcionalidades, correções e testes foi commitado).*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
 
-### 1. Centralização e Padronização da Documentação:
+### 1. Prevenção de OutOfMemoryError no Android e Otimização do Google OAuth:
+```bash
+git add app.json package.json package-lock.json src/services/pdf/ src/components/PdfUploadAccessModal.tsx src/components/PdfViewerModal.tsx src/context/AppContext.tsx src/services/sync/GoogleDriveService.ts scripts/create_release.js tests/pdfOutOfMemoryPrevention.test.tsx tests/deletePdfBook.test.tsx tests/googleDriveService.test.ts tests/setup.ts docs/
+git commit -m "fix(pdf,sync): previne OutOfMemoryError no Android com streaming de PDFs e aprimora Google OAuth" \
+  -m "- Adiciona largeHeap: true na configuração do Android no app.json para expandir o limite de heap no APK" \
+  -m "- Elimina fetch(asset.uri) e response.arrayBuffer() no DocumentPicker do PdfUploadAccessModal.tsx" \
+  -m "- Implementa streaming em disco via FileSystem.copyAsync e FileSystem.downloadAsync em PdfCacheService.ts" \
+  -m "- Adiciona savePdfOfflineFromUri e getLocalPdfFileUriSync em PdfAccessService.ts e AppContext.tsx" \
+  -m "- Adiciona downloadPdfFromDriveToFile em GoogleDriveService.ts para streaming de PDFs do Drive sem carregar em RAM" \
+  -m "- Suporta fluxo de token implícito (Implicit Flow) no Web quando client_secret não estiver configurado no .env" \
+  -m "- Incrementa automaticamente versionCode no app.json no script scripts/create_release.js para releases de APK" \
+  -m "- Adiciona cobertura completa de testes em tests/pdfOutOfMemoryPrevention.test.tsx, tests/deletePdfBook.test.tsx e tests/googleDriveService.test.ts"
+```
+
+### 2. Centralização e Padronização da Documentação:
 ```bash
 git add README.md docs/
 git commit -m "docs: centraliza documentação na pasta docs/ com índice unificado e atualiza README" \
@@ -23,7 +37,7 @@ git commit -m "docs: centraliza documentação na pasta docs/ com índice unific
   -m "- Preserva canonicamente na raiz apenas README.md e GEMINI.md, e as skills em .agents/skills/"
 ```
 
-### 2. Expansão do G.L.I.T.C.H. com 6 Novas Personas e Prompts Modulares:
+### 3. Expansão do G.L.I.T.C.H. com 6 Novas Personas e Prompts Modulares:
 ```bash
 git commit -m "feat(ai): expande G.L.I.T.C.H. com 6 novas personas, prompts modulares, abas temáticas e RAG por papel" \
   -m "- Adiciona personas canônicas (Veríssimo, Arthur Cervero, Kian) e especialistas (Árbitro Rápido, Co-Mestre, Build Advisor)" \
@@ -34,11 +48,11 @@ git commit -m "feat(ai): expande G.L.I.T.C.H. com 6 novas personas, prompts modu
   -m "- Documenta roadmap e personas em docs/MELHORIAS_AGENTES_IA.md"
 ```
 
-### 3. Governança de Agentes e Smart Testing Gates:
+### 4. Governança de Agentes e Smart Testing Gates:
 ```bash
 git commit -m "chore(agents): estrutura matriz de 8 especialistas e configura smart testing gates" \
   -m "- Configura matriz de roteamento autônomo com gatilhos automáticos no GEMINI.md" \
   -m "- Adiciona scripts de testes rápidos npm run test:rules e npm run test:sync no package.json" \
   -m "- Documenta matriz de Smart Testing Gates em .agents/skills/run-suite/SKILL.md" \
-  -m "- Adiciona 4 novas skills especializadas: data-pipeline-audit, glitch-prompt-audit, mobile-ui-audit e sync-offline-audit"
+  -m "- Documenta papéis e comandos rápidos no GEMINI.md"
 ```

@@ -13,6 +13,13 @@ import {
   registerLocalPdfUrlResolver,
 } from '../../utils/pdfUrl';
 import { GoogleDriveService } from '../sync/GoogleDriveService';
+import {
+  deleteCachedFile,
+  downloadPdfToFile,
+  getLocalPdfFileUri,
+  removePdfFilesFromCacheAndStorage,
+  savePdfFromUri,
+} from './PdfCacheService';
 
 const STORAGE_KEYS = {
   LOCAL_PDFS_META: '@ordem_paranormal:local_pdfs_meta_v1',
@@ -466,12 +473,13 @@ interface StoredPdfMeta {
   size: number;
   sha256?: string;
   storedAt: string;
+  fileUri?: string;
 }
 
 class LocalPdfStorageManager {
   private memoryCache = new Map<
     string,
-    { fileName: string; bytes?: Uint8Array; objectUrl?: string; storedAt: string }
+    { fileName: string; bytes?: Uint8Array; objectUrl?: string; fileUri?: string; storedAt: string }
   >();
   private metaMap = new Map<string, StoredPdfMeta>();
   private initialized = false;
@@ -627,6 +635,46 @@ class LocalPdfStorageManager {
     }
   }
 
+  /**
+   * Salva um PDF diretamente a partir de sua URI local (ex: do DocumentPicker ou download streaming)
+   * sem carregar o arquivo binário na memória RAM (evita OutOfMemoryError no Android).
+   */
+  public async savePdfOfflineFromUri(
+    bookId: string,
+    fileName: string,
+    sourceFileUri: string,
+    size?: number,
+    sha256?: string
+  ): Promise<string | null> {
+    await this.initialize();
+    const storedAt = new Date().toISOString();
+
+    let persistentFileUri: string | null = null;
+    try {
+      persistentFileUri = await savePdfFromUri(sourceFileUri, bookId, fileName);
+    } catch {}
+
+    const effectiveFileUri = persistentFileUri || sourceFileUri;
+
+    this.memoryCache.set(bookId, {
+      fileName,
+      fileUri: effectiveFileUri,
+      storedAt,
+    });
+
+    this.metaMap.set(bookId, {
+      bookId,
+      fileName,
+      size: size || 1,
+      sha256,
+      storedAt,
+      fileUri: effectiveFileUri,
+    });
+
+    await this.persistMeta();
+    return effectiveFileUri;
+  }
+
   public async markBookAvailableOffline(bookId: string, fileName: string, size = 0): Promise<void> {
     await this.initialize();
     const existing = this.metaMap.get(bookId);
@@ -737,6 +785,36 @@ class LocalPdfStorageManager {
     return mem?.objectUrl || null;
   }
 
+  public getLocalPdfFileUriSync(bookId: string): string | null {
+    const mem = this.memoryCache.get(bookId);
+    if (mem?.fileUri) return mem.fileUri;
+    const meta = this.metaMap.get(bookId);
+    return meta?.fileUri || null;
+  }
+
+  public getLocalPdfFileUriByFileNameSync(fileName: string): string | null {
+    const slug = slugifyPdfName(fileName);
+    for (const [bid, entry] of this.memoryCache.entries()) {
+      if (
+        bid === slug ||
+        entry.fileName.toLowerCase() === fileName.toLowerCase() ||
+        slugifyPdfName(entry.fileName) === slug
+      ) {
+        if (entry.fileUri) return entry.fileUri;
+      }
+    }
+    for (const [bid, meta] of this.metaMap.entries()) {
+      if (
+        bid === slug ||
+        meta.fileName.toLowerCase() === fileName.toLowerCase() ||
+        slugifyPdfName(meta.fileName) === slug
+      ) {
+        if (meta.fileUri) return meta.fileUri;
+      }
+    }
+    return null;
+  }
+
   public getPdfObjectUrlByFileNameSync(fileName: string): string | null {
     const slug = slugifyPdfName(fileName);
     for (const [bid, entry] of this.memoryCache.entries()) {
@@ -759,8 +837,10 @@ class LocalPdfStorageManager {
     return Array.from(new Set([...this.metaMap.keys(), ...this.memoryCache.keys()]));
   }
 
-  public async removePdfOffline(bookId: string): Promise<void> {
+  public async removePdfOffline(bookId: string, fileName?: string): Promise<void> {
     await this.initialize();
+    const meta = this.metaMap.get(bookId);
+    const effectiveFileName = fileName || meta?.fileName;
     const mem = this.memoryCache.get(bookId);
     if (mem?.objectUrl && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
       try {
@@ -784,6 +864,10 @@ class LocalPdfStorageManager {
         }
       });
     }
+    // Remove do cache do dispositivo e do armazenamento físico
+    try {
+      await removePdfFilesFromCacheAndStorage(bookId, effectiveFileName);
+    } catch {}
   }
 
   public async clearAllForTest(): Promise<void> {
@@ -803,7 +887,13 @@ class LocalPdfStorageManager {
 }
 
 export const localPdfStorage = new LocalPdfStorageManager();
-registerLocalPdfUrlResolver((fileName: string) => localPdfStorage.getPdfObjectUrlByFileNameSync(fileName));
+registerLocalPdfUrlResolver((fileName: string) => {
+  const objUrl = localPdfStorage.getPdfObjectUrlByFileNameSync(fileName);
+  if (objUrl) return objUrl;
+  const fileUri = localPdfStorage.getLocalPdfFileUriByFileNameSync(fileName);
+  if (fileUri) return fileUri;
+  return null;
+});
 
 // ============================================================================
 // SERVIÇO DE LIBERAÇÃO SEGURA POR SENHA MESTRE (HASH SHA-256 COM SALT)
@@ -916,6 +1006,10 @@ export async function downloadBookPdfOffline(
   const fileName = sig?.fileName || `${bookId}.pdf`;
 
   // 1. Verifica se já tem bytes locais
+  const existingUri = localPdfStorage.getLocalPdfFileUriSync(bookId);
+  if (existingUri) {
+    return { ok: true, message: `PDF "${fileName}" já está disponível offline no aparelho.` };
+  }
   const existing = await localPdfStorage.getPdfBytes(bookId);
   if (existing && existing.length > 100) {
     return { ok: true, message: `PDF "${fileName}" já está disponível offline no aparelho.` };
@@ -925,6 +1019,20 @@ export async function downloadBookPdfOffline(
 
   // 2. Tenta baixar da URL direta do servidor local / Metro
   const cleanUrl = getCleanPdfUrl(fileName);
+
+  // No Celular (Android/iOS): Baixa diretamente para o arquivo em disco via streaming nativo do FileSystem
+  // Isso consome 0 bytes de memória RAM, evitando OutOfMemoryError no Android em PDFs grandes (até 85MB+)
+  if (Platform.OS !== 'web' && cleanUrl) {
+    try {
+      const savedUri = await downloadPdfToFile(cleanUrl, bookId, fileName);
+      if (savedUri) {
+        await localPdfStorage.savePdfOfflineFromUri(bookId, fileName, savedUri, sig?.fileSize, sig?.sha256);
+        return { ok: true, message: `PDF "${fileName}" salvo offline no aparelho com sucesso!` };
+      }
+    } catch (e: any) {
+      console.warn(`[PDF] Falha ao baixar diretamente para arquivo de ${cleanUrl}:`, e?.message);
+    }
+  }
   if (cleanUrl && typeof fetch === 'function') {
     try {
       const controller = new AbortController();
@@ -993,6 +1101,20 @@ export async function cacheUnlockedBooksOffline(bookIds: string[]): Promise<numb
           const sig = KNOWN_SIGNATURES_BY_ID.get(bookId);
           const fileName = sig?.fileName || `${bookId}.pdf`;
           const cleanUrl = getCleanPdfUrl(fileName);
+
+  // No Celular (Android/iOS): Baixa diretamente para o arquivo em disco via streaming nativo do FileSystem
+  // Isso consome 0 bytes de memória RAM, evitando OutOfMemoryError no Android em PDFs grandes (até 85MB+)
+  if (Platform.OS !== 'web' && cleanUrl) {
+    try {
+      const savedUri = await downloadPdfToFile(cleanUrl, bookId, fileName);
+      if (savedUri) {
+        await localPdfStorage.savePdfOfflineFromUri(bookId, fileName, savedUri, sig?.fileSize, sig?.sha256);
+        continue;
+      }
+    } catch (e: any) {
+      console.warn(`[PDF] Falha ao baixar diretamente para arquivo de ${cleanUrl}:`, e?.message);
+    }
+  }
           if (!cleanUrl) continue;
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 180000);

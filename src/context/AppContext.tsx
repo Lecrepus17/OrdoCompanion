@@ -52,6 +52,8 @@ import {
   cacheUnlockedBooksOffline,
   processUnregisteredPdfWithPythonPipeline,
 } from '../services/pdf/PdfAccessService';
+import { clearPdfJsCache } from '../components/PdfViewerModal';
+import { removePdfFilesFromCacheAndStorage } from '../services/pdf/PdfCacheService';
 
 interface AppContextValue {
   ready: boolean;
@@ -225,6 +227,7 @@ interface AppContextValue {
     fileName: string;
     bytes?: Uint8Array;
     fileSize?: number;
+    fileUri?: string;
   }) => Promise<{ ok: boolean; message: string; bookId?: string }>;
   requestAdminEmailUnlockCode: () => Promise<{
     ok: boolean;
@@ -1091,12 +1094,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const uploadAndUnlockPdf = useCallback(
-    async (input: { fileName: string; bytes?: Uint8Array; fileSize?: number }) => {
+    async (input: { fileName: string; bytes?: Uint8Array; fileSize?: number; fileUri?: string }) => {
       try {
         const check = await identifyUploadedPdf(input);
         if (check.matchedSignature) {
           const sig = check.matchedSignature;
-          if (input.bytes) {
+          if (input.fileUri) {
+            await localPdfStorage.savePdfOfflineFromUri(
+              sig.id,
+              sig.fileName,
+              input.fileUri,
+              input.fileSize || sig.fileSize,
+              check.sha256
+            );
+          } else if (input.bytes) {
             await localPdfStorage.savePdfOffline(
               sig.id,
               sig.fileName,
@@ -1107,7 +1118,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           await defaultRepository.unlockBook(sig.id, {
             method: 'pdf_upload',
             fileName: sig.fileName,
-            localPdfStored: Boolean(input.bytes || localPdfStorage.hasPdfOffline(sig.id)),
+            localPdfStored: Boolean(input.fileUri || input.bytes || localPdfStorage.hasPdfOffline(sig.id)),
           });
           setVersionTick((v) => v + 1);
           cloudSyncManager.scheduleAutoSync();
@@ -1186,22 +1197,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return await unlockWithMasterPassword(code);
   }, [unlockWithMasterPassword]);
 
-  const lockBook = useCallback(async (bookId: string) => {
-    await defaultRepository.lockBook(bookId);
-    await localPdfStorage.removePdfOffline(bookId);
-    setVersionTick((v) => v + 1);
-    cloudSyncManager.scheduleAutoSync();
-  }, []);
+  const lockBook = useCallback(
+    async (bookId: string) => {
+      const catalogBook = catalogBooks.find((b) => b.id === bookId);
+      const fileName = catalogBook?.fileName;
+      await defaultRepository.lockBook(bookId);
+      await localPdfStorage.removePdfOffline(bookId, fileName);
+      clearPdfJsCache(bookId, fileName);
+      await removePdfFilesFromCacheAndStorage(bookId, fileName);
+      setVersionTick((v) => v + 1);
+      cloudSyncManager.scheduleAutoSync();
+    },
+    [catalogBooks]
+  );
 
   const deletePdfBook = useCallback(
     async (bookId: string): Promise<{ ok: boolean; message: string }> => {
       try {
         const dynamicBooks = defaultRepository.getDynamicBooks();
+        const dynamicBook = dynamicBooks.find((b) => b.id === bookId);
+        const catalogBook = catalogBooks.find((b) => b.id === bookId);
         const isDynamic =
+          Boolean(dynamicBook) ||
           dynamicBooks.some((b) => b.id === bookId) ||
           catalogBooks.some((b) => b.id === bookId && b.isCustomBook);
+        const fileName = dynamicBook?.fileName || catalogBook?.fileName;
 
-        await localPdfStorage.removePdfOffline(bookId);
+        // 1. Remove do armazenamento offline e limpa a pasta cache
+        await localPdfStorage.removePdfOffline(bookId, fileName);
+
+        // 2. Limpa cache do visualizador PDF.js em memória
+        clearPdfJsCache(bookId, fileName);
+
+        // 3. Limpa arquivos do PDF do sistema de arquivos e cache do aparelho
+        await removePdfFilesFromCacheAndStorage(bookId, fileName);
 
         if (isDynamic) {
           await defaultRepository.deleteDynamicPdfBook(bookId);

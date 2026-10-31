@@ -4,6 +4,7 @@ import * as AuthSession from 'expo-auth-session';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { DriveFileInfo, SyncAuthState, UserDataBackupPayload } from './types';
+import { downloadPdfToFile } from '../pdf/PdfCacheService';
 
 // Garante o fechamento do navegador in-app após autenticação OAuth
 WebBrowser.maybeCompleteAuthSession();
@@ -35,6 +36,11 @@ const DEFAULT_CLIENT_ID_WEB =
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
   '556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com';
+
+const DEFAULT_CLIENT_SECRET_WEB =
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET_WEB ||
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET ||
+  '';
 
 const DEFAULT_CLIENT_ID_MOBILE =
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID ||
@@ -121,6 +127,10 @@ export class GoogleDriveService {
     return Platform.OS === 'web' ? DEFAULT_CLIENT_ID_WEB : DEFAULT_CLIENT_ID_MOBILE;
   }
 
+  public getClientSecret(): string {
+    return Platform.OS === 'web' ? DEFAULT_CLIENT_SECRET_WEB : '';
+  }
+
   public getRedirectUri(): string {
     if (Platform.OS === 'web') {
       return AuthSession.makeRedirectUri({
@@ -205,16 +215,27 @@ export class GoogleDriveService {
         return this.authState;
       }
 
+      const isWeb = Platform.OS === 'web';
+      const clientSecret = this.getClientSecret();
+      // No Web, o endpoint de token do Google exige client_secret para trocar authorization code.
+      // Sem backend com client_secret, usamos o fluxo de Token direto (Implicit Flow) no Web
+      // conforme padrão do expo-auth-session para Single Page Applications (SPAs).
+      const useTokenFlow = isWeb && !clientSecret;
+
       const request = new AuthSession.AuthRequest({
         clientId,
         scopes: DRIVE_SCOPES,
-        responseType: AuthSession.ResponseType.Code,
+        responseType: useTokenFlow
+          ? AuthSession.ResponseType.Token
+          : AuthSession.ResponseType.Code,
         redirectUri,
         prompt: AuthSession.Prompt.Consent,
-        usePKCE: true,
-        extraParams: {
-          access_type: 'offline',
-        },
+        usePKCE: !useTokenFlow,
+        extraParams: useTokenFlow
+          ? {}
+          : {
+              access_type: 'offline',
+            },
       });
 
       const result = await request.promptAsync(GOOGLE_DISCOVERY);
@@ -229,6 +250,7 @@ export class GoogleDriveService {
           const tokenResponse = await AuthSession.exchangeCodeAsync(
             {
               clientId,
+              clientSecret: clientSecret || undefined,
               code: result.params.code,
               redirectUri,
               extraParams: {
@@ -305,6 +327,7 @@ export class GoogleDriveService {
           const refreshed = await AuthSession.refreshAsync(
             {
               clientId: this.getClientId(),
+              clientSecret: this.getClientSecret() || undefined,
               refreshToken: this.authState.refreshToken,
             },
             GOOGLE_DISCOVERY
@@ -635,6 +658,22 @@ export class GoogleDriveService {
 
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);
+  }
+
+  /**
+   * Baixa um PDF do Google Drive diretamente para o arquivo em disco via streaming nativo do FileSystem.
+   * Evita alocação na memória RAM (res.arrayBuffer()), impedindo OutOfMemoryError no Android com arquivos de 85MB+.
+   */
+  public async downloadPdfFromDriveToFile(
+    fileId: string,
+    bookId: string,
+    fileName?: string
+  ): Promise<string | null> {
+    const token = await this.ensureValidToken();
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    return await downloadPdfToFile(url, bookId, fileName, {
+      Authorization: `Bearer ${token}`,
+    });
   }
 
   private getValidToken(): string {

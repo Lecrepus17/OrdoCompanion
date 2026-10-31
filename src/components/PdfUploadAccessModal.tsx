@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
+import { deleteCachedFile } from '../services/pdf/PdfCacheService';
 import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { getMasterGoogleDriveFolderUrl } from '../utils/pdfUrl';
@@ -164,20 +165,22 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
 
         for (const asset of result.assets) {
           try {
-            const response = await fetch(asset.uri);
-            const arrayBuffer = await response.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
             const effectiveName = targetBookFileNameRef.current || asset.name;
 
+            // NO CELULAR (Android/iOS): NUNCA carregar o arquivo na RAM via fetch(asset.uri)!
+            // O DocumentPicker já fornece o arquivo em disco no asset.uri e o asset.size.
+            // Para arquivos oficiais e suplementos, identificamos e salvamos em disco com consumo ZERO de RAM!
             const res = await uploadAndUnlockPdf({
               fileName: effectiveName,
-              bytes,
-              fileSize: asset.size || bytes.length,
+              fileSize: asset.size,
+              fileUri: asset.uri,
             });
 
+            await deleteCachedFile(asset.uri);
             messages.push(res.message);
             if (!res.ok) anyError = true;
           } catch (fileErr: any) {
+            await deleteCachedFile(asset.uri);
             anyError = true;
             messages.push(
               `Erro ao ler ${asset.name}: ${fileErr?.message || 'Falha ao processar arquivo'}`

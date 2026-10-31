@@ -42,6 +42,11 @@ console.log(`✔ [package.json] Versão atualizada: ${oldVersion} ➔ ${cleanVer
 const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
 if (appJson.expo) {
   appJson.expo.version = cleanVersion;
+  if (appJson.expo.android) {
+    const oldCode = appJson.expo.android.versionCode || 1;
+    appJson.expo.android.versionCode = oldCode + 1;
+    console.log(`✔ [app.json] Android versionCode incrementado: ${oldCode} ➔ ${appJson.expo.android.versionCode}`);
+  }
 }
 fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n', 'utf8');
 console.log(`✔ [app.json] Versão atualizada no Expo: ${cleanVersion}`);

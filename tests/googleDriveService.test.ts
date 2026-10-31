@@ -47,7 +47,13 @@ describe('Serviço de Sincronização Google Drive (GoogleDriveService.ts)', () 
     assert.equal(service.hasCustomClientId(), false);
   });
 
-  test('ensureValidToken deve lançar erro se o usuário não estiver autenticado', async () => {
+  test('getClientSecret deve retornar string segura dependendo do ambiente', () => {
+    const service = GoogleDriveService.getInstance();
+    const secret = service.getClientSecret();
+    assert.equal(typeof secret, 'string');
+  });
+
+    test('ensureValidToken deve lançar erro se o usuário não estiver autenticado', async () => {
     const service = GoogleDriveService.getInstance();
     await service.signOut();
 

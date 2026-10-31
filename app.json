@@ -21,6 +21,7 @@
     "android": {
       "package": "com.ordemparanormal.ordo",
       "versionCode": 1,
+      "largeHeap": true,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
