@@ -32,6 +32,7 @@ import { parseCritical } from '../../utils/weapons';
 import PrintSheetModal from '../../components/PrintSheetModal';
 import CreateAgentModal from '../../components/CreateAgentModal';
 import LevelUpModal from '../../components/LevelUpModal';
+import ProtectionModal, { ProtectionApplyPayload } from '../../components/ProtectionModal';
 import { encodeAgentShareCode, formatAgentSummary } from '../../utils/agentSharing';
 import {
   OFFICIAL_SKILLS_LIST,
@@ -42,6 +43,18 @@ import {
   getRitualDt,
 } from '../../utils/progression';
 import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
+import {
+  getCharacterProficiencies,
+  checkWeaponProficiency,
+  checkProtectionProficiency,
+  getProtectionDicePenalty,
+  WeaponProficiencyCheckInput,
+} from '../../utils/proficiencies';
+import {
+  calculateActiveItemSkillBonuses,
+  BANNED_ITEM_SKILLS,
+  isBannedItemSkill,
+} from '../../utils/inventorySkills';
 
 export { OFFICIAL_SKILLS_LIST, SkillDefinition };
 
@@ -220,6 +233,10 @@ export default function CharactersScreen() {
   const [itCat, setItCat] = useState<'0' | 'I' | 'II' | 'III' | 'IV'>('I');
   const [itSpaces, setItSpaces] = useState('1');
   const [itDetails, setItDetails] = useState('');
+  const [itItemType, setItItemType] = useState<'geral' | 'vestimenta' | 'utensilio'>('geral');
+  const [itTargetSkill, setItTargetSkill] = useState('');
+  const [itSkillBonus, setItSkillBonus] = useState<number>(2);
+  const [itJustification, setItJustification] = useState('');
 
   // Print Sheet Modal
   const [printModalVisible, setPrintModalVisible] = useState(false);
@@ -233,11 +250,87 @@ export default function CharactersScreen() {
   // Assisted Creation & Level Up Modals
   const [createAgentModalVisible, setCreateAgentModalVisible] = useState(false);
   const [levelUpModalVisible, setLevelUpModalVisible] = useState(false);
+  const [protectionModalVisible, setProtectionModalVisible] = useState(false);
 
   const activeChar = useMemo(
     () => characters.find((c) => c.id === activeCharId) || null,
     [characters, activeCharId]
   );
+
+  // Proficiências Canônicas do Agente (R2)
+  const characterProficiencies = useMemo(() => {
+    if (!activeChar) return null;
+    return getCharacterProficiencies(activeChar);
+  }, [activeChar]);
+
+  // Bônus de Vestimentas e Utensílios Canônicos (R3)
+  const itemSkillBonuses = useMemo(() => {
+    if (!activeChar?.inventory) {
+      return {
+        effectiveBonuses: {},
+        activeClothesCount: 0,
+        isOverLimit: false,
+        exceededClothes: [],
+        warnings: [],
+      };
+    }
+    return calculateActiveItemSkillBonuses(activeChar.inventory);
+  }, [activeChar?.inventory]);
+
+  // Helper para resolver informações de arma para checagem de proficiência
+  const getAttackWeaponInfo = (atk: CharacterAttack): WeaponProficiencyCheckInput => {
+    if (atk.proficiency) {
+      return {
+        name: atk.name,
+        proficiency: atk.proficiency,
+        weaponType: atk.range === 'Corpo a corpo' ? 'Corpo a corpo' : 'Fogo',
+      };
+    }
+    if (atk.customWeaponId) {
+      const cw = customWeapons.find((w) => w.id === atk.customWeaponId);
+      if (cw) {
+        return {
+          name: cw.name,
+          proficiency: cw.proficiency,
+          weaponType: cw.weaponType,
+          ammoType: cw.ammoType,
+        };
+      }
+    }
+    const ent = entities.find((e) => e.name.toLowerCase() === atk.name.toLowerCase());
+    if (ent) {
+      const prof = (ent.proficiency ||
+        (ent.subCategory?.includes('Tática')
+          ? 'Tática'
+          : ent.subCategory?.includes('Pesada')
+          ? 'Pesada'
+          : 'Simples')) as any;
+      const isMelee = ent.subCategory?.includes('Corpo') || ent.range === 'Corpo a corpo';
+      const ammo = (ent.description || '').includes('Balas longas') ? 'Balas longas' : undefined;
+      return {
+        name: ent.name,
+        proficiency: prof,
+        weaponType: isMelee ? 'Corpo a corpo' : 'Fogo',
+        ammoType: ammo,
+      };
+    }
+    return {
+      name: atk.name,
+      proficiency: 'Simples',
+      weaponType: atk.range === 'Corpo a corpo' ? 'Corpo a corpo' : 'Fogo',
+    };
+  };
+
+  const handleToggleEquipItem = async (itemId: string) => {
+    if (!activeChar?.inventory) return;
+    const updated = activeChar.inventory.map((it) => {
+      if (it.id === itemId) {
+        return { ...it, equipped: !it.equipped };
+      }
+      return it;
+    });
+    await updateActiveChar({ inventory: updated });
+  };
 
   const {
     originsList,
@@ -498,6 +591,7 @@ export default function CharactersScreen() {
       range: weapon.finalRange,
       special: weapon.specialRules || weapon.baseDamageType,
       customWeaponId: weapon.id,
+      proficiency: weapon.proficiency,
     };
 
     const newInv: CharacterInventoryItem = {
@@ -533,6 +627,12 @@ export default function CharactersScreen() {
     if (!activeChar) return;
     const isMelee = ent.subCategory?.includes('Corpo');
     const skillHint = isMelee ? 'Luta' : 'Pontaria';
+    const prof = (ent.proficiency ||
+      (ent.subCategory?.includes('Tática')
+        ? 'Tática'
+        : ent.subCategory?.includes('Pesada')
+        ? 'Pesada'
+        : 'Simples')) as any;
 
     const newAttack: CharacterAttack = {
       id: `atk_${Date.now()}`,
@@ -544,6 +644,7 @@ export default function CharactersScreen() {
       critical: ent.critical || '20/x2',
       range: ent.range || (isMelee ? 'Corpo a corpo' : 'Curto'),
       special: `${ent.damageType || 'B'} • Cat ${ent.itemCategory || '0'}`,
+      proficiency: prof,
     };
 
     const newInv: CharacterInventoryItem = {
@@ -571,11 +672,30 @@ export default function CharactersScreen() {
     const skillEntry = activeChar.skills[skillName] || { degree: 0, bonus: 0 };
     const totalBonus = (skillEntry.degree || 0) + (skillEntry.bonus || 0) + (attack.attackBonus || 0);
 
+    const weaponInfo = getAttackWeaponInfo(attack);
+    const profCheck = characterProficiencies
+      ? checkWeaponProficiency(weaponInfo, characterProficiencies)
+      : { isProficient: true };
+
+    let effectiveDice = attrVal;
+    let penaltySuffix = '';
+
+    if (!profCheck.isProficient) {
+      effectiveDice = Math.max(-5, effectiveDice - 2);
+      penaltySuffix += ' [Sem Proficiência: -2d20]';
+    }
+
+    const protPen = getProtectionDicePenalty(activeChar, attrKey);
+    if (protPen !== 0) {
+      effectiveDice = Math.max(-5, effectiveDice + protPen);
+      penaltySuffix += ' [Penalidade de Proteção: -2d20]';
+    }
+
     const parsedCrit = parseCritical(attack.critical);
     rollSkillTest(
-      attrVal,
+      effectiveDice,
       totalBonus,
-      `Ataque: ${attack.name} (${skillName})`,
+      `Ataque: ${attack.name} (${skillName})${penaltySuffix}`,
       parsedCrit.threat
     );
   };
@@ -639,15 +759,73 @@ export default function CharactersScreen() {
   const handleSaveInventoryItem = async () => {
     if (!activeChar || !itName.trim()) return;
     const existing = activeChar.inventory || [];
+    const isVest = itItemType === 'vestimenta';
+    const isUten = itItemType === 'utensilio';
+    const isBonusItem = isVest || isUten;
+
     const newItem: CharacterInventoryItem = {
       id: `inv_${Date.now()}`,
       name: itName.trim(),
       category: itCat,
       spaces: parseInt(itSpaces, 10) || 1,
       details: itDetails.trim(),
+      equipped: true,
+      itemType: itItemType,
+      isVestimenta: isVest,
+      isUtensilio: isUten,
+      skillBonus: isBonusItem ? itSkillBonus : undefined,
+      targetSkill: isBonusItem && itTargetSkill ? itTargetSkill : undefined,
+      justification: isBonusItem && itJustification.trim() ? itJustification.trim() : undefined,
     };
     await updateActiveChar({ inventory: [...existing, newItem] });
     setItemModalVisible(false);
+  };
+
+  // Protection Assistant action
+  const handleApplyProtections = async (payload: ProtectionApplyPayload) => {
+    if (!activeChar) return;
+
+    // 1. Filtrar do inventário anterior quaisquer itens de proteção/escudo gerenciados pelo assistente
+    const existingInventory = activeChar.inventory || [];
+    const cleanInventory = existingInventory.filter(
+      (item) =>
+        !(
+          item.itemType === 'protecao' ||
+          item.itemType === 'escudo' ||
+          (item.id && item.id.startsWith('inv_prot_')) ||
+          (item.equipped &&
+            (item.name.toLowerCase().includes('proteção leve') ||
+              item.name.toLowerCase().includes('proteção pesada') ||
+              item.name.toLowerCase().includes('escudo') ||
+              item.name.toLowerCase().includes('capacete tático')))
+        )
+    );
+
+    // 2. Criar novos itens de inventário para as proteções equipadas
+    const newInventoryItems: CharacterInventoryItem[] = payload.equippedItems.map(
+      (item, idx) => ({
+        id: `inv_prot_${Date.now()}_${idx}`,
+        name: item.name,
+        category: item.category,
+        spaces: item.spaces,
+        details: item.details,
+        equipped: true,
+        itemType: item.itemType,
+      })
+    );
+
+    const updatedInventory = [...cleanInventory, ...newInventoryItems];
+
+    // 3. Atualizar ficha do personagem
+    await updateActiveChar({
+      defenseEquip: payload.defenseEquip,
+      defenseBonus: payload.defenseEquip + (activeChar.defenseOther || 0),
+      resistances: payload.resistancesText,
+      protection: payload.protectionText,
+      inventory: updatedInventory,
+    });
+
+    setProtectionModalVisible(false);
   };
 
   // Carga Calculation
@@ -1131,8 +1309,18 @@ export default function CharactersScreen() {
                   onPress={() => {
                     const agi = activeChar.attributes.AGI || 1;
                     const initEntry = activeChar.skills['Iniciativa'] || { degree: 0, bonus: 0 };
-                    const bonus = (initEntry.degree || 0) + (initEntry.bonus || 0);
-                    const roll = rollSkillTest(agi, bonus, `Iniciativa: ${activeChar.name}`);
+                    const itemInitBonus = itemSkillBonuses.effectiveBonuses['Iniciativa']?.bonus || 0;
+                    const bonus = (initEntry.degree || 0) + (initEntry.bonus || 0) + itemInitBonus;
+                    const protPen = getProtectionDicePenalty(activeChar, 'AGI');
+                    const effectiveAgi = protPen !== 0 ? Math.max(-5, agi + protPen) : agi;
+                    let label = `Iniciativa: ${activeChar.name}`;
+                    if (itemInitBonus > 0) {
+                      label += ` [Item: +${itemInitBonus} ${itemSkillBonuses.effectiveBonuses['Iniciativa']?.sourceItemName}]`;
+                    }
+                    if (protPen !== 0) {
+                      label += ' [Penalidade de Proteção: -2d20]';
+                    }
+                    const roll = rollSkillTest(effectiveAgi, bonus, label);
                     rollTableInitiative(roll.total, activeChar.name);
                   }}
                 >
@@ -1411,7 +1599,15 @@ export default function CharactersScreen() {
                       </View>
                       <TouchableOpacity
                         style={styles.attrRollBtn}
-                        onPress={() => rollSkillTest(val, 0, `Atributo ${attr}`)}
+                        onPress={() => {
+                          const attrKey = attr as 'FOR' | 'AGI' | 'INT' | 'PRE' | 'VIG';
+                          const protPen = activeChar ? getProtectionDicePenalty(activeChar, attrKey) : 0;
+                          const effectiveAttrDice = protPen !== 0 ? Math.max(-5, val + protPen) : val;
+                          const label = protPen !== 0
+                            ? `Atributo ${attr} [Penalidade de Proteção: -2d20]`
+                            : `Atributo ${attr}`;
+                          rollSkillTest(effectiveAttrDice, 0, label);
+                        }}
                       >
                         <Ionicons name="dice-outline" size={13} color="#FCA5A5" />
                         <Text style={styles.attrRollText}>Rolar</Text>
@@ -1578,7 +1774,17 @@ export default function CharactersScreen() {
 
             {/* Defesa, Proteção & Resistências (Da ficha oficial) */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Defesa, Proteção & Resistências</Text>
+              <View style={[styles.cardHeaderRow, { marginBottom: 10 }]}>
+                <Text style={styles.sectionTitle}>Defesa, Proteção & Resistências</Text>
+                <TouchableOpacity
+                  style={styles.defenseAssistantBtn}
+                  onPress={() => setProtectionModalVisible(true)}
+                  testID="btn-open-protection-assistant"
+                >
+                  <Ionicons name="shield-checkmark-outline" size={16} color="#38BDF8" />
+                  <Text style={styles.defenseAssistantBtnText}>Assistente de Proteções</Text>
+                </TouchableOpacity>
+              </View>
 
               <View style={styles.defenseCardRow}>
                 <View style={{ flex: 1 }}>
@@ -1661,13 +1867,18 @@ export default function CharactersScreen() {
                     borderColor: '#38BDF8',
                     alignItems: 'center',
                   }}
-                  onPress={() =>
+                  onPress={() => {
+                    const protPen = activeChar ? getProtectionDicePenalty(activeChar, 'AGI') : 0;
+                    const effectiveAgi = protPen !== 0 ? Math.max(-5, activeChar.attributes.AGI + protPen) : activeChar.attributes.AGI;
+                    const label = protPen !== 0
+                      ? 'Teste de Reflexos (Esquiva) [Penalidade de Proteção: -2d20]'
+                      : 'Teste de Reflexos (Esquiva)';
                     rollSkillTest(
-                      activeChar.attributes.AGI,
+                      effectiveAgi,
                       reflexosBonus,
-                      'Teste de Reflexos (Esquiva)'
-                    )
-                  }
+                      label
+                    );
+                  }}
                 >
                   <Text style={{ fontSize: 10, fontWeight: '800', color: '#38BDF8', textTransform: 'uppercase' }}>
                     Esquiva
@@ -1723,13 +1934,18 @@ export default function CharactersScreen() {
                     borderColor: '#EF4444',
                     alignItems: 'center',
                   }}
-                  onPress={() =>
+                  onPress={() => {
+                    const protPen = activeChar ? getProtectionDicePenalty(activeChar, 'FOR') : 0;
+                    const effectiveFor = protPen !== 0 ? Math.max(-5, activeChar.attributes.FOR + protPen) : activeChar.attributes.FOR;
+                    const label = protPen !== 0
+                      ? 'Teste de Luta (Contra-ataque) [Penalidade de Proteção: -2d20]'
+                      : 'Teste de Luta (Contra-ataque)';
                     rollSkillTest(
-                      activeChar.attributes.FOR,
+                      effectiveFor,
                       contraAtaqueBonus,
-                      'Teste de Luta (Contra-ataque)'
-                    )
-                  }
+                      label
+                    );
+                  }}
                 >
                   <Text style={{ fontSize: 10, fontWeight: '800', color: '#EF4444', textTransform: 'uppercase' }}>
                     Contra-ataque
@@ -1768,6 +1984,42 @@ export default function CharactersScreen() {
                   />
                 </View>
               </View>
+
+              {/* Alerta de Falta de Proficiência em Proteção */}
+              {activeChar && getProtectionDicePenalty(activeChar, 'FOR') !== 0 && (
+                <View
+                  style={styles.protectionPenaltyWarningBox}
+                  testID="sheet-protection-non-proficient-warning"
+                >
+                  <Ionicons name="warning" size={16} color="#EF4444" />
+                  <Text style={styles.protectionPenaltyWarningText}>
+                    ⚠️ Proteção sem Proficiência: -2d20 em testes de Força e Agilidade
+                  </Text>
+                </View>
+              )}
+
+              {Boolean(
+                activeChar.protection &&
+                  (activeChar.protection.toLowerCase().includes('pesada') ||
+                    activeChar.protection.toLowerCase().includes('capacete'))
+              ) && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    padding: 8,
+                    borderRadius: 6,
+                    marginTop: 8,
+                  }}
+                >
+                  <Ionicons name="warning-outline" size={14} color="#EF4444" />
+                  <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '600', flex: 1 }}>
+                    Penalidade de Carga: –5 em Acrobacia, Crime e Furtividade (Proteção Pesada).
+                  </Text>
+                </View>
+              )}
             </View>
           </>
         )}
@@ -1854,6 +2106,26 @@ export default function CharactersScreen() {
                         <Text style={styles.attackCardSub}>
                           Teste: {atk.test} • Alcance: {atk.range}
                         </Text>
+                        {(() => {
+                          const wInfo = getAttackWeaponInfo(atk);
+                          const profCheck = characterProficiencies
+                            ? checkWeaponProficiency(wInfo, characterProficiencies)
+                            : { isProficient: true };
+                          if (!profCheck.isProficient) {
+                            return (
+                              <View
+                                style={styles.nonProficientBadge}
+                                testID={`sheet-attack-non-proficient-${atk.id}`}
+                              >
+                                <Ionicons name="warning" size={12} color="#EF4444" />
+                                <Text style={styles.nonProficientBadgeText}>
+                                  ⚠️ Não Proficiente (-2d20)
+                                </Text>
+                              </View>
+                            );
+                          }
+                          return null;
+                        })()}
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <TouchableOpacity
@@ -1948,8 +2220,13 @@ export default function CharactersScreen() {
               const entry = activeChar.skills[sk.name] || { degree: 0, bonus: 0 };
               const degree = entry.degree || 0;
               const bonus = entry.bonus || 0;
-              const totalBonus = degree + bonus;
+              const itemBonusInfo = itemSkillBonuses.effectiveBonuses[sk.name];
+              const itemBonus = itemBonusInfo ? itemBonusInfo.bonus : 0;
+              const totalBonus = degree + bonus + itemBonus;
               const attrVal = activeChar.attributes[sk.attr];
+
+              const protPen = activeChar ? getProtectionDicePenalty(activeChar, sk.attr) : 0;
+              const effectiveAttrDice = protPen !== 0 ? Math.max(-5, attrVal + protPen) : attrVal;
 
               return (
                 <TouchableOpacity
@@ -1976,6 +2253,13 @@ export default function CharactersScreen() {
                         <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} />
                       </TouchableOpacity>
                     </View>
+                    {itemBonusInfo ? (
+                      <View style={styles.itemSkillBonusBadge} testID={`sheet-skill-item-bonus-${sk.name}`}>
+                        <Text style={styles.itemSkillBonusBadgeText}>
+                          +{itemBonusInfo.bonus} ({itemBonusInfo.itemType === 'vestimenta' ? 'Vestimenta' : 'Utensílio'}: {itemBonusInfo.sourceItemName})
+                        </Text>
+                      </View>
+                    ) : null}
                     {sk.name === 'Profissão' ? (
                       <TextInput
                         style={styles.skillCustomInput}
@@ -2036,25 +2320,34 @@ export default function CharactersScreen() {
                   {/* Botão de rolagem */}
                   {(() => {
                     const diceDesc =
-                      attrVal <= 0
-                        ? `${2 + Math.abs(attrVal)}d20 (menor)`
-                        : `${attrVal}d20`;
+                      effectiveAttrDice <= 0
+                        ? `${2 + Math.abs(effectiveAttrDice)}d20 (menor)`
+                        : `${effectiveAttrDice}d20`;
                     const displayBadge =
                       totalBonus !== 0
                         ? `${diceDesc}${totalBonus > 0 ? `+${totalBonus}` : totalBonus}`
                         : diceDesc;
+
+                    let rollLabel = `${sk.name} (${displayBadge})`;
+                    if (itemBonusInfo) {
+                      rollLabel += ` [Item: +${itemBonusInfo.bonus} ${itemBonusInfo.sourceItemName}]`;
+                    }
+                    if (protPen !== 0) {
+                      rollLabel += ` [Penalidade de Proteção: -2d20]`;
+                    }
 
                     return (
                       <TouchableOpacity
                         style={styles.skillRollBtn}
                         onPress={() =>
                           rollSkillTest(
-                            attrVal,
+                            effectiveAttrDice,
                             totalBonus,
-                            `${sk.name} (${displayBadge})`
+                            rollLabel
                           )
                         }
                         hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        testID={`btn-roll-skill-${sk.name}`}
                       >
                         <Ionicons name="dice" size={14} color="#FFF" />
                         <Text style={styles.skillRollText} numberOfLines={1} adjustsFontSizeToFit>
@@ -2474,6 +2767,30 @@ export default function CharactersScreen() {
               </View>
             </View>
 
+            {/* Painel Didático de Vestimentas (R3) */}
+            <View style={styles.clothingSummaryCard} testID="sheet-clothing-counter-card">
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="shirt-outline" size={18} color="#A855F7" />
+                  <Text style={styles.clothingSummaryTitle}>
+                    Vestimentas Ativas: {itemSkillBonuses.activeClothesCount}/2
+                  </Text>
+                </View>
+                <Text style={[styles.clothingSummarySub, itemSkillBonuses.isOverLimit && { color: '#EF4444' }]}>
+                  {itemSkillBonuses.activeClothesCount <= 2 ? 'Dentro do limite canônico' : 'Limite canônico excedido'}
+                </Text>
+              </View>
+
+              {itemSkillBonuses.isOverLimit && (
+                <View style={styles.clothingLimitWarning} testID="sheet-clothing-limit-warning">
+                  <Ionicons name="warning" size={16} color="#EF4444" />
+                  <Text style={styles.clothingLimitWarningText}>
+                    ⚠️ Limite Canônico Excedido: Máximo de 2 vestimentas ativas simultâneas (Livro Base p. 63). Itens excedentes não concedem bônus.
+                  </Text>
+                </View>
+              )}
+            </View>
+
             {/* Botoes de Adicionar Item */}
             <View style={styles.addAttackButtonsRow}>
               <TouchableOpacity
@@ -2483,6 +2800,10 @@ export default function CharactersScreen() {
                   setItCat('I');
                   setItSpaces('1');
                   setItDetails('');
+                  setItItemType('geral');
+                  setItTargetSkill('');
+                  setItSkillBonus(2);
+                  setItJustification('');
                   setItemModalVisible(true);
                 }}
               >
@@ -2502,6 +2823,10 @@ export default function CharactersScreen() {
                   openRecordPreview({
                     target: { kind: 'character_inventory', item: it },
                   });
+                const isVest = it.itemType === 'vestimenta' || it.isVestimenta;
+                const isUten = it.itemType === 'utensilio' || it.isUtensilio;
+                const isExceeded = isVest && it.equipped && itemSkillBonuses.exceededClothes.includes(it.name);
+
                 return (
                   <TouchableOpacity
                     key={it.id}
@@ -2513,13 +2838,76 @@ export default function CharactersScreen() {
                     testID={`sheet-inv-${it.id}`}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.invItemName}>
-                        {it.name} <Text style={styles.invItemCat}>(Cat {it.category})</Text>
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={styles.invItemName}>
+                          {it.name} <Text style={styles.invItemCat}>(Cat {it.category})</Text>
+                        </Text>
+                        {isVest && (
+                          <View style={[styles.invItemTypeBadge, { borderColor: '#A855F7', backgroundColor: 'rgba(168, 85, 247, 0.12)' }]}>
+                            <Text style={[styles.invItemTypeBadgeText, { color: '#C084FC' }]}>Vestimenta</Text>
+                          </View>
+                        )}
+                        {isUten && (
+                          <View style={[styles.invItemTypeBadge, { borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.12)' }]}>
+                            <Text style={[styles.invItemTypeBadgeText, { color: '#38BDF8' }]}>Utensílio</Text>
+                          </View>
+                        )}
+                      </View>
+                      {it.targetSkill && it.skillBonus ? (
+                        <Text style={{ fontSize: 11, color: '#A855F7', fontWeight: '700', marginTop: 2 }}>
+                          +{it.skillBonus} em {it.targetSkill}
+                          {isExceeded ? ' (⚠️ Excedente: sem bônus)' : !it.equipped ? ' (Desativado)' : ''}
+                        </Text>
+                      ) : null}
+                      {it.justification ? (
+                        <Text style={{ fontSize: 10, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
+                          "{it.justification}"
+                        </Text>
+                      ) : null}
                       {it.details ? (
                         <Text style={styles.invItemDetails}>{it.details}</Text>
                       ) : null}
                     </View>
+
+                    {/* Botão Rápido de Toggle (Vestir/Despir ou Empunhar/Guardar) */}
+                    <TouchableOpacity
+                      style={[
+                        styles.invToggleBtn,
+                        it.equipped
+                          ? { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: '#10B981' }
+                          : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                      ]}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        handleToggleEquipItem(it.id);
+                      }}
+                      testID={`btn-toggle-equip-${it.id}`}
+                    >
+                      <Ionicons
+                        name={it.equipped ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={13}
+                        color={it.equipped ? '#10B981' : colors.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.invToggleBtnText,
+                          { color: it.equipped ? '#10B981' : colors.textMuted },
+                        ]}
+                      >
+                        {isVest
+                          ? it.equipped
+                            ? 'Vestida'
+                            : 'Despida'
+                          : isUten
+                          ? it.equipped
+                            ? 'Empunhado'
+                            : 'Guardado'
+                          : it.equipped
+                          ? 'Equipado'
+                          : 'Guardado'}
+                      </Text>
+                    </TouchableOpacity>
+
                     <View style={styles.invSpacesBadge}>
                       <Text style={styles.invSpacesText}>{it.spaces} esp.</Text>
                     </View>
@@ -2906,14 +3294,51 @@ export default function CharactersScreen() {
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom + 24, 34), gap: 12 }}>
+            {/* Seletor de Tipo de Item */}
+            <View>
+              <Text style={styles.fieldLabel}>Tipo de Item</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {(['geral', 'vestimenta', 'utensilio'] as const).map((t) => {
+                  const isSelected = itItemType === t;
+                  const label = t === 'geral' ? 'Geral' : t === 'vestimenta' ? 'Vestimenta' : 'Utensílio';
+                  return (
+                    <TouchableOpacity
+                      key={t}
+                      style={[
+                        styles.itemTypePill,
+                        isSelected && styles.itemTypePillActive,
+                      ]}
+                      onPress={() => {
+                        setItItemType(t);
+                        if (t === 'vestimenta' || t === 'utensilio') {
+                          if (!itSpaces || itSpaces === '0') setItSpaces('1');
+                        }
+                      }}
+                      testID={`item-type-pill-${t}`}
+                    >
+                      <Text
+                        style={[
+                          styles.itemTypePillText,
+                          isSelected && styles.itemTypePillTextActive,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             <View>
               <Text style={styles.fieldLabel}>Nome do Item</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ex: Kit de Primeiros Socorros"
+                placeholder="Ex: Kit de Primeiros Socorros, Jaqueta de Couro..."
                 placeholderTextColor={colors.textMuted}
                 value={itName}
                 onChangeText={setItName}
+                testID="item-name-input"
               />
             </View>
 
@@ -2926,6 +3351,7 @@ export default function CharactersScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={itCat}
                   onChangeText={(v) => setItCat(v as any)}
+                  testID="item-cat-input"
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -2937,9 +3363,128 @@ export default function CharactersScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={itSpaces}
                   onChangeText={setItSpaces}
+                  testID="item-spaces-input"
                 />
               </View>
             </View>
+
+            {/* Configurações de Bônus para Vestimentas e Utensílios */}
+            {(itItemType === 'vestimenta' || itItemType === 'utensilio') && (
+              <View style={styles.bonusConfigBox}>
+                {/* Perícia Alvo */}
+                <View>
+                  <Text style={styles.fieldLabel}>
+                    Perícia Beneficiada ({itItemType === 'vestimenta' ? 'Vestimenta' : 'Utensílio'})
+                  </Text>
+                  <Text style={styles.pedagogicalHint}>
+                    Canônico: Vestimentas e Utensílios não se aplicam a Luta e Pontaria (Livro Base p. 63).
+                  </Text>
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 6, paddingVertical: 4 }}
+                  >
+                    {OFFICIAL_SKILLS_LIST.filter(
+                      (s) => !isBannedItemSkill(s.name)
+                    ).map((sk) => {
+                      const isSel = itTargetSkill === sk.name;
+                      return (
+                        <TouchableOpacity
+                          key={sk.name}
+                          style={[
+                            styles.skillChip,
+                            isSel && styles.skillChipActive,
+                          ]}
+                          onPress={() => setItTargetSkill(sk.name)}
+                          testID={`skill-chip-${sk.name}`}
+                        >
+                          <Text
+                            style={[
+                              styles.skillChipText,
+                              isSel && styles.skillChipTextActive,
+                            ]}
+                          >
+                            {sk.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                  {itTargetSkill ? (
+                    <Text style={{ fontSize: 11, color: '#A855F7', fontWeight: '700', marginTop: 4 }}>
+                      Perícia selecionada: {itTargetSkill}
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 11, color: colors.textMuted, fontStyle: 'italic', marginTop: 4 }}>
+                      Toque em uma perícia acima para vinculá-la ao item.
+                    </Text>
+                  )}
+                </View>
+
+                {/* Bônus Concedido (+2 / +5) */}
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.fieldLabel}>Bônus Concedido</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity
+                      style={[
+                        styles.bonusPill,
+                        itSkillBonus === 2 && styles.bonusPillActive,
+                      ]}
+                      onPress={() => {
+                        setItSkillBonus(2);
+                        if (itCat === 'II') setItCat('I');
+                      }}
+                      testID="bonus-pill-2"
+                    >
+                      <Text
+                        style={[
+                          styles.bonusPillText,
+                          itSkillBonus === 2 && styles.bonusPillTextActive,
+                        ]}
+                      >
+                        +2 (Padrão)
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.bonusPill,
+                        itSkillBonus === 5 && styles.bonusPillActive,
+                      ]}
+                      onPress={() => {
+                        setItSkillBonus(5);
+                        if (itCat === 'I' || itCat === '0') setItCat('II');
+                      }}
+                      testID="bonus-pill-5"
+                    >
+                      <Text
+                        style={[
+                          styles.bonusPillText,
+                          itSkillBonus === 5 && styles.bonusPillTextActive,
+                        ]}
+                      >
+                        +5 (Aprimorado)
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Justificativa Pedagógica */}
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.fieldLabel}>Justificativa do Bônus</Text>
+                  <TextInput
+                    style={[styles.input, styles.roleplayArea]}
+                    multiline
+                    placeholder="Descreva a justificativa do bônus deste item. A palavra final é do Mestre da mesa"
+                    placeholderTextColor={colors.textMuted}
+                    value={itJustification}
+                    onChangeText={setItJustification}
+                    testID="item-justification-input"
+                  />
+                </View>
+              </View>
+            )}
 
             <View>
               <Text style={styles.fieldLabel}>Detalhes / Descrição</Text>
@@ -2953,7 +3498,7 @@ export default function CharactersScreen() {
               />
             </View>
 
-            <TouchableOpacity style={styles.saveHeaderBtnLarge} onPress={handleSaveInventoryItem}>
+            <TouchableOpacity style={styles.saveHeaderBtnLarge} onPress={handleSaveInventoryItem} testID="btn-save-item">
               <Text style={styles.saveHeaderBtnText}>Salvar Item</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -3301,6 +3846,13 @@ export default function CharactersScreen() {
         userProfile={userProfile}
         onClose={() => setLevelUpModalVisible(false)}
         onApplyLevelUp={handleApplyLevelUp}
+      />
+
+      <ProtectionModal
+        visible={protectionModalVisible}
+        character={activeChar}
+        onClose={() => setProtectionModalVisible(false)}
+        onApply={handleApplyProtections}
       />
 
       {/* Modal de Compartilhamento de Ficha de Agente */}
@@ -4462,6 +5014,216 @@ const createStyles = (colors: ThemeColors) =>
   },
   rankPillTextActive: {
     color: colors.text,
+    fontWeight: '800',
+  },
+  defenseAssistantBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  defenseAssistantBtnText: {
+    color: '#38BDF8',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  nonProficientBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  nonProficientBadgeText: {
+    color: '#EF4444',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  protectionPenaltyWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  protectionPenaltyWarningText: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
+  },
+  clothingSummaryCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: '#A855F7',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 10,
+    gap: 8,
+  },
+  clothingSummaryTitle: {
+    color: '#A855F7',
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  clothingSummarySub: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  clothingLimitWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    padding: 8,
+    borderRadius: 6,
+  },
+  clothingLimitWarningText: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
+  },
+  itemSkillBonusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderWidth: 1,
+    borderColor: '#A855F7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 3,
+  },
+  itemSkillBonusBadgeText: {
+    color: '#C084FC',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  invToggleBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  invToggleBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  invItemTypeBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  invItemTypeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  itemTypePill: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  itemTypePillActive: {
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    borderColor: '#A855F7',
+  },
+  itemTypePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  itemTypePillTextActive: {
+    color: '#FFF',
+    fontWeight: '800',
+  },
+  bonusConfigBox: {
+    backgroundColor: 'rgba(168, 85, 247, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
+    borderRadius: 10,
+    padding: 12,
+    gap: 8,
+  },
+  pedagogicalHint: {
+    fontSize: 11,
+    color: '#EAB308',
+    marginBottom: 6,
+    fontStyle: 'italic',
+  },
+  skillChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  skillChipActive: {
+    backgroundColor: 'rgba(168, 85, 247, 0.3)',
+    borderColor: '#A855F7',
+  },
+  skillChipText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  skillChipTextActive: {
+    color: '#FFF',
+    fontWeight: '800',
+  },
+  bonusPill: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  bonusPillActive: {
+    backgroundColor: 'rgba(168, 85, 247, 0.25)',
+    borderColor: '#A855F7',
+  },
+  bonusPillText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '700',
+  },
+  bonusPillTextActive: {
+    color: '#FFF',
     fontWeight: '800',
   },
 });

@@ -37,6 +37,10 @@ import {
   sanitizeWeaponModifications,
 } from '../../utils/weapons';
 import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
+import {
+  getCharacterProficiencies,
+  checkWeaponProficiency,
+} from '../../utils/proficiencies';
 
 const WEAPON_TYPES: WeaponType[] = ['Fogo', 'Corpo a corpo', 'Disparo'];
 const PROFICIENCIES: WeaponProficiency[] = ['Simples', 'Tática', 'Pesada'];
@@ -696,6 +700,30 @@ export default function WeaponsScreen() {
                   </View>
 
                   <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <View
+                      style={[
+                        styles.categoryBadge,
+                        weapon.proficiency === 'Pesada'
+                          ? { borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.12)' }
+                          : weapon.proficiency === 'Tática'
+                          ? { borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.12)' }
+                          : { borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.12)' },
+                      ]}
+                      testID={`weapon-prof-badge-${weapon.id}`}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryBadgeText,
+                          weapon.proficiency === 'Pesada'
+                            ? { color: '#EF4444' }
+                            : weapon.proficiency === 'Tática'
+                            ? { color: '#F59E0B' }
+                            : { color: '#38BDF8' },
+                        ]}
+                      >
+                        {weapon.proficiency}
+                      </Text>
+                    </View>
                     <View style={styles.categoryBadge}>
                       <Text style={styles.categoryBadgeText}>Arma: Cat {weapon.finalCategory}</Text>
                     </View>
@@ -1667,21 +1695,48 @@ export default function WeaponsScreen() {
               </Text>
             ) : (
               <ScrollView style={{ maxHeight: 250, marginTop: 10 }}>
-                {characters.map((char) => (
-                  <TouchableOpacity
-                    key={char.id}
-                    style={styles.charSelectRow}
-                    onPress={() => handleEquipWeaponToAgent(char.id)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.charSelectName}>{char.name}</Text>
-                      <Text style={styles.charSelectMeta}>
-                        NEX {char.nex}% • {char.rank}
-                      </Text>
-                    </View>
-                    <Ionicons name="add-circle" size={24} color={colors.primary} />
-                  </TouchableOpacity>
-                ))}
+                {characters.map((char) => {
+                  const charProfs = getCharacterProficiencies(char);
+                  const profCheck = equipModalWeapon
+                    ? checkWeaponProficiency(
+                        {
+                          name: equipModalWeapon.name,
+                          proficiency: equipModalWeapon.proficiency,
+                          weaponType: equipModalWeapon.weaponType,
+                          ammoType: equipModalWeapon.ammoType,
+                        },
+                        charProfs
+                      )
+                    : { isProficient: true };
+
+                  return (
+                    <TouchableOpacity
+                      key={char.id}
+                      style={styles.charSelectRow}
+                      onPress={() => handleEquipWeaponToAgent(char.id)}
+                      testID={`btn-equip-agent-${char.id}`}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.charSelectName}>{char.name}</Text>
+                        <Text style={styles.charSelectMeta}>
+                          NEX {char.nex}% • {char.rank}
+                        </Text>
+                        {!profCheck.isProficient && (
+                          <View
+                            style={styles.charSelectNonProficientRow}
+                            testID={`equip-non-proficient-warning-${char.id}`}
+                          >
+                            <Ionicons name="warning" size={12} color="#EF4444" />
+                            <Text style={styles.charSelectNonProficientText}>
+                              ⚠️ Não Proficiente ({equipModalWeapon?.proficiency}): -2d20 no ataque
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Ionicons name="add-circle" size={24} color={colors.primary} />
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             )}
           </View>
@@ -2608,5 +2663,16 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: 12,
     fontWeight: '600',
     flex: 1,
+  },
+  charSelectNonProficientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  charSelectNonProficientText: {
+    color: '#EF4444',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

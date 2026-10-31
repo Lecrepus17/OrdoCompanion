@@ -6,13 +6,25 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*Nenhum commit pendente. Todos os arquivos e partes foram comitados com sucesso.*
+*Nenhum commit pendente no momento.*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
 
-### 1. Motores Canônicos de Proteções, Proficiências e Vestimentas em Perícias (`9d2b4cb`):
+### 1. Assistente de Proteções, Proficiências e Vestimentas na Ficha de Personagens:
+```bash
+git add TEST_READY.md src/components/ProtectionModal.tsx src/app/(tabs)/characters.tsx src/app/(tabs)/weapons.tsx tests/frontendCharacters.test.tsx tests/defenseProtections.test.ts tests/proficienciesAndClothing.test.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "feat(characters): assistente de proteções, proficiências e vestimentas" \
+  -m "- Implementa ProtectionModal.tsx para seleção de proteções e escudos com modificações oficiais e cálculo de Defesa/RD" \
+  -m "- Integra assistente de proteções no card de Defesa e sincroniza com inventário da ficha em characters.tsx" \
+  -m "- Implementa verificação de proficiências de armas/proteções com alertas visuais e penalidades de -2d20 em characters.tsx e weapons.tsx" \
+  -m "- Implementa sistema didático de vestimentas/utensílios com limite de 2 ativas, justificativa narrativa e reflexão de bônus em perícias" \
+  -m "- Cria suítes de testes em tests/defenseProtections.test.ts, tests/proficienciesAndClothing.test.ts e tests/frontendCharacters.test.tsx (491 testes 100% passando)" \
+  -m "- Documenta matriz de cobertura de testes em TEST_READY.md e atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
+### 2. Motores Canônicos de Proteções, Proficiências e Vestimentas em Perícias (`4e4985d`):
 ```bash
 git add .gitignore src/utils/inventorySkills.ts src/utils/proficiencies.ts src/utils/protections.ts tests/rulesInventorySkills.test.ts tests/rulesProficiencies.test.ts tests/rulesProtections.test.ts docs/
 git commit -m "feat(rules): implementa motores canonicos de protecoes, proficiencias e bonus de vestimentas em pericias" \
@@ -23,7 +35,7 @@ git commit -m "feat(rules): implementa motores canonicos de protecoes, proficien
   -m "- Adiciona .agents/teamwork/ ao .gitignore e atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
 ```
 
-### 2. Correção e Fidelidade dos Resumos de Vitalidade Reforçada e Vontade Inabalável (`3e26d30`):
+### 3. Correção e Fidelidade dos Resumos de Vitalidade Reforçada e Vontade Inabalável (`3e26d30`):
 ```bash
 git add data/compendium_seed.json src/data/seed/compendium_seed.json src/utils/abilitySummarizer.ts scripts/build_full_database_summaries.js docs/
 git commit -m "fix(compendium): inclui bônus de Fortitude e PE nos resumos de Vitalidade Reforçada e Vontade Inabalável" \
@@ -34,7 +46,7 @@ git commit -m "fix(compendium): inclui bônus de Fortitude e PE nos resumos de V
   -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
 ```
 
-### 2. Padronização Canônica das Abas de Navegação Inferior, Menu Mais e Telas Ocultas (`7b0c10c`):
+### 4. Padronização Canônica das Abas de Navegação Inferior, Menu Mais e Telas Ocultas (`3845e9c`):
 ```bash
 git add src/types/compendium.ts src/utils/tabNavigation.ts src/components/UserProfileModal.tsx src/repositories/OfflineDataRepository.ts tests/tabNavigation.test.ts docs/
 git commit -m "feat(navigation): padroniza abas fixadas na barra, menu mais e telas ocultas" \
@@ -47,7 +59,7 @@ git commit -m "feat(navigation): padroniza abas fixadas na barra, menu mais e te
   -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
 ```
 
-### 2. Páginas Referentes no Compêndio e Leitor de PDFs In-App no APK:
+### 5. Páginas Referentes no Compêndio e Leitor de PDFs In-App no APK:
 ```bash
 git add src/app/(tabs)/index.tsx src/app/entity/[id].tsx src/components/EntityCard.tsx src/components/PdfViewerModal.tsx src/utils/pdfUrl.ts tests/compendiumPdfIntegration.test.tsx docs/
 git commit -m "feat(compendium,pdf): adiciona páginas referentes interativas e leitor de PDFs in-app no APK" \
@@ -57,25 +69,4 @@ git commit -m "feat(compendium,pdf): adiciona páginas referentes interativas e 
   -m "- Injeta fallback canônico para senha mestre ORDOCOMPANIONEOMELHOR em PdfAccessService.ts" \
   -m "- Adiciona cobertura completa de testes em tests/compendiumPdfIntegration.test.tsx" \
   -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
-```
-
-### 3. Eliminação de OutOfMemoryError no Android e Migração de FileSystem:
-```bash
-git add src/services/pdf/PdfCacheService.ts src/services/pdf/PdfAccessService.ts src/services/sync/CloudSyncManager.ts tests/pdfOutOfMemoryPrevention.test.tsx
-git commit -m "fix(android,pdf): elimina OutOfMemoryError de 84MB no APK com streaming nativo e expo-file-system/legacy" \
-  -m "- Elimina OutOfMemoryError no Android proibindo fetch() em RAM de PDFs grandes em cacheUnlockedBooksOffline e CloudSyncManager" \
-  -m "- Migra expo-file-system para expo-file-system/legacy em PdfCacheService.ts para streaming direto em disco sem erro de deprecação" \
-  -m "- Utiliza downloadPdfFromDriveToFile exclusivo no celular em CloudSyncManager evitando carregar 84MB na RAM no boot" \
-  -m "- Adiciona testes de prevenção de OOM em tests/pdfOutOfMemoryPrevention.test.tsx para validar ausência de fetch de binários no celular"
-```
-
-### 4. Configuração de Ambiente Nativo Android e Otimização de Upload EAS:
-```bash
-git add .easignore .gitignore eas.json package.json package-lock.json android/ scripts/iniciar_emulador_e_app.bat scripts/iniciar_emulador_e_app.ps1 docs/GUIA_EMULADOR_E_BUILD_LOCAL.md
-git commit -m "build(android,eas): configura ambiente nativo, scripts de emulador e otimização de upload no EAS" \
-  -m "- Remove org.gradle.java.home de android/gradle.properties sanando falha do Gradle no Linux durante o EAS Build" \
-  -m "- Cria .easignore e atualiza .gitignore para ignorar android/app/build/ e artefatos locais, reduzindo o upload de 279 MB para ~10 MB" \
-  -m "- Adiciona cli.appVersionSource local no eas.json e sincroniza variáveis de ambiente em todos os perfis" \
-  -m "- Adiciona scripts scripts/iniciar_emulador_e_app.bat e scripts/iniciar_emulador_e_app.ps1 (npm run android:emu / android:emu:ps)" \
-  -m "- Elabora guia completo de compilação e execução local em docs/GUIA_EMULADOR_E_BUILD_LOCAL.md"
 ```
