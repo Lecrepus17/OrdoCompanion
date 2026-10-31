@@ -12,7 +12,18 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### 1. Preparação de Release v1.1.0-beta.2 e Incremento de VersionCode:
+### 1. Preparação de Release v1.1.0-beta.3 e Incremento de VersionCode:
+```bash
+git add package.json app.json version.json docs/
+git commit -m "chore: release v1.1.0-beta.3" \
+  -m "- Sincroniza package.json e app.json para v1.1.0-beta.3" \
+  -m "- Incrementa versionCode do Android de 2 para 3 no app.json" \
+  -m "- Atualiza version.json remoto com notas de versão e URLs da release" \
+  -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+git tag v1.1.0-beta.3
+```
+
+### 2. Preparação de Release v1.1.0-beta.2 e Incremento de VersionCode:
 ```bash
 git add package.json app.json version.json docs/
 git commit -m "chore: release v1.1.0-beta.2" \

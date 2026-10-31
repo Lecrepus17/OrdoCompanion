@@ -1,12 +1,12 @@
 # 📋 Atualizações Pendentes para o Próximo Release
 
-> **Versão Atual**: `1.1.0-beta.2`  
+> **Versão Atual**: `1.1.0-beta.3`  
 > **Versão Sugerida**: `1.2.0-beta.1` (Motivo: [Minor] Expansão do sistema G.L.I.T.C.H. com novas personas e agentes especialistas)  
-> **Última Atualização**: 2026-10-30 22:06
+> **Última Atualização**: 2026-10-30 23:13
 
 ---
 
-## 🚀 Resumo do Release v1.1.0-beta.2 (Changelog de Usuário)
+## 🚀 Resumo do Release v1.1.0-beta.3 (Changelog de Usuário)
 * **Prevenção Definitiva de OutOfMemoryError no Android**: Eliminação total de alocação de arquivos PDF completos na memória RAM (JVM/Hermes) durante o upload, importação ou download. Arquivos volumosos de até 85MB (como Livro Base, Sobrevivendo ao Horror e Arquivos Secretos) agora operam via streaming nativo direto em disco com consumo zero de RAM.
 * **Ativação de Large Heap no Android**: Configurado `largeHeap: true` no `app.json`, expandindo a cota de memória máxima do processo nativo do Android de 256MB para até 512MB-1GB.
 * **Limpeza Automática de Cache de PDFs**: Ao excluir qualquer PDF ou selecionar um arquivo inválido por engano, o app agora remove imediatamente o arquivo da pasta de cache e do diretório do DocumentPicker, liberando espaço de armazenamento no celular.
