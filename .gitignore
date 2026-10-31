@@ -24,6 +24,9 @@ public/pdfjs/
 pdfs/
 *.pdf
 
+# Agent teamwork scratch
+.agents/teamwork/
+
 # Environment files
 .env
 .env.*

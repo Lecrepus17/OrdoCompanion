@@ -64,6 +64,10 @@
 - **Correção e Fidelidade dos Resumos de Poderes Gerais (`data/compendium_seed.json`, `src/data/seed/compendium_seed.json`, `src/utils/abilitySummarizer.ts`, `scripts/build_full_database_summaries.js`)**:
   - *Vitalidade Reforçada* (`power__sobrevivendo_ao_horror__vitalidade_reforcada`): Corrigido resumo de `+1 PV por 5% de NEX.` para `+1 PV para cada 5% de NEX e +2 em Fortitude.`, sanando a divergência com o livro canônico (*Sobrevivendo ao Horror*, p. 37) nos cards do Compêndio e seleção de ficha.
   - *Vontade Inabalável* (`power__sobrevivendo_ao_horror__vontade_inabalavel`): Corrigido resumo de `+2 em Vontade contra efeitos mentais e de medo.` para `+1 PE para cada 10% de NEX e +2 em Vontade.`, incluindo o ganho de PE canônico.
+- **Motores Canônicos de Proteções, Proficiências e Bônus de Vestimentas (`src/utils/protections.ts`, `src/utils/proficiencies.ts`, `src/utils/inventorySkills.ts`, `tests/rulesProtections.test.ts`, `tests/rulesProficiencies.test.ts`, `tests/rulesInventorySkills.test.ts`)**:
+  - `src/utils/protections.ts`: Implementa catálogo oficial de proteções (`OFFICIAL_PROTECTIONS`) cobrindo Proteção Leve (+5 Defesa, 2 espaços), Proteção Pesada (+10 Defesa, 5 espaços, RD física 2, penalidade -5) e Escudo (+2 Defesa, 2 espaços), com suporte a modificações oficiais (Reforçada, Blindada, Discreta) e acúmulo de proteção + escudo.
+  - `src/utils/proficiencies.ts`: Implementa motor completo de proficiências por classe (Combatente, Especialista, Ocultista, Sobrevivente), upgrades de origem (*Treinado pela Hell Hunters*), poderes de classe (*Armamento Pesado*, *Proteção Pesada*, *Balística Avançada*, *Ninja Urbano*), trilha (*Atirador de Elite*) e origem (*Operário*). Aplica a penalidade canônica de -2d20 em testes de Força e Agilidade ao equipar proteções pesadas ou escudos sem proficiência.
+  - `src/utils/inventorySkills.ts`: Implementa verificação e aplicação de bônus de vestimentas e utensílios em perícias (+2 padrão, +5 aprimorado), com respeito irrestrito ao teto de até duas vestimentas ativas, regra de não-cumulatividade (maior bônus prevalece para a mesma perícia) e veto estrito a Luta e Pontaria conforme o Livro Base p. 63.
 - **Configuração e Script de 1 Clique para Emulador Android e Build Local (`android/local.properties`, `android/gradlew.bat`, `scripts/iniciar_emulador_e_app.bat`, `scripts/iniciar_emulador_e_app.ps1`, `docs/GUIA_EMULADOR_E_BUILD_LOCAL.md`)**:
   - Criado `android/local.properties` com `sdk.dir` apontando para o SDK do Android Studio.
   - Blindada a detecção automática do JDK no `android/gradlew.bat` e scripts `.bat`/`.ps1` sem poluir arquivos de configuração multiplataforma.
@@ -73,7 +77,10 @@
   - Criados scripts `scripts/iniciar_emulador_e_app.bat` e `scripts/iniciar_emulador_e_app.ps1` com comandos `npm run android:emu` e `npm run android:emu:ps`, aguardando estabilização do dispositivo via `adb wait-for-device` sem erros de redirecionamento.
   - Elaborado manual completo em `docs/GUIA_EMULADOR_E_BUILD_LOCAL.md`.
 
-### 🧪 Testes Automatizados (397 testes passando - 100% de sucesso)
+### 🧪 Testes Automatizados (454 testes passando - 100% de sucesso)
+- `tests/rulesProtections.test.ts`: 17 testes cobrindo catálogo oficial de proteções, modificações (Reforçada, Blindada, Discreta), cálculo de Defesa e acúmulo com escudos.
+- `tests/rulesProficiencies.test.ts`: 22 testes cobrindo proficiências de classe, upgrades cumulativos (Hell Hunters), poderes e penalidade de -2d20 por falta de proficiência.
+- `tests/rulesInventorySkills.test.ts`: 15 testes cobrindo teto de 2 vestimentas equipadas, não-cumulatividade (maior bônus) e veto canônico a Luta/Pontaria.
 - `tests/tabNavigation.test.ts`: 11 testes unitários cobrindo o novo padrão canônico (5 fixadas, 2 no menu Mais, 3 ocultas), salvaguarda contra barras vazias, migração automática do padrão legado antigo e respeito irrestrito a configurações customizadas pelo usuário.
 - `tests/pdfOutOfMemoryPrevention.test.tsx`: 3 testes automatizados cobrindo a execução segura de `cacheUnlockedBooksOffline` no Android (apenas metadados), verificação da presença de `android:largeHeap="true"` no `AndroidManifest.xml` e streaming de disco no `downloadBookPdfOffline`.
 - `tests/compendiumPdfIntegration.test.tsx`: 5 testes cobrindo disparo de `onPressPageBadge`, validação da senha mestre canônica, resolução de base URLs seguras, execução sem erros de `openPdfDocument` com `WebBrowser` e integridade de dados retornados por `getBookPage`.

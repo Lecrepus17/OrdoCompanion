@@ -12,7 +12,18 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### 1. Correção e Fidelidade dos Resumos de Vitalidade Reforçada e Vontade Inabalável (`19881f8`):
+### 1. Motores Canônicos de Proteções, Proficiências e Vestimentas em Perícias (`9d2b4cb`):
+```bash
+git add .gitignore src/utils/inventorySkills.ts src/utils/proficiencies.ts src/utils/protections.ts tests/rulesInventorySkills.test.ts tests/rulesProficiencies.test.ts tests/rulesProtections.test.ts docs/
+git commit -m "feat(rules): implementa motores canonicos de protecoes, proficiencias e bonus de vestimentas em pericias" \
+  -m "- Implementa catalogo e calculos de protecoes e escudos com modificacoes em protections.ts" \
+  -m "- Implementa checagem de proficiencias de armas e protecoes por classe, origem e poderes com penalidade de dados em proficiencies.ts" \
+  -m "- Implementa aplicacao de bonus de vestimentas e utensilios com limite de 2 ativas e veto a Luta/Pontaria em inventorySkills.ts" \
+  -m "- Adiciona 54 testes automatizados em tests/rulesProtections.test.ts, tests/rulesProficiencies.test.ts e tests/rulesInventorySkills.test.ts (454 testes 100% passando)" \
+  -m "- Adiciona .agents/teamwork/ ao .gitignore e atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
+### 2. Correção e Fidelidade dos Resumos de Vitalidade Reforçada e Vontade Inabalável (`3e26d30`):
 ```bash
 git add data/compendium_seed.json src/data/seed/compendium_seed.json src/utils/abilitySummarizer.ts scripts/build_full_database_summaries.js docs/
 git commit -m "fix(compendium): inclui bônus de Fortitude e PE nos resumos de Vitalidade Reforçada e Vontade Inabalável" \
