@@ -29,3 +29,17 @@ pdfs/
 .env.*
 !.env.example
 
+# Native build and cache files
+android/.gradle/
+android/app/build/
+android/build/
+android/.kotlin/
+android/.idea/
+android/*.iml
+android/local.properties
+ios/build/
+ios/Pods/
+ios/*.xcworkspace/xcuserdata
+ios/*.xcodeproj/xcuserdata
+
+

@@ -1,0 +1,64 @@
+# Node modules and temporary Expo build files
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Android native build outputs and local caches
+android/.gradle/
+android/app/build/
+android/build/
+android/.kotlin/
+android/.idea/
+android/*.iml
+android/local.properties
+
+# iOS native build outputs
+ios/build/
+ios/Pods/
+ios/*.xcworkspace/xcuserdata
+ios/*.xcodeproj/xcuserdata
+
+# Keystores and sensitive certificates
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+*.pem
+
+# Binaries and archives
+*.apk
+*.aab
+OrdoCompanion.apk
+
+# Logs and debug files
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+.DS_Store
+
+# Heavy non-build assets and PDFs
+pdfs/
+public/pdfs/
+public/pdfjs/
+*.pdf
+data/raw_books.json
+data/cache/
+
+# Development and documentation folders not needed for EAS Build
+docs/
+tests/
+scripts/
+.github/
+.agents/
+.vscode/
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+.env.*
+!.env.example

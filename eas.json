@@ -1,11 +1,20 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6IjmqyqMsatHBN5IBspyi2lpY_JxvSEnO-Bgi1T6nG0HA",
+        "EXPO_PUBLIC_MASTER_PASSWORD": "ORDOCOMPANIONEOMELHOR",
+        "EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL": "https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br"
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -15,7 +24,10 @@
       "env": {
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
-        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6I49_Dwxna4857YSZxh7SB5ciYl8zvo9FfALDSVPdEOow"
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6IjmqyqMsatHBN5IBspyi2lpY_JxvSEnO-Bgi1T6nG0HA",
+        "EXPO_PUBLIC_MASTER_PASSWORD": "ORDOCOMPANIONEOMELHOR",
+        "EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL": "https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br"
       }
     },
     "production": {
@@ -25,7 +37,10 @@
       "env": {
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
-        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6I49_Dwxna4857YSZxh7SB5ciYl8zvo9FfALDSVPdEOow"
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6IjmqyqMsatHBN5IBspyi2lpY_JxvSEnO-Bgi1T6nG0HA",
+        "EXPO_PUBLIC_MASTER_PASSWORD": "ORDOCOMPANIONEOMELHOR",
+        "EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL": "https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br"
       }
     }
   },
