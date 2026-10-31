@@ -17,6 +17,7 @@ export interface EntityCardProps {
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
   onRollFormula?: (formula: string, label?: string) => void;
+  onPressPageBadge?: (bookId: string, pageNumber: number, entityName: string) => void;
 }
 
 export const EntityCardView = React.memo<EntityCardProps>(function EntityCardView({
@@ -30,6 +31,7 @@ export const EntityCardView = React.memo<EntityCardProps>(function EntityCardVie
   isFavorite = false,
   onToggleFavorite,
   onRollFormula,
+  onPressPageBadge,
 }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -232,15 +234,38 @@ export const EntityCardView = React.memo<EntityCardProps>(function EntityCardVie
       </View>
 
       <View style={[styles.footerRow, isGrid && styles.footerRowGrid]}>
-        <View style={[styles.sourceWrap, isGrid && styles.sourceWrapGrid]}>
-          <Ionicons name="book-outline" size={isGrid ? 11 : 13} color={colors.textMuted} />
+        <TouchableOpacity
+          style={[styles.sourceWrap, isGrid && styles.sourceWrapGrid]}
+          activeOpacity={onPressPageBadge ? 0.7 : 1}
+          onPress={(e) => {
+            if (onPressPageBadge && entity.bookId && entity.pageNumber) {
+              e.stopPropagation?.();
+              onPressPageBadge(entity.bookId, entity.pageNumber, entity.name);
+            }
+          }}
+          disabled={!onPressPageBadge || !entity.bookId || !entity.pageNumber}
+          accessibilityLabel={
+            onPressPageBadge && entity.bookTitle && entity.pageNumber
+              ? `Abrir PDF em ${entity.bookTitle}, página ${entity.pageNumber}`
+              : undefined
+          }
+        >
+          <Ionicons
+            name="book-outline"
+            size={isGrid ? 11 : 13}
+            color={onPressPageBadge ? colors.primary : colors.textMuted}
+          />
           <Text
-            style={[styles.sourceText, isGrid && styles.sourceTextGrid]}
+            style={[
+              styles.sourceText,
+              isGrid && styles.sourceTextGrid,
+              onPressPageBadge && { color: colors.primary, textDecorationLine: 'underline' },
+            ]}
             numberOfLines={1}
           >
             {entity.bookTitle} • pág. {entity.pageNumber}
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {entity.diceFormulas && entity.diceFormulas.length > 0 && (
           <View style={[styles.diceRow, isGrid && styles.diceRowGrid]}>

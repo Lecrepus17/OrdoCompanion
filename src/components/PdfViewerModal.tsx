@@ -196,25 +196,27 @@ async function getOrLoadPdfJsDocument(
   // 4. Fallback: Se não houver bytes locais, tenta a URL direta (do servidor ativo)
   const cleanUrl = getCleanPdfUrl(fileName);
   if (cleanUrl) {
-    // Tenta baixar e salvar offline no aparelho para que os próximos acessos nunca mais precisem do servidor!
-    try {
-      const res = await fetch(cleanUrl);
-      if (res.ok) {
-        const buf = await res.arrayBuffer();
-        if (buf && buf.byteLength > 100) {
-          bytes = new Uint8Array(buf);
-          await localPdfStorage.savePdfOffline(effectiveId || fileName, fileName, bytes);
-          const loadingTask = pdfjsLib.getDocument({
-            data: bytes,
-            disableAutoFetch: false,
-            disableStream: true,
-          });
-          const doc = await loadingTask.promise;
-          pdfDocsCache[cacheKey] = doc;
-          return doc;
+    // Na Web (Desktop): Tenta baixar e salvar no IndexedDB
+    if (Platform.OS === 'web') {
+      try {
+        const res = await fetch(cleanUrl);
+        if (res.ok) {
+          const buf = await res.arrayBuffer();
+          if (buf && buf.byteLength > 100) {
+            bytes = new Uint8Array(buf);
+            await localPdfStorage.savePdfOffline(effectiveId || fileName, fileName, bytes);
+            const loadingTask = pdfjsLib.getDocument({
+              data: bytes,
+              disableAutoFetch: false,
+              disableStream: true,
+            });
+            const doc = await loadingTask.promise;
+            pdfDocsCache[cacheKey] = doc;
+            return doc;
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    }
 
     const loadingTask = pdfjsLib.getDocument({
       url: cleanUrl,
@@ -459,7 +461,7 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
                     onPress={onOpenExternalPdf}
                   >
                     <Ionicons name="open-outline" size={13} color={colors.text} />
-                    <Text style={styles.scrollPageRetryText}>Abrir PDF Original</Text>
+                    <Text style={styles.scrollPageRetryText}>Abrir Leitor In-App</Text>
                   </TouchableOpacity>
                 )}
 
@@ -1571,7 +1573,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                         onPress={handleOpenExternalPdf}
                       >
                         <Ionicons name="open-outline" size={14} color="#FFF" />
-                        <Text style={styles.externalBtnText}>Abrir PDF Original</Text>
+                        <Text style={styles.externalBtnText}>Abrir Leitor In-App</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -1601,7 +1603,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
             </ScrollView>
           )}
 
-          {/* MODO 3: PDF NATIVO / COMPLETO (WEB IFRAME) */}
+          {/* MODO 3: PDF NATIVO / COMPLETO (WEB IFRAME OU LEITOR IN-APP NO CELULAR) */}
           {viewMode === 'pdf_native' && Platform.OS === 'web' && (
             <View style={styles.iframeContainer}>
               {isMobile && (
@@ -1630,6 +1632,68 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 },
               })}
             </View>
+          )}
+
+          {viewMode === 'pdf_native' && Platform.OS !== 'web' && (
+            <ScrollView contentContainerStyle={styles.textModeScroll}>
+              <View style={styles.textModeCard}>
+                <View style={styles.textModeCardHeader}>
+                  <View style={styles.textModeHeaderLeft}>
+                    <Ionicons name="book-outline" size={18} color={colors.primary} />
+                    <Text style={styles.textModeSection} numberOfLines={1}>
+                      {activePageData?.section || book.title}
+                    </Text>
+                  </View>
+                  <View style={styles.textModeHeaderRight}>
+                    <View style={styles.textModeOfflineBadge}>
+                      <Text style={styles.textModeOfflineBadgeText}>Leitor In-App</Text>
+                    </View>
+                    <Text style={styles.textModePageBadge}>
+                      Pág. {safeCurrentPage} / {book.pageCount}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ padding: 20, alignItems: 'center', gap: 12 }}>
+                  <Ionicons name="document-text-outline" size={44} color={colors.primary} />
+                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' }}>
+                    Visualizador de PDF no Aplicativo
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
+                    Toque no botão abaixo para abrir o documento original na Página {safeCurrentPage} com controle completo de zoom, navegação e sem sair do aplicativo.
+                  </Text>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      backgroundColor: colors.primary,
+                      paddingHorizontal: 20,
+                      paddingVertical: 12,
+                      borderRadius: 10,
+                      marginTop: 4,
+                    }}
+                    onPress={handleOpenExternalPdf}
+                  >
+                    <Ionicons name="open-outline" size={16} color="#FFF" />
+                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800' }}>
+                      Abrir Página {safeCurrentPage} no Leitor Integrado
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {Boolean(activePageData?.text) && (
+                  <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', padding: 16 }}>
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800', marginBottom: 8, textTransform: 'uppercase' }}>
+                      Texto Oficial da Página {safeCurrentPage}:
+                    </Text>
+                    <Text style={styles.textModeContent} selectable>
+                      {activePageData?.text}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
           )}
 
           {/* MODO 4: TEXTO OFICIAL (100% OFFLINE) */}

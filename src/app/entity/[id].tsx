@@ -25,6 +25,8 @@ export default function EntityDetailScreen() {
   const bottomInset = Math.max(insets.bottom, 10);
   const {
     books,
+    catalogBooks,
+    getBookPage,
     getEntityById,
     hasOriginalVersion,
     resetEntityToDefault,
@@ -56,7 +58,11 @@ export default function EntityDetailScreen() {
   const isFav = favoriteIds.has(entity.id);
   const elStyle = getElementStyle(entity.element, colors);
   const catInfo = CATEGORY_LABELS[entity.category] || CATEGORY_LABELS.all;
-  const entityBook = books.find((b) => b.id === entity.bookId) || null;
+  const entityBook =
+    books.find((b) => b.id === entity.bookId) ||
+    catalogBooks.find((b) => b.id === entity.bookId) ||
+    null;
+  const pageData = entityBook && entity.pageNumber ? getBookPage(entityBook.id, entity.pageNumber) : undefined;
   const canRestoreDefault = hasOriginalVersion(entity.id);
 
   const handleOpenPageReader = (mode: PdfViewerMode = 'pdf_scroll') => {
@@ -142,12 +148,37 @@ export default function EntityDetailScreen() {
 
           <Text style={styles.title}>{entity.name}</Text>
 
-          <View style={styles.sourceRow}>
-            <Ionicons name="book-outline" size={15} color={colors.textSecondary} />
-            <Text style={styles.sourceText}>
-              Fonte: {entity.bookTitle} • Página {entity.pageNumber}
-            </Text>
-          </View>
+          {entity.bookTitle && entity.pageNumber && entityBook ? (
+            <TouchableOpacity
+              style={[
+                styles.sourceRow,
+                {
+                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  paddingVertical: 5,
+                  paddingHorizontal: 10,
+                  borderRadius: 8,
+                  alignSelf: 'flex-start',
+                  gap: 6,
+                },
+              ]}
+              activeOpacity={0.75}
+              onPress={() => handleOpenPageReader('pdf_scroll')}
+              accessibilityLabel={`Abrir página ${entity.pageNumber} de ${entity.bookTitle} no leitor integrado`}
+            >
+              <Ionicons name="book-outline" size={15} color={colors.primary} />
+              <Text style={[styles.sourceText, { color: colors.primary, fontWeight: '700' }]}>
+                Fonte: {entity.bookTitle} • Página {entity.pageNumber}
+              </Text>
+              <Ionicons name="open-outline" size={13} color={colors.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.sourceRow}>
+              <Ionicons name="book-outline" size={15} color={colors.textSecondary} />
+              <Text style={styles.sourceText}>
+                Fonte: {entity.bookTitle} • Página {entity.pageNumber}
+              </Text>
+            </View>
+          )}
 
           {/* Barra de Ações Rápidas */}
           <View style={styles.actionButtonsRow}>
@@ -436,14 +467,25 @@ export default function EntityDetailScreen() {
                   resizeMode="contain"
                 />
               ) : (
-                <View style={{ alignItems: 'center', justifyContent: 'center', padding: 20, gap: 8 }}>
-                  <Ionicons name="book-outline" size={38} color={colors.primary} />
-                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800', textAlign: 'center' }}>
-                    {entity.bookTitle} • Página {entity.pageNumber}
-                  </Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center' }}>
-                    Toque para ler a página completa no leitor integrado
-                  </Text>
+                <View style={{ padding: 16, gap: 8, width: '100%' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="book-outline" size={24} color={colors.primary} />
+                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800', flex: 1 }} numberOfLines={1}>
+                      {pageData?.section || `${entity.bookTitle} • Página ${entity.pageNumber}`}
+                    </Text>
+                  </View>
+                  {Boolean(pageData?.text) ? (
+                    <Text
+                      style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 18 }}
+                      numberOfLines={4}
+                    >
+                      {pageData?.text}
+                    </Text>
+                  ) : (
+                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                      Toque para ler a página completa no leitor integrado do aplicativo
+                    </Text>
+                  )}
                 </View>
               )}
               <View style={styles.pdfPreviewFooterBadge}>

@@ -18,8 +18,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CATEGORY_LABELS, ThemeColors, useTheme, useThemedStyles } from '../../theme';
-import { CompendiumEntity, EntityCategory, EntityClassFilter, ExcludableType } from '../../types/compendium';
+import { BookInfo, CompendiumEntity, EntityCategory, EntityClassFilter, ExcludableType } from '../../types/compendium';
 import { EntityCard } from '../../components/EntityCard';
+import { PdfViewerModal } from '../../components/PdfViewerModal';
 
 const CATEGORIES_ORDER: Array<EntityCategory | 'all'> = [
   'all',
@@ -164,6 +165,7 @@ export default function CompendiumScreen() {
     filteredEntities,
     entities,
     books,
+    catalogBooks,
     filters,
     setFilters,
     resetFilters,
@@ -182,6 +184,26 @@ export default function CompendiumScreen() {
   const styles = useThemedStyles(createStyles);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [activePdfBook, setActivePdfBook] = useState<BookInfo | null>(null);
+  const [activePdfPage, setActivePdfPage] = useState<number>(1);
+  const [activePdfTerm, setActivePdfTerm] = useState<string>('');
+  const [pdfModalVisible, setPdfModalVisible] = useState<boolean>(false);
+
+  const handleOpenPdfFromCard = useCallback(
+    (bookId: string, pageNumber: number, entityName: string) => {
+      const targetBook =
+        books.find((b) => b.id === bookId) ||
+        catalogBooks.find((b) => b.id === bookId) ||
+        null;
+      if (targetBook) {
+        setActivePdfBook(targetBook);
+        setActivePdfPage(pageNumber);
+        setActivePdfTerm(entityName);
+        setPdfModalVisible(true);
+      }
+    },
+    [books, catalogBooks]
+  );
 
   useEffect(() => {
     AsyncStorage.getItem('@ordocompanion_filters_collapsed')
@@ -215,9 +237,10 @@ export default function CompendiumScreen() {
         onPressItem={handlePressEntity}
         onToggleFavorite={toggleFavorite}
         onRollFormula={rollFormula}
+        onPressPageBadge={handleOpenPdfFromCard}
       />
     ),
-    [listingColumns, cardWidth, favoriteIds, handlePressEntity, toggleFavorite, rollFormula]
+    [listingColumns, cardWidth, favoriteIds, handlePressEntity, toggleFavorite, rollFormula, handleOpenPdfFromCard]
   );
 
   if (!ready) {
@@ -992,6 +1015,16 @@ export default function CompendiumScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal Visualizador do Livro PDF Integrado */}
+      <PdfViewerModal
+        visible={pdfModalVisible}
+        onClose={() => setPdfModalVisible(false)}
+        book={activePdfBook}
+        initialPage={activePdfPage}
+        highlightTerm={activePdfTerm}
+        initialMode="pdf_scroll"
+      />
     </View>
   );
 }

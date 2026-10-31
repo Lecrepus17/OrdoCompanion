@@ -44,11 +44,14 @@ export function getMasterGoogleDriveFolderUrl(): string {
   if (customGdriveBooksFolderUrl && customGdriveBooksFolderUrl.trim().length > 0) {
     return customGdriveBooksFolderUrl.trim();
   }
+  if (customGdriveBooksFolderUrl === '') {
+    return '';
+  }
   const envUrl = process.env.EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL;
   if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
     return envUrl.trim();
   }
-  return '';
+  return 'https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br';
 }
 
 /**
@@ -261,7 +264,7 @@ export function getEffectivePdfFileBaseUrl(): string {
   if (serverBase) {
     return serverBase;
   }
-  return getMasterGoogleDriveFolderUrl();
+  return getMasterGoogleDriveFolderUrl() || 'https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br';
 }
 
 /**
@@ -457,24 +460,24 @@ export async function openPdfDocument(
 
   if (!primaryUrl) return false;
 
+  // No APK / Celular Nativo: abre no leitor embutido (Chrome Custom Tabs)
+  // para permitir leitura com zoom e controle de páginas SEM sair do aplicativo
+  const embeddedUrl = getEmbeddedPdfViewerUrl(fileName, pageNumber) || primaryUrl;
   try {
-    // Em celulares Android, Linking.openURL permite que o sistema abra o PDF diretamente
-    // no leitor nativo (Drive PDF Viewer, Samsung Notes, Adobe) ou baixe o arquivo sem tela cinza
-    await Linking.openURL(primaryUrl);
+    await WebBrowser.openBrowserAsync(embeddedUrl, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+      toolbarColor: '#09090B',
+      controlsColor: '#EF4444',
+      showTitle: true,
+      enableBarCollapsing: true,
+    });
     return true;
   } catch {
     try {
-      const embeddedUrl = getEmbeddedPdfViewerUrl(fileName, pageNumber) || primaryUrl;
-      await WebBrowser.openBrowserAsync(embeddedUrl, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-        toolbarColor: '#09090B',
-        controlsColor: '#EF4444',
-        showTitle: true,
-        enableBarCollapsing: true,
-      });
+      await Linking.openURL(primaryUrl);
       return true;
     } catch (e) {
-      console.warn('[PDF] Falha ao abrir documento externamente:', e);
+      console.warn('[PDF] Falha ao abrir documento:', e);
       return false;
     }
   }

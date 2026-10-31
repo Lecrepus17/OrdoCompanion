@@ -6,11 +6,44 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento. Todo o código de funcionalidades, correções e testes foi commitado).*
+*Nenhum commit pendente. Todos os arquivos e partes foram comitados com sucesso.*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### 1. Páginas Referentes no Compêndio e Leitor de PDFs In-App no APK:
+```bash
+git add src/app/(tabs)/index.tsx src/app/entity/[id].tsx src/components/EntityCard.tsx src/components/PdfViewerModal.tsx src/utils/pdfUrl.ts tests/compendiumPdfIntegration.test.tsx docs/
+git commit -m "feat(compendium,pdf): adiciona páginas referentes interativas e leitor de PDFs in-app no APK" \
+  -m "- Implementa WebBrowser.openBrowserAsync no openPdfDocument e leitor in-app no PdfViewerModal para ler PDFs sem sair do app no APK" \
+  -m "- Torna interativo o badge de fonte e página no EntityCard, abrindo o modal do PDF na página referente direto do Compêndio" \
+  -m "- Exibe card de prévia e atalhos na tela de detalhes da entidade (entity/[id].tsx) com trecho canônico da página do livro" \
+  -m "- Injeta fallback canônico para senha mestre ORDOCOMPANIONEOMELHOR em PdfAccessService.ts" \
+  -m "- Adiciona cobertura completa de testes em tests/compendiumPdfIntegration.test.tsx" \
+  -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
+### 2. Eliminação de OutOfMemoryError no Android e Migração de FileSystem:
+```bash
+git add src/services/pdf/PdfCacheService.ts src/services/pdf/PdfAccessService.ts src/services/sync/CloudSyncManager.ts tests/pdfOutOfMemoryPrevention.test.tsx
+git commit -m "fix(android,pdf): elimina OutOfMemoryError de 84MB no APK com streaming nativo e expo-file-system/legacy" \
+  -m "- Elimina OutOfMemoryError no Android proibindo fetch() em RAM de PDFs grandes em cacheUnlockedBooksOffline e CloudSyncManager" \
+  -m "- Migra expo-file-system para expo-file-system/legacy em PdfCacheService.ts para streaming direto em disco sem erro de deprecação" \
+  -m "- Utiliza downloadPdfFromDriveToFile exclusivo no celular em CloudSyncManager evitando carregar 84MB na RAM no boot" \
+  -m "- Adiciona testes de prevenção de OOM em tests/pdfOutOfMemoryPrevention.test.tsx para validar ausência de fetch de binários no celular"
+```
+
+### 3. Configuração de Ambiente Nativo Android e Otimização de Upload EAS:
+```bash
+git add .easignore .gitignore eas.json package.json package-lock.json android/ scripts/iniciar_emulador_e_app.bat scripts/iniciar_emulador_e_app.ps1 docs/GUIA_EMULADOR_E_BUILD_LOCAL.md
+git commit -m "build(android,eas): configura ambiente nativo, scripts de emulador e otimização de upload no EAS" \
+  -m "- Remove org.gradle.java.home de android/gradle.properties sanando falha do Gradle no Linux durante o EAS Build" \
+  -m "- Cria .easignore e atualiza .gitignore para ignorar android/app/build/ e artefatos locais, reduzindo o upload de 279 MB para ~10 MB" \
+  -m "- Adiciona cli.appVersionSource local no eas.json e sincroniza variáveis de ambiente em todos os perfis" \
+  -m "- Adiciona scripts scripts/iniciar_emulador_e_app.bat e scripts/iniciar_emulador_e_app.ps1 (npm run android:emu / android:emu:ps)" \
+  -m "- Elabora guia completo de compilação e execução local em docs/GUIA_EMULADOR_E_BUILD_LOCAL.md"
+```
 
 ### 1. Preparação de Release v1.1.0-beta.3 e Incremento de VersionCode:
 ```bash
@@ -21,17 +54,6 @@ git commit -m "chore: release v1.1.0-beta.3" \
   -m "- Atualiza version.json remoto com notas de versão e URLs da release" \
   -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
 git tag v1.1.0-beta.3
-```
-
-### 2. Preparação de Release v1.1.0-beta.2 e Incremento de VersionCode:
-```bash
-git add package.json app.json version.json docs/
-git commit -m "chore: release v1.1.0-beta.2" \
-  -m "- Sincroniza package.json e app.json para v1.1.0-beta.2" \
-  -m "- Incrementa versionCode do Android de 1 para 2 no app.json" \
-  -m "- Atualiza version.json remoto com notas de versão e URLs da release" \
-  -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
-git tag v1.1.0-beta.2
 ```
 
 ### 2. Prevenção de OutOfMemoryError no Android e Otimização do Google OAuth:
@@ -46,35 +68,4 @@ git commit -m "fix(pdf,sync): previne OutOfMemoryError no Android com streaming 
   -m "- Suporta fluxo de token implícito (Implicit Flow) no Web quando client_secret não estiver configurado no .env" \
   -m "- Incrementa automaticamente versionCode no app.json no script scripts/create_release.js para releases de APK" \
   -m "- Adiciona cobertura completa de testes em tests/pdfOutOfMemoryPrevention.test.tsx, tests/deletePdfBook.test.tsx e tests/googleDriveService.test.ts"
-```
-
-### 2. Centralização e Padronização da Documentação:
-```bash
-git add README.md docs/
-git commit -m "docs: centraliza documentação na pasta docs/ com índice unificado e atualiza README" \
-  -m "- Centraliza manuais e guias na pasta docs/ com índice unificado em docs/README.md" \
-  -m "- Adiciona docs/MANUAL_DE_DESENVOLVIMENTO.md com fluxo dos agentes autônomos" \
-  -m "- Atualiza README.md na raiz com nova seção de Documentação e árvore de diretórios" \
-  -m "- Atualiza changelog contínuo em docs/ATUALIZACOES_PENDENTES.md" \
-  -m "- Preserva canonicamente na raiz apenas README.md e GEMINI.md, e as skills em .agents/skills/"
-```
-
-### 3. Expansão do G.L.I.T.C.H. com 6 Novas Personas e Prompts Modulares:
-```bash
-git commit -m "feat(ai): expande G.L.I.T.C.H. com 6 novas personas, prompts modulares, abas temáticas e RAG por papel" \
-  -m "- Adiciona personas canônicas (Veríssimo, Arthur Cervero, Kian) e especialistas (Árbitro Rápido, Co-Mestre, Build Advisor)" \
-  -m "- Modula arquitetura de prompts em src/services/ai/prompts/" \
-  -m "- Implementa RAG adaptativo por papel do agente e suporte offline temático em AiOfflineEngine" \
-  -m "- Adiciona abas de categoria (Táticos, Ordem, Relíquias) e sugestões dinâmicas no Oráculo e ConfigModal" \
-  -m "- Adiciona cobertura de testes automatizados em tests/ai.test.ts e tests/frontendOracle.test.tsx" \
-  -m "- Documenta roadmap e personas em docs/MELHORIAS_AGENTES_IA.md"
-```
-
-### 4. Governança de Agentes e Smart Testing Gates:
-```bash
-git commit -m "chore(agents): estrutura matriz de 8 especialistas e configura smart testing gates" \
-  -m "- Configura matriz de roteamento autônomo com gatilhos automáticos no GEMINI.md" \
-  -m "- Adiciona scripts de testes rápidos npm run test:rules e npm run test:sync no package.json" \
-  -m "- Documenta matriz de Smart Testing Gates em .agents/skills/run-suite/SKILL.md" \
-  -m "- Documenta papéis e comandos rápidos no GEMINI.md"
 ```
