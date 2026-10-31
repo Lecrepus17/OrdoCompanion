@@ -2,7 +2,7 @@
 
 > **Versão Atual**: `1.1.0-beta.3`  
 > **Versão Sugerida**: `1.1.0-beta.4` (Motivo: [Patch] Padronização das 5 abas fixadas na barra, menu Mais e telas ocultas, correção de OutOfMemoryError no Android ao manipular PDFs grandes, leitor in-app e blindagem EAS)  
-> **Última Atualização**: 2026-10-31 18:07
+> **Última Atualização**: 2026-10-31 18:10
 
 ---
 
@@ -25,6 +25,7 @@
 * **Blindagem de Variáveis de Ambiente no APK Standalone (`eas.json`)**: Configurados todos os perfis (`development`, `preview` e `production`) no `eas.json` com `EXPO_PUBLIC_MASTER_PASSWORD`, `EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL`, `EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY` atualizado e Google Client IDs.
 * **Fallback Canônico de Desbloqueio**: O desbloqueio com a senha mestre canônica `ORDOCOMPANIONEOMELHOR` foi blindado no código em `PdfAccessService.ts`, garantindo que o acervo e o compêndio possam ser liberados com sucesso mesmo em builds sem `.env` local.
 * **Prevenção de Telas em Branco no Leitor Nativo**: O modo `pdf_native` no `PdfViewerModal` agora oferece suporte completo para plataformas móveis (`Platform.OS !== 'web'`), combinando o visualizador in-app com exibição de texto canônico de contingência.
+* **Fidelidade Canônica nos Resumos dos Poderes Gerais (Compêndio & Ficha)**: Atualizados os resumos dos poderes *Vitalidade Reforçada* (+1 PV para cada 5% de NEX e +2 em Fortitude) e *Vontade Inabalável* (+1 PE para cada 10% de NEX e +2 em Vontade), eliminando a omissão dos bônus de perícia e pontos vitais nos cards do Compêndio e modais de criação/evolução de agentes.
 
 ---
 
@@ -60,6 +61,9 @@
   - **Eliminação de Erro Fatal do Gradle no EAS**: Removida a propriedade `org.gradle.java.home=C:\Program Files\Android\Android Studio\jbr` de `android/gradle.properties`, que causava falha imediata no container Linux do EAS (`Value given for org.gradle.java.home Gradle property is invalid`). A detecção automática do JDK local do Android Studio permanece ativa e segura exclusivamente em `android/gradlew.bat` e nos scripts `.bat`/`.ps1`.
   - **Redução Drástica do Upload no EAS (de 279 MB para ~10 MB)**: Criado `.easignore` e atualizado `.gitignore` com exclusão de artefatos de compilação nativos (`android/.gradle/`, `android/app/build/` de ~970 MB, `android/build/`, `android/.kotlin/`, `android/local.properties`) e pastas que não participam do build nativo (`tests/`, `docs/`, `scripts/`, `.agents/`). O tempo de empacotamento e upload foi reduzido em mais de 90%.
   - **Configuração de Versão do EAS (`eas.json`)**: Adicionado `"appVersionSource": "local"` na chave `"cli"`, garantindo conformidade com os novos requisitos do EAS CLI.
+- **Correção e Fidelidade dos Resumos de Poderes Gerais (`data/compendium_seed.json`, `src/data/seed/compendium_seed.json`, `src/utils/abilitySummarizer.ts`, `scripts/build_full_database_summaries.js`)**:
+  - *Vitalidade Reforçada* (`power__sobrevivendo_ao_horror__vitalidade_reforcada`): Corrigido resumo de `+1 PV por 5% de NEX.` para `+1 PV para cada 5% de NEX e +2 em Fortitude.`, sanando a divergência com o livro canônico (*Sobrevivendo ao Horror*, p. 37) nos cards do Compêndio e seleção de ficha.
+  - *Vontade Inabalável* (`power__sobrevivendo_ao_horror__vontade_inabalavel`): Corrigido resumo de `+2 em Vontade contra efeitos mentais e de medo.` para `+1 PE para cada 10% de NEX e +2 em Vontade.`, incluindo o ganho de PE canônico.
 - **Configuração e Script de 1 Clique para Emulador Android e Build Local (`android/local.properties`, `android/gradlew.bat`, `scripts/iniciar_emulador_e_app.bat`, `scripts/iniciar_emulador_e_app.ps1`, `docs/GUIA_EMULADOR_E_BUILD_LOCAL.md`)**:
   - Criado `android/local.properties` com `sdk.dir` apontando para o SDK do Android Studio.
   - Blindada a detecção automática do JDK no `android/gradlew.bat` e scripts `.bat`/`.ps1` sem poluir arquivos de configuração multiplataforma.
@@ -78,6 +82,42 @@
 ---
 
 ## 🔮 Backlog de Pendências para v1.2.0-beta.1
+- [ ] **Mecanismo Unificado de Bônus Passivos e Escalonamento com NEX (`progression.ts`, `LevelUpModal.tsx`, `CreateAgentModal.tsx`)**:
+  - **Contexto da Revisão Geral**: Auditoria completa de todas as origens, poderes de classe, poderes paranormais e poderes gerais que concedem bônus escalonados por NEX ou modificam atributos, vitais, limites de PE, defesa ou capacidade de carga de forma passiva. Atualmente, a criação assistida e a subida de NEX consideram apenas fórmulas base de classe e atributos brutos, exigindo que o jogador compense manualmente esses acréscimos na ficha.
+  - **Mapeamento Canônico Completo de Habilidades Semelhantes**:
+    1. **Status Vitais com Escalonamento Contínuo por NEX**:
+       - *Vitalidade Reforçada* (Poder Geral - SaH p. 38): `+1 PV` para cada 5% de NEX e `+2` em Fortitude.
+       - *Sangue de Ferro* (Poder Paranormal de Sangue - Livro Base p. 114): `+2 PV` por NEX (`+2 PV` a cada 5% de NEX). Afinidade: `+5` em Fortitude e imunidade a venenos/doenças.
+       - *Potencial Aprimorado* (Poder Paranormal de Morte - Livro Base p. 116): `+1 PE` por NEX (`+1 PE` a cada 5% de NEX). Afinidade: `+1 PE` adicional por NEX (total `+2 PE` a cada 5% de NEX).
+       - *Vontade Inabalável* (Poder Geral - SaH p. 38): `+1 PE` para cada 10% de NEX e `+2` em Vontade.
+       - *Combatente Esforçado* (Poder de Combatente - Arquivos Secretos 04): `+1 PE` para cada 5% de NEX.
+       - *Origem Desgarrado / Calejado* (Origem - Livro Base p. 23): `+1 PV` para cada 5% de NEX (desde a criação no NEX 5% até 99%).
+       - *Origem Universitário / Dedicação* (Origem - Livro Base p. 25): `+1 PE` no NEX 5% e `+1 PE` a cada marco ímpar de NEX (15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95%); `Limite de PE por Turno +1` permanente.
+       - *Origem Vítima / Cicatrizes Psicológicas* (Origem - Livro Base p. 25): `+1 Sanidade` para cada 5% de NEX (desde a criação no NEX 5% até 99%).
+    2. **Modificadores Fixos de Vitais e Sanidade Inicial**:
+       - *Origem Cultista Arrependido / Traços do Outro Lado* (Origem - Livro Base p. 23): Começa o jogo com metade da Sanidade normal da classe (Combatente: 6, Especialista: 8, Ocultista: 10, Sobrevivente: 4) e ganha 1 Poder Paranormal livre na criação.
+       - *Origem Mergulhador* (Origem - SaH p. 30): `+5 PV` fixos imediatos na criação.
+       - *Personalidade Esotérica* (Poder Geral - SaH p. 38): `+3 PE` fixos imediatos e treinamento em Ocultismo (ou `+2` se já treinado).
+    3. **Capacidade de Carga e Inventário**:
+       - *Inventário Organizado* (Poder Geral - SaH p. 38): Soma o Intelecto (`INT`) aos espaços de carga máxima.
+    4. **Defesa Passiva e Resistência a Dano**:
+       - *Casca Grossa* (Poder Geral - Livro Base p. 115): `+1` na Defesa passiva (Pré-requisito: Vig 2).
+       - *Especialista em Proteção Leve* (Poder Geral - Livro Base p. 115): `+2` na Defesa e Reflexos ao vestir proteção leve.
+    5. **Perícias com Fórmula "Treinado ou +2"**:
+       - Todos os poderes gerais que concedem *"treinamento em [Perícia] ou, se já for treinado, +2 nela"* (ex.: *Acrobático*, *Atlético*, *Dedos Ágeis*, *Informado*, *Interrogador*, *Mentiroso Nato*, *Observador*, *Persuasivo*, *Resposta Rápida*, *Tenacidade*, etc.).
+  - **Arquitetura da Solução Planejada**:
+    - Criar em `src/utils/progression.ts` o motor centralizador `getCharacterPassiveStatBonuses(character, options)`:
+      - Aceita a ficha atual ou contexto de avanço (`targetNex`, novos poderes selecionados).
+      - Retorna o delta estruturado `{ pvBonus, peBonus, sanBonus, peRoundBonus, defenseBonus, maxLoadBonus, skillDegreeChanges, skillNumericalBonuses }`.
+    - **Integração no `CreateAgentModal.tsx`**: Aplicar instantaneamente os bônus de origem nos vitais, sanidade inicial e limite de PE logo na criação.
+    - **Integração no `LevelUpModal.tsx`**:
+      - Somar automaticamente os bônus contínuos no `pvDelta`, `peDelta`, `sanDelta` a cada 5% de NEX.
+      - Quando um novo poder for adquirido no marco de nível (ex: pegou *Sangue de Ferro* ou *Vitalidade Reforçada* no NEX 15%), calcular e aplicar a retroatividade exata proporcional a todos os patamares já conquistados.
+      - Promover perícias ou aplicar o `+2` na ficha sem intervenção manual.
+    - **Validação Flexível de Pré-requisitos com Alerta Permissivo**:
+      - Ao tentar selecionar um poder cujos pré-requisitos não sejam estritamente atendidos (ex.: falta de atributo mínimo como Vig 2, Pre 2, ou perícia requerida):
+      - Exibir aviso visual explicativo destacando o motivo (ex.: *"Aviso: Este poder requer Vigor 2 (seu agente possui Vigor 1)"*).
+      - **Permitir confirmação da escolha** ("Adicionar mesmo assim"), garantindo liberdade para regras da casa, aprovação do mestre ou circunstâncias narrativas especiais sem travar o jogador.
 - [ ] Implementação de assistente de voz tático para o G.L.I.T.C.H.
 - [ ] Suporte a anotações desenhadas na página do livro no tablet.
 - [ ] Exportação completa de histórico da mesa virtual em formato JSON/PDF.

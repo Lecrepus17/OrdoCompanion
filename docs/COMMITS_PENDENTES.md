@@ -12,7 +12,18 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### 1. Padronização Canônica das Abas de Navegação Inferior, Menu Mais e Telas Ocultas (`7b0c10c`):
+### 1. Correção e Fidelidade dos Resumos de Vitalidade Reforçada e Vontade Inabalável (`19881f8`):
+```bash
+git add data/compendium_seed.json src/data/seed/compendium_seed.json src/utils/abilitySummarizer.ts scripts/build_full_database_summaries.js docs/
+git commit -m "fix(compendium): inclui bônus de Fortitude e PE nos resumos de Vitalidade Reforçada e Vontade Inabalável" \
+  -m "- Corrige resumo de Vitalidade Reforçada para '+1 PV para cada 5% de NEX e +2 em Fortitude' conforme Sobrevivendo ao Horror p. 37" \
+  -m "- Corrige resumo de Vontade Inabalável para '+1 PE para cada 10% de NEX e +2 em Vontade' incluindo ganho de PE canônico" \
+  -m "- Sincroniza sementes em data/compendium_seed.json, src/data/seed/compendium_seed.json, abilitySummarizer.ts e build_full_database_summaries.js" \
+  -m "- Registra no backlog de pendências a revisão geral e arquitetura de automação de poderes/origens que escalam com NEX (Vitalidade Reforçada, Sangue de Ferro, Potencial Aprimorado, Desgarrado, Universitário, Vítima), bônus de perícias ('Treinado ou +2') e alerta permissivo de pré-requisitos" \
+  -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
+### 2. Padronização Canônica das Abas de Navegação Inferior, Menu Mais e Telas Ocultas (`7b0c10c`):
 ```bash
 git add src/types/compendium.ts src/utils/tabNavigation.ts src/components/UserProfileModal.tsx src/repositories/OfflineDataRepository.ts tests/tabNavigation.test.ts docs/
 git commit -m "feat(navigation): padroniza abas fixadas na barra, menu mais e telas ocultas" \

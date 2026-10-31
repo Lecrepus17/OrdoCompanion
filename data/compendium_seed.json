@@ -9708,7 +9708,7 @@
       "element": "Nenhum",
       "prerequisite": "Vig 2",
       "diceFormulas": [],
-      "summary": "+1 PV por 5% de NEX.",
+      "summary": "+1 PV para cada 5% de NEX e +2 em Fortitude.",
       "description": "Você possui uma capacidade superior de suportar ferimentos. Você recebe +1 PV para cada 5% de NEX (ou para cada nível, se estiver usando a regra de nível de experiência) e +2 em Fortitude. Pré-requisito: Vig 2.",
       "tags": [
         "Poder Geral",
@@ -9727,7 +9727,7 @@
       "element": "Nenhum",
       "prerequisite": "Pre 2",
       "diceFormulas": [],
-      "summary": "+2 em Vontade contra efeitos mentais e de medo.",
+      "summary": "+1 PE para cada 10% de NEX e +2 em Vontade.",
       "description": "Sua mente é preparada para suportar os mais rigorosos traumas. Você recebe +1 PE para cada 10% de NEX (ou para cada 2 níveis, se estiver usando a regra de nível de experiência) e +2 em Vontade. Pré-requisito: Pre 2.",
       "tags": [
         "Poder Geral",
