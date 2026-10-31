@@ -44,6 +44,12 @@
 - `tests/progression.test.ts` & `tests/sheetPrinter.test.ts`: Testes de regras e layout de impressão.
 
 ### 📚 Governança, IA & Compêndio
+- **Padronização da Central de Documentação (`docs/`)**:
+  - Centralização de manuais e guias em `docs/` (`MANUAL_DO_USUARIO.md` e `GUIA_ATUALIZACOES.md` movidos da raiz para `docs/`).
+  - Criação do hub de documentação `docs/README.md` com índice completo de navegação e descritivo por público-alvo.
+  - Atualização do `README.md` na raiz com nova seção de Documentação e atualização da árvore de diretórios.
+  - Atualização do painel de arquivos chave em `docs/MANUAL_DE_DESENVOLVIMENTO.md`.
+  - Preservação canônica na raiz de `README.md` e `GEMINI.md`, e das skills em `.agents/skills/`.
 - **Roteamento Automático de Agentes (`GEMINI.md`)**:
   - Matriz de Gatilhos x Agentes x Skills para acionamento transparente sem intervenção do usuário.
   - Pipeline de Ciclo de Vida de Tarefas (Triagem -> QA -> Release -> Commit).

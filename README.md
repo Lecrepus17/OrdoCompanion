@@ -21,6 +21,7 @@
   <p align="center">
     <a href="#-demonstração-visual">Demonstração Visual</a> •
     <a href="#-principais-funcionalidades">Funcionalidades</a> •
+    <a href="#-documentação">Documentação</a> •
     <a href="#-estatísticas-da-base-de-dados">Base de Dados</a> •
     <a href="#-como-rodar-no-celular">Rodar no Celular</a> •
     <a href="#-desenvolvimento">Desenvolvimento</a> •
@@ -38,6 +39,19 @@
 O **Ordo Companion** nasceu para eliminar a lentidão de manusear PDFs pesados ou consultar múltiplos livros físicos durante as sessões de RPG. O aplicativo unifica regras, fichas, combate e utilitários em uma interface moderna, ultra-rápida e otimizada para smartphones (Android e iOS) e navegadores (Web).
 
 O projeto é **100% Livre e de Código Aberto (GPL-3.0)**, construído com arquitetura modular, persistência offline robusta e sincronização em nuvem sem intermediários.
+
+---
+
+## 📚 Documentação
+
+Toda a documentação técnica, manuais e guias do projeto estão padronizados e organizados na pasta [`docs/`](docs/README.md):
+
+* 📖 [**Manual do Usuário**](docs/MANUAL_DO_USUARIO.md): Guia completo das 9 telas, criação assistida de fichas, combate, VTT e regras canônicas.
+* 🛠️ [**Manual de Desenvolvimento**](docs/MANUAL_DE_DESENVOLVIMENTO.md): Governança de código, operação dos agentes de IA e rotinas de teste.
+* 🚀 [**Guia de Distribuição e Atualizações**](docs/GUIA_ATUALIZACOES.md): Instruções para geração de `.apk`, builds no EAS e publicação de releases.
+* 📋 [**Atualizações Pendentes**](docs/ATUALIZACOES_PENDENTES.md): Changelog em tempo real e cálculo SemVer da próxima versão.
+* 🎯 [**Commits Pendentes**](docs/COMMITS_PENDENTES.md): Fila padronizada de commits (Conventional Commits) pronta para terminal.
+* 📑 [**Central de Documentos**](docs/README.md): Hub com índice unificado de todos os arquivos markdown do repositório.
 
 ---
 
@@ -233,7 +247,13 @@ Ao final do build na nuvem, você receberá um link e QR Code para baixar o arqu
 OrdoCompanion/
 ├── assets/                  # Ícones, splash screens e logotipos do app
 ├── data/                    # Base de dados estruturada e indexada
-├── docs/
+├── docs/                    # Central de documentação oficial e governança
+│   ├── README.md            # Índice geral de documentos
+│   ├── MANUAL_DO_USUARIO.md # Manual completo de telas e regras
+│   ├── MANUAL_DE_DESENVOLVIMENTO.md # Governança e agentes de IA
+│   ├── GUIA_ATUALIZACOES.md # Distribuição e releases
+│   ├── ATUALIZACOES_PENDENTES.md # Changelog contínuo SemVer
+│   ├── COMMITS_PENDENTES.md # Fila de commits padronizados
 │   └── screenshots/         # Capturas de tela e mockups para o README
 ├── pdfs/                    # PDFs oficiais dos livros (ignorado no git)
 ├── scripts/                 # Extratores OCR, compiladores e criador de releases
