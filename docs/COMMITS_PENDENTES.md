@@ -12,7 +12,18 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### 1. Prevenção de OutOfMemoryError no Android e Otimização do Google OAuth:
+### 1. Preparação de Release v1.1.0-beta.2 e Incremento de VersionCode:
+```bash
+git add package.json app.json version.json docs/
+git commit -m "chore: release v1.1.0-beta.2" \
+  -m "- Sincroniza package.json e app.json para v1.1.0-beta.2" \
+  -m "- Incrementa versionCode do Android de 1 para 2 no app.json" \
+  -m "- Atualiza version.json remoto com notas de versão e URLs da release" \
+  -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+git tag v1.1.0-beta.2
+```
+
+### 2. Prevenção de OutOfMemoryError no Android e Otimização do Google OAuth:
 ```bash
 git add app.json package.json package-lock.json src/services/pdf/ src/components/PdfUploadAccessModal.tsx src/components/PdfViewerModal.tsx src/context/AppContext.tsx src/services/sync/GoogleDriveService.ts scripts/create_release.js tests/pdfOutOfMemoryPrevention.test.tsx tests/deletePdfBook.test.tsx tests/googleDriveService.test.ts tests/setup.ts docs/
 git commit -m "fix(pdf,sync): previne OutOfMemoryError no Android com streaming de PDFs e aprimora Google OAuth" \

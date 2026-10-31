@@ -1,9 +1,8 @@
 # 📋 Atualizações Pendentes para o Próximo Release
 
-> **Versão Atual**: `1.1.0-beta.1`  
-> **Versão Sugerida**: `1.1.0-beta.2` (Motivo: [Patch] Prevenção de OutOfMemoryError em PDFs grandes no Android, limpeza de cache e aprimoramento do fluxo OAuth Google Drive no Web)  
-> **Próxima Versão em Desenvolvimento**: `1.2.0-beta.1` (Motivo: [Minor] Expansão do sistema G.L.I.T.C.H. com novas personas e agentes especialistas)  
-> **Última Atualização**: 2026-10-30 21:55
+> **Versão Atual**: `1.1.0-beta.2`  
+> **Versão Sugerida**: `1.2.0-beta.1` (Motivo: [Minor] Expansão do sistema G.L.I.T.C.H. com novas personas e agentes especialistas)  
+> **Última Atualização**: 2026-10-30 22:06
 
 ---
 

@@ -1,16 +1,16 @@
 {
-  "version": "1.1.0-beta.1",
+  "version": "1.1.0-beta.2",
   "minVersion": "1.0.0-beta.1",
-  "releaseName": "Ordo Companion v1.1.0-beta.1",
-  "releaseDate": "2026-10-30",
-  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.1.0-beta.1",
-  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.1.0-beta.1/OrdoCompanion.apk",
+  "releaseName": "Ordo Companion v1.1.0-beta.2",
+  "releaseDate": "2026-10-31",
+  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.1.0-beta.2",
+  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.1.0-beta.2/OrdoCompanion.apk",
   "changelog": [
-    "Novo Visualizador & Gerenciador de PDFs",
-    "Exportação de Cards em Imagem",
-    "Resumo Inteligente de Habilidades",
-    "Evolução de Agente Aprimorada",
-    "Governança de Agentes de IA e Automação"
+    "Prevenção de OutOfMemoryError no Android em PDFs volumosos",
+    "Suporte a streaming em disco via FileSystem com zero consumo de RAM",
+    "Configuração de largeHeap no Android (limite de 512MB-1GB)",
+    "Limpeza automática de arquivos de cache de PDFs excluídos",
+    "Autenticação Google Drive resiliente via Implicit Flow no Web"
   ],
   "forceUpdate": false
 }
