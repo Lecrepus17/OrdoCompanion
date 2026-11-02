@@ -27,6 +27,7 @@ import {
   RELIC_PERSONAS,
 } from '../../types/ai';
 import { sendAiChatMessage, getEffectiveApiKey } from '../../services/ai/AiClient';
+import { GlitchVoiceService } from '../../services/ai/GlitchVoiceService';
 import { AiChatMessageItem } from '../../components/AiChatMessageItem';
 import { AiConfigModal } from '../../components/AiConfigModal';
 import { PdfViewerModal, PdfViewerMode } from '../../components/PdfViewerModal';
@@ -81,6 +82,9 @@ export default function OracleScreen() {
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
 
   // Seleção de Agente Ativo para Contexto da conversa
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
@@ -134,6 +138,8 @@ export default function OracleScreen() {
 
     return () => {
       isMountedRef.current = false;
+      GlitchVoiceService.stopListening();
+      GlitchVoiceService.stopSpeaking();
     };
   }, []);
 
@@ -205,6 +211,9 @@ export default function OracleScreen() {
       if (!isMountedRef.current) return;
       const finalMessages = [...updatedMessages, response];
       saveMessages(finalMessages);
+      if (config.voiceEnabled && config.voiceAutoRead) {
+        handleToggleSpeak(response.content, response.id);
+      }
     } catch (err: any) {
       if (!isMountedRef.current) return;
       const errorMsg: AiMessage = {
@@ -225,6 +234,87 @@ export default function OracleScreen() {
         }, 100);
       }
     }
+  };
+
+  // Manipuladores de Comando e Resposta por Voz (STT & TTS)
+  const handleToggleVoiceInput = () => {
+    if (isListening) {
+      GlitchVoiceService.stopListening();
+      setIsListening(false);
+      return;
+    }
+
+    if (!GlitchVoiceService.isSttSupported()) {
+      setVoiceNotice('Reconhecimento de voz não suportado neste navegador ou dispositivo.');
+      setTimeout(() => {
+        if (isMountedRef.current) setVoiceNotice(null);
+      }, 4000);
+      return;
+    }
+
+    GlitchVoiceService.stopSpeaking();
+    setSpeakingMessageId(null);
+    setVoiceNotice(null);
+
+    const started = GlitchVoiceService.startListening(
+      {
+        onStart: () => {
+          if (isMountedRef.current) setIsListening(true);
+        },
+        onResult: (transcript) => {
+          if (isMountedRef.current) {
+            setInputText(transcript);
+          }
+        },
+        onError: (errMsg) => {
+          if (isMountedRef.current) {
+            setIsListening(false);
+            setVoiceNotice(errMsg);
+            setTimeout(() => {
+              if (isMountedRef.current) setVoiceNotice(null);
+            }, 4000);
+          }
+        },
+        onEnd: () => {
+          if (isMountedRef.current) setIsListening(false);
+        },
+      },
+      {
+        lang: config.voiceLanguage || 'pt-BR',
+        interimResults: true,
+      }
+    );
+
+    if (!started && isMountedRef.current) {
+      setIsListening(false);
+    }
+  };
+
+  const handleToggleSpeak = async (content: string, messageId: string) => {
+    if (speakingMessageId === messageId) {
+      GlitchVoiceService.stopSpeaking();
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    GlitchVoiceService.stopSpeaking();
+    setSpeakingMessageId(messageId);
+
+    await GlitchVoiceService.speak(content, {
+      militaryTone: config.voiceMilitaryTone ?? true,
+      lang: config.voiceLanguage || 'pt-BR',
+      onEnd: () => {
+        if (isMountedRef.current) setSpeakingMessageId(null);
+      },
+      onError: () => {
+        if (isMountedRef.current) setSpeakingMessageId(null);
+      },
+    });
+  };
+
+  const handleStopSpeaking = () => {
+    GlitchVoiceService.stopSpeaking();
+    setSpeakingMessageId(null);
   };
 
   // Manipuladores de Ações Clicáveis
@@ -600,6 +690,8 @@ export default function OracleScreen() {
               onOpenEntity={handleOpenEntity}
               onRollDice={handleRollDice}
               onNavigateTab={handleNavigateTab}
+              onSpeak={handleToggleSpeak}
+              isSpeakingThis={speakingMessageId === item.id}
             />
           )}
           contentContainerStyle={{ paddingVertical: 12, paddingBottom: 20 }}
@@ -687,6 +779,48 @@ export default function OracleScreen() {
         </View>
       )}
 
+      {/* STATUS / AVISOS DE VOZ (STT & TTS) */}
+      {isListening && (
+        <View style={[styles.voiceStatusBanner, { backgroundColor: '#DC2626', borderTopColor: '#B91C1C' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+            <Ionicons name="radio" size={14} color="#FFFFFF" />
+            <Text style={{ color: '#FFFFFF', fontSize: 11.5, fontWeight: '700' }} numberOfLines={1}>
+              🎙️ Ouvindo comando de voz... Fale agora.
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              GlitchVoiceService.stopListening();
+              setIsListening(false);
+            }}
+            style={styles.voiceBannerAction}
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>Concluir</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {speakingMessageId && (
+        <View style={[styles.voiceStatusBanner, { backgroundColor: '#312E81', borderTopColor: '#4338CA' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+            <Ionicons name="volume-high" size={14} color="#A5B4FC" />
+            <Text style={{ color: '#FFFFFF', fontSize: 11.5, fontWeight: '700' }} numberOfLines={1}>
+              🔊 G.L.I.T.C.H. transmitindo resposta em áudio...
+            </Text>
+          </View>
+          <TouchableOpacity onPress={handleStopSpeaking} style={styles.voiceBannerAction}>
+            <Text style={{ color: '#A5B4FC', fontSize: 11, fontWeight: '800' }}>Parar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {voiceNotice && (
+        <View style={[styles.voiceStatusBanner, { backgroundColor: '#78350F', borderTopColor: '#D97706' }]}>
+          <Ionicons name="warning" size={14} color="#FDE68A" />
+          <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '600', flex: 1 }}>{voiceNotice}</Text>
+        </View>
+      )}
+
       {/* BARRA DE ENTRADA DE MENSAGEM */}
       <View
         style={[
@@ -707,7 +841,7 @@ export default function OracleScreen() {
               color: colors.text,
             },
           ]}
-          placeholder={inputPlaceholder}
+          placeholder={isListening ? 'Ouvindo comando de voz...' : inputPlaceholder}
           placeholderTextColor={colors.textMuted}
           value={inputText}
           onChangeText={setInputText}
@@ -720,6 +854,26 @@ export default function OracleScreen() {
           multiline
           maxLength={1000}
         />
+
+        {/* Botão de Microfone (Speech-to-Text) */}
+        <TouchableOpacity
+          testID="voice-mic-button"
+          onPress={handleToggleVoiceInput}
+          style={[
+            styles.micBtn,
+            {
+              backgroundColor: isListening ? '#DC2626' : colors.surfaceElevated,
+              borderColor: isListening ? '#B91C1C' : colors.border,
+            },
+          ]}
+          accessibilityLabel={isListening ? 'Parar gravação de voz' : 'Comando de voz'}
+        >
+          <Ionicons
+            name={isListening ? 'radio-button-on' : 'mic'}
+            size={18}
+            color={isListening ? '#FFFFFF' : (config.voiceEnabled ? activeColor : colors.textMuted)}
+          />
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => handleSendMessage()}
@@ -968,5 +1122,28 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  micBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  voiceStatusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  voiceBannerAction: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
 });

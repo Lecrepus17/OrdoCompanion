@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { AiConfig, AiProvider, ParanormalRelic, RELIC_PERSONAS } from '../types/ai';
 import { hasDefaultApiKey, isUsingDefaultApiKey, testAiConnection } from '../services/ai/AiClient';
+import { GlitchVoiceService } from '../services/ai/GlitchVoiceService';
 
 interface AiConfigModalProps {
   visible: boolean;
@@ -67,6 +68,10 @@ export function AiConfigModal({
   );
   const [customInstructions, setCustomInstructions] = useState(config.customInstructions || '');
   const [offlineFallback, setOfflineFallback] = useState(config.offlineFallback);
+  const [voiceEnabled, setVoiceEnabled] = useState(config.voiceEnabled ?? false);
+  const [voiceAutoRead, setVoiceAutoRead] = useState(config.voiceAutoRead ?? false);
+  const [voiceMilitaryTone, setVoiceMilitaryTone] = useState(config.voiceMilitaryTone ?? true);
+  const [isTestingVoice, setIsTestingVoice] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [selectedPersonaTab, setSelectedPersonaTab] = useState<'all' | 'specialist' | 'canon' | 'relics'>('all');
 
@@ -90,7 +95,14 @@ export function AiConfigModal({
       setRelicPersona(config.relicPersona || (config.anfitriaoMode ? 'anfitriao' : 'none'));
       setCustomInstructions(config.customInstructions || '');
       setOfflineFallback(config.offlineFallback);
+      setVoiceEnabled(config.voiceEnabled ?? false);
+      setVoiceAutoRead(config.voiceAutoRead ?? false);
+      setVoiceMilitaryTone(config.voiceMilitaryTone ?? true);
+      setIsTestingVoice(false);
       setTestResult(null);
+    } else {
+      GlitchVoiceService.stopSpeaking();
+      setIsTestingVoice(false);
     }
   }, [visible, config]);
 
@@ -117,6 +129,8 @@ export function AiConfigModal({
   };
 
   const handleSave = () => {
+    GlitchVoiceService.stopSpeaking();
+    setIsTestingVoice(false);
     onSave({
       provider,
       apiKey: apiKey.trim(),
@@ -126,7 +140,19 @@ export function AiConfigModal({
       relicPersona,
       anfitriaoMode: relicPersona === 'anfitriao',
       customInstructions: customInstructions.trim(),
+      voiceEnabled,
+      voiceAutoRead,
+      voiceMilitaryTone,
+      voiceLanguage: config.voiceLanguage || 'pt-BR',
+      voicePitch: config.voicePitch ?? 1.0,
+      voiceRate: config.voiceRate ?? 1.0,
     });
+    onClose();
+  };
+
+  const handleClose = () => {
+    GlitchVoiceService.stopSpeaking();
+    setIsTestingVoice(false);
     onClose();
   };
 
@@ -540,6 +566,134 @@ export function AiConfigModal({
               />
             </View>
 
+            {/* COMANDOS E RESPOSTAS POR VOZ (STT & TTS) */}
+            <View style={{ marginTop: 18, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Ionicons name="mic-outline" size={16} color={colors.primary} />
+                <Text style={[styles.sectionLabel, { color: colors.text, marginBottom: 0 }]}>
+                  Comandos e Respostas por Voz
+                </Text>
+              </View>
+
+              <View style={styles.fallbackRow}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>
+                    Ativar Comando e Resposta por Voz
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                    Habilita ditado por microfone (Speech-to-Text) e síntese de voz (Text-to-Speech) no G.L.I.T.C.H.
+                  </Text>
+                </View>
+                <Switch
+                  value={voiceEnabled}
+                  onValueChange={(val) => {
+                    setVoiceEnabled(val);
+                    if (!val) {
+                      GlitchVoiceService.stopSpeaking();
+                      setIsTestingVoice(false);
+                    }
+                  }}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              {voiceEnabled && (
+                <View
+                  style={[
+                    styles.voiceOptionsBox,
+                    { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                  ]}
+                >
+                  {/* LEITURA AUTOMÁTICA DAS RESPOSTAS */}
+                  <View style={styles.voiceSubRow}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>
+                        Leitura Automática de Respostas (TTS)
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 1 }}>
+                        Lê em voz alta as novas mensagens emitidas pelo G.L.I.T.C.H. automaticamente.
+                      </Text>
+                    </View>
+                    <Switch
+                      value={voiceAutoRead}
+                      onValueChange={setVoiceAutoRead}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                      thumbColor="#FFFFFF"
+                    />
+                  </View>
+
+                  {/* FILTRO DE TOM E ESTÁTICA MILITAR */}
+                  <View
+                    style={[
+                      styles.voiceSubRow,
+                      { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: 4 },
+                    ]}
+                  >
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="radio-outline" size={14} color="#F59E0B" />
+                        <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '700' }}>
+                          Filtro de Tom & Estática Militar
+                        </Text>
+                      </View>
+                      <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 1 }}>
+                        Aplica cadência tática firme da Ordem, efeito de chiado de rádio e finalização "Câmbio".
+                      </Text>
+                    </View>
+                    <Switch
+                      value={voiceMilitaryTone}
+                      onValueChange={setVoiceMilitaryTone}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                      thumbColor="#FFFFFF"
+                    />
+                  </View>
+
+                  {/* PRÉVIA DE VOZ */}
+                  <TouchableOpacity
+                    onPress={async () => {
+                      if (isTestingVoice || GlitchVoiceService.isSpeaking()) {
+                        GlitchVoiceService.stopSpeaking();
+                        setIsTestingVoice(false);
+                        return;
+                      }
+                      setIsTestingVoice(true);
+                      await GlitchVoiceService.speak(
+                        'Operador G.L.I.T.C.H. em frequência tática da Ordem. Pronto para orientar procedimentos de campo.',
+                        {
+                          militaryTone: voiceMilitaryTone,
+                          onEnd: () => setIsTestingVoice(false),
+                          onError: () => setIsTestingVoice(false),
+                        }
+                      );
+                    }}
+                    style={[
+                      styles.voiceTestBtn,
+                      {
+                        backgroundColor: isTestingVoice ? 'rgba(239, 68, 68, 0.15)' : colors.primarySoft,
+                        borderColor: isTestingVoice ? '#EF4444' : colors.primary,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={isTestingVoice ? 'stop-circle' : 'volume-high'}
+                      size={15}
+                      color={isTestingVoice ? '#EF4444' : colors.primary}
+                    />
+                    <Text
+                      style={{
+                        color: isTestingVoice ? '#EF4444' : colors.primary,
+                        fontSize: 12,
+                        fontWeight: '700',
+                      }}
+                    >
+                      {isTestingVoice ? 'Interromper Leitura' : 'Ouvir Prévia de Voz'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
             {/* TESTE DE CONEXÃO E RESULTADO */}
             {provider !== 'offline' && (
               <View style={{ marginTop: 16 }}>
@@ -783,6 +937,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 14,
+  },
+  voiceOptionsBox: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+  },
+  voiceSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  voiceTestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 6,
   },
   keyStatusBanner: {
     flexDirection: 'row',

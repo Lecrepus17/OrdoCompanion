@@ -17,14 +17,19 @@ import {
   CharacterAbility,
   CharacterAttributes,
   CharacterSheet,
+  CharacterSkillEntry,
   CompendiumEntity,
   ParanormalElement,
   TrainingDegree,
   UserProfile,
 } from '../types/compendium';
 import {
+  applyCanonicalSkillGrant,
+  calculateCharacterVitals,
   calculateStatIncreases,
   checkPrerequisite,
+  checkRitualPrerequisites,
+  extractCanonicalSkillGrants,
   getNexMilestone,
   getPeRoundLimit,
   getRitualDt,
@@ -35,6 +40,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { DEFAULT_LONG_PRESS_DELAY } from '../types/recordPreview';
 import { summarizeAbility } from '../utils/abilitySummarizer';
+import PrerequisiteAlertModal from './PrerequisiteAlertModal';
 
 const RANK_ITEM_LIMITS = {
   Recruta: { cat1: 2, cat2: 0, cat3: 0, cat4: 0, credit: 'Baixo' as const },
@@ -165,6 +171,31 @@ export default function LevelUpModal({
   // Escolha de Novo Ritual (se ocultista)
   const [selectedRitualId, setSelectedRitualId] = useState<string | null>(null);
   const [ritualSearch, setRitualSearch] = useState('');
+
+  // Alerta permissivo de pré-requisitos não atendidos
+  const [prereqAlertData, setPrereqAlertData] = useState<{
+    entityName: string;
+    unmetDetails: string[];
+    category: 'power' | 'ritual';
+    onConfirm: () => void;
+  } | null>(null);
+
+  const requestPrereqConfirm = (
+    entityName: string,
+    unmetDetails: string[] | string,
+    category: 'power' | 'ritual',
+    apply: () => void
+  ) => {
+    setPrereqAlertData({
+      entityName,
+      unmetDetails: Array.isArray(unmetDetails) ? unmetDetails : [unmetDetails],
+      category,
+      onConfirm: () => {
+        apply();
+        setPrereqAlertData(null);
+      },
+    });
+  };
 
   // Sugestão de Patente
   const [promoteRank, setPromoteRank] = useState(
@@ -335,11 +366,29 @@ export default function LevelUpModal({
     return sub.includes('paranormal') || (!isClass && p.element && p.element !== 'Nenhum');
   }, [isTranscendEvery5Enabled, wantToTranscendExtra, selectedParanormalPowerId, selectedClassPowerId, selectedPowerId, allPowersList]);
 
-  // Rituais filtrados pelo círculo máximo
+  // Rituais: todos os círculos ficam acessíveis (validação permissiva); o círculo máximo canônico é checado ao selecionar
   const availableRituals = useMemo(() => {
-    const maxCircle = milestone.maxRitualCircle || 1;
-    return allRitualsList.filter((r) => (r.circle || 1) <= maxCircle);
-  }, [allRitualsList, milestone.maxRitualCircle]);
+    return [...allRitualsList].sort((a, b) => (a.circle || 1) - (b.circle || 1));
+  }, [allRitualsList]);
+
+  const handleSelectRitual = (rit: CompendiumEntity) => {
+    if (selectedRitualId === rit.id) {
+      setSelectedRitualId(null);
+      return;
+    }
+    const res = checkRitualPrerequisites(
+      rit,
+      character,
+      milestone.maxRitualCircle || 1,
+      getEntityById,
+      { targetNex, targetAttributes: effectiveAttrs }
+    );
+    if (!res.met) {
+      requestPrereqConfirm(rit.name, res.unmetDetails, 'ritual', () => setSelectedRitualId(rit.id));
+      return;
+    }
+    setSelectedRitualId(rit.id);
+  };
 
   // Alternar perícia para promoção de grau
   const toggleSkillPromotion = (skillName: string) => {
@@ -353,6 +402,46 @@ export default function LevelUpModal({
     });
   };
 
+  // Passos e vitais atuais e projetados para o avanço
+  const currentVitals = useMemo(() => {
+    return calculateCharacterVitals(character, getEntityById);
+  }, [character, getEntityById]);
+
+  // IDs dos poderes escolhidos neste avanço
+  const chosenPowerIds = useMemo(() => {
+    const ids: string[] = [];
+    if (isTranscendEvery5Enabled) {
+      if (selectedClassPowerId) ids.push(selectedClassPowerId);
+      if (wantToTranscendExtra && selectedParanormalPowerId) ids.push(selectedParanormalPowerId);
+    } else {
+      if (selectedPowerId) ids.push(selectedPowerId);
+    }
+    return ids;
+  }, [isTranscendEvery5Enabled, selectedClassPowerId, wantToTranscendExtra, selectedParanormalPowerId, selectedPowerId]);
+
+  const targetVitals = useMemo(() => {
+    if (doNotIncreaseNex) {
+      return currentVitals;
+    }
+    const hypotheticalChar: CharacterSheet = {
+      ...character,
+      nex: targetNex,
+      attributes: effectiveAttrs,
+      affinity: selectedAffinity,
+      entityIds: [
+        ...(character.entityIds || []),
+        ...chosenPowerIds.filter((pid) => !(character.entityIds || []).includes(pid)),
+      ],
+    };
+    return calculateCharacterVitals(hypotheticalChar, getEntityById);
+  }, [character, targetNex, effectiveAttrs, selectedAffinity, chosenPowerIds, doNotIncreaseNex, currentVitals, getEntityById]);
+
+  const pvDelta = doNotIncreaseNex ? 0 : Math.max(0, targetVitals.pvMax - currentVitals.pvMax);
+  const peDelta = doNotIncreaseNex ? 0 : Math.max(0, targetVitals.peMax - currentVitals.peMax);
+  const sanDelta = doNotIncreaseNex || isSelectedPowerParanormal
+    ? 0
+    : Math.max(0, targetVitals.sanMax - currentVitals.sanMax);
+
   // Confirmar e aplicar a evolução
   const handleConfirmLevelUp = async () => {
     const updatedAttrs = { ...character.attributes };
@@ -361,14 +450,8 @@ export default function LevelUpModal({
     }
 
     const effectiveNex = doNotIncreaseNex ? currentNex : targetNex;
-    const newPeRound = getPeRoundLimit(effectiveNex);
-    const newDt = getRitualDt(effectiveNex, updatedAttrs.PRE);
-
-    // Se marcou "Não aumentar NEX", não aplica incrementos vitais (apenas vincula a habilidade)
-    // Se Transcendeu (escolheu poder paranormal), NÃO ganha Sanidade (+0 SAN)
-    const pvDelta = doNotIncreaseNex ? 0 : statIncreases.pvGain + retroactivePv;
-    const peDelta = doNotIncreaseNex ? 0 : statIncreases.peGain + retroactivePe;
-    const sanDelta = doNotIncreaseNex ? 0 : (isSelectedPowerParanormal ? 0 : statIncreases.sanGain);
+    const newPeRound = doNotIncreaseNex ? (character.peRound || 1) : targetVitals.peRound;
+    const newDt = doNotIncreaseNex ? (character.dtRituals || 13) : targetVitals.dtRituals;
 
     const nextPvMax = character.pvMax + pvDelta;
     const nextPeMax = character.peMax + peDelta;
@@ -394,6 +477,46 @@ export default function LevelUpModal({
         degree: targetDegree as TrainingDegree,
       };
     });
+
+    // Atualiza bônus de perícias concedidos por vitais (Fortitude, Vontade)
+    if (targetVitals.skillBonuses) {
+      for (const [skName, bVal] of Object.entries(targetVitals.skillBonuses)) {
+        if (bVal !== undefined) {
+          const curBonus = currentVitals.skillBonuses[skName] || 0;
+          const diff = bVal - curBonus;
+          if (diff !== 0) {
+            const existing = updatedSkills[skName] || { degree: 0, bonus: 0 };
+            updatedSkills[skName] = {
+              ...existing,
+              bonus: (existing.bonus || 0) + diff,
+            };
+          }
+        }
+      }
+    }
+
+    // Concessão canônica de perícias por poderes escolhidos / habilidade de trilha:
+    // perícia nova -> Treinado; já treinado -> +2 fixo
+    const grantSources: Array<{ name?: string; desc?: string }> = [];
+    chosenPowerIds.forEach((pid) => {
+      const pow = allPowersList.find((p) => p.id === pid) || getEntityById(pid);
+      if (pow && !(character.entityIds || []).includes(pid)) {
+        grantSources.push({ name: pow.name, desc: pow.description || pow.summary });
+      }
+    });
+    if (milestone.trackAbility) {
+      grantSources.push({
+        name: milestone.trackAbility.title,
+        desc: milestone.trackAbility.description,
+      });
+    }
+    let grantedSkills: Record<string, CharacterSkillEntry> = updatedSkills;
+    grantSources.forEach((src) => {
+      extractCanonicalSkillGrants(src.desc, src.name, grantedSkills).forEach((sk) => {
+        grantedSkills = applyCanonicalSkillGrant(grantedSkills, sk);
+      });
+    });
+    Object.assign(updatedSkills, grantedSkills);
 
     // Entidades vinculadas do compêndio
     const nextEntityIds = [...character.entityIds];
@@ -575,31 +698,31 @@ export default function LevelUpModal({
             <View style={styles.statGainsGrid}>
               <View style={[styles.statGainCard, { borderColor: '#EF4444' }]}>
                 <Text style={[styles.statGainLabel, { color: '#EF4444' }]}>Pontos de Vida</Text>
-                <Text style={styles.statGainVal}>+{statIncreases.pvGain + retroactivePv} PV</Text>
+                <Text style={styles.statGainVal}>+{pvDelta} PV</Text>
                 <Text style={styles.statGainFormula}>
-                  +{statIncreases.basePv} base + {effectiveAttrs.VIG} Vigor{retroactivePv > 0 ? ` (+${retroactivePv} retroativo)` : ''}
+                  +{statIncreases.basePv} base + {effectiveAttrs.VIG} Vigor{retroactivePv > 0 ? ` (+${retroactivePv} retroativo)` : ''}{targetVitals.breakdown.pvBonuses.length > 0 ? ` (+${targetVitals.breakdown.pvBonuses.map(b => b.name).join(', ')})` : ''}
                 </Text>
               </View>
 
               <View style={[styles.statGainCard, { borderColor: '#F59E0B' }]}>
                 <Text style={[styles.statGainLabel, { color: '#F59E0B' }]}>Pontos de Esforço</Text>
-                <Text style={styles.statGainVal}>+{statIncreases.peGain + retroactivePe} PE</Text>
+                <Text style={styles.statGainVal}>+{peDelta} PE</Text>
                 <Text style={styles.statGainFormula}>
-                  +{statIncreases.basePe} base + {effectiveAttrs.PRE} Presença{retroactivePe > 0 ? ` (+${retroactivePe} retroativo)` : ''}
+                  +{statIncreases.basePe} base + {effectiveAttrs.PRE} Presença{retroactivePe > 0 ? ` (+${retroactivePe} retroativo)` : ''}{targetVitals.breakdown.peBonuses.length > 0 ? ` (+${targetVitals.breakdown.peBonuses.map(b => b.name).join(', ')})` : ''}
                 </Text>
               </View>
 
               <View style={[styles.statGainCard, { borderColor: isSelectedPowerParanormal ? '#8B5CF6' : '#38BDF8' }]}>
                 <Text style={[styles.statGainLabel, { color: isSelectedPowerParanormal ? '#8B5CF6' : '#38BDF8' }]}>Sanidade</Text>
                 <Text style={[styles.statGainVal, isSelectedPowerParanormal && !doNotIncreaseNex && { color: '#8B5CF6' }]}>
-                  {doNotIncreaseNex ? '+0 SAN' : isSelectedPowerParanormal ? '+0 SAN' : `+${statIncreases.sanGain} SAN`}
+                  {doNotIncreaseNex ? '+0 SAN' : isSelectedPowerParanormal ? '+0 SAN' : `+${sanDelta} SAN`}
                 </Text>
                 <Text style={styles.statGainFormula}>
                   {doNotIncreaseNex
                     ? 'NEX mantido'
                     : isSelectedPowerParanormal
                     ? 'Transcendeu (sem ganho SAN)'
-                    : `+${statIncreases.baseSan} base`}
+                    : `+${statIncreases.baseSan} base${targetVitals.breakdown.sanBonuses.some(b => b.value > 0) ? ' (+1 Vítima)' : ''}`}
                 </Text>
               </View>
             </View>
@@ -609,13 +732,13 @@ export default function LevelUpModal({
               <View style={styles.combatLimitItem}>
                 <Text style={styles.combatLimitLabel}>Limite de PE / Rodada:</Text>
                 <Text style={styles.combatLimitVal}>
-                  {character.peRound || 1} ➔ {getPeRoundLimit(targetNex)}
+                  {character.peRound || 1} ➔ {targetVitals.peRound}
                 </Text>
               </View>
               <View style={styles.combatLimitItem}>
                 <Text style={styles.combatLimitLabel}>DT de Rituais:</Text>
                 <Text style={styles.combatLimitVal}>
-                  {character.dtRituals || 13} ➔ {getRitualDt(targetNex, character.attributes.PRE)}
+                  {character.dtRituals || 13} ➔ {targetVitals.dtRituals}
                 </Text>
               </View>
             </View>
@@ -827,24 +950,40 @@ export default function LevelUpModal({
                   const isSel = pow.id === selectedClassPowerId;
                   const isNoPrereq = !pow.prerequisite || pow.prerequisite === 'Nenhum' || pow.prerequisite === '—';
                   const prereqStatus = isNoPrereq
-                    ? { met: true, details: 'Nenhum' }
+                    ? { met: true, details: 'Nenhum', unmetDetails: [] as string[] }
                     : checkPrerequisite(pow.prerequisite, character, getEntityById, {
                         targetNex,
                         targetAttributes: effectiveAttrs,
                       });
+                  const handleSelectClassPower = () => {
+                    if (isSel) {
+                      setSelectedClassPowerId(null);
+                      return;
+                    }
+                    if (!prereqStatus.met) {
+                      requestPrereqConfirm(
+                        pow.name,
+                        prereqStatus.unmetDetails || prereqStatus.details,
+                        'power',
+                        () => setSelectedClassPowerId(pow.id)
+                      );
+                      return;
+                    }
+                    setSelectedClassPowerId(pow.id);
+                  };
                   const openPowDetails = () =>
                     openEntityPreview(pow, {
                       primaryAction: {
                         label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
                         isSelected: isSel,
-                        onPress: () => setSelectedClassPowerId(isSel ? null : pow.id),
+                        onPress: handleSelectClassPower,
                       },
                     });
                   return (
                     <TouchableOpacity
                       key={pow.id}
                       style={[styles.choiceCard, isSel && styles.choiceCardActive]}
-                      onPress={() => setSelectedClassPowerId(isSel ? null : pow.id)}
+                      onPress={handleSelectClassPower}
                       onLongPress={openPowDetails}
                       delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                       testID={`levelup-class-power-${pow.id}`}
@@ -1012,40 +1151,45 @@ export default function LevelUpModal({
                   const isSel = pow.id === selectedParanormalPowerId;
                   const isNoPrereq = !pow.prerequisite || pow.prerequisite === 'Nenhum' || pow.prerequisite === '—';
                   const prereqStatus = isNoPrereq
-                    ? { met: true, details: 'Nenhum' }
+                    ? { met: true, details: 'Nenhum', unmetDetails: [] as string[] }
                     : checkPrerequisite(pow.prerequisite, character, getEntityById, {
                         targetNex,
                         targetAttributes: effectiveAttrs,
                       });
+                  const handleSelectParaPower = () => {
+                    if (isSel) {
+                      setSelectedParanormalPowerId(null);
+                      setWantToTranscendExtra(false);
+                      return;
+                    }
+                    const applyPara = () => {
+                      setSelectedParanormalPowerId(pow.id);
+                      setWantToTranscendExtra(true);
+                    };
+                    if (!prereqStatus.met) {
+                      requestPrereqConfirm(
+                        pow.name,
+                        prereqStatus.unmetDetails || prereqStatus.details,
+                        'power',
+                        applyPara
+                      );
+                      return;
+                    }
+                    applyPara();
+                  };
                   const openParaDetails = () =>
                     openEntityPreview(pow, {
                       primaryAction: {
                         label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
                         isSelected: isSel,
-                        onPress: () => {
-                          if (isSel) {
-                            setSelectedParanormalPowerId(null);
-                            setWantToTranscendExtra(false);
-                          } else {
-                            setSelectedParanormalPowerId(pow.id);
-                            setWantToTranscendExtra(true);
-                          }
-                        },
+                        onPress: handleSelectParaPower,
                       },
                     });
                   return (
                     <TouchableOpacity
                       key={pow.id}
                       style={[styles.choiceCard, isSel && [styles.choiceCardActive, { borderColor: '#8B5CF6' }]]}
-                      onPress={() => {
-                        if (isSel) {
-                          setSelectedParanormalPowerId(null);
-                          setWantToTranscendExtra(false);
-                        } else {
-                          setSelectedParanormalPowerId(pow.id);
-                          setWantToTranscendExtra(true);
-                        }
-                      }}
+                      onPress={handleSelectParaPower}
                       onLongPress={openParaDetails}
                       delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                       testID={`levelup-para-power-${pow.id}`}
@@ -1205,7 +1349,7 @@ export default function LevelUpModal({
                   const isSel = pow.id === selectedPowerId;
                   const isNoPrereq = !pow.prerequisite || pow.prerequisite === 'Nenhum' || pow.prerequisite === '—';
                   const prereqStatus = isNoPrereq
-                    ? { met: true, details: 'Nenhum' }
+                    ? { met: true, details: 'Nenhum', unmetDetails: [] as string[] }
                     : checkPrerequisite(pow.prerequisite, character, getEntityById, {
                         targetNex,
                         targetAttributes: effectiveAttrs,
@@ -1213,12 +1357,29 @@ export default function LevelUpModal({
                   const isParanormal = (pow.subCategory || '').toLowerCase().includes('paranormal') ||
                     (pow.element && pow.element !== 'Nenhum' && !(pow.subCategory || '').toLowerCase().includes('combatente') && !(pow.subCategory || '').toLowerCase().includes('especialista') && !(pow.subCategory || '').toLowerCase().includes('ocultista'));
 
+                  const handleSelectCombinedPower = () => {
+                    if (isSel) {
+                      setSelectedPowerId(null);
+                      return;
+                    }
+                    if (!prereqStatus.met) {
+                      requestPrereqConfirm(
+                        pow.name,
+                        prereqStatus.unmetDetails || prereqStatus.details,
+                        'power',
+                        () => setSelectedPowerId(pow.id)
+                      );
+                      return;
+                    }
+                    setSelectedPowerId(pow.id);
+                  };
+
                   const openPowDetails = () =>
                     openEntityPreview(pow, {
                       primaryAction: {
                         label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
                         isSelected: isSel,
-                        onPress: () => setSelectedPowerId(isSel ? null : pow.id),
+                        onPress: handleSelectCombinedPower,
                       },
                     });
 
@@ -1226,7 +1387,7 @@ export default function LevelUpModal({
                     <TouchableOpacity
                       key={pow.id}
                       style={[styles.choiceCard, isSel && styles.choiceCardActive, isParanormal && isSel && { borderColor: '#8B5CF6' }]}
-                      onPress={() => setSelectedPowerId(isSel ? null : pow.id)}
+                      onPress={handleSelectCombinedPower}
                       onLongPress={openPowDetails}
                       delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                       testID={`levelup-power-${pow.id}`}
@@ -1478,14 +1639,14 @@ export default function LevelUpModal({
                         primaryAction: {
                           label: isSel ? 'Ritual Selecionado' : 'Escolher este Ritual',
                           isSelected: isSel,
-                          onPress: () => setSelectedRitualId(rit.id),
+                          onPress: () => handleSelectRitual(rit),
                         },
                       });
                     return (
                       <TouchableOpacity
                         key={rit.id}
                         style={[styles.choiceCard, isSel && styles.choiceCardActive]}
-                        onPress={() => setSelectedRitualId(rit.id)}
+                        onPress={() => handleSelectRitual(rit)}
                         onLongPress={openRitualInfo}
                         delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                         testID={`levelup-ritual-${rit.id}`}
@@ -1561,6 +1722,15 @@ export default function LevelUpModal({
             <Text style={styles.confirmBtnText}>{doNotIncreaseNex ? `Confirmar Poder (NEX ${currentNex}%)` : `Confirmar Evolução (${targetNex}%)`}</Text>
           </TouchableOpacity>
         </View>
+
+        <PrerequisiteAlertModal
+          visible={!!prereqAlertData}
+          entityName={prereqAlertData?.entityName || ''}
+          unmetDetails={prereqAlertData?.unmetDetails || []}
+          category={prereqAlertData?.category}
+          onConfirm={() => prereqAlertData?.onConfirm()}
+          onCancel={() => setPrereqAlertData(null)}
+        />
       </View>
     </Modal>
   );

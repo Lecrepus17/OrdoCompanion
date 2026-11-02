@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ordo Companion",
     "slug": "ordo-companion",
-    "version": "1.1.0-beta.3",
+    "version": "1.2.0-beta.1",
     "orientation": "default",
     "scheme": "com.ordemparanormal.ordo",
     "userInterfaceStyle": "dark",
@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.ordemparanormal.ordo",
-      "versionCode": 3,
+      "versionCode": 4,
       "largeHeap": true,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
@@ -38,7 +38,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": false

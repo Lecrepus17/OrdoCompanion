@@ -6,13 +6,24 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*Nenhum commit pendente no momento.*
+*(Nenhum commit pendente no momento. Todas as alterações foram consolidadas e commitadas no release `v1.2.0-beta.1`)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
 
-### 1. Assistente de Proteções, Proficiências e Vestimentas na Ficha de Personagens:
+### 1. Release v1.2.0-beta.1 (Vitais por NEX, Voz no G.L.I.T.C.H. e Exportação de Sessão):
+```bash
+git commit -m "feat: release v1.2.0-beta.1 - vitais por NEX, voz no GLITCH e exportacao de mesa" \
+  -m "- Recalculo unificado e escalonamento automatico de vitais (PV, PE, SAN) por NEX e bonus passivos canonicos em progression.ts, LevelUpModal e CreateAgentModal" \
+  -m "- Alerta permissivo de pre-requisitos (Adicionar mesmo assim) em poderes e rituais" \
+  -m "- Comando e resposta por voz (STT/TTS) com filtro de radio militar no G.L.I.T.C.H." \
+  -m "- Exportacao completa do historico de sessao da Mesa Virtual em JSON estruturado e PDF tatico da Ordo Realitas" \
+  -m "- Suporte a expo-sharing para compartilhamento de relatorios" \
+  -m "- Incremento de versao no app.json (versionCode 4, 1.2.0-beta.1), package.json e version.json"
+```
+
+### 2. Assistente de Proteções, Proficiências e Vestimentas na Ficha de Personagens:
 ```bash
 git add TEST_READY.md src/components/ProtectionModal.tsx src/app/(tabs)/characters.tsx src/app/(tabs)/weapons.tsx tests/frontendCharacters.test.tsx tests/defenseProtections.test.ts tests/proficienciesAndClothing.test.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
 git commit -m "feat(characters): assistente de proteções, proficiências e vestimentas" \
@@ -69,4 +80,13 @@ git commit -m "feat(compendium,pdf): adiciona páginas referentes interativas e 
   -m "- Injeta fallback canônico para senha mestre ORDOCOMPANIONEOMELHOR em PdfAccessService.ts" \
   -m "- Adiciona cobertura completa de testes em tests/compendiumPdfIntegration.test.tsx" \
   -m "- Atualiza governança em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
+### 3. Validação Permissiva de Pré-requisitos (modal) e Concessão Canônica de Perícias:
+```bash
+git add src/components/PrerequisiteAlertModal.tsx src/components/CreateAgentModal.tsx src/components/LevelUpModal.tsx src/utils/progression.ts tests/prerequisiteAlert.test.tsx tests/progression.test.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "feat(rules,ui): modal permissivo de pré-requisitos e concessão canônica de perícias" \
+  -m "- Adiciona PrerequisiteAlertModal com 'Adicionar mesmo assim' em CreateAgentModal e LevelUpModal (poderes e rituais)" \
+  -m "- Adiciona extractCanonicalSkillGrants: perícia nova vira Treinado; já treinada recebe +2 fixo" \
+  -m "- Cobertura em tests/prerequisiteAlert.test.tsx e tests/progression.test.ts"
 ```

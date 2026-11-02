@@ -389,6 +389,18 @@ export interface AiConfig {
   anfitriaoMode?: boolean;
   /** Instrução personalizada adicional definida livremente pelo usuário */
   customInstructions?: string;
+  /** Suporte a comando e resposta por voz (Speech-to-Text e Text-to-Speech) */
+  voiceEnabled?: boolean;
+  /** Leitura automática das respostas da IA utilizando TTS */
+  voiceAutoRead?: boolean;
+  /** Filtro de tom e estática militar no TTS */
+  voiceMilitaryTone?: boolean;
+  /** Idioma da sintetização e reconhecimento de voz (padrão: pt-BR) */
+  voiceLanguage?: string;
+  /** Tom (pitch) da voz (0.5 a 1.5) */
+  voicePitch?: number;
+  /** Velocidade (rate) da voz (0.5 a 1.5) */
+  voiceRate?: number;
 }
 
 export const DEFAULT_AI_CONFIG: AiConfig = {
@@ -400,6 +412,12 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   relicPersona: 'none',
   anfitriaoMode: false,
   customInstructions: '',
+  voiceEnabled: false,
+  voiceAutoRead: false,
+  voiceMilitaryTone: true,
+  voiceLanguage: 'pt-BR',
+  voicePitch: 1.0,
+  voiceRate: 1.0,
 };
 
 export const AI_STORAGE_KEYS = {

@@ -38,7 +38,10 @@ import {
   OFFICIAL_SKILLS_LIST,
   SkillDefinition,
   calculateStatIncreases,
+  calculateMaxStats,
+  calculateCharacterVitals,
   checkPrerequisite,
+  confirmUnmetPrerequisites,
   getPeRoundLimit,
   getRitualDt,
 } from '../../utils/progression';
@@ -83,46 +86,6 @@ export const RANK_ITEM_LIMITS = {
   'Oficial de Operações': { cat1: 3, cat2: 3, cat3: 2, cat4: 1, credit: 'Alto' as const },
   'Agente de Elite': { cat1: 3, cat2: 3, cat3: 3, cat4: 2, credit: 'Ilimitado' as const },
 };
-
-
-
-function calculateMaxStats(
-  className: string,
-  nex: number,
-  attrs: CharacterAttributes
-): { pvMax: number; peMax: number; sanMax: number } {
-  const levels = Math.max(1, Math.floor(nex / 5));
-  const extraLevels = Math.max(0, levels - 1);
-
-  if (className.toLowerCase().includes('combatente')) {
-    return {
-      pvMax: 20 + attrs.VIG + extraLevels * (4 + attrs.VIG),
-      peMax: 2 + attrs.PRE + extraLevels * (2 + attrs.PRE),
-      sanMax: 12 + extraLevels * 3,
-    };
-  }
-  if (className.toLowerCase().includes('ocultista')) {
-    return {
-      pvMax: 12 + attrs.VIG + extraLevels * (2 + attrs.VIG),
-      peMax: 4 + attrs.PRE + extraLevels * (4 + attrs.PRE),
-      sanMax: 20 + extraLevels * 5,
-    };
-  }
-  if (className.toLowerCase().includes('sobrevivente')) {
-    const stage = Math.min(5, Math.max(1, levels));
-    return {
-      pvMax: 8 + attrs.VIG + (stage - 1) * 2,
-      peMax: 2 + attrs.PRE + (stage - 1) * 1,
-      sanMax: 8 + (stage - 1) * 2,
-    };
-  }
-  // Especialista (default)
-  return {
-    pvMax: 16 + attrs.VIG + extraLevels * (3 + attrs.VIG),
-    peMax: 3 + attrs.PRE + extraLevels * (3 + attrs.PRE),
-    sanMax: 16 + extraLevels * 4,
-  };
-}
 
 export default function CharactersScreen() {
   const { colors } = useTheme();
@@ -468,14 +431,20 @@ export default function CharactersScreen() {
 
   const handleRecalculateStats = async () => {
     if (!activeChar) return;
-    const cls = getEntityById(activeChar.classId);
-    const calc = calculateMaxStats(
-      cls?.name || 'Especialista',
-      activeChar.nex,
-      activeChar.attributes
-    );
-    const peRodada = Math.max(1, Math.floor(activeChar.nex / 5));
-    const dtRitual = 10 + peRodada + activeChar.attributes.PRE;
+    const calc = calculateCharacterVitals(activeChar, getEntityById);
+
+    // Atualiza bônus de perícias concedidos por vitais (Fortitude, Vontade)
+    const updatedSkills = { ...(activeChar.skills || {}) };
+    if (calc.skillBonuses) {
+      for (const [skName, bVal] of Object.entries(calc.skillBonuses)) {
+        if (bVal !== undefined) {
+          updatedSkills[skName] = {
+            degree: updatedSkills[skName]?.degree || 0,
+            bonus: bVal,
+          };
+        }
+      }
+    }
 
     await updateActiveChar({
       pvMax: calc.pvMax,
@@ -484,8 +453,9 @@ export default function CharactersScreen() {
       peCurrent: calc.peMax,
       sanMax: calc.sanMax,
       sanCurrent: calc.sanMax,
-      peRound: peRodada,
-      dtRituals: dtRitual,
+      peRound: calc.peRound,
+      dtRituals: calc.dtRituals,
+      skills: updatedSkills,
     });
   };
 
@@ -3696,7 +3666,12 @@ export default function CharactersScreen() {
                   .filter((e) => e.name.toLowerCase().includes(pickerSearch.trim().toLowerCase()))
                   .slice(0, 80)
                   .map((item) => {
-                    const selectPickerItem = async () => {
+                    const isNoPrereq = !item.prerequisite || item.prerequisite === 'Nenhum' || item.prerequisite === '—';
+                    const prereqStatus = isNoPrereq
+                      ? { met: true, details: 'Nenhum', unmetDetails: [] as string[] }
+                      : checkPrerequisite(item.prerequisite, activeChar, getEntityById);
+
+                    const applyPickerItem = async () => {
                       if (pickerModalType === 'origin') {
                         await updateActiveChar({ originId: item.id });
                       } else if (pickerModalType === 'class') {
@@ -3705,18 +3680,53 @@ export default function CharactersScreen() {
                         await updateActiveChar({ trackId: item.id });
                       } else if (pickerModalType === 'link_compendium') {
                         if (!activeChar.entityIds.includes(item.id)) {
+                          const nextEntityIds = [...activeChar.entityIds, item.id];
+                          const tempChar = { ...activeChar, entityIds: nextEntityIds };
+                          const vitals = calculateCharacterVitals(tempChar, getEntityById);
+                          const pvDiff = Math.max(0, vitals.pvMax - activeChar.pvMax);
+                          const peDiff = Math.max(0, vitals.peMax - activeChar.peMax);
+                          const sanDiff = Math.max(0, vitals.sanMax - activeChar.sanMax);
+                          const updatedSkills = { ...(activeChar.skills || {}) };
+                          if (vitals.skillBonuses) {
+                            for (const [skName, bVal] of Object.entries(vitals.skillBonuses)) {
+                              if (bVal !== undefined) {
+                                updatedSkills[skName] = {
+                                  degree: updatedSkills[skName]?.degree || 0,
+                                  bonus: bVal,
+                                };
+                              }
+                            }
+                          }
                           await updateActiveChar({
-                            entityIds: [...activeChar.entityIds, item.id],
+                            entityIds: nextEntityIds,
+                            pvMax: vitals.pvMax,
+                            pvCurrent: activeChar.pvCurrent + pvDiff,
+                            peMax: vitals.peMax,
+                            peCurrent: activeChar.peCurrent + peDiff,
+                            sanMax: vitals.sanMax,
+                            sanCurrent: activeChar.sanCurrent + sanDiff,
+                            peRound: vitals.peRound,
+                            dtRituals: vitals.dtRituals,
+                            skills: updatedSkills,
                           });
                         }
                       }
                       setPickerModalType(null);
                     };
 
-                    const isNoPrereq = !item.prerequisite || item.prerequisite === 'Nenhum' || item.prerequisite === '—';
-                    const prereqStatus = isNoPrereq
-                      ? { met: true, details: 'Nenhum' }
-                      : checkPrerequisite(item.prerequisite, activeChar, getEntityById);
+                    const selectPickerItem = () => {
+                      if (pickerModalType === 'link_compendium' && !prereqStatus.met) {
+                        confirmUnmetPrerequisites(
+                          item.name,
+                          prereqStatus.unmetDetails || prereqStatus.details,
+                          () => {
+                            void applyPickerItem();
+                          }
+                        );
+                        return;
+                      }
+                      void applyPickerItem();
+                    };
 
                     const openPickerPreview = () =>
                       openEntityPreview(item, {

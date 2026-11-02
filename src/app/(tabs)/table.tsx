@@ -18,6 +18,7 @@ import { ThemeColors, useTheme, useThemedStyles } from '../../theme';
 import { TableParticipant, TableRollEvent, TableInitiativeItem } from '../../types/virtualTable';
 import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
 import { showAlert } from '../../utils/alert';
+import { TableExportModal } from '../../components/virtualTable/TableExportModal';
 
 type TableTab = 'party' | 'combat' | 'rolls' | 'scenes';
 
@@ -79,6 +80,9 @@ export default function TableScreen() {
   const [customMonsterName, setCustomMonsterName] = useState('');
   const [customMonsterInit, setCustomMonsterInit] = useState('12');
   const [customMonsterPV, setCustomMonsterPV] = useState('40');
+
+  // Modal de Exportação de Histórico de Sessão (Mestre)
+  const [exportModalVisible, setExportModalVisible] = useState(false);
 
   const isConnected = tableStatus === 'connected' && virtualTable !== null;
   const isMaster = tableParticipant?.role === 'master';
@@ -221,6 +225,17 @@ export default function TableScreen() {
 
           {/* Botões do Topo */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {isConnected && isMaster && (
+              <TouchableOpacity
+                style={[styles.iconBtn, { borderColor: '#F59E0B' }]}
+                onPress={() => setExportModalVisible(true)}
+                accessibilityLabel="Exportar Histórico de Sessão"
+                testID="table-export-session-btn"
+              >
+                <Ionicons name="share-social-outline" size={18} color="#F59E0B" />
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={() => setConfigModalVisible(true)}
@@ -853,6 +868,20 @@ export default function TableScreen() {
           {/* SUB-ABA 3: ROLAGENS (FEED ESTILO ROLL20) */}
           {activeTab === 'rolls' && (
             <View style={{ flex: 1 }}>
+              {isMaster && (
+                <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2 }}>
+                  <TouchableOpacity
+                    style={[styles.outlineBtn, { borderColor: '#F59E0B', gap: 6 }]}
+                    onPress={() => setExportModalVisible(true)}
+                    testID="table-export-rolls-btn"
+                  >
+                    <Ionicons name="share-social-outline" size={16} color="#F59E0B" />
+                    <Text style={[styles.outlineBtnText, { color: '#F59E0B', fontWeight: '800' }]}>
+                      Exportar Histórico da Sessão (PDF / JSON)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               <FlatList
                 data={tableRecentRolls}
                 keyExtractor={(item) => item.id}
@@ -1117,6 +1146,15 @@ export default function TableScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Exportação do Histórico de Sessão */}
+      <TableExportModal
+        visible={exportModalVisible}
+        onClose={() => setExportModalVisible(false)}
+        virtualTable={virtualTable}
+        tableRecentRolls={tableRecentRolls}
+        campaignTitle={activeCampaign ? activeCampaign.title : undefined}
+      />
     </View>
   );
 }

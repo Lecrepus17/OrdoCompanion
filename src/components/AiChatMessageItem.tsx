@@ -81,6 +81,8 @@ interface AiChatMessageItemProps {
   onOpenEntity: (entityName: string) => void;
   onRollDice: (formula: string) => void;
   onNavigateTab: (tabName: string) => void;
+  onSpeak?: (content: string, messageId: string) => void;
+  isSpeakingThis?: boolean;
 }
 
 export function AiChatMessageItem({
@@ -91,6 +93,8 @@ export function AiChatMessageItem({
   onOpenEntity,
   onRollDice,
   onNavigateTab,
+  onSpeak,
+  isSpeakingThis = false,
 }: AiChatMessageItemProps) {
   const { colors } = useTheme();
   const isUser = message.role === 'user';
@@ -604,30 +608,64 @@ export function AiChatMessageItem({
               </View>
             </View>
 
-            {/* Ação Rápida de Copiar no Topo */}
-            <TouchableOpacity
-              onPress={handleCopy}
-              style={[
-                styles.copyBtn,
-                { backgroundColor: copied ? 'rgba(16, 185, 129, 0.15)' : colors.surfaceElevated },
-              ]}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Ionicons
-                name={copied ? 'checkmark' : 'copy-outline'}
-                size={12}
-                color={copied ? '#10B981' : colors.textMuted}
-              />
-              <Text
-                style={{
-                  fontSize: 10,
-                  fontWeight: '700',
-                  color: copied ? '#10B981' : colors.textMuted,
-                }}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {/* Botão de Ouvir/Parar Voz TTS */}
+              {onSpeak && (
+                <TouchableOpacity
+                  onPress={() => onSpeak(message.content, message.id)}
+                  style={[
+                    styles.copyBtn,
+                    {
+                      backgroundColor: isSpeakingThis
+                        ? 'rgba(239, 68, 68, 0.15)'
+                        : colors.surfaceElevated,
+                    },
+                  ]}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  accessibilityLabel={isSpeakingThis ? 'Interromper leitura' : 'Ouvir resposta'}
+                >
+                  <Ionicons
+                    name={isSpeakingThis ? 'stop-circle' : 'volume-high-outline'}
+                    size={12}
+                    color={isSpeakingThis ? '#EF4444' : colors.textMuted}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: '700',
+                      color: isSpeakingThis ? '#EF4444' : colors.textMuted,
+                    }}
+                  >
+                    {isSpeakingThis ? 'Parar' : 'Ouvir'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Ação Rápida de Copiar no Topo */}
+              <TouchableOpacity
+                onPress={handleCopy}
+                style={[
+                  styles.copyBtn,
+                  { backgroundColor: copied ? 'rgba(16, 185, 129, 0.15)' : colors.surfaceElevated },
+                ]}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                {copied ? 'Copiado!' : 'Copiar'}
-              </Text>
-            </TouchableOpacity>
+                <Ionicons
+                  name={copied ? 'checkmark' : 'copy-outline'}
+                  size={12}
+                  color={copied ? '#10B981' : colors.textMuted}
+                />
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '700',
+                    color: copied ? '#10B981' : colors.textMuted,
+                  }}
+                >
+                  {copied ? 'Copiado!' : 'Copiar'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 

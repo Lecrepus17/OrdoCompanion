@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import OracleScreen from '../src/app/(tabs)/oracle';
 import { AiChatMessageItem } from '../src/components/AiChatMessageItem';
+import { AiConfigModal } from '../src/components/AiConfigModal';
+import { DEFAULT_AI_CONFIG } from '../src/types/ai';
 import {
   renderWithProviders,
   cleanup,
@@ -264,5 +266,85 @@ $$\\text{Dano Final Brutal: } 9d8+6$$ [Aba: dice]`,
     await fireClick(coMestreChip);
     assert.ok(queryByText(/Co-Mestre/i));
     assert.ok(queryByText(/Suporte ao Narrador/i));
+  });
+
+  test('AiConfigModal deve renderizar controles de voz (STT, TTS, leitura automática e filtro militar)', async () => {
+    let savedConfig: any = null;
+
+    const { getByText, queryByText } = await renderWithProviders(
+      <AiConfigModal
+        visible={true}
+        config={{
+          ...DEFAULT_AI_CONFIG,
+          voiceEnabled: true,
+          voiceAutoRead: true,
+          voiceMilitaryTone: true,
+        }}
+        onSave={(cfg) => {
+          savedConfig = cfg;
+        }}
+        onClose={() => {}}
+      />
+    );
+
+    // Seção de Comandos e Respostas por Voz
+    assert.ok(queryByText(/Comandos e Respostas por Voz/i));
+    assert.ok(queryByText(/Ativar Comando e Resposta por Voz/i));
+
+    // Opções quando a voz está ativada
+    assert.ok(queryByText(/Leitura Automática de Respostas \(TTS\)/i));
+    assert.ok(queryByText(/Filtro de Tom & Estática Militar/i));
+    assert.ok(queryByText(/Ouvir Prévia de Voz/i));
+
+    // Clica em Salvar Configurações
+    const saveBtn = getByText('Salvar Configurações');
+    assert.ok(saveBtn);
+    await fireClick(saveBtn);
+
+    assert.ok(savedConfig);
+    assert.equal(savedConfig.voiceEnabled, true);
+    assert.equal(savedConfig.voiceAutoRead, true);
+    assert.equal(savedConfig.voiceMilitaryTone, true);
+  });
+
+  test('OracleScreen deve renderizar o botão de microfone na barra de mensagem', async () => {
+    const { container } = await renderWithProviders(<OracleScreen />);
+
+    const micBtn = container.querySelector('[data-testid="voice-mic-button"]');
+    assert.ok(micBtn, 'Botão de microfone deve estar presente na barra de mensagens');
+  });
+
+  test('AiChatMessageItem deve renderizar o botão de Ouvir/Parar voz e acionar onSpeak', async () => {
+    let spokenContent = '';
+    let spokenId = '';
+
+    const mockMessage: any = {
+      id: 'msg_voice_test',
+      role: 'assistant',
+      content: 'Instrução tática do G.L.I.T.C.H.',
+      timestamp: '19:00',
+    };
+
+    const { getByText, queryByText } = await renderWithProviders(
+      <AiChatMessageItem
+        message={mockMessage}
+        onOpenBook={() => {}}
+        onOpenEntity={() => {}}
+        onRollDice={() => {}}
+        onNavigateTab={() => {}}
+        onSpeak={(content, id) => {
+          spokenContent = content;
+          spokenId = id;
+        }}
+        isSpeakingThis={false}
+      />
+    );
+
+    const ouvirBtn = getByText('Ouvir');
+    assert.ok(ouvirBtn);
+    await fireClick(ouvirBtn);
+
+    assert.equal(spokenContent, 'Instrução tática do G.L.I.T.C.H.');
+    assert.equal(spokenId, 'msg_voice_test');
   });
 });

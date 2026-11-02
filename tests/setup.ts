@@ -160,6 +160,10 @@ Object.defineProperty(dom.window, 'localStorage', {
 
 export let mockWindowConfirmResult = true;
 export const mockWindowAlerts: string[] = [];
+export const mockShareCalls: Array<{ url: string; options?: any }> = [];
+export function clearMockShareCalls() {
+  mockShareCalls.length = 0;
+}
 dom.window.alert = (msg: string) => {
   mockWindowAlerts.push(String(msg));
 };
@@ -303,6 +307,9 @@ Module.prototype.require = function (id: string) {
         return { uri: fileUri, status: 200, headers: {} };
       },
       readAsStringAsync: async () => '',
+      writeAsStringAsync: async (uri: string, _content: string) => {
+        mockFileSystemFiles.add(uri);
+      },
       deleteAsync: async (uri: string) => {
         mockFileSystemFiles.delete(uri);
         const prefix = uri.endsWith('/') ? uri : `${uri}/`;
@@ -328,6 +335,15 @@ Module.prototype.require = function (id: string) {
   if (id === 'expo-document-picker') {
     return {
       getDocumentAsync: async () => ({ canceled: true, assets: null }),
+    };
+  }
+  if (id === 'expo-sharing') {
+    return {
+      isAvailableAsync: async () => true,
+      shareAsync: async (url: string, options?: any) => {
+        mockShareCalls.push({ url, options });
+        return true;
+      },
     };
   }
   if (id === 'expo-print') {

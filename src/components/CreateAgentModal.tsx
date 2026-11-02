@@ -21,6 +21,11 @@ import {
   UserProfile,
 } from '../types/compendium';
 import {
+  applyCanonicalSkillGrant,
+  calculateMaxStats,
+  checkPrerequisite,
+  checkRitualPrerequisites,
+  extractCanonicalSkillGrants,
   getClassSkillRules,
   getOriginSkillsInfo,
   getPeRoundLimit,
@@ -30,6 +35,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { summarizeAbility } from '../utils/abilitySummarizer';
 import { DEFAULT_LONG_PRESS_DELAY } from '../types/recordPreview';
+import PrerequisiteAlertModal from './PrerequisiteAlertModal';
 
 interface CreateAgentModalProps {
   visible: boolean;
@@ -39,6 +45,7 @@ interface CreateAgentModalProps {
   originsList: CompendiumEntity[];
   classesList: CompendiumEntity[];
   ritualsList: CompendiumEntity[];
+  powersList?: CompendiumEntity[];
 }
 
 export default function CreateAgentModal({
@@ -49,11 +56,12 @@ export default function CreateAgentModal({
   originsList,
   classesList,
   ritualsList,
+  powersList,
 }: CreateAgentModalProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
-  const { openEntityPreview, openSkillPreview } = useApp();
+  const { openEntityPreview, openSkillPreview, entities, getEntityById } = useApp();
 
   // Etapa atual: 1..6
   const [step, setStep] = useState<number>(1);
@@ -91,10 +99,18 @@ export default function CreateAgentModal({
   const [choiceGroupSelections, setChoiceGroupSelections] = useState<Record<number, string>>({});
   const [freeSkillSelections, setFreeSkillSelections] = useState<string[]>([]);
 
-  // Etapa 6: Especialidades / Rituais iniciais
+  // Etapa 6: Especialidades / Rituais / Poderes iniciais
   const [peritoSkills, setPeritoSkills] = useState<string[]>([]);
   const [selectedRitualIds, setSelectedRitualIds] = useState<string[]>([]);
   const [ritualSearch, setRitualSearch] = useState('');
+  const [selectedPowerIds, setSelectedPowerIds] = useState<string[]>([]);
+  const [powerSearch, setPowerSearch] = useState('');
+  const [prereqAlertData, setPrereqAlertData] = useState<{
+    entityName: string;
+    unmetDetails: string[];
+    category: 'power' | 'ritual';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Resetar formulário ao abrir o modal
   useEffect(() => {
@@ -125,6 +141,9 @@ export default function CreateAgentModal({
       setPeritoSkills([]);
       setSelectedRitualIds([]);
       setRitualSearch('');
+      setSelectedPowerIds([]);
+      setPowerSearch('');
+      setPrereqAlertData(null);
     }
   }, [visible]);
 
@@ -275,10 +294,70 @@ export default function CreateAgentModal({
     setPeritoSkills((prev) => prev.filter((sk) => peritoCandidates.includes(sk)));
   }, [peritoCandidates]);
 
-  // Rituais de 1º Círculo disponíveis
+  // Rituais disponíveis para seleção (1º círculo no topo, demais círculos acessíveis para seleção permissiva)
   const circle1Rituals = useMemo(() => {
-    return ritualsList.filter((r) => r.circle === 1);
+    return [...ritualsList].sort((a, b) => (a.circle || 1) - (b.circle || 1));
   }, [ritualsList]);
+
+  // Lista de poderes disponíveis para seleção opcional na criação
+  const availableCreationPowers = useMemo(() => {
+    if (powersList && powersList.length > 0) return powersList;
+    return (entities || []).filter((e) => e.category === 'power');
+  }, [powersList, entities]);
+
+  // Ficha rascunho atual para avaliação precisa de pré-requisitos na Etapa 6
+  const draftCharacterForPrereqs = useMemo<CharacterSheet>(() => {
+    let draftSkills: Record<string, CharacterSkillEntry> = {};
+    allTrainedSkillsList.forEach((sk) => {
+      draftSkills = applyCanonicalSkillGrant(draftSkills, sk);
+    });
+    if (selectedOrigin) {
+      const originAbilityGrants = extractCanonicalSkillGrants(
+        selectedOrigin.powerDescription || selectedOrigin.description,
+        selectedOrigin.powerName || selectedOrigin.name,
+        draftSkills
+      );
+      originAbilityGrants.forEach((sk) => {
+        draftSkills = applyCanonicalSkillGrant(draftSkills, sk);
+      });
+    }
+    return {
+      id: 'draft_char',
+      name: name.trim() || 'Novo Agente',
+      player: player.trim(),
+      nex: isSobrevivente ? 0 : 5,
+      originId: selectedOrigin?.id || '',
+      classId: selectedClass?.id || '',
+      trackId: '',
+      rank: 'Recruta',
+      affinity: 'Nenhum',
+      attributes: attrs,
+      pvCurrent: 10,
+      pvMax: 10,
+      peCurrent: 2,
+      peMax: 2,
+      sanCurrent: 12,
+      sanMax: 12,
+      defenseBonus: 0,
+      skills: draftSkills,
+      attacks: [],
+      abilities: [],
+      inventory: [],
+      entityIds: [...selectedPowerIds, ...selectedRitualIds],
+      notes: '',
+      updatedAt: '',
+    };
+  }, [
+    allTrainedSkillsList,
+    selectedOrigin,
+    name,
+    player,
+    isSobrevivente,
+    selectedClass,
+    attrs,
+    selectedPowerIds,
+    selectedRitualIds,
+  ]);
 
   // Pontos de atributo gastos (iniciando de 1 em cada)
   // Regra Oficial de Ordem Paranormal:
@@ -327,36 +406,29 @@ export default function CreateAgentModal({
     }
   };
 
-  // Cálculos de Status Vitais Iniciais (5% NEX)
+  // Cálculos de Status Vitais Iniciais (5% NEX ou 0% Sobrevivente)
   const stats = useMemo(() => {
-    const clsName = (selectedClass?.name || '').toLowerCase();
-    let pv = 16 + attrs.VIG;
-    let pe = 3 + attrs.PRE;
-    let san = 16;
-
-    if (clsName.includes('combatente')) {
-      pv = 20 + attrs.VIG;
-      pe = 2 + attrs.PRE;
-      san = 12;
-    } else if (clsName.includes('ocultista')) {
-      pv = 12 + attrs.VIG;
-      pe = 4 + attrs.PRE;
-      san = 20;
-    } else if (clsName.includes('sobrevivente')) {
-      pv = 8 + attrs.VIG;
-      pe = 2 + attrs.PRE;
-      san = 8;
-    }
+    const isSobrevivente = (selectedClass?.name || '').toLowerCase().includes('sobrevivente');
+    const nexVal = isSobrevivente ? 0 : 5;
+    const calc = calculateMaxStats(
+      selectedClass?.name || 'Especialista',
+      nexVal,
+      attrs,
+      {
+        origin: selectedOrigin?.name || selectedOrigin?.id,
+      }
+    );
 
     return {
-      pv: Math.max(1, pv),
-      pe: Math.max(1, pe),
-      san: Math.max(1, san),
-      peRound: getPeRoundLimit(5),
-      dtRitual: getRitualDt(5, attrs.PRE),
-      defense: 10 + attrs.AGI,
+      pv: calc.pvMax,
+      pe: calc.peMax,
+      san: calc.sanMax,
+      peRound: calc.peRound,
+      dtRitual: calc.dtRituals,
+      defense: calc.defense,
+      skillBonuses: calc.skillBonuses,
     };
-  }, [selectedClass, attrs]);
+  }, [selectedClass, attrs, selectedOrigin]);
 
   // Atualizar atributo
   const handleAttrChange = (key: keyof CharacterAttributes, delta: number) => {
@@ -415,6 +487,77 @@ export default function CreateAgentModal({
     });
   };
 
+  // Seleção de ritual com validação permissiva de pré-requisitos
+  const handleSelectRitual = (rit: CompendiumEntity) => {
+    if (selectedRitualIds.includes(rit.id)) {
+      toggleRitual(rit.id);
+      return;
+    }
+
+    const prereqRes = checkRitualPrerequisites(
+      rit,
+      draftCharacterForPrereqs,
+      1,
+      getEntityById,
+      { targetNex: isSobrevivente ? 0 : 5, targetAttributes: attrs }
+    );
+
+    if (!prereqRes.met) {
+      setPrereqAlertData({
+        entityName: rit.name,
+        unmetDetails: prereqRes.unmetDetails,
+        category: 'ritual',
+        onConfirm: () => {
+          toggleRitual(rit.id);
+          setPrereqAlertData(null);
+        },
+      });
+      return;
+    }
+
+    toggleRitual(rit.id);
+  };
+
+  // Alternar poder inicial/extra
+  const toggleInitialPower = (powerId: string) => {
+    setSelectedPowerIds((prev) => {
+      if (prev.includes(powerId)) {
+        return prev.filter((id) => id !== powerId);
+      }
+      return [...prev, powerId];
+    });
+  };
+
+  // Seleção de poder inicial com validação permissiva de pré-requisitos
+  const handleSelectPower = (pow: CompendiumEntity) => {
+    if (selectedPowerIds.includes(pow.id)) {
+      toggleInitialPower(pow.id);
+      return;
+    }
+
+    const prereqRes = checkPrerequisite(
+      pow.prerequisite,
+      draftCharacterForPrereqs,
+      getEntityById,
+      { targetNex: isSobrevivente ? 0 : 5, targetAttributes: attrs }
+    );
+
+    if (!prereqRes.met) {
+      setPrereqAlertData({
+        entityName: pow.name,
+        unmetDetails: prereqRes.unmetDetails,
+        category: 'power',
+        onConfirm: () => {
+          toggleInitialPower(pow.id);
+          setPrereqAlertData(null);
+        },
+      });
+      return;
+    }
+
+    toggleInitialPower(pow.id);
+  };
+
   // Alternar perícia de perito (para especialista)
   const togglePeritoSkill = (sk: string) => {
     setPeritoSkills((prev) => {
@@ -426,33 +569,77 @@ export default function CreateAgentModal({
 
   // Finalizar e gerar a ficha completa
   const handleComplete = async () => {
-    const skillsRecord: Record<string, CharacterSkillEntry> = {};
+    let skillsRecord: Record<string, CharacterSkillEntry> = {};
 
-    // 1. Marca as perícias da origem
+    // 1. Marca as perícias da origem (concessão canônica)
     originGrantedSkills.forEach((sk) => {
-      skillsRecord[sk] = { degree: 5, bonus: 0 };
+      skillsRecord = applyCanonicalSkillGrant(skillsRecord, sk);
     });
 
     // 2. Marca as perícias obrigatórias da classe
     effectiveMandatorySkills.forEach((sk) => {
-      skillsRecord[sk] = { degree: 5, bonus: 0 };
+      skillsRecord = applyCanonicalSkillGrant(skillsRecord, sk);
     });
 
     // 3. Marca as perícias dos grupos de escolha da classe
     Object.values(choiceGroupSelections).forEach((sk) => {
       if (sk && sk !== '__free_choice__') {
-        skillsRecord[sk] = { degree: 5, bonus: 0 };
+        skillsRecord = applyCanonicalSkillGrant(skillsRecord, sk);
       }
     });
 
     // 4. Marca as perícias livres selecionadas pelo usuário
     freeSkillSelections.forEach((sk) => {
-      skillsRecord[sk] = { degree: 5, bonus: 0 };
+      skillsRecord = applyCanonicalSkillGrant(skillsRecord, sk);
     });
+
+    // 5. Aplica concessões canônicas de perícias da habilidade de origem (ex: Diplomata +2 em Diplomacia, Profetizado +2 em Vontade, ou nova perícia -> Treinado)
+    if (selectedOrigin) {
+      const originAbilityGrants = extractCanonicalSkillGrants(
+        selectedOrigin.powerDescription || selectedOrigin.description,
+        selectedOrigin.powerName || selectedOrigin.name,
+        skillsRecord
+      );
+      originAbilityGrants.forEach((sk) => {
+        skillsRecord = applyCanonicalSkillGrant(skillsRecord, sk);
+      });
+    }
+
+    // 6. Aplica concessões canônicas de perícias de poderes iniciais selecionados
+    selectedPowerIds.forEach((pid) => {
+      const pow = availableCreationPowers.find((p) => p.id === pid) || getEntityById(pid);
+      if (pow) {
+        const powGrants = extractCanonicalSkillGrants(
+          pow.description || pow.summary,
+          pow.name,
+          skillsRecord
+        );
+        powGrants.forEach((sk) => {
+          skillsRecord = applyCanonicalSkillGrant(skillsRecord, sk);
+        });
+      }
+    });
+
+    // 7. Aplica bônus de perícias concedidos por origens/poderes nos vitais
+    if (stats.skillBonuses) {
+      for (const [skName, bVal] of Object.entries(stats.skillBonuses)) {
+        if (bVal) {
+          skillsRecord[skName] = {
+            ...skillsRecord[skName],
+            degree: skillsRecord[skName]?.degree || 0,
+            bonus: (skillsRecord[skName]?.bonus || 0) + bVal,
+          };
+        }
+      }
+    }
 
     // Habilidades automáticas de criação
     const abilities: CharacterAbility[] = [];
     const entityIds: string[] = [];
+
+    selectedPowerIds.forEach((pid) => {
+      if (!entityIds.includes(pid)) entityIds.push(pid);
+    });
 
     // Poder da Origem (respeitando livro e descrição oficiais do compêndio)
     if (selectedOrigin) {
@@ -538,6 +725,11 @@ export default function CreateAgentModal({
         type: 'habilidade',
       });
     }
+
+    // Garante inclusão de quaisquer rituais selecionados permissivamente
+    selectedRitualIds.forEach((rid) => {
+      if (!entityIds.includes(rid)) entityIds.push(rid);
+    });
 
     const newSheet: CharacterSheet = {
       id: `char_${Date.now()}`,
@@ -1408,26 +1600,39 @@ export default function CreateAgentModal({
 
                   <View style={{ gap: 8, marginTop: 10 }}>
                     {circle1Rituals
-                      .filter((r) =>
-                        !ritualSearch.trim() ||
-                        r.name.toLowerCase().includes(ritualSearch.toLowerCase()) ||
-                        (r.element || '').toLowerCase().includes(ritualSearch.toLowerCase())
-                      )
+                      .filter((r) => {
+                        if (!ritualSearch.trim()) {
+                          // Por padrão exibe os de 1º círculo ou os que possuem pré-requisito / selecionados
+                          return (r.circle || 1) === 1 || selectedRitualIds.includes(r.id) || ritualsList.length <= 40;
+                        }
+                        const q = ritualSearch.toLowerCase();
+                        return (
+                          r.name.toLowerCase().includes(q) ||
+                          (r.element || '').toLowerCase().includes(q)
+                        );
+                      })
                       .map((rit) => {
                         const isSel = selectedRitualIds.includes(rit.id);
+                        const prereqRes = checkRitualPrerequisites(
+                          rit,
+                          draftCharacterForPrereqs,
+                          1,
+                          getEntityById,
+                          { targetNex: isSobrevivente ? 0 : 5, targetAttributes: attrs }
+                        );
                         const openRitualDetails = () =>
                           openEntityPreview(rit, {
                             primaryAction: {
                               label: isSel ? 'Ritual Selecionado' : 'Escolher este Ritual',
                               isSelected: isSel,
-                              onPress: () => toggleRitual(rit.id),
+                              onPress: () => handleSelectRitual(rit),
                             },
                           });
                         return (
                           <TouchableOpacity
                             key={rit.id}
                             style={[styles.itemCard, isSel && styles.itemCardActive]}
-                            onPress={() => toggleRitual(rit.id)}
+                            onPress={() => handleSelectRitual(rit)}
                             onLongPress={openRitualDetails}
                             delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                             testID={`ritual-card-${rit.id}`}
@@ -1438,7 +1643,7 @@ export default function CreateAgentModal({
                               </Text>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                 <Text style={[styles.badgeText, { color: colors.accent }]}>
-                                  {rit.element} • 1º Círculo
+                                  {rit.element} • {rit.circle || 1}º Círculo
                                 </Text>
                                 <TouchableOpacity
                                   style={styles.originInfoBtn}
@@ -1453,7 +1658,111 @@ export default function CreateAgentModal({
                                 </TouchableOpacity>
                               </View>
                             </View>
+                            {!prereqRes.met && (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                                <Ionicons name="alert-circle" size={12} color="#EF4444" />
+                                <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '600' }}>
+                                  {prereqRes.details}
+                                </Text>
+                              </View>
+                            )}
                             <Text style={styles.itemCardSummary}>{rit.summary}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </View>
+                </View>
+              )}
+
+              {/* PODERES INICIAIS / EXTRAS OPCIONAIS */}
+              {availableCreationPowers.length > 0 && (
+                <View style={{ marginTop: 14 }}>
+                  <View style={styles.quotaBox}>
+                    <Text style={styles.quotaBoxText}>
+                      Poderes Adicionais / Iniciais (Opcional):{' '}
+                      <Text style={{ fontWeight: '900', color: colors.primary }}>
+                        {selectedPowerIds.length} selecionado(s)
+                      </Text>
+                    </Text>
+                    <Text style={styles.quotaSubText}>
+                      Vincule poderes iniciais concedidos por origem (ex: Cultista Arrependido) ou autorizados pelo Mestre.
+                    </Text>
+                  </View>
+
+                  <TextInput
+                    style={styles.searchInput}
+                    value={powerSearch}
+                    onChangeText={setPowerSearch}
+                    placeholder="Pesquisar poderes iniciais ou extras..."
+                    placeholderTextColor={colors.textMuted}
+                  />
+
+                  <View style={{ gap: 8, marginTop: 6 }}>
+                    {availableCreationPowers
+                      .filter((p) => {
+                        if (!powerSearch.trim()) {
+                          return selectedPowerIds.includes(p.id) || (powersList && powersList.length > 0);
+                        }
+                        const q = powerSearch.toLowerCase();
+                        return (
+                          p.name.toLowerCase().includes(q) ||
+                          (p.summary || '').toLowerCase().includes(q) ||
+                          (p.prerequisite || '').toLowerCase().includes(q)
+                        );
+                      })
+                      .slice(0, 20)
+                      .map((pow) => {
+                        const isSel = selectedPowerIds.includes(pow.id);
+                        const prereqRes = checkPrerequisite(
+                          pow.prerequisite,
+                          draftCharacterForPrereqs,
+                          getEntityById,
+                          { targetNex: isSobrevivente ? 0 : 5, targetAttributes: attrs }
+                        );
+                        const openPowerDetails = () =>
+                          openEntityPreview(pow, {
+                            primaryAction: {
+                              label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
+                              isSelected: isSel,
+                              onPress: () => handleSelectPower(pow),
+                            },
+                          });
+                        return (
+                          <TouchableOpacity
+                            key={pow.id}
+                            style={[styles.itemCard, isSel && styles.itemCardActive]}
+                            onPress={() => handleSelectPower(pow)}
+                            onLongPress={openPowerDetails}
+                            delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                            testID={`create-power-card-${pow.id}`}
+                          >
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Text style={[styles.itemCardTitle, isSel && { color: colors.primary }]}>
+                                {pow.name}
+                              </Text>
+                              <Text style={[styles.badgeText, { color: colors.accent }]}>
+                                {pow.subCategory || 'Poder'}
+                              </Text>
+                            </View>
+                            {!!pow.prerequisite && pow.prerequisite !== 'Nenhum' && (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                                <Ionicons
+                                  name={prereqRes.met ? 'checkmark-circle' : 'alert-circle'}
+                                  size={12}
+                                  color={prereqRes.met ? '#22C55E' : '#EF4444'}
+                                />
+                                <Text
+                                  style={{
+                                    fontSize: 11,
+                                    color: prereqRes.met ? '#22C55E' : '#EF4444',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  Pré-req: {pow.prerequisite} ({prereqRes.met ? 'Atendido' : prereqRes.details})
+                                </Text>
+                              </View>
+                            )}
+                            {!!pow.summary && <Text style={styles.itemCardSummary}>{pow.summary}</Text>}
                           </TouchableOpacity>
                         );
                       })}
@@ -1697,6 +2006,15 @@ export default function CreateAgentModal({
             </TouchableOpacity>
           )}
         </View>
+
+        <PrerequisiteAlertModal
+          visible={!!prereqAlertData}
+          entityName={prereqAlertData?.entityName || ''}
+          unmetDetails={prereqAlertData?.unmetDetails || []}
+          category={prereqAlertData?.category}
+          onConfirm={() => prereqAlertData?.onConfirm()}
+          onCancel={() => setPrereqAlertData(null)}
+        />
       </View>
     </Modal>
   );
