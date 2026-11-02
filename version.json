@@ -1,10 +1,10 @@
 {
-  "version": "1.2.0-beta.1",
+  "version": "1.2.0-beta.2",
   "minVersion": "1.0.0-beta.1",
-  "releaseName": "Ordo Companion v1.2.0-beta.1",
+  "releaseName": "Ordo Companion v1.2.0-beta.2",
   "releaseDate": "2026-11-02",
-  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.2.0-beta.1",
-  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.2.0-beta.1/OrdoCompanion.apk",
+  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.2.0-beta.2",
+  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.2.0-beta.2/OrdoCompanion.apk",
   "changelog": [
     "Recalculo automatico de vitais, voz no GLITCH e exportacao de sessao"
   ],

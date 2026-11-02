@@ -1,12 +1,12 @@
 # 📋 Atualizações Pendentes para o Próximo Release
 
 > **Versão Atual**: `1.1.0-beta.3`  
-> **Versão Sugerida**: `1.2.0-beta.1` (Motivo: [Minor] Recálculo e escalonamento automático de vitais por NEX e bônus passivos, alerta permissivo de pré-requisitos, comando e resposta por voz no G.L.I.T.C.H., exportação de sessões em JSON/PDF tático na Mesa Virtual, assistente de proteções/defesa, proficiências e bônus de vestimentas/utensílios)  
+> **Versão Sugerida**: `1.2.0-beta.2` (Motivo: [Minor] Recálculo e escalonamento automático de vitais por NEX e bônus passivos, alerta permissivo de pré-requisitos, comando e resposta por voz no G.L.I.T.C.H., exportação de sessões em JSON/PDF tático na Mesa Virtual, assistente de proteções/defesa, proficiências e bônus de vestimentas/utensílios)  
 > **Última Atualização**: 2026-11-02 14:43
 
 ---
 
-## 🚀 Resumo do Próximo Release v1.2.0-beta.1 (Changelog de Usuário)
+## 🚀 Resumo do Próximo Release v1.2.0-beta.2 (Changelog de Usuário)
 
 * **Recálculo e Escalonamento Automático de Vitais por NEX e Bônus Passivos**:
   * **Motor Unificado de Vitais (`progression.ts`)**: Cálculo automático e retroativo de PV, PE, SAN, Limite de PE/Rodada e DT de Rituais integrando classes (*Combatente*, *Especialista*, *Ocultista*, *Sobrevivente*), poderes progressivos (*Vitalidade Reforçada*, *Sangue de Ferro* com afinidade, *Potencial Aprimorado* com afinidade, *Vontade Inabalável*, *Combatente Esforçado*) e origens (*Desgarrado*, *Universitário*, *Vítima*, *Cultista Arrependido*, *Mergulhador*, *Personalidade Esotérica*).
@@ -127,7 +127,7 @@
 
 ## 🛠️ Comando para Gerar o Release
 ```bash
-npm run release 1.2.0-beta.1 "Recálculo automático de vitais por NEX, voz tática no G.L.I.T.C.H., exportação da mesa virtual e assistente de proteções"
+npm run release 1.2.0-beta.2 "Recálculo automático de vitais por NEX, voz tática no G.L.I.T.C.H., exportação da mesa virtual e assistente de proteções"
 ```
 
 ---

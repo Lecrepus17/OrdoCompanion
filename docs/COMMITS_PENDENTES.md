@@ -6,21 +6,21 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento. Todas as alterações foram consolidadas e commitadas no release `v1.2.0-beta.1`)*
+*(Nenhum commit pendente no momento. Todas as alterações foram consolidadas e commitadas no release `v1.2.0-beta.2`)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
 
-### 1. Release v1.2.0-beta.1 (Vitais por NEX, Voz no G.L.I.T.C.H. e Exportação de Sessão):
+### 1. Release v1.2.0-beta.2 (Vitais por NEX, Voz no G.L.I.T.C.H. e Exportação de Sessão):
 ```bash
-git commit -m "feat: release v1.2.0-beta.1 - vitais por NEX, voz no GLITCH e exportacao de mesa" \
+git commit -m "feat: release v1.2.0-beta.2 - vitais por NEX, voz no GLITCH e exportacao de mesa" \
   -m "- Recalculo unificado e escalonamento automatico de vitais (PV, PE, SAN) por NEX e bonus passivos canonicos em progression.ts, LevelUpModal e CreateAgentModal" \
   -m "- Alerta permissivo de pre-requisitos (Adicionar mesmo assim) em poderes e rituais" \
   -m "- Comando e resposta por voz (STT/TTS) com filtro de radio militar no G.L.I.T.C.H." \
   -m "- Exportacao completa do historico de sessao da Mesa Virtual em JSON estruturado e PDF tatico da Ordo Realitas" \
   -m "- Suporte a expo-sharing para compartilhamento de relatorios" \
-  -m "- Incremento de versao no app.json (versionCode 4, 1.2.0-beta.1), package.json e version.json"
+  -m "- Incremento de versao no app.json (versionCode 4, 1.2.0-beta.2), package.json e version.json"
 ```
 
 ### 2. Assistente de Proteções, Proficiências e Vestimentas na Ficha de Personagens:
