@@ -16,9 +16,10 @@ import {
   DiceRollResult,
   SavedList,
   UserProfile,
+  WeaponAttackContext,
 } from '../types/compendium';
 import { defaultRepository } from '../repositories/OfflineDataRepository';
-import { rollDiceFormula, rollOrdemTest } from '../utils/dice';
+import { rollDiceFormula, rollOrdemTest, rollWeaponDamage, WeaponDamageRollOptions } from '../utils/dice';
 import {
   cloudSyncManager,
   SyncExecutionResult,
@@ -127,9 +128,10 @@ interface AppContextValue {
   rollHistory: DiceRollResult[];
   latestRoll: DiceRollResult | null;
   dismissLatestRoll: () => void;
-  rollSkillTest: (attributeDice: number, bonus: number, label?: string, criticalThreat?: number) => DiceRollResult;
-  rollOrdemTest: (attributeDice: number, bonus: number, label?: string, criticalThreat?: number) => DiceRollResult;
+  rollSkillTest: (attributeDice: number, bonus: number, label?: string, criticalThreat?: number, attackContext?: WeaponAttackContext) => DiceRollResult;
+  rollOrdemTest: (attributeDice: number, bonus: number, label?: string, criticalThreat?: number, attackContext?: WeaponAttackContext) => DiceRollResult;
   rollFormula: (formula: string, label?: string) => DiceRollResult;
+  rollWeaponDamage: (options: WeaponDamageRollOptions) => DiceRollResult;
   clearRollHistory: () => void;
 
   // Backup Export / Import
@@ -824,8 +826,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const rollSkillTest = useCallback(
-    (attributeDice: number, bonus: number, label?: string, criticalThreat?: number) => {
-      const res = rollOrdemTest(attributeDice, bonus, label, criticalThreat);
+    (
+      attributeDice: number,
+      bonus: number,
+      label?: string,
+      criticalThreat?: number,
+      attackContext?: WeaponAttackContext
+    ) => {
+      const res = rollOrdemTest(attributeDice, bonus, label, criticalThreat, attackContext);
       setLatestRoll(res);
       setRollHistory((prev) => [res, ...prev.slice(0, 49)]);
       if (virtualTableManager.getStatus() === 'connected') {
@@ -834,6 +842,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return res;
     },
     [broadcastRollToTable]
+  );
+
+  const rollWeaponDamageAction = useCallback(
+    (options: WeaponDamageRollOptions) => {
+      const effectiveMode = options.mode || userProfile.criticalDamageMode || 'multiply_dice';
+      const res = rollWeaponDamage({ ...options, mode: effectiveMode });
+      setLatestRoll(res);
+      setRollHistory((prev) => [res, ...prev.slice(0, 49)]);
+      if (virtualTableManager.getStatus() === 'connected') {
+        broadcastRollToTable(res, { actionType: 'damage' }).catch(() => {});
+      }
+      return res;
+    },
+    [userProfile.criticalDamageMode, broadcastRollToTable]
   );
 
   const rollFormula = useCallback(
@@ -1321,6 +1343,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       rollSkillTest,
       rollOrdemTest: rollSkillTest,
       rollFormula,
+      rollWeaponDamage: rollWeaponDamageAction,
       clearRollHistory,
       userProfile,
       updateUserProfile,
@@ -1419,6 +1442,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dismissLatestRoll,
       rollSkillTest,
       rollFormula,
+      rollWeaponDamageAction,
       clearRollHistory,
       userProfile,
       updateUserProfile,

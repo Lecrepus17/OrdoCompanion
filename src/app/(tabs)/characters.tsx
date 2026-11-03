@@ -101,6 +101,7 @@ export default function CharactersScreen() {
     getEntityById,
     rollSkillTest,
     rollFormula,
+    rollWeaponDamage,
     userProfile,
     openManual,
     tableStatus,

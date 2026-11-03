@@ -226,6 +226,17 @@ export interface CharacterAttributes {
   VIG: number;
 }
 
+export type CriticalDamageMode = 'multiply_damage' | 'multiply_dice';
+
+export interface WeaponAttackContext {
+  weaponName: string;
+  damage: string;
+  critical: string;
+  damageType?: string;
+  attackId?: string;
+  specialRules?: string;
+}
+
 export interface CharacterAttack {
   id: string;
   name: string;
@@ -238,6 +249,7 @@ export interface CharacterAttack {
   special: string; // e.g., "Balístico • Mira Laser • Perigosa"
   customWeaponId?: string;
   proficiency?: WeaponProficiency;
+  criticalDamageMode?: 'default' | CriticalDamageMode;
 }
 
 export interface CharacterAbility {
@@ -353,6 +365,7 @@ export interface CharacterSheet {
   
   entityIds: string[]; // Linked rituals, powers, weapons, items from compendium
   transcendEvery5Nex?: boolean; // Permite escolher poder paranormal a cada subida de NEX (a cada 5)
+  criticalDamageMode?: 'default' | CriticalDamageMode;
   notes: string;
   updatedAt: string;
 }
@@ -447,6 +460,8 @@ export interface DiceRollResult {
   total: number;
   isCritical?: boolean;
   isFumble?: boolean;
+  isMaxDamage?: boolean;
+  attackContext?: WeaponAttackContext;
   timestamp: string;
 }
 
@@ -571,6 +586,7 @@ export interface UserProfile {
   updatedAt: string;
   listingColumns?: 1 | 2;
   transcendEvery5Nex?: boolean;
+  criticalDamageMode?: CriticalDamageMode;
   navigationConfig?: TabNavigationConfig;
 }
 
@@ -588,6 +604,7 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
   updatedAt: new Date().toISOString(),
   listingColumns: 1,
   transcendEvery5Nex: false,
+  criticalDamageMode: 'multiply_dice',
   navigationConfig: {
     pinnedTabs: DEFAULT_PINNED_TABS,
     hiddenTabs: DEFAULT_HIDDEN_TABS,

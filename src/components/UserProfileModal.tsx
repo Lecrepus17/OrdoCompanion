@@ -22,6 +22,7 @@ import { showAlert } from '../utils/alert';
 import { GoogleDriveService } from '../services/sync/GoogleDriveService';
 
 import {
+  CriticalDamageMode,
   DEFAULT_HIDDEN_TABS,
   DEFAULT_PINNED_TABS,
   getTabMetadata,
@@ -87,6 +88,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   const [cloudSyncUrl, setCloudSyncUrl] = useState('');
   const [listingColumnsChoice, setListingColumnsChoice] = useState<1 | 2>(1);
   const [transcendEvery5Nex, setTranscendEvery5Nex] = useState(false);
+  const [criticalDamageModeChoice, setCriticalDamageModeChoice] = useState<CriticalDamageMode>('multiply_dice');
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Estados locais para customização dinâmica da barra inferior
@@ -114,6 +116,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       setCloudSyncUrl(userProfile.cloudSyncUrl || '');
       setListingColumnsChoice(userProfile.listingColumns === 2 ? 2 : 1);
       setTranscendEvery5Nex(!!userProfile.transcendEvery5Nex);
+      setCriticalDamageModeChoice(userProfile.criticalDamageMode || 'multiply_dice');
 
 
       const navConfig = userProfile.navigationConfig;
@@ -279,6 +282,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       cloudSyncUrl: cloudSyncUrl.trim(),
       listingColumns: listingColumnsChoice,
       transcendEvery5Nex,
+      criticalDamageMode: criticalDamageModeChoice,
       navigationConfig: {
         pinnedTabs: resolvedTabs.pinnedTabs,
         hiddenTabs: resolvedTabs.hiddenTabs,

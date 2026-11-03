@@ -66,6 +66,8 @@ export default function WeaponsScreen() {
     characters,
     upsertCharacter,
     rollFormula,
+    rollWeaponDamage,
+    userProfile,
     openManual,
     openRecordPreview,
     openEntityPreview,

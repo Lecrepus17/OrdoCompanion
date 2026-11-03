@@ -55,6 +55,8 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
     favoriteIds,
     toggleFavorite,
     rollFormula,
+    rollWeaponDamage,
+    userProfile,
   } = useApp();
 
   // Resolve underlying CompendiumEntity when possible

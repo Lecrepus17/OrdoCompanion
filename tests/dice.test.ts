@@ -1,6 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { rollOrdemTest, rollDiceFormula } from '../src/utils/dice';
+import {
+  rollOrdemTest,
+  rollDiceFormula,
+  expandFormulaForCritical,
+  calculateMaxDamageForFormula,
+  rollWeaponDamage,
+} from '../src/utils/dice';
 
 describe('Sistema de Rolagem de Dados (dice.ts)', () => {
   describe('rollOrdemTest - Teste de Perícia / Atributo', () => {
@@ -73,6 +79,12 @@ describe('Sistema de Rolagem de Dados (dice.ts)', () => {
       const res = rollOrdemTest(1, 0);
       assert.match(res.timestamp, /^\d{2}:\d{2}:\d{2}$/);
     });
+
+    it('deve preservar o attackContext quando fornecido', () => {
+      const ctx = { weaponName: 'Revólver', damage: '2d6', critical: '19/x3' };
+      const res = rollOrdemTest(2, 5, 'Ataque Revólver', 19, ctx);
+      assert.deepStrictEqual(res.attackContext, ctx);
+    });
   });
 
   describe('rollDiceFormula - Avaliação de Fórmulas Gerais', () => {
@@ -97,7 +109,6 @@ describe('Sistema de Rolagem de Dados (dice.ts)', () => {
       assert.strictEqual(res.bonus, 10);
       const diceSum = res.diceResults.reduce((a, b) => a + b, 0);
       assert.strictEqual(res.total, diceSum + 10);
-      // Cada d6 deve estar entre 1 e 6
       for (const d of res.diceResults) {
         assert.ok(d >= 1 && d <= 6);
       }
@@ -128,6 +139,146 @@ describe('Sistema de Rolagem de Dados (dice.ts)', () => {
     it('deve lidar com fórmulas sem dados (apenas bônus fixo) com fallback seguro', () => {
       const res = rollDiceFormula('+10', 'Bônus Puro');
       assert.ok(res.total >= 11 && res.total <= 30);
+    });
+  });
+
+  describe('expandFormulaForCritical - Expansão Canônica de Dados Críticos', () => {
+    it('deve multiplicar a quantidade de dados para fórmulas padrão', () => {
+      assert.strictEqual(expandFormulaForCritical('1d8+3', 2), '2d8+3');
+      assert.strictEqual(expandFormulaForCritical('2d6', 3), '6d6');
+      assert.strictEqual(expandFormulaForCritical('2d10+4', 3), '6d10+4');
+      assert.strictEqual(expandFormulaForCritical('d12', 2), '2d12');
+      assert.strictEqual(expandFormulaForCritical('3d6+2', 2), '6d6+2');
+    });
+
+    it('deve multiplicar apenas os dados base da arma em fórmulas compostas', () => {
+      assert.strictEqual(expandFormulaForCritical('2d6+2 + 2d6', 2), '4d6+2 + 2d6');
+      assert.strictEqual(expandFormulaForCritical('1d8+2 + 1d6 Morte', 2), '2d8+2 + 1d6 Morte');
+    });
+  });
+
+  describe('calculateMaxDamageForFormula - Cálculo de Dano Máximo', () => {
+    it('deve atribuir o valor máximo para todos os dados', () => {
+      const res1 = calculateMaxDamageForFormula('1d8+3');
+      assert.deepStrictEqual(res1.diceResults, [8]);
+      assert.strictEqual(res1.bonus, 3);
+      assert.strictEqual(res1.total, 11);
+
+      const res2 = calculateMaxDamageForFormula('2d6+4');
+      assert.deepStrictEqual(res2.diceResults, [6, 6]);
+      assert.strictEqual(res2.bonus, 4);
+      assert.strictEqual(res2.total, 16);
+
+      const res3 = calculateMaxDamageForFormula('6d6');
+      assert.strictEqual(res3.diceResults.length, 6);
+      assert.ok(res3.diceResults.every((d) => d === 6));
+      assert.strictEqual(res3.total, 36);
+    });
+  });
+
+  describe('rollWeaponDamage - Modos de Crítico e Crítico Máximo', () => {
+    const weapon = {
+      weaponName: 'Espada Longa',
+      damage: '1d8+2',
+      critical: '19/x2',
+    };
+
+    it('deve rolar dano normal com dados base', () => {
+      const res = rollWeaponDamage({
+        ...weapon,
+        isCrit: false,
+      });
+
+      assert.strictEqual(res.diceResults.length, 1);
+      assert.strictEqual(res.bonus, 2);
+      assert.strictEqual(res.total, res.diceResults[0] + 2);
+      assert.strictEqual(res.isCritical, undefined);
+      assert.strictEqual(res.isMaxDamage, undefined);
+    });
+
+    it('deve rolar crítico no modo multiply_dice (Padrão Oficial: duplica dados rolados)', () => {
+      const res = rollWeaponDamage({
+        ...weapon,
+        isCrit: true,
+        mode: 'multiply_dice',
+      });
+
+      assert.strictEqual(res.diceResults.length, 2); // 1d8 x 2 = 2d8
+      assert.strictEqual(res.bonus, 2);
+      assert.strictEqual(res.isCritical, true);
+      assert.strictEqual(res.total, res.diceResults[0] + res.diceResults[1] + 2);
+    });
+
+    it('deve rolar crítico no modo multiply_damage (Modo Alternativo: menos dados, multiplica total)', () => {
+      const res = rollWeaponDamage({
+        ...weapon,
+        isCrit: true,
+        mode: 'multiply_damage',
+      });
+
+      assert.strictEqual(res.diceResults.length, 1); // Rola apenas 1d8
+      assert.strictEqual(res.bonus, 2);
+      assert.strictEqual(res.isCritical, true);
+      // Total = (dado + bonus) * mult
+      const baseTotal = res.diceResults[0] + 2;
+      assert.strictEqual(res.total, baseTotal * 2);
+    });
+
+    it('deve calcular Crítico Máximo no modo multiply_dice com todas as faces máximas', () => {
+      const res = rollWeaponDamage({
+        ...weapon,
+        isCrit: true,
+        isMaxDamage: true,
+        mode: 'multiply_dice',
+      });
+
+      assert.strictEqual(res.isCritical, true);
+      assert.strictEqual(res.isMaxDamage, true);
+      assert.deepStrictEqual(res.diceResults, [8, 8]); // 2d8 no máximo
+      assert.strictEqual(res.bonus, 2);
+      assert.strictEqual(res.total, 18); // 8 + 8 + 2
+    });
+
+    it('deve calcular Crítico Máximo no modo multiply_damage com dano base máximo multiplicado', () => {
+      const res = rollWeaponDamage({
+        ...weapon,
+        isCrit: true,
+        isMaxDamage: true,
+        mode: 'multiply_damage',
+      });
+
+      assert.strictEqual(res.isCritical, true);
+      assert.strictEqual(res.isMaxDamage, true);
+      assert.deepStrictEqual(res.diceResults, [8]); // 1d8 no máximo
+      assert.strictEqual(res.bonus, 2);
+      assert.strictEqual(res.total, 20); // (8 + 2) * 2 = 20
+    });
+
+    it('deve calcular Crítico Máximo para armas com crítico x3 (ex: Revólver 2d6)', () => {
+      const rev = {
+        weaponName: 'Revólver',
+        damage: '2d6',
+        critical: '19/x3',
+      };
+
+      // No modo multiply_dice: 6d6 -> 6 * 6 = 36
+      const resDice = rollWeaponDamage({
+        ...rev,
+        isCrit: true,
+        isMaxDamage: true,
+        mode: 'multiply_dice',
+      });
+      assert.strictEqual(resDice.diceResults.length, 6);
+      assert.strictEqual(resDice.total, 36);
+
+      // No modo multiply_damage: 2d6 máximo (12) * 3 = 36
+      const resDmg = rollWeaponDamage({
+        ...rev,
+        isCrit: true,
+        isMaxDamage: true,
+        mode: 'multiply_damage',
+      });
+      assert.strictEqual(resDmg.total, 36);
     });
   });
 });
