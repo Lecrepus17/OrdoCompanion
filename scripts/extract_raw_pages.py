@@ -129,9 +129,9 @@ OCR_WORD_REGEX = re.compile(r"\b(" + "|".join(re.escape(k) for k in OCR_WORD_REP
 
 def slugify_book_id(filename: str) -> str:
     stem = Path(filename).stem
-    # Ignore version suffixes (e.g. "Sobrevivendo-Ao-Horror-v1") so the book id stays stable
-    # when a better edition of the same PDF replaces an older one.
-    stem = re.sub(r"(?i)[-_\s]+v\d+$", "", stem)
+    # Ignore version suffixes (e.g. "Sobrevivendo-Ao-Horror-v1", "livro-base-v1-3", "livro-base-v1.3")
+    # so the book id stays stable when a better edition of the same PDF replaces an older one.
+    stem = re.sub(r"(?i)[-_\s]+v\d+(?:[._-]\d+)*$", "", stem)
     stem = re.sub(r"\.+", "-", stem)
     slug = re.sub(r"[^a-zA-Z0-9]+", "_", stem).strip("_").lower()
     return slug
@@ -139,13 +139,13 @@ def slugify_book_id(filename: str) -> str:
 
 def friendly_book_title(filename: str) -> str:
     stem = Path(filename).stem.replace("..", "")
-    stem = re.sub(r"(?i)[-_\s]+v\d+$", "", stem)
-    lower = stem.lower()
+    stem = re.sub(r"(?i)[-_\s]+v\d+(?:[._-]\d+)*$", "", stem)
+    lower = stem.lower().replace("-", " ").replace("_", " ")
     if "livro base" in lower:
         return "Livro Base"
     if "sobrevivendo" in lower:
         return "Sobrevivendo ao Horror"
-    m = re.search(r"arquivos[-_\s]*secretos[-_\s]*(\d+)", lower)
+    m = re.search(r"arquivos\s*secretos\s*(\d+)", lower)
     if m:
         return f"Arquivos Secretos #{int(m.group(1)):02d}"
     return stem.replace("-", " ").replace("_", " ").title()
@@ -630,9 +630,23 @@ async def extract_all_pdfs() -> List[Dict[str, Any]]:
         book_data = await extract_single_pdf(pdf_path)
         books.append(book_data)
 
+    # Merge existing cached books for which no PDF is currently present on disk
+    extracted_ids = {b["id"] for b in books}
+    if CACHE_DIR.exists():
+        for cache_file in sorted(CACHE_DIR.glob("pages_*.json")):
+            try:
+                cached_book = json.loads(cache_file.read_text(encoding="utf-8"))
+                if cached_book.get("id") and cached_book["id"] not in extracted_ids:
+                    books.append(cached_book)
+                    print(f"[CACHE PRESERVED] Livro preservado do cache: {cached_book.get('title')} ({cached_book.get('id')})")
+            except Exception:
+                pass
+
+    books.sort(key=lambda b: get_book_sort_key(b.get("fileName", b.get("id", ""))))
+
     RAW_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     RAW_OUTPUT_PATH.write_text(json.dumps(books, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\nTotal de livros extraídos: {len(books)} -> salvo em {RAW_OUTPUT_PATH}")
+    print(f"\nTotal de livros extraídos/preservados: {len(books)} -> salvo em {RAW_OUTPUT_PATH}")
     return books
 
 

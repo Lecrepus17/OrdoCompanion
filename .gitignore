@@ -17,6 +17,7 @@ yarn-error.*
 *.aab
 __pycache__/
 *.pyc
+.venv/
 data/raw_books.json
 data/cache/rendered_pages/
 public/pdfs/

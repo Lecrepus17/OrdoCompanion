@@ -30,8 +30,8 @@ EXPECTED_EXACT_COUNTS = {
     "skill": 28,
     "origin": 59,
     "track": 35,
-    "ritual": 106,
-    "condition": 37,
+    "ritual": 107,
+    "condition": 39,
 }
 
 EXPECTED_MIN_COUNTS = {

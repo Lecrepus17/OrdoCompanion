@@ -75,6 +75,7 @@ Qualquer agente trabalhando em regras, fichas ou compêndio deve respeitar as me
 | **Sincronização & Offline First** | Sincronização Google Drive/Supabase, mesclagem temporal, resolução de conflitos, soft delete de fichas e campanhas.<br>• `src/services/sync/**`<br>• `src/repositories/**`<br>• `src/context/AppContext.tsx` | 🔄 `sync-offline-guardian`<br>*(Guardião de Sync & Offline)* | `sync-offline-audit` | Garantir persistência offline local, integridade do SmartMergeEngine, propagação de exclusões suaves (`deletedCharacterIds`) e ausência total de perda de dados. |
 | **IA Paranormal (G.L.I.T.C.H.)** | Prompts de sistema, personas da Ordem, injeção de contexto RAG, provedores remotos e motor offline.<br>• `src/services/ai/**`<br>• `src/types/ai.ts` | 🔮 `glitch-prompt-engineer`<br>*(Engenheiro de IA Paranormal)* | `glitch-prompt-audit` | Calibrar tom tático militar/investigativo, resiliência do modo offline (`AiOfflineEngine`), RAG enxuto com economia de tokens e estrita fidelidade sem alucinação de regras. |
 | **Pipeline de Dados & Compêndio** | Extração de PDFs oficiais (10 livros), scripts OCR/regex em Python, seeds JSON e páginas de livros.<br>• `scripts/extract_*.py`<br>• `data/compendium_seed.json` | 📚 `data-pipeline-architect`<br>*(Arquiteto de Compêndio)* | `data-pipeline-audit` | Auditar integridade referencial dos 10 suplementos oficiais (1.261 páginas), índices remissivos "Ver no Livro", busca fonética e normalização de entidades. |
+| **Compatibilidade & Runtime Android APK** | Execução no Android (.apk), empacotamento, botões físicos, hardware back press, sistema de arquivos local, Scoped Storage, expo-sharing, expo-file-system ou isolamento de APIs web/DOM.<br>• `android/**`<br>• `app.json`<br>• `eas.json`<br>• `src/utils/alert.ts`<br>• `src/utils/clipboard.ts`<br>• `src/utils/agentSharing.ts`<br>• `src/utils/sheetPrinter.ts`<br>• Exportadores de arquivos e modais nativos | 🤖 `android-apk-guardian`<br>*(Guardião de Compatibilidade Android APK)* | `android-apk-audit` | Auditar código contra vazamento de globais de browser (`window`, `document`, `navigator`); assegurar interceptação de `BackHandler` em modais e sub-telas; validar integridade de I/O em disco e compartilhamento via `expo-sharing` e estabilidade de layout/teclado no Android. |
 | **Testes, Lógica & Integridade** | Qualquer alteração de código, correção de bugs, refatoração de utilitários ou mudanças nos JSONs do compêndio.<br>• `tests/**`<br>• `scripts/test_database_integrity.py`<br>• `src/types/**` | 🧪 `qa-reliability-engineer`<br>*(QA & Integridade)* | `run-suite` | Aplicar Smart Testing Gates (`npm run test:rules`, `npm run test:front`, `npm run test:sync` ou `npm run test:all`), garantindo `typecheck` e ausência de regressões. |
 | **Finalização de Recurso (Changelog)** | Conclusão de qualquer funcionalidade, melhoria, refatoração ou correção de bug aprovada. | 📋 `release-manager`<br>*(Gerente de Releases)* | `update-recorder` | Atualizar imediatamente `docs/ATUALIZACOES_PENDENTES.md`, classificar SemVer (Patch, Minor ou Major) e fornecer comando pronto de release sem o usuário pedir. |
 | **Registro de Commits Git** | Finalização do ciclo de trabalho e preparação para persistir alterações no Git. | 🎯 `git-commit-architect`<br>*(Arquiteto de Commits)* | `commit-generator` | Inspecionar `git status`, redigir mensagem semântica (Conventional Commits) e atualizar `docs/COMMITS_PENDENTES.md` com comando pronto de terminal. |
@@ -96,6 +97,7 @@ Sempre que uma alteração ou nova funcionalidade for solicitada, siga rigorosam
 │    • Sincronização/Offline ➔ 🔄 sync-offline-guardian  │
 │    • IA G.L.I.T.C.H. ➔ 🔮 glitch-prompt-engineer       │
 │    • Extração/Dados ➔ 📚 data-pipeline-architect       │
+│    • Compatibilidade Android ➔ 🤖 android-apk-guardian │
 └────────────────────────────────────────────────────────┘
         │
         ▼
@@ -147,6 +149,11 @@ Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução 
 * **Configuração**: `TypeName: "research"`, `Role: "Codebase & Rules Researcher"`.
 * **Benefício**: Sandbox segura somente leitura, evitando poluir o contexto da conversa com dumps de arquivos.
 
+#### 🤖 Padrão 4: Auditoria de Compatibilidade Android APK (Android Runtime Audit)
+* **Cenário**: Implementação ou refatoração de telas, modais, exportadores de PDF/cartões ou manipuladores de arquivos que precisem rodar perfeitamente no APK standalone do Android.
+* **Configuração**: `TypeName: "self"`, `Role: "Android APK Auditor"`, `Prompt: "Audite todos os módulos modificados contra a skill android-apk-audit, verificando BackHandler, chamadas a window/document/navigator e operações de disco nativas..."`.
+* **Benefício**: Garante que funcionalidades novas não quebrem no dispositivo móvel em produção sem travar a thread de UI.
+
 ---
 
 ### Detalhamento dos Papéis de Agentes Especializados
@@ -193,6 +200,16 @@ Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução 
   * Garantir a integridade referencial dos 1.367 registros do `compendium_seed.json`.
   * Manter a busca fonética sem acentos e a indexação de páginas para o "Ver no Livro".
 
+#### 🤖 Agente Guardião de Compatibilidade Android APK (`android-apk-guardian`)
+* **Foco**: Paridade funcional absoluta e estabilidade de runtime no aplicativo compilado como APK Android (Hermes Engine).
+* **Skill**: `android-apk-audit`
+* **Responsabilidades**:
+  * Blindar todo o codebase contra vazamento acidental de APIs exclusivas de browser (`window`, `document`, `navigator`, `localStorage`, `history`).
+  * Assegurar que qualquer modal ou fluxo hierárquico capture corretamente o evento de hardware `BackHandler`, prevenindo fechamento involuntário do app.
+  * Garantir que rotinas de impressão, exportação de PDFs e geração de cards utilizem `expo-print`, `expo-sharing` e `react-native` `Share` com permissões adequadas no Android.
+  * Auditar o comportamento do teclado virtual (`adjustPan`), Safe Area Insets e densidade de pixels no Android.
+  * Validar consistência do `app.json`, `versionCode` e configurações nativas do `AndroidManifest.xml`.
+
 #### 🧪 Agente de QA & Integridade (`qa-reliability-engineer`)
 * **Foco**: Cobertura de testes, estabilidade de dados e prevenção de bugs.
 * **Skill**: `run-suite`
@@ -215,6 +232,7 @@ Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução 
 * **Skill**: `commit-generator`
 * **Responsabilidades**:
   * Analisar arquivos alterados via `git status` e compor commits com `<tipo>(<escopo>): <mensagem>`.
+  * **Isolamento de Escopo Estrito**: Identificar e selecionar **apenas** os arquivos alterados dentro do escopo da própria demanda, nunca incluindo alterações de outros agentes ou processos em paralelo.
   * Registrar as sugestões formatadas em `docs/COMMITS_PENDENTES.md` com bloco de execução pronto.
 
 ---
@@ -238,10 +256,16 @@ Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução 
 >   2. Executar imediatamente o commit via terminal (`git add ... && git commit ...`);
 >   3. Atualizar o histórico em `docs/COMMITS_PENDENTES.md` marcando a etapa como concluída.
 
+> [!CRITICAL]
+> **Regra de Ouro de Isolamento de Commits (Ambiente Multi-Agente / Paralelo)**:
+> * **Comitar EXCLUSIVAMENTE os arquivos modificados na sua própria tarefa**: Quando outras IAs, subagentes ou o usuário estiverem desenvolvendo em paralelo, haverá arquivos de outras demandas no `git status`. O assistente deve dar `git add` **apenas e tão somente** nos arquivos que ele mesmo modificou ou criou para a demanda atual.
+> * **Proibido `git add .` ou inclusão cega de arquivos alheios**: Nunca realize commits abrangentes ("catch-all") que englobem alterações de outras frentes de trabalho, a menos que o usuário solicite explicitamente (ex.: `"comite tudo"`, `"inclua as alterações da outra IA"`).
+> * Arquivos de terceiros devem permanecer intocados e não-estagiados (unstaged) no diretório de trabalho.
+
 Executado **automaticamente** pelos agentes `release-manager` e `git-commit-architect` ao concluir qualquer modificação:
 1. **Atualizar `docs/ATUALIZACOES_PENDENTES.md`** (via skill `update-recorder`):
    * Recalcular e exibir no topo a **Versão Sugerida** com base em SemVer.
    * Categorizar as mudanças em Features, Fixes, Refactor ou Docs.
 2. **Atualizar `docs/COMMITS_PENDENTES.md`** (via skill `commit-generator`):
    * Gerar o título e a descrição padronizada no formato Conventional Commits.
-   * Incluir o comando pronto `git add ... && git commit -m ...` para o desenvolvedor.
+   * Incluir o comando pronto `git add <arquivos-específicos> && git commit -m ...` apenas com os arquivos da demanda para o desenvolvedor.

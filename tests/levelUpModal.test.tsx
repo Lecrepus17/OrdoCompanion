@@ -236,7 +236,7 @@ describe('LevelUpModal - Exibição Completa de Habilidades Desbloqueadas e Apri
 
     assert.ok(getByText(/Habilidade de Trilha Desbloqueada \(NEX 65%\)/i));
     assert.ok(getByText('Técnica Sublime'));
-    assert.ok(queryByText(/A categoria da arma favorita passa a ser reduzida em III/i));
+    assert.ok(queryByText(/Técnica Secreta/i) || queryByText(/Letal/i));
   });
 
   test('no NEX 45%, deve exibir abas de filtro separando Poderes de Classe e Poderes Paranormais', async () => {

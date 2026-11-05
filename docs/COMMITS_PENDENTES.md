@@ -6,13 +6,25 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento. Todas as alterações foram consolidadas e commitadas no commit `dc36e94`)*
+*(Nenhum commit pendente no momento. Todas as alterações foram consolidadas e commitadas no commit `c426a54`)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
 
-### 1. Sistema de Dano Crítico Flexível, Crítico Máximo e Atalhos no DiceToast (`dc36e94`):
+### 1. Livro Base v1.3 com 1.617 Entidades e Erratas Oficiais:
+```bash
+git add .agents/skills/commit-generator/SKILL.md .gitignore GEMINI.md data/books_pages_seed.json data/cache/pages_livro_base.json data/compendium_seed.json scripts/extract_all.py scripts/extract_raw_pages.py scripts/parse_entities.py scripts/test_database_integrity.py src/data/seed/books_pages_seed.json src/data/seed/compendium_seed.json tests/compendiumPdfIntegration.test.tsx tests/databaseIntegrity.test.ts tests/levelUpModal.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "feat(compendium): atualiza livro base para v1.3 com 1617 entidades e erratas oficiais" \
+  -m "- Extrai e indexa livro base v1.3 oficial (332 páginas) preservando os 10 suplementos canônicos (1.271 páginas totais)" \
+  -m "- Expande base de dados para 1.617 entidades únicas (606 regras, 107 rituais, 58 armas, 39 condições e 59 origens)" \
+  -m "- Adiciona condições oficiais Enlouquecendo e Perturbado, novo item Medidor de Estabilidade da Membrana e ritual Flagelo de Sangue" \
+  -m "- Aplica erratas canônicas em Artista Marcial, Golpe Pesado, Disparo Impactante, Lâmina Maldita, Perda de Vida e ameaças" \
+  -m "- Atualiza scripts de extração/integridade e suíte de testes de banco de dados" \
+  -m "- Atualiza diretrizes de governança em GEMINI.md e commit-generator para isolamento estrito de commits por escopo de IA"
+```
+
+### 2. Sistema de Dano Crítico Flexível, Crítico Máximo e Atalhos no DiceToast (`dc36e94`):
 ```bash
 git commit -m "feat(combat): implementa modos de dano critico, botao de critico maximo e atalhos rapidos no toast" \
   -m "- Implementa motor rollWeaponDamage com suporte aos modos multiply_dice (padrao oficial v1.1) e multiply_damage (alternativo) em dice.ts" \

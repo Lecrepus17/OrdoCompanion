@@ -251,7 +251,9 @@ def parse_conditions_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, A
     conditions: List[Dict[str, Any]] = []
     lb = next((b for b in books if b["id"] == "livro_base"), None)
     if lb:
-        for pno in (312, 313):
+        is_v13 = len(lb.get("pages", [])) >= 330
+        cond_pages = (320, 321) if is_v13 else (312, 313)
+        for pno in cond_pages:
             if pno > len(lb["pages"]):
                 continue
             txt = lb["pages"][pno - 1]["text"]
@@ -395,7 +397,8 @@ def parse_origins_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]
         book_title = book["title"]
 
         if book_id == "livro_base":
-            target_pages = [p for p in book["pages"] if 18 <= p["pageNumber"] <= 23]
+            is_v13 = len(book.get("pages", [])) >= 330
+            target_pages = [p for p in book["pages"] if (26 <= p["pageNumber"] <= 31 if is_v13 else 18 <= p["pageNumber"] <= 23)]
         elif book_id == "sobrevivendo_ao_horror":
             target_pages = [p for p in book["pages"] if 8 <= p["pageNumber"] <= 14]
         elif book_id == "arquivos_secretos_07":
@@ -430,9 +433,12 @@ def parse_origins_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]
                 if pno == 9:
                     txt = re.sub(r"RESPEITE O TEXTO\n[\s\S]*?de ORDEM PARANORMAL\n", "", txt)
             if book_id == "livro_base":
-                if pno == 20:
+                is_v13 = len(book.get("pages", [])) >= 330
+                ex_pno = 28 if is_v13 else 20
+                tab_pno = 29 if is_v13 else 21
+                if pno == ex_pno:
                     txt = re.sub(r"EXEMPLO DE CRIAÇÃO DE PERSONAGEM: ORIGEM[\s\S]*?Faro para Pistas\.\n+", "", txt)
-                if pno == 21:
+                if pno == tab_pno:
                     txt = re.sub(r"TABELA 1\.1:\s*ORIGENS[\s\S]*?Cicatrizes Psicológicas\n+", "", txt)
             combined_chunks.append((pno, txt))
 
@@ -622,11 +628,13 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
     # 4A. Livro Base Class Powers & Paranormal Powers
     lb = next((b for b in books if b["id"] == "livro_base"), None)
     if lb:
-        for class_subcat, page_range in [
-            ("Poder de Combatente", (26, 27, 28)),
-            ("Poder de Especialista", (30, 31)),
-            ("Poder de Ocultista", (34, 35, 36)),
-        ]:
+        is_v13 = len(lb.get("pages", [])) >= 330
+        class_power_ranges = [
+            ("Poder de Combatente", (35, 36) if is_v13 else (26, 27, 28)),
+            ("Poder de Especialista", (39, 40) if is_v13 else (30, 31)),
+            ("Poder de Ocultista", (43, 44) if is_v13 else (34, 35, 36)),
+        ]
+        for class_subcat, page_range in class_power_ranges:
             combined = ""
             offsets = []
             for pno in page_range:
@@ -644,20 +652,22 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
                 add_power("livro_base", "Livro Base", pno, m.group(1), m.group(2), class_subcat)
 
         # Livro Base General Paranormal Powers
+        general_para_pno = 124 if is_v13 else 116
         add_power(
-            "livro_base", "Livro Base", 116, "Aprender Ritual",
+            "livro_base", "Livro Base", general_para_pno, "Aprender Ritual",
             "Através de uma conexão com as memórias de ocultistas do passado e os segredos das entidades, você aprende e pode conjurar um ritual de 1º círculo à sua escolha. Além disso, você pode substituir um ritual que já conhece por outro. A partir de 45% de NEX, quando escolhe este poder, você aprende um ritual de até 2º círculo e, a partir de 75% de NEX, aprende um ritual de até 3º círculo. Você pode escolher esse poder quantas vezes quiser, mas está sujeito ao limite de rituais conhecidos. Este poder conta como um poder do elemento do ritual escolhido.",
             "Poder Paranormal", "Variável (Conhecimento / Energia / Morte / Sangue)", "Nenhum", None
         )
         add_power(
-            "livro_base", "Livro Base", 116, "Resistir a Elemento",
+            "livro_base", "Livro Base", general_para_pno, "Resistir a Elemento",
             "Escolha entre Conhecimento, Energia, Morte ou Sangue. Você recebe resistência 10 contra esse elemento. Este poder conta como um poder do elemento escolhido.",
             "Poder Paranormal", "Variável (Conhecimento / Energia / Morte / Sangue)", "Nenhum", "aumenta a resistência para 20."
         )
 
         lb_para_text = ""
         lb_para_offsets = []
-        for pno in (115, 116, 117, 118):
+        para_pages = (124, 125, 126, 127) if is_v13 else (115, 116, 117, 118)
+        for pno in para_pages:
             txt = lb["pages"][pno - 1]["text"]
             txt = re.sub(r"RESPONDENDO AO OUTRO LADO[\s\S]*?\"Marcados\"\.\n+N\n+", "", txt)
             txt = re.sub(r"TABELA 3\.2:[\s\S]*?Sangue 2\n+", "", txt)
@@ -673,7 +683,7 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
             idx_pos = lb_para_text.find(blk, pos_cursor)
             if idx_pos >= 0:
                 pos_cursor = idx_pos
-            pno = 115
+            pno = general_para_pno
             for off, pg in lb_para_offsets:
                 if pos_cursor >= off:
                     pno = pg
@@ -859,6 +869,9 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
 # 5. DYNAMIC TRACKS (TRILHAS) & CLASSES PARSER (All 4 Classes & 35 Tracks)
 # ============================================================================
 def parse_classes_and_tracks(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    lb_check = next((b for b in books if b["id"] == "livro_base"), None)
+    is_v13 = lb_check is not None and len(lb_check.get("pages", [])) >= 330
+
     classes: List[Dict[str, Any]] = [
         {
             "id": "class__livro_base__combatente",
@@ -867,7 +880,7 @@ def parse_classes_and_tracks(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str
             "name": "Combatente",
             "bookId": "livro_base",
             "bookTitle": "Livro Base",
-            "pageNumber": 26,
+            "pageNumber": 32 if is_v13 else 26,
             "element": "Nenhum",
             "initialPV": "20 + Vigor",
             "pvPerNex": "4 PV (+Vig)",
@@ -895,7 +908,7 @@ def parse_classes_and_tracks(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str
             "name": "Especialista",
             "bookId": "livro_base",
             "bookTitle": "Livro Base",
-            "pageNumber": 30,
+            "pageNumber": 38 if is_v13 else 30,
             "element": "Nenhum",
             "initialPV": "16 + Vigor",
             "pvPerNex": "3 PV (+Vig)",
@@ -924,7 +937,7 @@ def parse_classes_and_tracks(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str
             "name": "Ocultista",
             "bookId": "livro_base",
             "bookTitle": "Livro Base",
-            "pageNumber": 34,
+            "pageNumber": 42 if is_v13 else 34,
             "element": "Variável",
             "initialPV": "12 + Vigor",
             "pvPerNex": "2 PV (+Vig)",
@@ -1002,10 +1015,11 @@ def parse_classes_and_tracks(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str
     # 5A. Livro Base Tracks (15 tracks)
     lb = next((b for b in books if b["id"] == "livro_base"), None)
     if lb:
+        is_v13 = len(lb.get("pages", [])) >= 330
         lb_track_specs = [
-            ("Combatente", (28, 29), ["Aniquilador", "Comandante de Campo", "Guerreiro", "Operações Especiais", "Tropa de Choque"]),
-            ("Especialista", (31, 32, 33), ["Atirador de Elite", "Infiltrador", "Médico de Campo", "Negociador", "Técnico"]),
-            ("Ocultista", (36, 37), ["Conduíte", "Flagelador", "Graduado", "Intuitivo", "Lâmina Paranormal"]),
+            ("Combatente", (36, 37) if is_v13 else (28, 29), ["Aniquilador", "Comandante de Campo", "Guerreiro", "Operações Especiais", "Tropa de Choque"]),
+            ("Especialista", (40, 41, 42) if is_v13 else (31, 32, 33), ["Atirador de Elite", "Infiltrador", "Médico de Campo", "Negociador", "Técnico"]),
+            ("Ocultista", (44, 45) if is_v13 else (36, 37), ["Conduíte", "Flagelador", "Graduado", "Intuitivo", "Lâmina Paranormal"]),
         ]
         for class_name, pg_nums, tnames in lb_track_specs:
             combined = ""
@@ -1125,12 +1139,15 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
     seen_weapons = set()
     seen_items = set()
 
-    # 6A. Parse weapon table rows from Livro Base (pages 58-59)
+    # 6A. Parse weapon table rows from Livro Base
     lb = next((b for b in books if b["id"] == "livro_base"), None)
     if lb:
+        is_v13 = len(lb.get("pages", [])) >= 330
+        table_pages = (66, 67) if is_v13 else (58, 59)
+        desc_pages = (68, 69, 70, 71) if is_v13 else (59, 60, 61, 62)
         proficiency = "Armas Simples"
         handedness = "Corpo a Corpo – Leves"
-        for pno in (58, 59):
+        for pno in table_pages:
             txt = lb["pages"][pno - 1]["text"]
             for block in txt.split("\n\n"):
                 lines = [l.strip() for l in block.strip().splitlines() if l.strip()]
@@ -1173,7 +1190,7 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                         "tags": ["Arma", proficiency, f"Categoria {cat}", "Livro Base"],
                     })
 
-        weapon_desc_text = "\n\n".join(lb["pages"][p - 1]["text"] for p in (59, 60, 61, 62))
+        weapon_desc_text = "\n\n".join(lb["pages"][p - 1]["text"] for p in desc_pages)
         for w in weapons:
             m = re.search(rf"(?m)^{re.escape(w['name'])}\.\s*([^\n]+(?:\n(?![A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç \t]+\.)[^\n]+)*)", weapon_desc_text)
             if m:
@@ -1287,8 +1304,13 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                 sec = page.get("section", "")
 
                 if book_id == "livro_base":
-                    if not (62 <= pno <= 71 or 144 <= pno <= 155 or pno in (170, 171, 291, 292, 293)):
-                        continue
+                    is_v13 = len(book.get("pages", [])) >= 330
+                    if is_v13:
+                        if not (64 <= pno <= 79 or 154 <= pno <= 165 or pno in (180, 181, 301, 302, 303)):
+                            continue
+                    else:
+                        if not (62 <= pno <= 71 or 144 <= pno <= 155 or pno in (170, 171, 291, 292, 293)):
+                            continue
                 else:
                     if not (39 <= pno <= 46 or 58 <= pno <= 63):
                         continue
@@ -1301,22 +1323,40 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                     idesc = m.group(2).strip()
                     subcat = "Equipamento Geral"
                     el = "Nenhum"
-                    if "Modificações" in sec or (book_id == "livro_base" and pno in (62, 63, 64, 69)) or (book_id == "sobrevivendo_ao_horror" and pno == 39):
-                        subcat = "Modificação"
-                    elif "Proteções" in sec or (book_id == "livro_base" and pno == 65):
-                        subcat = "Proteção"
-                    elif "Amaldiçoados" in sec or "Maldições" in sec or (book_id == "livro_base" and 144 <= pno <= 155) or (book_id == "sobrevivendo_ao_horror" and 58 <= pno <= 63):
-                        subcat = "Item Amaldiçoado / Maldição"
-                        for el_cand in ("Sangue", "Morte", "Conhecimento", "Energia", "Medo"):
-                            if el_cand in idesc or el_cand.upper() in txt.upper():
-                                el = el_cand
-                                break
-                    elif pno in (45, 46) and book_id == "sobrevivendo_ao_horror":
-                        subcat = "Item Paranormal"
-                    elif pno in (170, 171) and book_id == "livro_base":
-                        subcat = "Aliado"
-                    elif pno in (291, 292, 293) and book_id == "livro_base":
-                        subcat = "Doença / Veneno"
+                    if book_id == "livro_base" and len(book.get("pages", [])) >= 330:
+                        if "Modificações" in sec or pno in (70, 71, 72, 73, 77):
+                            subcat = "Modificação"
+                        elif "Proteções" in sec or pno in (72, 73):
+                            subcat = "Proteção"
+                        elif "Amaldiçoados" in sec or "Maldições" in sec or (154 <= pno <= 165):
+                            subcat = "Item Amaldiçoado / Maldição"
+                            for el_cand in ("Sangue", "Morte", "Conhecimento", "Energia", "Medo"):
+                                if el_cand in idesc or el_cand.upper() in txt.upper():
+                                    el = el_cand
+                                    break
+                        elif pno == 77 or "Item Paranormal" in idesc:
+                            subcat = "Item Paranormal"
+                        elif pno in (180, 181):
+                            subcat = "Aliado"
+                        elif pno in (301, 302, 303):
+                            subcat = "Doença / Veneno"
+                    else:
+                        if "Modificações" in sec or (book_id == "livro_base" and pno in (62, 63, 64, 69)) or (book_id == "sobrevivendo_ao_horror" and pno == 39):
+                            subcat = "Modificação"
+                        elif "Proteções" in sec or (book_id == "livro_base" and pno == 65):
+                            subcat = "Proteção"
+                        elif "Amaldiçoados" in sec or "Maldições" in sec or (book_id == "livro_base" and 144 <= pno <= 155) or (book_id == "sobrevivendo_ao_horror" and 58 <= pno <= 63):
+                            subcat = "Item Amaldiçoado / Maldição"
+                            for el_cand in ("Sangue", "Morte", "Conhecimento", "Energia", "Medo"):
+                                if el_cand in idesc or el_cand.upper() in txt.upper():
+                                    el = el_cand
+                                    break
+                        elif pno in (45, 46) and book_id == "sobrevivendo_ao_horror":
+                            subcat = "Item Paranormal"
+                        elif pno in (170, 171) and book_id == "livro_base":
+                            subcat = "Aliado"
+                        elif pno in (291, 292, 293) and book_id == "livro_base":
+                            subcat = "Doença / Veneno"
                     add_item(book_id, book_title, pno, iname, idesc, subcat, el)
 
         else:
@@ -1441,8 +1481,19 @@ def parse_skills_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
 
     skills: List[Dict[str, Any]] = []
     lb = next((b for b in books if b["id"] == "livro_base"), None)
+    is_v13 = lb is not None and len(lb.get("pages", [])) >= 330
+    skills_meta_v13 = {
+        "Acrobacia": 50, "Adestramento": 52, "Artes": 52, "Atletismo": 52, "Atualidades": 53,
+        "Ciências": 53, "Crime": 53, "Diplomacia": 54, "Enganação": 54, "Fortitude": 55,
+        "Furtividade": 55, "Iniciativa": 55, "Intimidação": 55, "Intuição": 55, "Investigação": 56,
+        "Luta": 56, "Medicina": 56, "Ocultismo": 57, "Percepção": 57, "Pilotagem": 57,
+        "Pontaria": 57, "Profissão": 57, "Reflexos": 58, "Religião": 58, "Sobrevivência": 58,
+        "Tática": 58, "Tecnologia": 58, "Vontade": 59,
+    }
 
     for sname, attr, trained_only, armor_pen, kit_req, pno, short_desc in skills_meta:
+        if is_v13 and sname in skills_meta_v13:
+            pno = skills_meta_v13[sname]
         full_text = short_desc
         if lb and pno <= len(lb["pages"]):
             page_txt = lb["pages"][pno - 1]["text"]
@@ -1605,6 +1656,14 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
         ("livro_base", 278, 400): "O Anfitrião",
         ("livro_base", 285, 10): "Enxame de Ratos",
         ("livro_base", 285, 40): "Jacaré",
+        # Livro Base v1.3 page offsets
+        ("livro_base", 211, 220): "Titã de Sangue",
+        ("livro_base", 215, 240): "Zumbi de Sangue Colossal",
+        ("livro_base", 250, 10): "Existido",
+        ("livro_base", 264, 400): "A Máscara do Desespero",
+        ("livro_base", 288, 400): "O Anfitrião",
+        ("livro_base", 295, 10): "Enxame de Ratos",
+        ("livro_base", 295, 40): "Jacaré",
     }
 
     fallback_creature_attrs = {
@@ -1639,8 +1698,9 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
                 m for m in re.finditer(r"\bVD\s*(\d{1,3})\b", txt)
                 if re.search(r"(?i)\b(?:DEFESA|SENTIDOS|PRESENÇA PERTURBADORA|AÇÕES)\b", txt[max(0, m.start() - 500) : m.end() + 500])
             ]
-            if book_id == "livro_base" and pno == 278:
-                anf_m = re.search(r"VD0413", txt)
+            anf_pno = 288 if (book_id == "livro_base" and len(book.get("pages", [])) >= 330) else 278
+            if book_id == "livro_base" and pno == anf_pno:
+                anf_m = re.search(r"VD\s*(?:400|0413)", txt)
                 if anf_m and not any(m.start() == anf_m.start() for m in vd_matches):
                     vd_matches.append(anf_m)
 
@@ -1662,8 +1722,8 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
                 if not def_m and not pv_m and vd != 400:
                     continue
 
-                defesa = int(def_m.group(1)) if def_m else (29 if vd == 400 and book_id == "livro_base" and pno == 278 else 15)
-                pv = int(pv_m.group(1)) if pv_m else (1413 if vd == 400 and book_id == "livro_base" and pno == 278 else 30)
+                defesa = int(def_m.group(1)) if def_m else (29 if vd == 400 and book_id == "livro_base" and pno == anf_pno else 15)
+                pv = int(pv_m.group(1)) if pv_m else (1413 if vd == 400 and book_id == "livro_base" and pno == anf_pno else 30)
 
                 cname = page_creature_overrides.get((book_id, pno, vd), "")
 
@@ -1884,7 +1944,13 @@ def parse_rules_and_chapters(books: List[Dict[str, Any]]) -> List[Dict[str, Any]
 
 
 def run_entity_pipeline() -> Dict[str, Any]:
-    books = json.loads(RAW_BOOKS_PATH.read_text(encoding="utf-8"))
+    if RAW_BOOKS_PATH.exists():
+        books = json.loads(RAW_BOOKS_PATH.read_text(encoding="utf-8"))
+    else:
+        cache_dir = ROOT_DIR / "data" / "cache"
+        books = []
+        for p in sorted(cache_dir.glob("pages_*.json")):
+            books.append(json.loads(p.read_text(encoding="utf-8")))
 
     def canonical_book_sort(b):
         name = f"{b.get('id', '')} {b.get('title', '')} {b.get('fileName', '')}".lower()

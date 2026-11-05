@@ -16,6 +16,11 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+venv_python = ROOT_DIR / ".venv" / "Scripts" / "python.exe"
+if venv_python.exists() and Path(sys.executable).resolve() != venv_python.resolve():
+    import subprocess
+    sys.exit(subprocess.call([str(venv_python)] + sys.argv))
+
 sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
 from extract_raw_pages import extract_all_pdfs

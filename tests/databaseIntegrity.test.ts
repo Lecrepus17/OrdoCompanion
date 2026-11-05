@@ -23,8 +23,8 @@ const EXPECTED_EXACT_COUNTS: Record<string, number> = {
   skill: 28,
   origin: 59,
   track: 35,
-  ritual: 106,
-  condition: 37,
+  ritual: 107,
+  condition: 39,
 };
 
 const EXPECTED_MIN_COUNTS: Record<string, number> = {

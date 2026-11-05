@@ -67,7 +67,8 @@ git commit -m "tipo(escopo): descrição concisa" -m "- Detalhe 1" -m "- Detalhe
 ## 3. Passo a Passo do Agente
 
 1. Execute `git status -s` ou inspecione os arquivos alterados nesta sessão.
-2. Identifique o tipo e escopo dominante da entrega.
-3. Elabore um título claro e uma lista de bullet points destacando os arquivos e o valor da modificação.
-4. Escreva ou atualize `docs/COMMITS_PENDENTES.md`.
-5. Apresente o bloco de comando para o usuário no chat.
+2. **Filtragem Estrita de Escopo**: Isole **apenas** os arquivos que foram modificados ou criados pela sua demanda atual. Arquivos alterados por outras IAs em paralelo ou pelo usuário devem ser sumariamente ignorados do staging, a menos que o usuário solicite explicitamente para incluí-los.
+3. Identifique o tipo e escopo dominante da entrega.
+4. Elabore um título claro e uma lista de bullet points destacando os arquivos e o valor da modificação.
+5. Escreva ou atualize `docs/COMMITS_PENDENTES.md` fornecendo o comando `git add <arquivos-específicos>` com os caminhos nominais exatos (nunca `git add .`).
+6. Apresente o bloco de comando para o usuário no chat.
