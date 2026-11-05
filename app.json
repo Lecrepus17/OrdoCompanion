@@ -23,6 +23,10 @@
       "versionCode": 4,
       "largeHeap": true,
       "softwareKeyboardLayoutMode": "pan",
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.INTERNET"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"

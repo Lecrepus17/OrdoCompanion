@@ -6,6 +6,8 @@ import {
   isValidCharacterSheet,
   formatAgentSummary,
   SHARE_CODE_PREFIX,
+  utf8ToBase64,
+  base64ToUtf8,
 } from '../src/utils/agentSharing';
 import { CharacterSheet } from '../src/types/compendium';
 
@@ -94,5 +96,40 @@ test('Sistema de Compartilhamento de Agentes (agentSharing.ts)', async (t) => {
     assert.ok(summary.includes('Arthur Cervero'));
     assert.ok(summary.includes('Jogador: Thiago Espíndola'));
     assert.ok(summary.includes('NEX 50%'));
+  });
+
+  await t.test('utf8ToBase64 e base64ToUtf8 devem suportar strings vazias, ASCII, acentos e emojis', () => {
+    const cases = [
+      '',
+      'a',
+      'ab',
+      'abc',
+      'Ordo Realitas',
+      'Ritual de Cicatrização e Transfiguração do Sangue',
+      '🕵️‍♂️🧙‍♀️🎲⚔️🛡️🏹🩸💀👁️⚡❤️‍🔥',
+      'ÁÉÍÓÚ àèìòù ãõ ç ñ ü € § ¶ © ® ™',
+    ];
+
+    for (const text of cases) {
+      const encoded = utf8ToBase64(text);
+      const decoded = base64ToUtf8(encoded);
+      assert.equal(decoded, text);
+
+      // Validação de paridade com RFC 4648 / Buffer do Node
+      const bufferB64 = Buffer.from(text, 'utf-8').toString('base64');
+      assert.equal(encoded, bufferB64);
+    }
+  });
+
+  await t.test('base64ToUtf8 deve ser tolerante a whitespace e padding ausente', () => {
+    assert.equal(base64ToUtf8('  YQ== \n'), 'a');
+    assert.equal(base64ToUtf8('YQ'), 'a');
+    assert.equal(base64ToUtf8('YWI'), 'ab');
+    assert.equal(base64ToUtf8('YWJj'), 'abc');
+  });
+
+  await t.test('base64ToUtf8 deve lançar erro para strings base64 inválidas', () => {
+    assert.throws(() => base64ToUtf8('Y'), /Comprimento/);
+    assert.throws(() => base64ToUtf8('****'), /Caractere/);
   });
 });

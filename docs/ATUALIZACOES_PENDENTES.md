@@ -52,11 +52,22 @@
 - `src/components/DiceToast.tsx`: Atalhos de dano rápido com realce de 20 natural.
 - `src/app/(tabs)/characters.tsx` & `src/app/(tabs)/weapons.tsx`: Seletores de modo de crítico, botões de dano máximo e eliminação de truncamento de bônus.
 
+### 🤖 Compatibilidade Android APK & Runtime Hermes
+- `.agents/skills/android-apk-audit/SKILL.md`: Criação de skill especializada com auditoria de runtime, checklists de APIs nativas, BackHandler e manipulação de arquivos no Android.
+- `GEMINI.md`: Registro do agente `android-apk-guardian` e regras de roteamento automatizado para o ecossistema Android APK.
+- `app.json`: Configurações nativas essenciais para APK (`largeHeap: true`, `usesCleartextTraffic: true`, permissão `INTERNET` e `softwareKeyboardLayoutMode: "adjustPan"`).
+- `src/services/ai/AiClient.ts`: Resolução dinâmica de host no Android (`10.0.2.2` / dev server IP) para conexão transparente com servidor de IA Ollama local.
+- `src/utils/agentSharing.ts`: Reescrita de codificação/decodificação Base64 sem dependências de Node `Buffer` ou browser `btoa`/`atob`, com suporte estrito a UTF-8 e emojis no motor Hermes.
+- `docs/PLANO_COMPATIBILIDADE_ANDROID_APK.md`: Documentação de diagnóstico, status atual e instruções passo a passo para finalização das telas restantes.
+
 ### 🧪 Testes Automatizados
 - `tests/databaseIntegrity.test.ts` & `scripts/test_database_integrity.py`: Validação de 1.617 entidades e integridade referencial dos 10 suplementos.
 - `tests/levelUpModal.test.tsx`: Asserção de habilidades de trilha de NEX 65% atualizada conforme progressão canônica.
 - `tests/compendiumPdfIntegration.test.tsx`: Índice da seção "Mecânica Básica" atualizado para a folha 19 da v1.3.
 - `tests/dice.test.ts`: 20 testes de cálculo de dano crítico determinístico e alternativo.
+- `tests/agentSharing.adversarial.test.ts`: Validação de paridade bit-a-bit de codificação Base64 com payloads massivos (até 1 MB) e emojis para Hermes.
+- `tests/aiOllama.adversarial.test.ts`: 10 testes de resolução de IP e loopback no Android para IA Ollama local.
+- `tests/appJson.adversarial.test.ts`: Testes de estrutura e integridade sintática das configurações do Android APK.
 
 ---
 

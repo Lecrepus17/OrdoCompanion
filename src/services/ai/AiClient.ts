@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { AiCitation, AiConfig, AiMessage, AiProvider, AiSuggestedAction } from '../../types/ai';
 import { RetrievedKnowledge, retrieveAiKnowledge } from './AiKnowledgeRetrieval';
 import { generateOfflineResponse } from './AiOfflineEngine';
@@ -21,6 +23,86 @@ function isTestEnvironment(): boolean {
     Boolean(process.env.VITEST) ||
     (typeof process !== 'undefined' && Array.isArray(process.argv) && process.argv.some((arg) => arg.includes('test')))
   );
+}
+
+/**
+ * Tenta extrair o endereço IP do host de desenvolvimento a partir dos metadados do Expo/Metro.
+ * Utilizado no Android para mapear 'localhost' para a máquina do desenvolvedor.
+ */
+export function getDevServerHostIp(): string {
+  try {
+    const manifest2 = (Constants as unknown as {
+      manifest2?: {
+        extra?: {
+          expoGo?: { debuggerHost?: string; hostUri?: string };
+          expoClient?: { hostUri?: string };
+        };
+      };
+    })?.manifest2;
+
+    const host =
+      manifest2?.extra?.expoGo?.debuggerHost ||
+      manifest2?.extra?.expoClient?.hostUri ||
+      manifest2?.extra?.expoGo?.hostUri ||
+      Constants.expoConfig?.hostUri;
+
+    if (host && typeof host === 'string') {
+      const clean = host.split('/')[0].split(':')[0];
+      if (clean && clean !== 'localhost' && clean !== '127.0.0.1') {
+        return clean;
+      }
+    }
+  } catch {
+    // Falha silenciosa se Constants não estiver disponível
+  }
+  return '';
+}
+
+/**
+ * Resolve o endpoint do Ollama para o ambiente de execução atual (Android, Web ou iOS).
+ * No Android:
+ * - Substitui 'localhost' ou '127.0.0.1' pelo IP detectado do host ou pelo gateway do emulador ('10.0.2.2').
+ * - Garante o prefixo 'http://'.
+ * - Garante que a rota aponte para um endpoint de chat válido ('/v1/chat/completions' por padrão).
+ */
+export function resolveOllamaEndpoint(endpoint?: string): string {
+  let url = (endpoint || '').trim();
+
+  // Se nenhum endpoint foi informado, adota o padrão local
+  if (!url) {
+    if (Platform?.OS === 'android') {
+      const devHost = getDevServerHostIp();
+      url = devHost ? `http://${devHost}:11434` : 'http://10.0.2.2:11434';
+    } else {
+      url = 'http://localhost:11434';
+    }
+  }
+
+  // Garante o protocolo http:// ou https://
+  if (!/^https?:\/\//i.test(url)) {
+    url = `http://${url}`;
+  }
+
+  // Remove barras finais
+  url = url.replace(/\/+$/, '');
+
+  // No Android, se o host for 'localhost' ou '127.0.0.1', redireciona para o IP da máquina ou 10.0.2.2
+  if (Platform?.OS === 'android') {
+    const devHost = getDevServerHostIp();
+    const replacementHost = devHost || '10.0.2.2';
+    url = url.replace(/\b(localhost|127\.0\.0\.1)\b/i, replacementHost);
+  }
+
+  // Se o caminho não especifica uma rota de chat, adiciona a rota OpenAI-compatível
+  if (!url.endsWith('/v1/chat/completions') && !url.endsWith('/api/chat')) {
+    if (url.endsWith('/v1')) {
+      url = `${url}/chat/completions`;
+    } else {
+      url = `${url}/v1/chat/completions`;
+    }
+  }
+
+  return url;
 }
 
 /**
@@ -286,9 +368,10 @@ export async function sendAiChatMessage({
       : chatHistory;
 
   const effectiveApiKey = getEffectiveApiKey(config);
+  const isKeyRequired = config.provider !== 'offline' && config.provider !== 'ollama';
 
-  // Se o provedor for 'offline' ou não houver chave de API configurada (nem própria, nem padrão), utiliza o sintetizador local gratuito
-  if (config.provider === 'offline' || !effectiveApiKey) {
+  // Se o provedor for 'offline' ou se for um provedor que exige chave e nenhuma estiver configurada, utiliza o sintetizador local gratuito
+  if (config.provider === 'offline' || (isKeyRequired && !effectiveApiKey)) {
     const offlineMsg = generateOfflineResponse(query, knowledge, knowledge.resolvedPersona);
     const parsed = parseCitationsAndActions(offlineMsg.content, offlineMsg.citations);
     return {
@@ -301,7 +384,7 @@ export async function sendAiChatMessage({
 
   const effectiveConfig: AiConfig = {
     ...config,
-    apiKey: effectiveApiKey,
+    apiKey: effectiveApiKey || config.apiKey || '',
   };
 
   try {
@@ -526,8 +609,13 @@ async function callOpenAiCompatibleApi(
   knowledge: RetrievedKnowledge,
   chatHistory: AiMessage[]
 ): Promise<AiMessage> {
-  const url = config.endpoint || 'https://openrouter.ai/api/v1/chat/completions';
-  const modelName = config.model || 'meta-llama/llama-3.3-70b-instruct:free';
+  const isOllama = config.provider === 'ollama';
+  const url = isOllama
+    ? resolveOllamaEndpoint(config.endpoint)
+    : config.endpoint || 'https://openrouter.ai/api/v1/chat/completions';
+  const modelName = isOllama
+    ? config.model || 'llama3.3'
+    : config.model || 'meta-llama/llama-3.3-70b-instruct:free';
 
   const messages = [
     { role: 'system', content: knowledge.systemPrompt },
@@ -538,26 +626,40 @@ async function callOpenAiCompatibleApi(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (config.apiKey) {
+  if (config.apiKey && config.apiKey.trim()) {
     headers['Authorization'] = `Bearer ${config.apiKey.trim()}`;
+  }
+
+  const isNativeOllamaApi = url.endsWith('/api/chat');
+  const payload: Record<string, any> = {
+    model: modelName,
+    messages,
+    temperature: config.temperature ?? 0.4,
+  };
+  if (isNativeOllamaApi) {
+    payload.stream = false;
   }
 
   const response = await fetch(url, {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      model: modelName,
-      messages,
-      temperature: config.temperature ?? 0.4,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    throw new Error(`Erro na API (${response.status})`);
+    let errorDetail = `Erro na API (${response.status})`;
+    try {
+      const errJson = await response.json();
+      errorDetail = errJson.error?.message || errJson.error || errorDetail;
+    } catch {}
+    throw new Error(errorDetail);
   }
 
   const data = await response.json();
-  const rawText = data?.choices?.[0]?.message?.content || 'Sem resposta.';
+  const rawText =
+    data?.choices?.[0]?.message?.content ||
+    data?.message?.content ||
+    'Sem resposta.';
   const { citations, actions } = parseCitationsAndActions(rawText, knowledge.citations);
 
   return {
@@ -584,7 +686,7 @@ export async function testAiConnection(
   const effectiveApiKey = getEffectiveApiKey(config);
   const isDefault = isUsingDefaultApiKey(config);
 
-  if (!effectiveApiKey) {
+  if (config.provider !== 'ollama' && !effectiveApiKey) {
     return { success: false, message: 'Insira a chave de API para realizar o teste.' };
   }
 
@@ -651,10 +753,65 @@ export async function testAiConnection(
 
       const originTag = isDefault ? ' (Usando Chave Padrão)' : ' (Usando Chave Pessoal)';
       return { success: true, message: `Conexão com Groq Cloud realizada com sucesso!${originTag}` };
+    } else if (config.provider === 'ollama') {
+      const resolvedUrl = resolveOllamaEndpoint(config.endpoint);
+      const baseOrigin = resolvedUrl.replace(/\/(v1\/chat\/completions|api\/chat|v1)\/?$/i, '');
+      const testModel = config.model || 'llama3.3';
+
+      try {
+        const tagsRes = await fetch(`${baseOrigin}/api/tags`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (tagsRes.ok) {
+          const tagsData = await tagsRes.json();
+          const modelsList: string[] = (tagsData?.models || []).map((m: any) => m.name || m.model);
+          const hasModel = modelsList.some((m) => m && m.toLowerCase().includes(testModel.toLowerCase()));
+          const modelNote = hasModel
+            ? `Modelo '${testModel}' pronto!`
+            : modelsList.length > 0
+              ? `Modelos disponíveis: ${modelsList.slice(0, 3).join(', ')}`
+              : 'Ollama conectado com sucesso.';
+          return {
+            success: true,
+            message: `Conexão com Ollama (${baseOrigin}) estabelecida! ${modelNote}`,
+          };
+        }
+      } catch {
+        // Tenta completions se /api/tags falhar
+      }
+
+      const compRes = await fetch(resolvedUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: testModel,
+          messages: [{ role: 'user', content: 'OK' }],
+          max_tokens: 5,
+          stream: false,
+        }),
+      });
+
+      if (!compRes.ok) {
+        return {
+          success: false,
+          message: `Ollama retornou status HTTP ${compRes.status} no endpoint ${resolvedUrl}.`,
+        };
+      }
+
+      return {
+        success: true,
+        message: `Conexão com Ollama (${resolvedUrl}) validada com sucesso!`,
+      };
     }
 
     return { success: true, message: 'Conexão validada com sucesso!' };
   } catch (err: any) {
-    return { success: false, message: err.message || 'Falha de conexão com o provedor.' };
+    let msg = err.message || 'Falha de conexão com o provedor.';
+    if (config.provider === 'ollama' && Platform?.OS === 'android') {
+      msg += ' (No Android, use o IP da máquina na rede Wi-Fi, ex: http://192.168.1.X:11434, em vez de localhost, e verifique se usesCleartextTraffic está habilitado no app.json).';
+    }
+    return { success: false, message: msg };
   }
 }

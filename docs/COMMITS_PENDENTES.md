@@ -6,11 +6,24 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento. Todas as alterações foram consolidadas e commitadas no commit `c426a54`)*
+*(Nenhum commit pendente no momento. Todas as alterações foram consolidadas e commitadas)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### 1. Compatibilidade Android APK, Agente Especializado e Runtime Hermes:
+```bash
+git add .agents/skills/android-apk-audit/ app.json src/services/ai/AiClient.ts src/utils/agentSharing.ts tests/agentSharing.test.ts tests/agentSharing.adversarial.test.ts tests/aiOllama.adversarial.test.ts tests/appJson.adversarial.test.ts docs/PLANO_COMPATIBILIDADE_ANDROID_APK.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "feat(android): implementa agente guardiao e compatibilidade de runtime para apk hermes" \
+  -m "- Cria skill especializada android-apk-audit em .agents/skills/ e registra agente android-apk-guardian" \
+  -m "- Configura app.json com largeHeap, permissao INTERNET, usesCleartextTraffic e adjustPan para Android" \
+  -m "- Implementa resolucao dinamica de host (10.0.2.2 / dev server) para IA Ollama local no Android em AiClient.ts" \
+  -m "- Reimplementa codificacao Base64 sem Buffer/btoa no motor Hermes com suporte a UTF-8 e emojis em agentSharing.ts" \
+  -m "- Adiciona testes adversariais em tests/agentSharing.adversarial.test.ts, tests/aiOllama.adversarial.test.ts e tests/appJson.adversarial.test.ts" \
+  -m "- Cria documento de diagnostico e instrucoes passo a passo em docs/PLANO_COMPATIBILIDADE_ANDROID_APK.md" \
+  -m "- Atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
 
 ### 1. Livro Base v1.3 com 1.617 Entidades e Erratas Oficiais:
 ```bash
