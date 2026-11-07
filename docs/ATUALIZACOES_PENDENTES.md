@@ -30,7 +30,7 @@
 - `.env.example`: removida chave real do Gemini e documentadas as novas variáveis com placeholders.
 
 ### 🐛 Correções de Bugs (Fixes)
-- *(Nenhuma correção registrada neste ciclo ainda)*
+- `.vscode/settings.json`: substituídas as chaves depreciadas `typescript.tsdk` e `typescript.enablePromptUseWorkspaceTsdk` pelas novas `js/ts.tsdk.path` e `js/ts.tsdk.promptToUseWorkspaceVersion`.
 
 ### 🧪 Testes Automatizados
 - *(Aguardando novos testes do ciclo)*

@@ -12,7 +12,16 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### ✅ 1. Painel Dev Oculto em Release na Central de Suporte:
+### ✅ 1. Atualização de Configurações do TypeScript no VS Code:
+```bash
+git add .vscode/settings.json docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "chore(vscode): atualiza chaves depreciadas do tsdk no settings.json" \
+  -m "- Substitui typescript.tsdk por js/ts.tsdk.path" \
+  -m "- Substitui typescript.enablePromptUseWorkspaceTsdk por js/ts.tsdk.promptToUseWorkspaceVersion" \
+  -m "- Atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
+### ✅ 2. Painel Dev Oculto em Release na Central de Suporte:
 ```bash
 git add src/components/SupportCenterView.tsx
 git commit -m "feat(support): oculta painel do desenvolvedor em builds de release" \
