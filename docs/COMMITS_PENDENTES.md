@@ -12,6 +12,16 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### 1. Automação de Release Notes, Clipboard e Isolamento de Ciclo entre Versões:
+```bash
+git add scripts/create_release.js .agents/skills/update-recorder/SKILL.md GEMINI.md docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "chore(release): automatiza release notes, clipboard e reset de ciclo por versao" \
+  -m "- Evolui scripts/create_release.js para gerar docs/RELEASE_NOTES.md e copiar automaticamente para o Clipboard (Ctrl+V)" \
+  -m "- Arquiva a versao lancada em docs/HISTORICO_RELEASES.md e reseta docs/ATUALIZACOES_PENDENTES.md isolando cada ciclo de versao" \
+  -m "- Torna o incremento de android.versionCode idempotente e adiciona flags --open e --publish" \
+  -m "- Atualiza skill update-recorder e GEMINI.md com a regra de isolamento estrito entre releases"
+```
+
 ### 1. Preparação da Release v1.3.0-beta.1 (versionCode 5):
 ```bash
 git add package.json app.json version.json docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
