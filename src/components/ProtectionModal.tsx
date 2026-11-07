@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  BackHandler,
   Modal,
   Platform,
   ScrollView,
@@ -86,6 +87,17 @@ export default function ProtectionModal({
   const [customShieldSpaces, setCustomShieldSpaces] = useState('2');
   const [customShieldCategory, setCustomShieldCategory] = useState<'0' | 'I' | 'II' | 'III' | 'IV'>('0');
   const [customShieldRd, setCustomShieldRd] = useState('0');
+
+  // Intercepta botão de retorno físico no Android
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    const onBackPress = () => {
+      onClose();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [visible, onClose]);
 
   // Sincronizar estado inicial a partir do personagem quando o modal abre
   useEffect(() => {

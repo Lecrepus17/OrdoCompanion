@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
+import { Platform, Share } from 'react-native';
 import {
   TableCombatState,
   TableParticipant,
@@ -814,6 +814,8 @@ export async function exportSessionToPdfFile(
       });
     } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.open(pdfUri, '_blank');
+    } else {
+      await Share.share({ url: pdfUri, title: `Resumo Tático da Sessão ${roomId}` });
     }
 
     return { success: true, uri: pdfUri, filename };

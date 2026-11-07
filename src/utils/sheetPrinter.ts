@@ -142,6 +142,8 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
     trackEntity,
   } = options;
 
+  if (!char) return '';
+
   const isSH = sheetType === 'sobrevivendo_horror';
   const frontBg = isSH ? SH_FRONT_B64 : BASE_FRONT_B64;
   const backBg = isSH ? SH_BACK_B64 : BASE_BACK_B64;
@@ -892,7 +894,7 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
 export async function printCharacterSheet(options: GenerateSheetOptions): Promise<void> {
   const html = generateSheetHtml(options);
 
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
     try {
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
@@ -933,14 +935,14 @@ export async function printCharacterSheet(options: GenerateSheetOptions): Promis
  * Opens the printable sheet in a new browser tab
  */
 export function openPrintableTab(options: GenerateSheetOptions): void {
-  if (Platform.OS !== 'web') {
-    printCharacterSheet(options);
+  if (Platform.OS !== 'web' || typeof window === 'undefined') {
+    void printCharacterSheet(options);
     return;
   }
 
   const html = generateSheetHtml(options);
-  const printWindow = window.open('', '_blank');
-  if (printWindow) {
+  const printWindow = typeof window !== 'undefined' ? window.open('', '_blank') : null;
+  if (printWindow && printWindow.document) {
     printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();

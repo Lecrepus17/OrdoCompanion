@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
+  BackHandler,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +25,17 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({ visible,
   const { openManual } = useApp();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+
+  // Intercepta botão físico de retorno no Android
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    const onBackPress = () => {
+      onClose();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [visible, onClose]);
 
   const getThemeIcon = (id: string) => {
     switch (id) {

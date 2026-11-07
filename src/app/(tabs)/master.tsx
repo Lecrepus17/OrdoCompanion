@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   Alert,
+  BackHandler,
   FlatList,
   Modal,
   Platform,
@@ -127,6 +128,78 @@ export default function MasterScreen() {
 
   // Modal de Rolagem Rápida de Perícia para Agente
   const [skillRollAgent, setSkillRollAgent] = useState<CampaignAgentLink | null>(null);
+
+  // Intercepta botão de retorno físico no Android e botão Voltar do navegador na Web
+  useEffect(() => {
+    let sub: any;
+    if (Platform.OS !== 'web' && typeof document === 'undefined') {
+      const onBackPress = () => {
+        if (campaignModalVisible) {
+          setCampaignModalVisible(false);
+          return true;
+        }
+        if (sceneModalVisible) {
+          setSceneModalVisible(false);
+          return true;
+        }
+        if (monsterModalVisible) {
+          setMonsterModalVisible(false);
+          return true;
+        }
+        if (importCompendiumMonsterModal) {
+          setImportCompendiumMonsterModal(false);
+          return true;
+        }
+        if (agentModalVisible) {
+          setAgentModalVisible(false);
+          return true;
+        }
+        if (skillRollAgent !== null) {
+          setSkillRollAgent(null);
+          return true;
+        }
+        if (activeCampaignId !== null) {
+          setActiveCampaignId(null);
+          return true;
+        }
+        return false;
+      };
+      sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    }
+
+    let popActive = true;
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && activeCampaignId) {
+      try {
+        window.history.pushState({ screen: 'master-campaign', id: activeCampaignId }, '');
+      } catch {}
+      const handlePop = () => {
+        if (popActive) {
+          setActiveCampaignId(null);
+        }
+      };
+      window.addEventListener('popstate', handlePop);
+      return () => {
+        popActive = false;
+        sub?.remove();
+        window.removeEventListener('popstate', handlePop);
+        if (window.history.state?.screen === 'master-campaign') {
+          window.history.back();
+        }
+      };
+    }
+
+    return () => {
+      sub?.remove();
+    };
+  }, [
+    activeCampaignId,
+    campaignModalVisible,
+    sceneModalVisible,
+    monsterModalVisible,
+    importCompendiumMonsterModal,
+    agentModalVisible,
+    skillRollAgent,
+  ]);
 
   // Lista de criaturas do compêndio para importação
   const compendiumCreatures = useMemo(() => {

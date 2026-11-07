@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  BackHandler,
   Modal,
   Platform,
   ScrollView,
@@ -35,6 +36,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { summarizeAbility } from '../utils/abilitySummarizer';
 import { DEFAULT_LONG_PRESS_DELAY } from '../types/recordPreview';
+import { confirmAction } from '../utils/alert';
 import PrerequisiteAlertModal from './PrerequisiteAlertModal';
 
 interface CreateAgentModalProps {
@@ -111,6 +113,44 @@ export default function CreateAgentModal({
     category: 'power' | 'ritual';
     onConfirm: () => void;
   } | null>(null);
+
+  const handleModalClose = () => {
+    if (step > 1) {
+      setStep((prev) => prev - 1);
+      return;
+    }
+    const hasModifications =
+      name !== 'Novo Agente' ||
+      attrs.AGI !== 1 ||
+      attrs.FOR !== 1 ||
+      attrs.INT !== 1 ||
+      attrs.PRE !== 1 ||
+      attrs.VIG !== 1;
+
+    if (hasModifications) {
+      confirmAction({
+        title: 'Descartar Criação?',
+        message: 'Tem certeza de que deseja sair? O progresso do novo agente não será salvo.',
+        confirmText: 'Sair e Descartar',
+        cancelText: 'Continuar Criando',
+        destructive: true,
+        onConfirm: onClose,
+      });
+    } else {
+      onClose();
+    }
+  };
+
+  // Intercepta botão de retorno físico no Android (Hermes runtime)
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    const onBackPress = () => {
+      handleModalClose();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [visible, step, name, attrs, onClose]);
 
   // Resetar formulário ao abrir o modal
   useEffect(() => {
@@ -783,11 +823,11 @@ export default function CreateAgentModal({
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleModalClose}>
       <View style={styles.container}>
         {/* Top Header */}
         <View style={[styles.header, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 14 : 10) }]}>
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Fechar">
+          <TouchableOpacity style={styles.closeBtn} onPress={handleModalClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Fechar">
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>

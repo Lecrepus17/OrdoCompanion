@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Constants from 'expo-constants';
 import {
   ActivityIndicator,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -19,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { useApp } from '../context/AppContext';
 import { showAlert } from '../utils/alert';
+import { copyToClipboard, readFromClipboard } from '../utils/clipboard';
 import { GoogleDriveService } from '../services/sync/GoogleDriveService';
 
 import {
@@ -98,6 +100,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   // Estados locais da sincronização com Google Drive
   const [isConnectingDrive, setIsConnectingDrive] = useState(false);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+
+  // Estados locais para importação manual de backup (sem depender de window.prompt)
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importJsonText, setImportJsonText] = useState('');
+
+  // Interceptação de hardware back no Android
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    const onBackPress = () => {
+      if (importModalVisible) {
+        setImportModalVisible(false);
+        return true;
+      }
+      onClose();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [visible, importModalVisible, onClose]);
 
 
   // Sincroniza estado com o userProfile salvo sempre que o modal abre
@@ -244,28 +265,33 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   };
 
   const handleImportBackup = async () => {
-    let jsonToImport = '';
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+    let jsonToImport = await readFromClipboard();
+    if (jsonToImport && jsonToImport.includes('characters')) {
       try {
-        jsonToImport = await navigator.clipboard.readText();
-      } catch {}
+        await importBackupJson(jsonToImport);
+        showAlert('Sucesso', 'Backup restaurado com sucesso a partir da sua área de transferência!');
+        return;
+      } catch {
+        // Fallback para abrir o diálogo caso o JSON do clipboard tenha falhado
+      }
     }
-    if (Platform.OS === 'web' && (!jsonToImport || !jsonToImport.includes('characters'))) {
-      const prompted = typeof window !== 'undefined' ? window.prompt('Cole o JSON do backup completo aqui:') : null;
-      if (prompted) jsonToImport = prompted;
-    }
-    if (!jsonToImport || !jsonToImport.trim()) {
-      showAlert(
-        'Importar Backup',
-        'Copie o JSON do backup gerado para a sua área de transferência antes de tocar em Restaurar Backup.'
-      );
+    setImportJsonText(jsonToImport || '');
+    setImportModalVisible(true);
+  };
+
+  const handleConfirmImportText = async () => {
+    const trimmed = importJsonText.trim();
+    if (!trimmed) {
+      showAlert('Importar Backup', 'Por favor, cole o JSON do backup para prosseguir.');
       return;
     }
     try {
-      await importBackupJson(jsonToImport);
+      await importBackupJson(trimmed);
+      setImportModalVisible(false);
+      setImportJsonText('');
       showAlert('Sucesso', 'Backup restaurado com sucesso! Suas fichas, armas e dados foram atualizados.');
     } catch {
-      showAlert('Erro no JSON', 'O texto colado não corresponde a um backup JSON válido.');
+      showAlert('Erro no JSON', 'O texto informado não corresponde a um backup JSON válido.');
     }
   };
 
@@ -299,9 +325,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   const handleExportBackup = async () => {
     try {
       const json = await exportBackupJson();
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(json);
-        showAlert('Backup Copiado', 'O backup completo de dados e perfil foi copiado para a sua área de transferência!');
+      const ok = await copyToClipboard(json, 'Backup Completo Ordo Companion');
+      if (ok) {
+        showAlert('Backup Pronto', 'O backup completo foi copiado ou compartilhado com sucesso!');
       } else {
         showAlert('Backup Gerado', `Tamanho: ${json.length} caracteres.`);
       }
@@ -1367,6 +1393,55 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
             </View>
           </View>
         </KeyboardAvoidingView>
+
+        {/* Diálogo Dedicado para Restauração Manual de Backup */}
+        <Modal
+          visible={importModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setImportModalVisible(false)}
+        >
+          <View style={styles.importBackdrop}>
+            <View style={styles.importDialog}>
+              <View style={styles.importHeader}>
+                <Ionicons name="download-outline" size={20} color={colors.primary} />
+                <Text style={styles.importTitle}>Restaurar Backup JSON</Text>
+              </View>
+              <Text style={styles.importDesc}>
+                Cole abaixo o texto JSON do backup exportado para restaurar suas fichas, armas e dados de perfil:
+              </Text>
+              <TextInput
+                style={styles.importInput}
+                multiline
+                numberOfLines={6}
+                value={importJsonText}
+                onChangeText={setImportJsonText}
+                placeholder="Cole o JSON completo aqui..."
+                placeholderTextColor={colors.textMuted}
+                textAlignVertical="top"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <View style={styles.importActions}>
+                <TouchableOpacity
+                  style={styles.importCancelBtn}
+                  onPress={() => {
+                    setImportModalVisible(false);
+                    setImportJsonText('');
+                  }}
+                >
+                  <Text style={styles.importCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.importConfirmBtn}
+                  onPress={handleConfirmImportText}
+                >
+                  <Text style={styles.importConfirmText}>Restaurar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Modal>
   );
@@ -2356,6 +2431,78 @@ function createStyles(colors: ThemeColors) {
     checkUpdateButtonText: {
       fontSize: 13,
       fontWeight: '700',
+    },
+    importBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    importDialog: {
+      width: '100%',
+      maxWidth: 480,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 18,
+      gap: 12,
+    },
+    importHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    importTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    importDesc: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      lineHeight: 18,
+    },
+    importInput: {
+      minHeight: 120,
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      color: colors.text,
+      fontSize: 12,
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    },
+    importActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 10,
+      marginTop: 4,
+    },
+    importCancelBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    importCancelText: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    importConfirmBtn: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      borderRadius: 8,
+    },
+    importConfirmText: {
+      color: '#FFF',
+      fontSize: 13,
+      fontWeight: '800',
     },
   });
 }

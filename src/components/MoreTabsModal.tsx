@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
+  BackHandler,
   Modal,
   Platform,
   Pressable,
@@ -33,6 +34,17 @@ export const MoreTabsModal: React.FC<MoreTabsModalProps> = ({
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  // Intercepta botão físico de retorno no Android
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    const onBackPress = () => {
+      onClose();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [visible, onClose]);
 
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 16 : 12);
 

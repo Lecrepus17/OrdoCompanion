@@ -17,6 +17,7 @@ import {
   RELIC_PERSONAS,
 } from '../types/ai';
 import { cleanInternalTags, cleanLatex } from '../services/ai/AiClient';
+import { copyToClipboard } from '../utils/clipboard';
 
 export { cleanInternalTags, cleanLatex };
 
@@ -159,8 +160,8 @@ export function AiChatMessageItem({
   const handleCopy = async () => {
     try {
       const clean = cleanInternalTags(message.content);
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(clean);
+      const copied = await copyToClipboard(clean, 'Mensagem do G.L.I.T.C.H.');
+      if (copied) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }

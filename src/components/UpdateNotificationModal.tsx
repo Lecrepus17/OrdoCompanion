@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
+  BackHandler,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,6 +31,17 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+
+  // Intercepta botão físico de retorno no Android
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    const onBackPress = () => {
+      onDismiss();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [visible, onDismiss]);
 
   if (!visible || !updateInfo) {
     return null;

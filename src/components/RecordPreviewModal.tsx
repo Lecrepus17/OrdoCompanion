@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  BackHandler,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -49,6 +51,21 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [cardImageModalOpen, setCardImageModalOpen] = useState(false);
+
+  // Intercepta botão de retorno físico no Android
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !request) return;
+    const onBackPress = () => {
+      if (cardImageModalOpen) {
+        setCardImageModalOpen(false);
+        return true;
+      }
+      onClose();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [request, cardImageModalOpen, onClose]);
   const {
     entities,
     getEntityById,

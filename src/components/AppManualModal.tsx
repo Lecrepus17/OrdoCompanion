@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  BackHandler,
   FlatList,
   Modal,
   Platform,
@@ -52,6 +53,17 @@ export const AppManualModal: React.FC<AppManualModalProps> = ({
       }, 50);
     }
   }, [visible, initialSection]);
+
+  // Intercepta botão físico de retorno no Android
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    const onBackPress = () => {
+      onClose();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [visible, onClose]);
 
   // Seções filtradas por busca e categoria
   const filteredSections = useMemo(() => {

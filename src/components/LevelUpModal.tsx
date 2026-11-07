@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  BackHandler,
   Modal,
   Platform,
   ScrollView,
@@ -40,6 +41,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { DEFAULT_LONG_PRESS_DELAY } from '../types/recordPreview';
 import { summarizeAbility } from '../utils/abilitySummarizer';
+import { confirmAction } from '../utils/alert';
 import PrerequisiteAlertModal from './PrerequisiteAlertModal';
 
 const RANK_ITEM_LIMITS = {
@@ -201,6 +203,48 @@ export default function LevelUpModal({
   const [promoteRank, setPromoteRank] = useState(
     !!milestone.recommendedRank && milestone.recommendedRank !== character.rank
   );
+
+  const handleModalClose = () => {
+    const hasSelections =
+      selectedAttrToBoost !== null ||
+      selectedPowerId !== null ||
+      selectedClassPowerId !== null ||
+      selectedParanormalPowerId !== null ||
+      selectedSkillPromotions.length > 0 ||
+      selectedRitualId !== null;
+
+    if (hasSelections) {
+      confirmAction({
+        title: 'Descartar Avanço?',
+        message: 'Tem certeza de que deseja sair? As escolhas deste avanço de NEX não serão salvas.',
+        confirmText: 'Sair e Descartar',
+        cancelText: 'Continuar no Avanço',
+        destructive: true,
+        onConfirm: onClose,
+      });
+    } else {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    const onBackPress = () => {
+      handleModalClose();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [
+    visible,
+    selectedAttrToBoost,
+    selectedPowerId,
+    selectedClassPowerId,
+    selectedParanormalPowerId,
+    selectedSkillPromotions,
+    selectedRitualId,
+    onClose,
+  ]);
 
   // Trilhas compatíveis com a classe
   const compatibleTracks = useMemo(() => {
@@ -611,11 +655,11 @@ export default function LevelUpModal({
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleModalClose}>
       <View style={styles.container}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 14 : 10) }]}>
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Fechar">
+          <TouchableOpacity style={styles.closeBtn} onPress={handleModalClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Fechar">
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
