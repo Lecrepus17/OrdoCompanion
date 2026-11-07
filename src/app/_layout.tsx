@@ -45,6 +45,13 @@ function RootLayoutContent() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
+          name="oauthredirect"
+          options={{
+            headerShown: false,
+            animation: 'fade',
+          }}
+        />
+        <Stack.Screen
           name="entity/[id]"
           options={{
             title: 'Detalhes do Registro',

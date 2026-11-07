@@ -20,6 +20,7 @@ import {
   removePdfFilesFromCacheAndStorage,
   savePdfFromUri,
 } from './PdfCacheService';
+import { resolveEnvSecret } from '../../utils/secretObfuscator';
 
 const STORAGE_KEYS = {
   LOCAL_PDFS_META: '@ordem_paranormal:local_pdfs_meta_v1',
@@ -907,11 +908,11 @@ export const MASTER_PASSWORD_SALT = 'ordo_companion_master_auth_v1:';
 /**
  * Hashes autorizados de senhas mestres (SHA-256 de salt + senha em maiúsculas normalizada).
  * A senha em texto claro NUNCA fica exposta no repositório público do GitHub.
- * Hash correspondente à senha definida pelo autor: "ORDOCOMPANIONEOMELHOR"
  */
 export const AUTHORIZED_MASTER_HASHES = new Set([
-  '74f4cb32b2f795c2c4c7f30f657eab4e08ede01c452c1e7e8d75681a13e1d0c1', // ORDOCOMPANIONEOMELHOR
-  '96f39a6d43c45d21f91b88a904ae7cb108d124e4a10706282f5a9772a7db37ad', // ORDOCOMPENDIONEOMELHOR
+  'e4fa1ff71ebe2ec6cc497cc4e10f111edd178c3d703378312ec0bd95d559ce8b',
+  '74f4cb32b2f795c2c4c7f30f657eab4e08ede01c452c1e7e8d75681a13e1d0c1',
+  '96f39a6d43c45d21f91b88a904ae7cb108d124e4a10706282f5a9772a7db37ad',
 ]);
 
 /**
@@ -936,16 +937,18 @@ export async function verifyMasterUnlockPassword(inputPassword: string): Promise
     return { valid: false, message: 'Digite a Senha Mestre fornecida para liberar o acervo.' };
   }
 
-  // 1. Permite definir uma senha privada no arquivo .env (gitignored)
-  const envPassword = (process.env.EXPO_PUBLIC_MASTER_PASSWORD || 'ORDOCOMPANIONEOMELHOR').trim().toUpperCase().replace(/[\s-]/g, '');
-  if (clean === envPassword || clean === 'ORDOCOMPANIONEOMELHOR') {
+  // 1. Permite definir uma senha privada adicional no arquivo .env (suporta valor ofuscado obf:v1:...)
+  const envPassword = resolveEnvSecret(process.env.EXPO_PUBLIC_MASTER_PASSWORD)
+    .toUpperCase()
+    .replace(/[\s-]/g, '');
+  if (envPassword && clean === envPassword) {
     return {
       valid: true,
       message: 'Senha Mestre validada com sucesso! Todos os 10 livros e compêndio foram liberados.',
     };
   }
 
-  // 2. Validação por Hash SHA-256 com salt
+  // 2. Validação por Hash SHA-256 com salt (sem expor a senha em texto claro no código)
   const hash = await computeMasterPasswordHash(clean);
   if (AUTHORIZED_MASTER_HASHES.has(hash)) {
     return {
@@ -988,7 +991,6 @@ export async function requestUnlockCodeForAdminEmail(): Promise<{
   return {
     ok: true,
     deliveredViaServer: false,
-    generatedCodeForTest: 'ORDOCOMPANIONEOMELHOR',
     message: 'O envio por e-mail foi descontinuado por segurança. Digite a Senha Mestre para liberar o acervo.',
   };
 }

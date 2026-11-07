@@ -107,7 +107,8 @@ function getExpoSpeech(): any {
   if (scope.ExpoSpeech) return scope.ExpoSpeech;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('expo-speech');
+    const mod = require('expo-speech');
+    return mod && (mod.speak ? mod : mod.default || mod);
   } catch {
     return null;
   }
@@ -131,20 +132,40 @@ class GlitchVoiceServiceImpl {
    * Retorna true no mobile quando expo-speech estiver disponível e no web com speechSynthesis.
    */
   isTtsSupported(): boolean {
-    if (Platform.OS !== 'web') {
-      const expoSpeech = getExpoSpeech();
-      return Boolean(expoSpeech && typeof expoSpeech.speak === 'function');
+    try {
+      if (Platform.OS !== 'web') {
+        const expoSpeech = getExpoSpeech();
+        if (expoSpeech && typeof expoSpeech.speak === 'function') {
+          return true;
+        }
+        const scope = this.getGlobalScope();
+        return Boolean(scope?.speechSynthesis && typeof scope.SpeechSynthesisUtterance !== 'undefined');
+      }
+      const scope = this.getGlobalScope();
+      return Boolean(scope?.speechSynthesis && typeof scope.SpeechSynthesisUtterance !== 'undefined');
+    } catch {
+      return false;
     }
-    const scope = this.getGlobalScope();
-    return 'speechSynthesis' in scope && typeof scope.SpeechSynthesisUtterance !== 'undefined';
   }
 
   /**
-   * Verifica se Speech-to-Text (STT) é suportado no ambiente atual.
+   * Verifica se Speech-to-Text (STT) é suportado no ambiente atual de forma síncrona e segura.
+   * No runtime nativo Android (Hermes), retorna false sem tentar acessar objetos de browser inexistentes.
    */
   isSttSupported(): boolean {
-    const scope = this.getGlobalScope();
-    return Boolean(scope.SpeechRecognition || scope.webkitSpeechRecognition);
+    try {
+      if (Platform.OS !== 'web') {
+        const scope = this.getGlobalScope();
+        return Boolean(
+          scope?.ExpoSpeechRecognition ||
+          (scope?.Voice && typeof scope.Voice.start === 'function')
+        );
+      }
+      const scope = this.getGlobalScope();
+      return Boolean(scope?.SpeechRecognition || scope?.webkitSpeechRecognition);
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -343,25 +364,25 @@ class GlitchVoiceServiceImpl {
   }
 
   /**
-   * Interrompe imediatamente qualquer reprodução de áudio/voz.
+   * Interrompe imediatamente qualquer reprodução de áudio/voz de forma estritamente idempotente.
    */
   stopSpeaking(): void {
     this.isSpeakingState = false;
     this.activeUtterance = null;
-    if (Platform.OS !== 'web') {
-      const expoSpeech = getExpoSpeech();
-      if (expoSpeech && typeof expoSpeech.stop === 'function') {
-        try {
+    try {
+      if (Platform.OS !== 'web') {
+        const expoSpeech = getExpoSpeech();
+        if (expoSpeech && typeof expoSpeech.stop === 'function') {
           expoSpeech.stop();
-        } catch {}
+        }
+        return;
       }
-      return;
-    }
-    const scope = this.getGlobalScope();
-    if (scope.speechSynthesis) {
-      try {
+      const scope = this.getGlobalScope();
+      if (scope?.speechSynthesis && typeof scope.speechSynthesis.cancel === 'function') {
         scope.speechSynthesis.cancel();
-      } catch {}
+      }
+    } catch {
+      // Idempotente: falhas silenciosas nunca vazam
     }
   }
 

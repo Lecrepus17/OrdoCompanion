@@ -342,6 +342,19 @@ function extractFromCompendiumEntity(ent: CompendiumEntity): RecordCardData {
     }
   }
 
+  const rawDesc = ent.description || ent.shortDescription || ent.summary || 'Registro oficial do compêndio.';
+  let cleanSummary = ent.summary ? ent.summary.trim() : undefined;
+  if (cleanSummary && rawDesc) {
+    const trimmedDesc = rawDesc.trim();
+    if (
+      cleanSummary === trimmedDesc ||
+      trimmedDesc.startsWith(cleanSummary) ||
+      cleanSummary.startsWith(trimmedDesc)
+    ) {
+      cleanSummary = undefined;
+    }
+  }
+
   return {
     id: ent.id,
     name: ent.name || 'Registro',
@@ -352,8 +365,8 @@ function extractFromCompendiumEntity(ent: CompendiumEntity): RecordCardData {
     bookTitle: ent.bookTitle,
     pageNumber: ent.pageNumber,
     stats,
-    summary: ent.summary,
-    description: ent.description || ent.shortDescription || ent.summary || 'Registro oficial do compêndio.',
+    summary: cleanSummary,
+    description: rawDesc,
     extraSections: extraSections.length > 0 ? extraSections : undefined,
     tags: ent.tags,
   };

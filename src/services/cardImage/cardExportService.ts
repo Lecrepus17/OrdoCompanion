@@ -153,7 +153,7 @@ export function wrapCardSvgForPrint(
   <style>
     @page {
       size: auto;
-      margin: 8mm;
+      margin: 0;
     }
     * {
       box-sizing: border-box;
@@ -344,51 +344,30 @@ export async function generateLocalCardFile(
   }
 
   // format === 'png':
-  // 1. Tenta converter via canvas (se ambiente DOM suportar)
+  const fileName = `Ordo_${baseName}_${theme.id}.png`;
+  const fileUri = `${cacheDir}${fileName}`;
+
   let pngDataUrl = '';
   try {
     pngDataUrl = await svgToPngDataUrl(rawSvg, width, height);
   } catch {}
 
+  let base64 = '';
   if (pngDataUrl && pngDataUrl.startsWith('data:image/png;base64,')) {
-    const fileName = `Ordo_${baseName}_${theme.id}.png`;
-    const fileUri = `${cacheDir}${fileName}`;
-    const base64 = pngDataUrl.replace(/^data:image\/png;base64,/, '');
-    if (fs.writeAsStringAsync) {
-      await fs.writeAsStringAsync(fileUri, base64, {
-        encoding: 'base64',
-      });
-    }
-    return { uri: fileUri, fileName, mimeType: 'image/png' };
+    base64 = pngDataUrl.replace(/^data:image\/png;base64,/, '');
+  } else if (pngDataUrl && pngDataUrl.includes('base64,')) {
+    base64 = pngDataUrl.split('base64,')[1];
+  } else {
+    base64 = Buffer.from(rawSvg).toString('base64');
   }
 
-  // 2. No runtime nativo Android/Hermes:
-  // Renderiza arquivo sem margens com dimensões exatas de cartão (1080x1350) via Print.printToFileAsync
-  try {
-    const html = wrapCardSvgExactDimensions(rawSvg, data.name, theme, width, height);
-    const printRes = await Print.printToFileAsync({
-      html,
-      width,
-      height,
-      margins: { top: 0, bottom: 0, left: 0, right: 0 },
-    });
-    if (printRes && printRes.uri) {
-      const fileName = `Ordo_${baseName}_${theme.id}_card.pdf`;
-      return { uri: printRes.uri, fileName, mimeType: 'application/pdf' };
-    }
-  } catch (printErr) {
-    console.warn('[cardExportService] printToFileAsync fallback:', printErr);
-  }
-
-  // Fallback: grava SVG vetorial direto
-  const fileName = `Ordo_${baseName}_${theme.id}.svg`;
-  const fileUri = `${cacheDir}${fileName}`;
   if (fs.writeAsStringAsync) {
-    await fs.writeAsStringAsync(fileUri, rawSvg, {
-      encoding: 'utf8',
+    await fs.writeAsStringAsync(fileUri, base64, {
+      encoding: 'base64',
     });
   }
-  return { uri: fileUri, fileName, mimeType: 'image/svg+xml' };
+
+  return { uri: fileUri, fileName, mimeType: 'image/png' };
 }
 
 export interface DownloadResult {

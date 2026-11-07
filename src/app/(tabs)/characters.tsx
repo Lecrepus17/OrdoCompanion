@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../../theme';
@@ -23,6 +24,7 @@ import {
   CharacterInventoryItem,
   CharacterSheet,
   CompendiumEntity,
+  CriticalDamageMode,
   CustomWeapon,
   ParanormalElement,
   TrainingDegree,
@@ -91,6 +93,7 @@ export const RANK_ITEM_LIMITS = {
 export default function CharactersScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const bottomInset = Math.max(insets.bottom, 10);
   const styles = useThemedStyles(createStyles);
   const {
@@ -688,24 +691,58 @@ export default function CharactersScreen() {
     );
   };
 
-  const handleRollAttackDamage = (attack: CharacterAttack, isCrit: boolean) => {
-    const parsed = parseCritical(attack.critical);
-    if (!isCrit) {
-      rollFormula(attack.damage, `Dano de ${attack.name}`);
+  const handleRollAttackDamage = (
+    attack: CharacterAttack,
+    isCrit: boolean,
+    chosenMode?: CriticalDamageMode
+  ) => {
+    let effectiveMode: CriticalDamageMode =
+      chosenMode ||
+      (attack.criticalDamageMode && attack.criticalDamageMode !== 'default'
+        ? attack.criticalDamageMode
+        : activeChar?.criticalDamageMode && activeChar.criticalDamageMode !== 'default'
+        ? activeChar.criticalDamageMode
+        : userProfile?.criticalDamageMode || 'multiply_dice');
+
+    if (isCrit && effectiveMode === 'ask_user') {
+      Alert.alert(
+        `Crítico: ${attack.name}`,
+        'Como deseja calcular o dano crítico deste ataque?',
+        [
+          {
+            text: 'Multiplica Dados (v1.1)',
+            onPress: () => handleRollAttackDamage(attack, true, 'multiply_dice'),
+          },
+          {
+            text: 'Multiplica Total',
+            onPress: () => handleRollAttackDamage(attack, true, 'multiply_damage'),
+          },
+          {
+            text: 'Crítico Cheio (Máximo)',
+            onPress: () => handleRollAttackDamage(attack, true, 'max_damage'),
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+        ]
+      );
       return;
     }
 
-    // Multiply base damage dice by crit multiplier
-    const diceMatch = attack.damage.match(/^(\d+)d(\d+)/i);
-    if (diceMatch) {
-      const count = parseInt(diceMatch[1], 10) * parsed.mult;
-      const die = diceMatch[2];
-      const rest = attack.damage.replace(/^\d+d\d+/, '');
-      const critFormula = `${count}d${die}${rest}`;
-      rollFormula(critFormula, `Dano CRÍTICO de ${attack.name} (x${parsed.mult})`);
-    } else {
-      rollFormula(attack.damage, `Dano CRÍTICO de ${attack.name}`);
-    }
+    rollWeaponDamage({
+      weaponName: attack.name,
+      damage: attack.damage,
+      critical: attack.critical,
+      isCrit,
+      mode: effectiveMode,
+      attackContext: {
+        weaponName: attack.name,
+        damage: attack.damage,
+        critical: attack.critical,
+        attackId: attack.id,
+      },
+    });
   };
 
   // Abilities actions
@@ -2170,6 +2207,31 @@ export default function CharactersScreen() {
                       <Text style={styles.attackSpecialText}>
                         Especial: {atk.special}
                       </Text>
+                    ) : null}
+
+                    {atk.customWeaponId ? (
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          marginTop: 6,
+                          alignSelf: 'flex-start',
+                          paddingVertical: 4,
+                          paddingHorizontal: 8,
+                          backgroundColor: colors.surfaceHighlight,
+                          borderRadius: 6,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}
+                        onPress={() => router.push('/(tabs)/weapons')}
+                        accessibilityLabel="Abrir na Armaria"
+                      >
+                        <Ionicons name="shield-outline" size={13} color={colors.primary} />
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
+                          Abrir na Armaria
+                        </Text>
+                      </TouchableOpacity>
                     ) : null}
 
                     {/* Rolagens do Ataque */}

@@ -770,6 +770,115 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                           </TouchableOpacity>
                         </View>
                       </View>
+
+                      <View style={[styles.inputGroup, { marginTop: 14 }]}>
+                        <Text style={styles.fieldLabel}>Regra Padrão de Dano Crítico</Text>
+                        <Text style={styles.fieldHint}>
+                          Define como as rolagens de acerto crítico das armas são calculadas por padrão na ficha do agente.
+                        </Text>
+
+                        <View style={{ gap: 8, marginTop: 8 }}>
+                          <View style={styles.columnsSelectRow}>
+                            <TouchableOpacity
+                              style={[
+                                styles.columnOptionCard,
+                                criticalDamageModeChoice === 'multiply_dice' && styles.columnOptionCardActive,
+                              ]}
+                              onPress={() => setCriticalDamageModeChoice('multiply_dice')}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons
+                                name="dice-outline"
+                                size={22}
+                                color={criticalDamageModeChoice === 'multiply_dice' ? colors.primary : colors.textMuted}
+                              />
+                              <Text
+                                style={[
+                                  styles.columnOptionTitle,
+                                  criticalDamageModeChoice === 'multiply_dice' && { color: colors.primary, fontWeight: '800' },
+                                ]}
+                              >
+                                Multiplica Dados
+                              </Text>
+                              <Text style={styles.columnOptionSub}>Regra Oficial v1.1 (Ex: 2d6 vira 4d6)</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[
+                                styles.columnOptionCard,
+                                criticalDamageModeChoice === 'multiply_damage' && styles.columnOptionCardActive,
+                              ]}
+                              onPress={() => setCriticalDamageModeChoice('multiply_damage')}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons
+                                name="calculator-outline"
+                                size={22}
+                                color={criticalDamageModeChoice === 'multiply_damage' ? colors.primary : colors.textMuted}
+                              />
+                              <Text
+                                style={[
+                                  styles.columnOptionTitle,
+                                  criticalDamageModeChoice === 'multiply_damage' && { color: colors.primary, fontWeight: '800' },
+                                ]}
+                              >
+                                Multiplica Total
+                              </Text>
+                              <Text style={styles.columnOptionSub}>Menos dados (Ex: [2d6] * 2)</Text>
+                            </TouchableOpacity>
+                          </View>
+
+                          <View style={styles.columnsSelectRow}>
+                            <TouchableOpacity
+                              style={[
+                                styles.columnOptionCard,
+                                criticalDamageModeChoice === 'max_damage' && styles.columnOptionCardActive,
+                              ]}
+                              onPress={() => setCriticalDamageModeChoice('max_damage')}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons
+                                name="flash-outline"
+                                size={22}
+                                color={criticalDamageModeChoice === 'max_damage' ? colors.primary : colors.textMuted}
+                              />
+                              <Text
+                                style={[
+                                  styles.columnOptionTitle,
+                                  criticalDamageModeChoice === 'max_damage' && { color: colors.primary, fontWeight: '800' },
+                                ]}
+                              >
+                                Crítico Cheio
+                              </Text>
+                              <Text style={styles.columnOptionSub}>Dano máximo garantido sem rolar</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[
+                                styles.columnOptionCard,
+                                criticalDamageModeChoice === 'ask_user' && styles.columnOptionCardActive,
+                              ]}
+                              onPress={() => setCriticalDamageModeChoice('ask_user')}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons
+                                name="help-circle-outline"
+                                size={22}
+                                color={criticalDamageModeChoice === 'ask_user' ? colors.primary : colors.textMuted}
+                              />
+                              <Text
+                                style={[
+                                  styles.columnOptionTitle,
+                                  criticalDamageModeChoice === 'ask_user' && { color: colors.primary, fontWeight: '800' },
+                                ]}
+                              >
+                                Perguntar Sempre
+                              </Text>
+                              <Text style={styles.columnOptionSub}>Escolhe o formato a cada golpe</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
                     </View>
 
                     {/* Bloco 6: Sistema & Atualizações */}

@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +14,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../../theme';
 import { TrainingDegree } from '../../types/compendium';
+import { confirmAction } from '../../utils/alert';
+import {
+  DEFAULT_QUICK_FORMULAS,
+  loadQuickFormulas,
+  addCustomFormula,
+  removeCustomFormula,
+} from '../../utils/dice';
 
 const ATTRIBUTE_VALUES = [-1, 0, 1, 2, 3, 4, 5, 6];
 const TRAINING_DEGREES: Array<{ label: string; value: TrainingDegree }> = [
@@ -35,6 +44,44 @@ export default function DiceScreen() {
   const [otherBonus, setOtherBonus] = useState<number>(0);
   const [critThreat, setCritThreat] = useState<number>(20);
   const [customFormula, setCustomFormula] = useState<string>('4d6+4');
+
+  const [quickFormulas, setQuickFormulas] = useState<string[]>(DEFAULT_QUICK_FORMULAS);
+  const [showAddFormulaModal, setShowAddFormulaModal] = useState<boolean>(false);
+  const [newFormulaInput, setNewFormulaInput] = useState<string>('');
+
+  useEffect(() => {
+    loadQuickFormulas().then(setQuickFormulas);
+  }, []);
+
+  const handleAddFormula = async () => {
+    const trimmed = newFormulaInput.trim();
+    if (!trimmed) return;
+    const res = await addCustomFormula(trimmed);
+    if (!res.success) {
+      Alert.alert('Fórmula Inválida', res.error || 'Verifique o formato da fórmula.');
+      return;
+    }
+    setQuickFormulas(res.formulas);
+    setNewFormulaInput('');
+    setShowAddFormulaModal(false);
+  };
+
+  const handleRemoveFormula = (formula: string) => {
+    if (DEFAULT_QUICK_FORMULAS.includes(formula)) {
+      Alert.alert('Fórmula Padrão', 'Fórmulas padrão do sistema não podem ser removidas.');
+      return;
+    }
+    confirmAction({
+      title: 'Remover Atalho de Dado',
+      message: `Deseja remover a fórmula personalizada "${formula}" dos seus atalhos?`,
+      confirmText: 'Remover',
+      destructive: true,
+      onConfirm: async () => {
+        const updated = await removeCustomFormula(formula);
+        setQuickFormulas(updated);
+      },
+    });
+  };
 
   const totalBonus = training + otherBonus;
 
@@ -188,16 +235,57 @@ export default function DiceScreen() {
         </View>
 
         <View style={styles.rowWrap}>
-          {QUICK_FORMULAS.map((qf) => (
-            <TouchableOpacity
-              key={qf}
-              style={styles.quickDieBtn}
-              onPress={() => rollFormula(qf, `Dados (${qf})`)}
-            >
-              <Ionicons name="dice-outline" size={14} color={colors.accent} />
-              <Text style={styles.quickDieText}>{qf}</Text>
-            </TouchableOpacity>
-          ))}
+          {quickFormulas.map((qf) => {
+            const isCustom = !DEFAULT_QUICK_FORMULAS.includes(qf);
+            return (
+              <TouchableOpacity
+                key={qf}
+                style={[
+                  styles.quickDieBtn,
+                  isCustom && { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+                ]}
+                onPress={() => rollFormula(qf, `Dados (${qf})`)}
+                onLongPress={() => isCustom && handleRemoveFormula(qf)}
+                accessibilityLabel={isCustom ? `Fórmula customizada ${qf}. Toque longo para remover.` : `Dados ${qf}`}
+              >
+                <Ionicons
+                  name={isCustom ? 'flash-outline' : 'dice-outline'}
+                  size={14}
+                  color={isCustom ? colors.primary : colors.accent}
+                />
+                <Text
+                  style={[
+                    styles.quickDieText,
+                    isCustom && { color: colors.primary, fontWeight: '800' },
+                  ]}
+                >
+                  {qf}
+                </Text>
+                {isCustom && (
+                  <TouchableOpacity
+                    onPress={() => handleRemoveFormula(qf)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={13} color={colors.danger} />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+
+          <TouchableOpacity
+            style={[
+              styles.quickDieBtn,
+              { borderStyle: 'dashed', borderColor: colors.primary, backgroundColor: 'transparent' },
+            ]}
+            onPress={() => setShowAddFormulaModal(true)}
+            accessibilityLabel="Criar novo atalho de dado"
+          >
+            <Ionicons name="add-circle-outline" size={15} color={colors.primary} />
+            <Text style={[styles.quickDieText, { color: colors.primary, fontWeight: '800' }]}>
+              + Novo Dado
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -239,6 +327,61 @@ export default function DiceScreen() {
           ))
         )}
       </View>
+
+      <Modal
+        visible={showAddFormulaModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddFormulaModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: '100%', maxWidth: 400, backgroundColor: colors.surfaceElevated, borderRadius: 12, padding: 20, borderWidth: 1, borderColor: colors.border }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Adicionar Novo Dado</Text>
+              <TouchableOpacity onPress={() => setShowAddFormulaModal(false)}>
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 14 }}>
+              Digite uma fórmula de dados para salvar como atalho rápido no rolador livre (ex: 2d20+5, 3d6+2, 1d100):
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                color: colors.text,
+                fontSize: 16,
+                fontWeight: '700',
+                marginBottom: 16,
+              }}
+              value={newFormulaInput}
+              onChangeText={setNewFormulaInput}
+              placeholder="Ex: 2d8+1d6+4"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+              <TouchableOpacity
+                style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 6 }}
+                onPress={() => setShowAddFormulaModal(false)}
+              >
+                <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 6 }}
+                onPress={handleAddFormula}
+              >
+                <Text style={{ color: '#FFF', fontWeight: '800' }}>Salvar Dado</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }

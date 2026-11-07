@@ -184,8 +184,17 @@ export default function BooksScreen() {
   }, []);
 
   const openExternalPdf = useCallback(async (book: BookInfo, pageNo: number = 1) => {
-    const opened = await openPdfDocument(book.fileName, pageNo, book.driveFileId);
-    if (!opened) {
+    try {
+      const isOffline = localPdfStorage.hasPdfOffline(book.id);
+      if (isOffline) {
+        const opened = await openPdfDocument(book.fileName, pageNo);
+        if (opened) return;
+      }
+      const opened = await openPdfDocument(book.fileName, pageNo, book.driveFileId);
+      if (!opened) {
+        openBookAtPage(book, pageNo, 'text');
+      }
+    } catch {
       openBookAtPage(book, pageNo, 'text');
     }
   }, [openBookAtPage]);

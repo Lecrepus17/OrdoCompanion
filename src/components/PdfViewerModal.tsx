@@ -674,7 +674,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const canvasRef = useRef<any>(null);
   const renderTaskRef = useRef<any>(null);
   const flatListRef = useRef<FlatList<number>>(null);
+  const textFlatListRef = useRef<FlatList<number>>(null);
   const isScrollingProgrammatically = useRef<boolean>(false);
+  const [textLayout, setTextLayout] = useState<'scroll' | 'page'>('scroll');
 
   const totalPages = Math.max(1, book?.pageCount || 1);
   const safeCurrentPage = Math.max(1, Math.min(totalPages, currentPage || 1));
@@ -874,6 +876,13 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         setTimeout(() => {
           isScrollingProgrammatically.current = false;
         }, shouldAnimate ? 400 : 120);
+      } else if (viewMode === 'text' && textLayout === 'scroll' && textFlatListRef.current) {
+        try {
+          textFlatListRef.current.scrollToIndex({
+            index: clamped - 1,
+            animated: shouldAnimate,
+          });
+        } catch {}
       }
     },
     [book, viewMode, scrollFlatListToPage]
@@ -1427,33 +1436,109 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         {!isMaximized && (
           <View style={styles.subToolbar}>
             <View style={styles.modeTabs}>
+              {/* Grupo 1: Tipo de Leitura (Leitura Direta PDF vs Texto Oficial) */}
               <TouchableOpacity
-                style={[styles.modeTab, viewMode === 'pdf_scroll' && styles.modeTabActive]}
-                onPress={() => setViewMode('pdf_scroll')}
+                style={[styles.modeTab, viewMode !== 'text' && styles.modeTabActive]}
+                onPress={() => {
+                  if (textLayout === 'page') {
+                    setViewMode('pdf_page');
+                  } else {
+                    setViewMode('pdf_scroll');
+                  }
+                }}
+              >
+                <Ionicons
+                  name="document-outline"
+                  size={14}
+                  color={viewMode !== 'text' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[styles.modeTabText, viewMode !== 'text' && styles.modeTabTextActive]}
+                >
+                  Leitura Direta PDF
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modeTab, viewMode === 'text' && styles.modeTabActive]}
+                onPress={() => setViewMode('text')}
+              >
+                <Ionicons
+                  name="reader-outline"
+                  size={14}
+                  color={viewMode === 'text' ? colors.primary : colors.textSecondary}
+                />
+                <Text style={[styles.modeTabText, viewMode === 'text' && styles.modeTabTextActive]}>
+                  Texto Oficial
+                </Text>
+              </TouchableOpacity>
+
+              <View style={{ width: 1, height: 18, backgroundColor: colors.border, marginHorizontal: 2 }} />
+
+              {/* Grupo 2: Layout de Visualização (Rolagem Contínua vs Página Única) */}
+              <TouchableOpacity
+                style={[
+                  styles.modeTab,
+                  (viewMode === 'pdf_scroll' || (viewMode === 'text' && textLayout === 'scroll')) &&
+                    styles.modeTabActive,
+                ]}
+                onPress={() => {
+                  if (viewMode === 'text') {
+                    setTextLayout('scroll');
+                  } else {
+                    setViewMode('pdf_scroll');
+                  }
+                }}
               >
                 <Ionicons
                   name="albums-outline"
                   size={14}
-                  color={viewMode === 'pdf_scroll' ? colors.primary : colors.textSecondary}
+                  color={
+                    viewMode === 'pdf_scroll' || (viewMode === 'text' && textLayout === 'scroll')
+                      ? colors.primary
+                      : colors.textSecondary
+                  }
                 />
                 <Text
-                  style={[styles.modeTabText, viewMode === 'pdf_scroll' && styles.modeTabTextActive]}
+                  style={[
+                    styles.modeTabText,
+                    (viewMode === 'pdf_scroll' || (viewMode === 'text' && textLayout === 'scroll')) &&
+                      styles.modeTabTextActive,
+                  ]}
                 >
                   Rolagem Contínua
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modeTab, viewMode === 'pdf_page' && styles.modeTabActive]}
-                onPress={() => setViewMode('pdf_page')}
+                style={[
+                  styles.modeTab,
+                  (viewMode === 'pdf_page' || (viewMode === 'text' && textLayout === 'page')) &&
+                    styles.modeTabActive,
+                ]}
+                onPress={() => {
+                  if (viewMode === 'text') {
+                    setTextLayout('page');
+                  } else {
+                    setViewMode('pdf_page');
+                  }
+                }}
               >
                 <Ionicons
                   name="book-outline"
                   size={14}
-                  color={viewMode === 'pdf_page' ? colors.primary : colors.textSecondary}
+                  color={
+                    viewMode === 'pdf_page' || (viewMode === 'text' && textLayout === 'page')
+                      ? colors.primary
+                      : colors.textSecondary
+                  }
                 />
                 <Text
-                  style={[styles.modeTabText, viewMode === 'pdf_page' && styles.modeTabTextActive]}
+                  style={[
+                    styles.modeTabText,
+                    (viewMode === 'pdf_page' || (viewMode === 'text' && textLayout === 'page')) &&
+                      styles.modeTabTextActive,
+                  ]}
                 >
                   Página Única
                 </Text>
@@ -1479,20 +1564,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                   </Text>
                 </TouchableOpacity>
               )}
-
-              <TouchableOpacity
-                style={[styles.modeTab, viewMode === 'text' && styles.modeTabActive]}
-                onPress={() => setViewMode('text')}
-              >
-                <Ionicons
-                  name="reader-outline"
-                  size={14}
-                  color={viewMode === 'text' ? colors.primary : colors.textSecondary}
-                />
-                <Text style={[styles.modeTabText, viewMode === 'text' && styles.modeTabTextActive]}>
-                  Texto Oficial
-                </Text>
-              </TouchableOpacity>
             </View>
 
             {(viewMode === 'pdf_scroll' || viewMode === 'pdf_page' || viewMode === 'text') && (
@@ -2033,7 +2104,44 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
           )}
 
           {/* MODO 4: TEXTO OFICIAL (100% OFFLINE) */}
-          {viewMode === 'text' && (
+          {viewMode === 'text' && textLayout === 'scroll' && (
+            <FlatList
+              key={`text_scroll_list_${book.id}`}
+              ref={textFlatListRef}
+              data={pagesList}
+              keyExtractor={(item) => `text_page_${book.id}_${item}`}
+              initialNumToRender={Platform.OS === 'web' ? 5 : 4}
+              maxToRenderPerBatch={Platform.OS === 'web' ? 5 : 4}
+              windowSize={Platform.OS === 'web' ? 7 : 5}
+              renderItem={({ item: pageNum }) => {
+                const pageData = getBookPage(book.id, pageNum);
+                return (
+                  <View style={[styles.textModeCard, { marginVertical: 8, marginHorizontal: 12 }]}>
+                    <View style={styles.textModeCardHeader}>
+                      <View style={styles.textModeHeaderLeft}>
+                        <Ionicons name="document-text-outline" size={16} color={colors.primary} />
+                        <Text style={styles.textModeSection} numberOfLines={1}>
+                          {pageData?.section || book.title}
+                        </Text>
+                      </View>
+                      <View style={styles.textModeHeaderRight}>
+                        <View style={styles.textModeOfflineBadge}>
+                          <Text style={styles.textModeOfflineBadgeText}>100% Offline</Text>
+                        </View>
+                        <Text style={styles.textModePageBadge}>
+                          Pág. {pageNum} / {book.pageCount}
+                        </Text>
+                      </View>
+                    </View>
+                    {renderFormattedBookText(pageData?.text, zoom, colors, styles)}
+                  </View>
+                );
+              }}
+              contentContainerStyle={[styles.textModeScroll, { paddingBottom: 60 }]}
+            />
+          )}
+
+          {viewMode === 'text' && textLayout === 'page' && (
             <ScrollView contentContainerStyle={styles.textModeScroll}>
               <View style={styles.textModeCard}>
                 <View style={styles.textModeCardHeader}>

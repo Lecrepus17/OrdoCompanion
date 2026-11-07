@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CriticalDamageMode, DiceRollResult, WeaponAttackContext } from '../types/compendium';
 import { parseCritical } from './weapons';
 
@@ -213,25 +214,34 @@ export function rollWeaponDamage(options: WeaponDamageRollOptions): DiceRollResu
     critical,
   };
 
-  // 1. CRÍTICO MÁXIMO (quando cai 20 no teste de ataque ou acionado diretamente)
-  if (isMaxDamage) {
-    if (mode === 'multiply_dice') {
-      const expanded = expandFormulaForCritical(cleanDamage, mult);
-      const maxCalc = calculateMaxDamageForFormula(expanded);
-      return {
-        id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        label: customLabel || `CRÍTICO MÁXIMO de ${weaponName} (x${mult})`,
-        mode: 'formula',
-        formulaText: `${expanded} (Máximo)`,
-        diceResults: maxCalc.diceResults,
-        bonus: maxCalc.bonus,
-        total: maxCalc.total,
-        isCritical: true,
-        isMaxDamage: true,
-        attackContext: effectiveAttackContext,
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      };
-    } else {
+  // Se a arma possui apenas dano estático (sem dados "d"), resolve aritmeticamente
+  const hasDice = /d\d+/i.test(cleanDamage);
+  if (!hasDice) {
+    const flatVal = parseInt(cleanDamage, 10) || 0;
+    const isCriticalHit = isCrit || isMaxDamage || mode === 'max_damage';
+    const total = isCriticalHit && (mode === 'multiply_damage' || mode === 'max_damage' || isMaxDamage)
+      ? flatVal * mult
+      : flatVal;
+
+    return {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      label: customLabel || (isCriticalHit ? `Dano CRÍTICO de ${weaponName} (x${mult})` : `Dano de ${weaponName}`),
+      mode: 'formula',
+      formulaText: isCriticalHit ? `${cleanDamage} (x${mult}) = ${total}` : `${cleanDamage}`,
+      diceResults: [],
+      bonus: total,
+      total,
+      isCritical: isCriticalHit,
+      isMaxDamage: isMaxDamage || mode === 'max_damage',
+      attackContext: effectiveAttackContext,
+      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    };
+  }
+
+  // 1. CRÍTICO MÁXIMO (quando cai 20 no teste de ataque, acionado diretamente ou modo max_damage)
+  const shouldDoMaxDamage = isMaxDamage || (isCrit && mode === 'max_damage');
+  if (shouldDoMaxDamage) {
+    if (mode === 'multiply_damage') {
       // mode === 'multiply_damage' (menos dados, multiplica o total máximo)
       const baseCalc = calculateMaxDamageForFormula(cleanDamage);
       const critTotal = baseCalc.total * mult;
@@ -243,6 +253,23 @@ export function rollWeaponDamage(options: WeaponDamageRollOptions): DiceRollResu
         diceResults: baseCalc.diceResults,
         bonus: baseCalc.bonus,
         total: critTotal,
+        isCritical: true,
+        isMaxDamage: true,
+        attackContext: effectiveAttackContext,
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      };
+    } else {
+      // mode === 'multiply_dice' ou 'max_damage' (multiplica dados e maximiza)
+      const expanded = expandFormulaForCritical(cleanDamage, mult);
+      const maxCalc = calculateMaxDamageForFormula(expanded);
+      return {
+        id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        label: customLabel || `CRÍTICO MÁXIMO de ${weaponName} (x${mult})`,
+        mode: 'formula',
+        formulaText: `${expanded} (Máximo)`,
+        diceResults: maxCalc.diceResults,
+        bonus: maxCalc.bonus,
+        total: maxCalc.total,
         isCritical: true,
         isMaxDamage: true,
         attackContext: effectiveAttackContext,
@@ -294,4 +321,109 @@ export function rollWeaponDamage(options: WeaponDamageRollOptions): DiceRollResu
     ...normalRoll,
     attackContext: effectiveAttackContext,
   };
+}
+
+export const CUSTOM_DICE_STORAGE_KEY = '@ordo_custom_dice_formulas';
+
+export const DEFAULT_QUICK_FORMULAS = [
+  '1d4',
+  '1d6',
+  '1d8',
+  '1d10',
+  '1d12',
+  '2d6',
+  '4d6',
+  '6d6',
+  '2d8+4',
+  '3d10+5',
+];
+
+/**
+ * Validador canônico de fórmulas de dados para criação de botões rápidos customizados.
+ */
+export function isValidDiceFormula(formula: string): boolean {
+  if (!formula || typeof formula !== 'string') return false;
+  const clean = formula.trim().toLowerCase();
+  if (clean.length === 0 || clean.length > 50) return false;
+
+  if (/[^0-9d+\-\s]/.test(clean)) return false;
+  if (!/\b(\d*d\d+)\b/.test(clean)) return false;
+
+  const tokens = clean.split(/(?=[+\-])/).map((t) => t.trim().replace(/^[+\-]/, '').trim());
+  for (const t of tokens) {
+    if (!t) return false;
+    const isDice = /^(\d+)?d(\d+)$/.test(t);
+    const isFixed = /^[+\-]?\d+$/.test(t);
+    if (!isDice && !isFixed) return false;
+
+    if (isDice) {
+      const match = t.match(/^(\d+)?d(\d+)$/);
+      if (match) {
+        const count = match[1] ? parseInt(match[1], 10) : 1;
+        const faces = parseInt(match[2], 10);
+        if (count < 1 || count > 100 || faces < 2 || faces > 1000) return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Carrega a lista efetiva de fórmulas rápidas (padrão + customizadas salvas).
+ */
+export async function loadQuickFormulas(): Promise<string[]> {
+  try {
+    const raw = await AsyncStorage.getItem(CUSTOM_DICE_STORAGE_KEY);
+    if (!raw) return [...DEFAULT_QUICK_FORMULAS];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return [...DEFAULT_QUICK_FORMULAS];
+    }
+    return Array.from(new Set([...DEFAULT_QUICK_FORMULAS, ...parsed]));
+  } catch {
+    return [...DEFAULT_QUICK_FORMULAS];
+  }
+}
+
+/**
+ * Adiciona uma nova fórmula customizada e persiste no AsyncStorage.
+ */
+export async function addCustomFormula(formula: string): Promise<{ success: boolean; formulas: string[]; error?: string }> {
+  const clean = (formula || '').trim();
+  if (!isValidDiceFormula(clean)) {
+    return {
+      success: false,
+      formulas: await loadQuickFormulas(),
+      error: 'Fórmula de dados inválida. Use notações como "2d8+4", "3d6+1d4" ou "5d10".',
+    };
+  }
+
+  const current = await loadQuickFormulas();
+  if (current.includes(clean)) {
+    return {
+      success: true,
+      formulas: current,
+    };
+  }
+
+  const updated = [...current, clean];
+  const customOnly = updated.filter((f) => !DEFAULT_QUICK_FORMULAS.includes(f));
+  await AsyncStorage.setItem(CUSTOM_DICE_STORAGE_KEY, JSON.stringify(customOnly));
+
+  return {
+    success: true,
+    formulas: updated,
+  };
+}
+
+/**
+ * Remove uma fórmula customizada e atualiza o AsyncStorage.
+ */
+export async function removeCustomFormula(formula: string): Promise<string[]> {
+  const current = await loadQuickFormulas();
+  const updated = current.filter((f) => f !== formula);
+  const customOnly = updated.filter((f) => !DEFAULT_QUICK_FORMULAS.includes(f));
+  await AsyncStorage.setItem(CUSTOM_DICE_STORAGE_KEY, JSON.stringify(customOnly));
+  return updated;
 }

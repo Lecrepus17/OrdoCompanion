@@ -253,9 +253,7 @@ export default function OracleScreen() {
 
     if (!GlitchVoiceService.isSttSupported()) {
       setVoiceNotice(
-        Platform.OS === 'web'
-          ? 'Reconhecimento de voz não suportado neste navegador. Digite sua mensagem no campo abaixo.'
-          : 'Reconhecimento de voz (STT) indisponível neste dispositivo. Digite sua mensagem no campo de texto.'
+        'Reconhecimento de voz direto indisponível neste dispositivo. Dica: use o botão de microfone do teclado virtual para ditar.'
       );
       inputRef.current?.focus();
       setTimeout(() => {
@@ -643,7 +641,12 @@ export default function OracleScreen() {
 
       {/* LISTA DE MENSAGENS */}
       {messages.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <ScrollView
+          style={styles.emptyScroll}
+          contentContainerStyle={styles.emptyContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View
             style={[
               styles.welcomeCard,
@@ -701,7 +704,7 @@ export default function OracleScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           ref={flatListRef}
@@ -1042,10 +1045,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
   },
-  emptyContainer: {
+  emptyScroll: {
     flex: 1,
+  },
+  emptyContainer: {
+    flexGrow: 1,
     padding: 16,
-    justifyContent: 'center',
+    paddingBottom: 28,
+    justifyContent: 'flex-start',
   },
   welcomeCard: {
     borderRadius: 14,

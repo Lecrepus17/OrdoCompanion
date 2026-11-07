@@ -13,7 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { UpdateCheckResult } from '../services/updates/types';
-import { updateCheckerService } from '../services/updates/UpdateCheckerService';
+import {
+  GITHUB_RELEASES_PAGE_URL,
+  updateCheckerService,
+} from '../services/updates/UpdateCheckerService';
 
 interface UpdateNotificationModalProps {
   visible: boolean;
@@ -59,15 +62,14 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
   } = updateInfo;
 
   const handleDownload = async () => {
-    const targetUrl = apkUrl || downloadUrl;
     if (onDownload) {
       onDownload();
     }
-    await updateCheckerService.openDownloadUrl(targetUrl);
+    await updateCheckerService.openResilientApkDownload(apkUrl, downloadUrl);
   };
 
   const handleOpenGitHub = async () => {
-    await updateCheckerService.openDownloadUrl(downloadUrl);
+    await updateCheckerService.openDownloadUrl(downloadUrl || GITHUB_RELEASES_PAGE_URL);
   };
 
   const handleDismiss = async () => {

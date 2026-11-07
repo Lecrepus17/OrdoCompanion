@@ -29,7 +29,7 @@ pdfs/
 .agents/teamwork/
 
 # Bug screenshots drop folder (local workflow)
-docs/imagens dos problemas/
+docs/imagensDosProblemas/
 
 # Environment files
 .env

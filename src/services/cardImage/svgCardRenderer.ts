@@ -226,6 +226,14 @@ export function generateCardSvg(
   const titleStartY = currentY + titleFontSize * 0.9;
   currentY += titleLines.length * (titleFontSize * 1.15) + 16;
 
+  // Subcategoria (se houver e não for idêntica ao título)
+  const hasSubCategory = Boolean(data.subCategory && data.subCategory !== data.name);
+  let subCategoryY = 0;
+  if (hasSubCategory) {
+    subCategoryY = currentY + 14;
+    currentY += 32;
+  }
+
   // Linha divisória de acento
   const dividerY = currentY;
   currentY += 26;
@@ -404,18 +412,18 @@ export function generateCardSvg(
       .join('')}
 
     ${
-      data.subCategory && data.subCategory !== data.name
+      hasSubCategory
         ? `
       <text
         x="${contentX + 14}"
-        y="${titleStartY + titleLines.length * (titleFontSize * 1.15) - 4}"
+        y="${subCategoryY}"
         fill="${colors.accent}"
         font-family="system-ui, -apple-system, sans-serif"
         font-size="16"
         font-weight="700"
         letter-spacing="1"
         opacity="0.9"
-      >${escapeXml(data.subCategory.toUpperCase())}</text>
+      >${escapeXml(data.subCategory!.toUpperCase())}</text>
     `
         : ''
     }

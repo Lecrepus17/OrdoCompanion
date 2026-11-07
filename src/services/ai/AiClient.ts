@@ -4,6 +4,7 @@ import { AiCitation, AiConfig, AiMessage, AiProvider, AiSuggestedAction } from '
 import { RetrievedKnowledge, retrieveAiKnowledge } from './AiKnowledgeRetrieval';
 import { generateOfflineResponse } from './AiOfflineEngine';
 import { CharacterSheet } from '../../types/compendium';
+import { deobfuscateSecret, resolveEnvSecret } from '../../utils/secretObfuscator';
 
 export interface SendMessageOptions {
   query: string;
@@ -15,16 +16,31 @@ export interface SendMessageOptions {
 export const BUILTIN_DEFAULT_GEMINI_KEY = '';
 
 /**
- * Valida o formato canônico de chaves de API do Google Gemini (Google AI Studio).
- * Chaves oficiais iniciam com 'AIzaSy' seguido de 33 caracteres de [A-Za-z0-9_-] (total 39 caracteres).
+ * Higieniza chaves de API removendo aspas externas (comuns ao copiar de .env),
+ * caracteres de controle, quebras de linha e espaços acidentais.
+ */
+export function sanitizeApiKey(key?: string | null): string {
+  if (!key || typeof key !== 'string') return '';
+  return key
+    .replace(/^["'`]|["'`]$/g, '') // Remove aspas no início e fim
+    .replace(/["'`]/g, '')         // Remove aspas remanescentes
+    .replace(/[\r\n\t]/g, '')     // Remove quebras de linha e tabs
+    .trim();
+}
+
+/**
+ * Valida o formato canônico de chaves de API do Google Gemini (Google AI Studio / Vertex).
+ * Suporta chaves iniciadas com 'AIzaSy', 'AIza' ou 'AQ.' (e valores ofuscados 'obf:v1:...').
  */
 export function validateKey(key: string): boolean {
   if (!key || typeof key !== 'string') return false;
-  const clean = key.trim();
+  const deobfuscated = deobfuscateSecret(key);
+  const clean = sanitizeApiKey(deobfuscated);
+  if (!clean) return false;
   if (isTestEnvironment() || process.env.NODE_ENV === 'test') {
-    return /^AIzaSy[A-Za-z0-9_-]{10,64}$/.test(clean);
+    return /^(?:AIza[A-Za-z0-9_-]{10,64}|AQ\.[A-Za-z0-9_.-]{15,120})$/.test(clean);
   }
-  return /^AIzaSy[A-Za-z0-9_-]{20,64}$/.test(clean);
+  return /^(?:AIza[A-Za-z0-9_-]{20,64}|AQ\.[A-Za-z0-9_.-]{20,120})$/.test(clean);
 }
 
 export const validateGeminiApiKey = validateKey;
@@ -118,17 +134,18 @@ export function resolveOllamaEndpoint(endpoint?: string): string {
 }
 
 /**
- * Retorna a chave padrão do Gemini definida em variáveis de ambiente ou o fallback nativo do aplicativo.
+ * Retorna a chave padrão do Gemini definida em variáveis de ambiente (suporta formato ofuscado obf:v1:...)
+ * ou o fallback nativo do aplicativo.
  */
 export function getDefaultGeminiApiKey(): string {
-  const envKey = (process.env.EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY || '').trim();
+  const envKey = resolveEnvSecret(process.env.EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY);
   if (envKey) {
     return envKey;
   }
   if (isTestEnvironment()) {
     return '';
   }
-  return BUILTIN_DEFAULT_GEMINI_KEY;
+  return deobfuscateSecret(BUILTIN_DEFAULT_GEMINI_KEY);
 }
 
 export function hasDefaultApiKey(provider: AiProvider): boolean {
@@ -136,7 +153,7 @@ export function hasDefaultApiKey(provider: AiProvider): boolean {
     return Boolean(getDefaultGeminiApiKey());
   }
   if (provider === 'groq') {
-    return Boolean((process.env.EXPO_PUBLIC_DEFAULT_GROQ_API_KEY || '').trim());
+    return Boolean(resolveEnvSecret(process.env.EXPO_PUBLIC_DEFAULT_GROQ_API_KEY));
   }
   return false;
 }
@@ -148,17 +165,18 @@ export function hasDefaultApiKey(provider: AiProvider): boolean {
  * 2. Chave de API padrão embutida no ambiente (`EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY`) ou fallback nativo
  */
 export function getEffectiveApiKey(config: AiConfig): string {
-  const userKey = (config.apiKey || '').trim();
+  const rawKey = deobfuscateSecret((config.apiKey || '').trim());
+  const userKey = sanitizeApiKey(rawKey);
   if (userKey) {
     return userKey;
   }
 
   if (config.provider === 'gemini') {
-    return getDefaultGeminiApiKey();
+    return sanitizeApiKey(getDefaultGeminiApiKey());
   }
 
   if (config.provider === 'groq') {
-    return (process.env.EXPO_PUBLIC_DEFAULT_GROQ_API_KEY || '').trim();
+    return sanitizeApiKey(resolveEnvSecret(process.env.EXPO_PUBLIC_DEFAULT_GROQ_API_KEY));
   }
 
   return '';
@@ -400,7 +418,7 @@ export async function sendAiChatMessage({
     const parsed = parseCitationsAndActions(offlineMsg.content, offlineMsg.citations);
     const reason = !effectiveApiKey
       ? 'Nenhuma chave de API configurada'
-      : 'Chave de API do Gemini inválida (deve iniciar com "AIzaSy" e conter 39 caracteres)';
+      : 'Chave de API do Gemini inválida ou não configurada';
     return {
       ...offlineMsg,
       content: `ℹ️ *${reason}. Ativando modo offline local (G.L.I.T.C.H.):*\n\n${offlineMsg.content}`,
@@ -519,7 +537,8 @@ async function callGeminiApi(
 
   for (const currentModel of modelsToTry) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${config.apiKey.trim()}`;
+      const cleanKey = sanitizeApiKey(config.apiKey);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${cleanKey}`;
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -540,6 +559,12 @@ async function callGeminiApi(
           errorDetail = errJson.error?.message || errorDetail;
         } catch {
           // Ignora erro de parse
+        }
+        if (response.status === 400 && (errorDetail.includes('API key not valid') || errorDetail.includes('API_KEY_INVALID'))) {
+          throw new Error('Chave de API do Gemini inválida ou não autorizada pelo Google AI Studio. Verifique sua chave em aistudio.google.com/app/apikey.');
+        }
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(`Acesso não autorizado aos modelos Gemini (HTTP ${response.status}). Verifique as permissões da chave.`);
         }
         throw new Error(errorDetail);
       }
@@ -566,7 +591,7 @@ async function callGeminiApi(
 }
 
 /**
- * Chamada à API Groq Cloud (Llama 3.3 70B gratuito).
+ * Chamada à API Groq Cloud (Llama 3.3 70B gratuito com fallback automático para 8B).
  */
 async function callGroqApi(
   query: string,
@@ -575,7 +600,16 @@ async function callGroqApi(
   chatHistory: AiMessage[]
 ): Promise<AiMessage> {
   const url = 'https://api.groq.com/openai/v1/chat/completions';
-  const modelName = config.model || 'llama-3.3-70b-versatile';
+  const selectedModel = config.model || 'llama-3.3-70b-versatile';
+
+  // Ordem de retentativa: modelo selecionado -> llama-3.1-8b-instant -> llama-3.3-70b-versatile
+  const modelsToTry = Array.from(
+    new Set([
+      selectedModel,
+      'llama-3.1-8b-instant',
+      'llama-3.3-70b-versatile',
+    ])
+  );
 
   const recentHistory = chatHistory
     .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -590,42 +624,80 @@ async function callGroqApi(
     { role: 'user', content: query },
   ];
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey.trim()}`,
-    },
-    body: JSON.stringify({
-      model: modelName,
-      messages,
-      temperature: config.temperature ?? 0.4,
-      max_tokens: 2048,
-    }),
-  });
+  const sanitizedKey = sanitizeApiKey(config.apiKey);
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    let errorDetail = `Status ${response.status}`;
+  for (const currentModel of modelsToTry) {
     try {
-      const errJson = await response.json();
-      errorDetail = errJson.error?.message || errorDetail;
-    } catch {}
-    throw new Error(errorDetail);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sanitizedKey}`,
+        },
+        body: JSON.stringify({
+          model: currentModel,
+          messages,
+          temperature: config.temperature ?? 0.4,
+          max_tokens: 2048,
+        }),
+      });
+
+      if (response.status === 503 || response.status === 404 || response.status === 429) {
+        console.warn(`[AI Client] Groq modelo '${currentModel}' retornou status ${response.status}. Tentando fallback...`);
+        continue;
+      }
+
+      if (!response.ok) {
+        let errorDetail = `Status ${response.status}`;
+        let errorCode = '';
+        try {
+          const errJson = await response.json();
+          errorDetail = errJson.error?.message || errorDetail;
+          errorCode = errJson.error?.code || '';
+        } catch {}
+
+        const isModelUnavailable =
+          errorCode === 'model_not_found' ||
+          errorCode === 'model_decommissioned' ||
+          errorDetail.includes('does not exist') ||
+          errorDetail.includes('do not have access') ||
+          errorDetail.includes('decommissioned');
+
+        if (isModelUnavailable) {
+          console.warn(`[AI Client] Groq modelo '${currentModel}' indisponível (${errorDetail}). Tentando fallback...`);
+          continue;
+        }
+
+        if (response.status === 401) {
+          throw new Error('Chave de API do Groq inválida ou não autorizada (HTTP 401). Verifique sua chave em console.groq.com/keys.');
+        }
+
+        throw new Error(errorDetail);
+      }
+
+      const data = await response.json();
+      const rawText = data?.choices?.[0]?.message?.content || 'Nenhuma resposta gerada.';
+      const { citations, actions } = parseCitationsAndActions(rawText, knowledge.citations);
+
+      return {
+        id: `msg_groq_${Date.now()}`,
+        role: 'assistant',
+        content: rawText,
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        citations,
+        suggestedActions: actions,
+        relicPersona: knowledge.resolvedPersona,
+      };
+    } catch (err: any) {
+      lastError = err;
+      if (err.message && err.message.includes('Chave de API do Groq inválida')) {
+        throw err;
+      }
+    }
   }
 
-  const data = await response.json();
-  const rawText = data?.choices?.[0]?.message?.content || 'Nenhuma resposta gerada.';
-  const { citations, actions } = parseCitationsAndActions(rawText, knowledge.citations);
-
-  return {
-    id: `msg_groq_${Date.now()}`,
-    role: 'assistant',
-    content: rawText,
-    timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-    citations,
-    suggestedActions: actions,
-    relicPersona: knowledge.resolvedPersona,
-  };
+  throw lastError || new Error('Não foi possível obter resposta da API Groq.');
 }
 
 /**
@@ -723,10 +795,11 @@ export async function testAiConnection(
       if (!validateKey(effectiveApiKey)) {
         return {
           success: false,
-          message: 'Chave de API do Gemini inválida. A chave oficial do Google AI Studio deve iniciar com "AIzaSy" e conter 39 caracteres.',
+          message: 'Chave de API do Gemini inválida ou não configurada.',
         };
       }
 
+      const cleanApiKey = sanitizeApiKey(effectiveApiKey);
       let modelName = config.model || 'gemini-flash-lite-latest';
       if (modelName === 'gemini-2.5-flash') {
         modelName = 'gemini-flash-lite-latest';
@@ -738,7 +811,7 @@ export async function testAiConnection(
 
       let lastMsg = 'Erro ao conectar';
       for (const curModel of modelsToTry) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${curModel}:generateContent?key=${effectiveApiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${curModel}:generateContent?key=${cleanApiKey}`;
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -769,25 +842,60 @@ export async function testAiConnection(
       return { success: false, message: lastMsg };
     } else if (config.provider === 'groq') {
       const url = 'https://api.groq.com/openai/v1/chat/completions';
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${effectiveApiKey}`,
-        },
-        body: JSON.stringify({
-          model: config.model || 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: 'OK' }],
-          max_tokens: 5,
-        }),
-      });
+      const cleanKey = sanitizeApiKey(effectiveApiKey);
+      const selectedModel = config.model || 'llama-3.3-70b-versatile';
+      const modelsToTry = Array.from(
+        new Set([selectedModel, 'llama-3.1-8b-instant', 'llama-3.3-70b-versatile'])
+      );
 
-      if (!res.ok) {
-        return { success: false, message: `Erro HTTP ${res.status} ao conectar à Groq.` };
+      let lastMsg = 'Erro ao conectar à Groq';
+      for (const curModel of modelsToTry) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${cleanKey}`,
+            },
+            body: JSON.stringify({
+              model: curModel,
+              messages: [{ role: 'user', content: 'OK' }],
+              max_tokens: 5,
+            }),
+          });
+
+          if (res.ok) {
+            const originTag = isDefault ? ' (Usando Chave Padrão)' : ' (Usando Chave Pessoal)';
+            const fallbackNote = curModel !== selectedModel ? ` [Fallback: ${curModel}]` : '';
+            return {
+              success: true,
+              message: `Conexão com Groq Cloud (${curModel}) realizada com sucesso!${originTag}${fallbackNote}`,
+            };
+          }
+
+          if (res.status === 503 || res.status === 404 || res.status === 429) {
+            continue;
+          }
+
+          try {
+            const err = await res.json();
+            const msg = err.error?.message || `Erro HTTP ${res.status}`;
+            if (err.error?.code === 'model_not_found' || msg.includes('does not exist') || msg.includes('do not have access')) {
+              continue;
+            }
+            if (res.status === 401) {
+              return { success: false, message: 'Chave de API do Groq inválida (HTTP 401). Verifique em console.groq.com/keys.' };
+            }
+            lastMsg = msg;
+          } catch {
+            lastMsg = `Erro HTTP ${res.status} ao conectar à Groq.`;
+          }
+        } catch (fetchErr: any) {
+          lastMsg = fetchErr.message || lastMsg;
+        }
       }
 
-      const originTag = isDefault ? ' (Usando Chave Padrão)' : ' (Usando Chave Pessoal)';
-      return { success: true, message: `Conexão com Groq Cloud realizada com sucesso!${originTag}` };
+      return { success: false, message: lastMsg };
     } else if (config.provider === 'ollama') {
       const resolvedUrl = resolveOllamaEndpoint(config.endpoint);
       const baseOrigin = resolvedUrl.replace(/\/(v1\/chat\/completions|api\/chat|v1)\/?$/i, '');

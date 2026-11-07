@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Platform,
   ScrollView,
   StyleSheet,
@@ -219,6 +220,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   };
 
   const handleSubmitDirect = async () => {
+    Keyboard.dismiss();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -236,7 +238,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
       setStepsToReproduce('');
 
       showAlert(
-        result.deliveredRemotely ? 'Relato Enviado com Sucesso!' : 'Protocolo Registrado!',
+        result.deliveredRemotely ? 'Relato Entregue ao Desenvolvedor!' : 'Protocolo Salvo no Aparelho',
         result.message
       );
     } catch (err: any) {
@@ -250,6 +252,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   };
 
   const handleOpenGitHubIssue = async () => {
+    Keyboard.dismiss();
     if (!validateForm()) return;
     const payload = buildCurrentPayload();
     const protocol = lastSubmittedTicket?.protocol || supportService.generateProtocol();
@@ -271,6 +274,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   };
 
   const handleSendViaEmail = async () => {
+    Keyboard.dismiss();
     if (!validateForm()) return;
     const payload = buildCurrentPayload();
     const protocol = lastSubmittedTicket?.protocol || supportService.generateProtocol();
@@ -291,6 +295,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   };
 
   const handleCopyFullReport = async () => {
+    Keyboard.dismiss();
     if (!validateForm()) return;
     const payload = buildCurrentPayload();
     const protocol = lastSubmittedTicket?.protocol || supportService.generateProtocol();
@@ -302,7 +307,6 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
       `O relatório completo (Protocolo #${protocol}) com diagnóstico técnico foi copiado para a área de transferência. Agora você pode colar direto no Discord, E-mail ou GitHub!`
     );
   };
-
 
   const handleClearHistory = async () => {
     await supportService.clearTicketHistory();
@@ -319,7 +323,10 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
       'Discord Copiado & Abrindo!',
       `O usuário "${handleToCopy}" foi copiado para a área de transferência! Abrindo o Discord para você conversar ou adicionar o desenvolvedor.`
     );
-    await supportService.openExternalUrl(contactConfig.discordInviteUrl);
+    const opened = await supportService.openExternalUrl(contactConfig.discordInviteUrl);
+    if (!opened) {
+      await supportService.openExternalUrl('https://discord.com');
+    }
   };
 
   const handleCopyDiscordHandle = async () => {
@@ -556,6 +563,20 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
         <Text style={styles.sectionHint}>
           Preencha os campos abaixo para me enviar um relato direto sem precisar sair do aplicativo:
         </Text>
+
+        {/* Banner de Transparência do Destino da Mensagem */}
+        <View style={styles.destinationExplainerBox} testID="support-transparency-banner">
+          <View style={styles.destinationHeaderRow}>
+            <Ionicons name="information-circle" size={16} color={colors.primary} />
+            <Text style={styles.destinationTitle}>Para onde vai a minha mensagem?</Text>
+          </View>
+          <Text style={styles.destinationText}>
+            • <Text style={{ fontWeight: '800', color: colors.text }}>Canal Oficial no Discord:</Text> Ao enviar pelo app, seu relato chega diretamente ao canal <Text style={{ color: colors.primary, fontWeight: '700' }}>#suporte</Text> do servidor oficial da Ordem, gerando um chamado com protocolo rastreável (<Text style={{ fontWeight: '800' }}>#ORD-XXXXX</Text>) e diagnóstico técnico para o desenvolvedor.
+          </Text>
+          <Text style={styles.destinationText}>
+            • <Text style={{ fontWeight: '800', color: colors.text }}>Histórico Local:</Text> Uma cópia completa é mantida na memória deste aparelho. Se você estiver sem internet, o relato é salvo com segurança e pode ser consultado ou reencaminhado a qualquer momento na seção &quot;Meus Relatos&quot;.
+          </Text>
+        </View>
 
         {/* Confirmação do último protocolo enviado */}
         {lastSubmittedTicket && (
@@ -859,23 +880,34 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
       </View>
 
       {/* Bloco 3: Histórico Local de Chamados & Protocolos */}
-      {ticketHistory.length > 0 && (
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="time-outline" size={16} color={colors.primary} />
-              <Text style={styles.sectionHeaderTitle}>
-                MEUS RELATOS ENVIADOS ({ticketHistory.length})
-              </Text>
-            </View>
+      <View style={styles.sectionCard} testID="support-history-section">
+        <View style={styles.sectionHeaderRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="time-outline" size={16} color={colors.primary} />
+            <Text style={styles.sectionHeaderTitle}>
+              MEUS RELATOS ENVIADOS ({ticketHistory.length})
+            </Text>
+          </View>
+          {ticketHistory.length > 0 && (
             <TouchableOpacity onPress={handleClearHistory} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.clearHistoryText}>Limpar</Text>
             </TouchableOpacity>
-          </View>
+          )}
+        </View>
 
+        {ticketHistory.length === 0 ? (
+          <View style={styles.emptyHistoryCard} testID="support-empty-history">
+            <Ionicons name="file-tray-outline" size={26} color={colors.textMuted} />
+            <Text style={styles.emptyHistoryTitle}>Nenhum relato registrado neste aparelho</Text>
+            <Text style={styles.emptyHistoryText}>
+              Você ainda não enviou relatos neste aparelho. Seus chamados registrados e números de protocolo (#ORD-XXXXX) aparecerão aqui para consulta e acompanhamento.
+            </Text>
+          </View>
+        ) : (
           <View style={{ gap: 8, marginTop: 6 }}>
-            {ticketHistory.slice(0, 5).map((item) => {
+            {ticketHistory.slice(0, 10).map((item) => {
               const catMeta = CATEGORY_LABELS[item.category] || CATEGORY_LABELS.bug;
+              const isRemote = item.status === 'sent_remote';
               const dateFormatted = (() => {
                 try {
                   const d = new Date(item.createdAt);
@@ -897,10 +929,35 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
                           #{item.protocol}
                         </Text>
                       </View>
+                      <View
+                        style={[
+                          styles.historyStatusBadge,
+                          {
+                            backgroundColor: isRemote ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                            borderColor: isRemote ? '#10B981' : '#F59E0B',
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={isRemote ? 'checkmark-circle' : 'phone-portrait-outline'}
+                          size={11}
+                          color={isRemote ? '#10B981' : '#F59E0B'}
+                        />
+                        <Text
+                          style={[
+                            styles.historyStatusBadgeText,
+                            { color: isRemote ? '#10B981' : '#F59E0B' },
+                          ]}
+                        >
+                          {isRemote ? 'Entregue ao Desenvolvedor' : 'Salvo no Dispositivo'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.historyMetaRow}>
                       <Text style={styles.historyCategoryText}>
                         {catMeta.emoji} {catMeta.label}
                       </Text>
-                      <Text style={styles.historyDateText}>{dateFormatted}</Text>
+                      <Text style={styles.historyDateText}>• {dateFormatted}</Text>
                     </View>
                     <Text style={styles.historyTitleText} numberOfLines={1}>
                       {item.title}
@@ -928,8 +985,8 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
               );
             })}
           </View>
-        </View>
-      )}
+        )}
+      </View>
 
       {/* Bloco 4: Configurações do Desenvolvedor / Mestre (Recebimento de Chamados) */}
       {/* Visível apenas em desenvolvimento (__DEV__); em APKs de release o webhook vem de EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL (eas.json) */}
@@ -1365,6 +1422,30 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.text,
       lineHeight: 16,
     },
+    destinationExplainerBox: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 10,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 6,
+    },
+    destinationHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 2,
+    },
+    destinationTitle: {
+      fontSize: 12.5,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    destinationText: {
+      fontSize: 11.5,
+      color: colors.textSecondary,
+      lineHeight: 16,
+    },
     inputGroup: {
       gap: 5,
     },
@@ -1605,6 +1686,49 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    emptyHistoryCard: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 6,
+    },
+    emptyHistoryTitle: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: colors.text,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+    emptyHistoryText: {
+      fontSize: 11.5,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 16,
+      maxWidth: 400,
+    },
+    historyStatusBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 5,
+      borderWidth: 1,
+    },
+    historyStatusBadgeText: {
+      fontSize: 9.5,
+      fontWeight: '800',
+    },
+    historyMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginVertical: 2,
     },
     advancedToggleHeader: {
       flexDirection: 'row',

@@ -34,7 +34,13 @@ export interface SupportTicketRecord extends SupportTicketPayload {
   id: string;
   protocol: string;
   status: SupportTicketDeliveryStatus;
-  deliveryChannel?: 'discord_webhook' | 'custom_endpoint' | 'github_issue' | 'email' | 'local';
+  deliveryChannel?:
+    | 'supabase_proxy'
+    | 'discord_webhook'
+    | 'custom_endpoint'
+    | 'github_issue'
+    | 'email'
+    | 'local';
   createdAt: string;
 }
 
@@ -42,9 +48,10 @@ export interface SupportSubmitResult {
   success: boolean;
   deliveredRemotely: boolean;
   protocol: string;
-  channelUsed: 'discord_webhook' | 'custom_endpoint' | 'local_fallback';
+  channelUsed: 'supabase_proxy' | 'discord_webhook' | 'custom_endpoint' | 'local_fallback';
   message: string;
   ticket: SupportTicketRecord;
+  rateLimited?: boolean;
 }
 
 export interface SupportContactConfig {
@@ -56,4 +63,7 @@ export interface SupportContactConfig {
   discordHandle: string;
   discordWebhookUrl: string;
   customEndpointUrl: string;
+  supabaseProxyUrl?: string;
+  supabaseAnonKey?: string;
+  rateLimitCooldownMs?: number;
 }

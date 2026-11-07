@@ -92,7 +92,7 @@ Arquivo histórico contendo o registro imutável de cada versão lançada.
 
 ### 🤖 Compatibilidade Android APK & Runtime Hermes
 - `.agents/skills/android-apk-audit/SKILL.md`: Criação de skill especializada com auditoria de runtime, checklists de APIs nativas, BackHandler e manipulação de arquivos no Android.
-- `.agents/skills/screenshot-bug-triage/SKILL.md`: Criação de skill e fluxo contínuo de triagem e resolução de prints de problemas em `docs/imagens dos problemas/`.
+- `.agents/skills/screenshot-bug-triage/SKILL.md`: Criação de skill e fluxo contínuo de triagem e resolução de prints de problemas em `docs/imagensDosProblemas/`.
 - `GEMINI.md`: Registro do agente `android-apk-guardian` e regras de roteamento automatizado para o ecossistema Android APK.
 - `app.json`: Configurações nativas essenciais para APK (`largeHeap: true`, `usesCleartextTraffic: true`, permissão `INTERNET` e `softwareKeyboardLayoutMode: "adjustPan"`).
 - `src/services/ai/AiClient.ts`: Resolução dinâmica de host no Android (`10.0.2.2` / dev server IP) para conexão transparente com servidor de IA Ollama local.

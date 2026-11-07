@@ -1,11 +1,11 @@
 ---
 name: screenshot-bug-triage
-description: Triagem automática, roteamento multi-agente e resolução em lote de problemas reportados via capturas de tela (prints) na pasta docs/imagens dos problemas/, onde o nome de cada arquivo descreve o bug encontrado.
+description: Triagem automática, roteamento multi-agente e resolução em lote de problemas reportados via capturas de tela (prints) na pasta docs/imagensDosProblemas/, onde o nome de cada arquivo descreve o bug encontrado.
 ---
 
 # 📸 Skill: Triagem e Resolução de Prints de Problemas (`screenshot-bug-triage`)
 
-Esta skill automatiza o fluxo contínuo de correção de bugs visuais, de UX, APK, sincronização e regras a partir de capturas de tela salvas pelo desenvolvedor na pasta `docs/imagens dos problemas/`.
+Esta skill automatiza o fluxo contínuo de correção de bugs visuais, de UX, APK, sincronização e regras a partir de capturas de tela salvas pelo desenvolvedor na pasta `docs/imagensDosProblemas/`.
 
 ---
 
@@ -13,8 +13,8 @@ Esta skill automatiza o fluxo contínuo de correção de bugs visuais, de UX, AP
 
 1. **Coleta de Evidências (Pelo Usuário)**:
    * Durante o uso do app no celular ou emulador, o usuário tira prints dos problemas encontrados.
-   * O usuário salva os arquivos em `docs/imagens dos problemas/` colocando **a descrição do problema como o próprio nome do arquivo** (ex.: `botão de salvar cortado no modo deitado.png`, `pdf trava ao rolar página.jpg`).
-   * A pasta `docs/imagens dos problemas/` já está configurada no `.gitignore` para nunca poluir o repositório Git.
+   * O usuário salva os arquivos em `docs/imagensDosProblemas/` colocando **a descrição do problema como o próprio nome do arquivo** (ex.: `botão de salvar cortado no modo deitado.png`, `pdf trava ao rolar página.jpg`).
+   * A pasta `docs/imagensDosProblemas/` já está configurada no `.gitignore` para nunca poluir o repositório Git.
 
 2. **Disparo do Processamento**:
    * Quando acumular uma quantidade de prints, o usuário aciona o **Prompt Padrão** (com ou sem `/teamwork [skip-interview]`).
@@ -23,10 +23,10 @@ Esta skill automatiza o fluxo contínuo de correção de bugs visuais, de UX, AP
 
 ## 2. Passo a Passo de Execução Obrigatória para o Agente
 
-Sempre que esta skill for acionada ou o usuário pedir para processar a pasta `docs/imagens dos problemas`:
+Sempre que esta skill for acionada ou o usuário pedir para processar a pasta `docs/imagensDosProblemas`:
 
 ### Passo 1: Inventário e Inspeção Visual
-1. Liste todos os arquivos de imagem (`.png`, `.jpg`, `.jpeg`, `.webp`) presentes em `docs/imagens dos problemas/`.
+1. Liste todos os arquivos de imagem (`.png`, `.jpg`, `.jpeg`, `.webp`) presentes em `docs/imagensDosProblemas/`.
 2. Utilize a ferramenta `read_file` em cada imagem para inspecionar visualmente o print da tela e extrair:
    * **O que o título do arquivo relata** (sintoma principal descrito pelo usuário);
    * **O que a imagem mostra** (tela exata do app, modal aberto, estado de botões, cortes de texto, orientação retrato/paisagem, mensagens de erro).
@@ -47,7 +47,7 @@ Classifique cada print e acione o papel/subagente correspondente conforme a matr
    * `npm run test:front` / `npm run test:rules` / `npm run test:sync` ou `npm run test:all` (100% aprovados).
 
 ### Passo 4: Limpeza da Fila de Prints & Governança
-1. **Após todas as correções passarem nos testes**, remova os arquivos de imagem já resolvidos de dentro de `docs/imagens dos problemas/` (mantendo a pasta vazia pronta para a próxima leva de prints).
+1. **Após todas as correções passarem nos testes**, remova os arquivos de imagem já resolvidos de dentro de `docs/imagensDosProblemas/` (mantendo a pasta vazia pronta para a próxima leva de prints).
 2. Atualize `docs/ATUALIZACOES_PENDENTES.md` (`update-recorder`) e `docs/COMMITS_PENDENTES.md` (`commit-generator`).
 
 ---
@@ -55,7 +55,7 @@ Classifique cada print e acione o papel/subagente correspondente conforme a matr
 ## 3. Prompts Padrão Recomendados para o Usuário
 
 ### Opção A — Execução Direta Rápida (Agente Principal + Subagentes sob Demanda)
-> `Processe e corrija todos os problemas da pasta docs/imagens dos problemas seguindo a skill screenshot-bug-triage. Ao finalizar e validar nos testes, limpe as imagens processadas da pasta.`
+> `Processe e corrija todos os problemas da pasta docs/imagensDosProblemas seguindo a skill screenshot-bug-triage. Ao finalizar e validar nos testes, limpe as imagens processadas da pasta.`
 
 ### Opção B — Execução em Equipe Completa Multi-Agente (`/teamwork` sem entrevista)
-> `/teamwork [skip-interview] Processe e resolva todos os problemas documentados nos prints em docs/imagens dos problemas (onde o nome de cada arquivo descreve o erro). Inspecione as imagens, distribua para os agentes especializados (mobile-ui-expert, android-apk-guardian, sync-offline-guardian, glitch-prompt-engineer, rpg-rules-expert), valide com npm run typecheck e testes automatizados, limpe as imagens da pasta após corrigir e atualize a governança.`
+> `/teamwork [skip-interview] Processe e resolva todos os problemas documentados nos prints em docs/imagensDosProblemas (onde o nome de cada arquivo descreve o erro). Inspecione as imagens, distribua para os agentes especializados (mobile-ui-expert, android-apk-guardian, sync-offline-guardian, glitch-prompt-engineer, rpg-rules-expert), valide com npm run typecheck e testes automatizados, limpe as imagens da pasta após corrigir e atualize a governança.`

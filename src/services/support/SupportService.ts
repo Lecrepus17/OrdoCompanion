@@ -2,6 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Linking, Platform } from 'react-native';
 import {
+  computeClientTicketSignature,
+  deobfuscateSecret,
+  obfuscateSecret,
+  resolveEnvSecret,
+  sanitizeDiscordText,
+} from '../../utils/secretObfuscator';
+import {
   SupportCategory,
   SupportContactConfig,
   SupportSeverity,
@@ -25,10 +32,19 @@ export const DEFAULT_SUPPORT_CONFIG: SupportContactConfig = {
     'https://discord.gg/vPCZzr2wFR',
   discordHandle:
     process.env.EXPO_PUBLIC_SUPPORT_DISCORD_HANDLE || 'lecrepus17',
-  discordWebhookUrl:
-    process.env.EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL || '',
-  customEndpointUrl:
-    process.env.EXPO_PUBLIC_SUPPORT_ENDPOINT_URL || '',
+  discordWebhookUrl: resolveEnvSecret(
+    process.env.EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL
+  ),
+  customEndpointUrl: resolveEnvSecret(
+    process.env.EXPO_PUBLIC_SUPPORT_ENDPOINT_URL
+  ),
+  supabaseProxyUrl: resolveEnvSecret(
+    process.env.EXPO_PUBLIC_SUPPORT_PROXY_URL
+  ),
+  supabaseAnonKey: resolveEnvSecret(
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+  ),
+  rateLimitCooldownMs: 0,
 };
 
 export const CATEGORY_LABELS: Record<SupportCategory, { label: string; emoji: string; ghLabel: string; color: number }> = {
@@ -65,55 +81,82 @@ export const SEVERITY_LABELS: Record<SupportSeverity, string> = {
 };
 
 export class SupportService {
-  private config: SupportContactConfig;
+  private _config: SupportContactConfig;
+  private lastSubmissionTimestamp = 0;
 
   constructor(customConfig?: Partial<SupportContactConfig>) {
-    this.config = {
+    this._config = {
       ...DEFAULT_SUPPORT_CONFIG,
       ...customConfig,
     };
   }
 
   public getConfig(): SupportContactConfig {
-    return { ...this.config };
+    return { ...this._config };
+  }
+
+  public get config(): SupportContactConfig {
+    return { ...this._config };
   }
 
   public updateConfig(partial: Partial<SupportContactConfig>): void {
-    this.config = {
-      ...this.config,
+    this._config = {
+      ...this._config,
       ...partial,
     };
   }
 
   /**
    * Permite salvar ou ler um Webhook de suporte personalizado no armazenamento local.
+   * O valor é armazenado ofuscado (obf:v1:...) e revertido em memória ao ler.
    */
   public async getEffectiveWebhookUrl(): Promise<string> {
     try {
       const saved = await AsyncStorage.getItem(SUPPORT_CUSTOM_WEBHOOK_KEY);
       if (saved && saved.trim().length > 0) {
-        return saved.trim();
+        return deobfuscateSecret(saved.trim());
       }
     } catch {}
-    return (this.config.discordWebhookUrl || '').trim();
+    return deobfuscateSecret((this._config.discordWebhookUrl || '').trim());
   }
 
   public async setCustomWebhookUrl(url: string): Promise<void> {
-    const clean = (url || '').trim();
+    const clean = deobfuscateSecret((url || '').trim());
     try {
       if (!clean) {
         await AsyncStorage.removeItem(SUPPORT_CUSTOM_WEBHOOK_KEY);
       } else {
-        await AsyncStorage.setItem(SUPPORT_CUSTOM_WEBHOOK_KEY, clean);
+        await AsyncStorage.setItem(SUPPORT_CUSTOM_WEBHOOK_KEY, obfuscateSecret(clean));
       }
     } catch {}
+  }
+
+  /**
+   * Verifica se o envio está em período de cooldown anti-spam.
+   */
+  public checkRateLimit(cooldownMs?: number): { allowed: boolean; remainingSeconds: number } {
+    const effectiveCooldown = cooldownMs ?? this._config.rateLimitCooldownMs ?? 0;
+    if (effectiveCooldown <= 0) {
+      return { allowed: true, remainingSeconds: 0 };
+    }
+    const elapsed = Date.now() - this.lastSubmissionTimestamp;
+    if (this.lastSubmissionTimestamp > 0 && elapsed < effectiveCooldown) {
+      const remainingSeconds = Math.ceil((effectiveCooldown - elapsed) / 1000);
+      return { allowed: false, remainingSeconds };
+    }
+    return { allowed: true, remainingSeconds: 0 };
+  }
+
+  public resetRateLimit(): void {
+    this.lastSubmissionTimestamp = 0;
   }
 
   /**
    * Envia uma mensagem de teste para verificar se o Webhook do Discord está ativo e funcionando.
    */
   public async testWebhook(webhookUrl?: string): Promise<{ success: boolean; message: string }> {
-    const targetUrl = (webhookUrl || (await this.getEffectiveWebhookUrl())).trim();
+    const rawTarget = webhookUrl ? deobfuscateSecret(webhookUrl.trim()) : await this.getEffectiveWebhookUrl();
+    const targetUrl = rawTarget.trim();
     if (!targetUrl) {
       return {
         success: false,
@@ -134,11 +177,12 @@ export class SupportService {
     try {
       const testBody = {
         username: 'Ordo Companion • Teste de Integração',
+        allowed_mentions: { parse: [] },
         embeds: [
           {
             title: '✅ Conexão Estabelecida com Sucesso!',
             description:
-              'A integração do Webhook com o Ordo Companion está ativa! Chamados e relatos de erros enviados pelos jogadores chegarão diretamente neste canal.',
+              'A integração do Webhook com o Ordo Companion está ativa e protegida contra menções indevidas! Chamados e relatos de erros enviados pelos jogadores chegarão diretamente neste canal.',
             color: 0x10b981,
             timestamp: new Date().toISOString(),
             footer: {
@@ -267,21 +311,93 @@ export class SupportService {
   }
 
   /**
-   * Envia o chamado diretamente de dentro do aplicativo (via Discord Webhook ou Endpoint HTTP)
-   * e salva no histórico local de protocolos do usuário.
+   * Envia o chamado diretamente de dentro do aplicativo (via Proxy Seguro Supabase, Discord Webhook ou Endpoint HTTP)
+   * com proteção anti-spam, sanitização contra @everyone/@here e assinatura de integridade.
    */
   public async submitTicketInApp(payload: SupportTicketPayload): Promise<SupportSubmitResult> {
+    const rateCheck = this.checkRateLimit();
     const protocol = this.generateProtocol();
     const nowIso = new Date().toISOString();
 
+    if (!rateCheck.allowed) {
+      const blockedTicket: SupportTicketRecord = {
+        ...payload,
+        id: `ticket_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        protocol,
+        status: 'saved_local',
+        deliveryChannel: 'local',
+        createdAt: nowIso,
+      };
+      return {
+        success: false,
+        deliveredRemotely: false,
+        protocol,
+        channelUsed: 'local_fallback',
+        rateLimited: true,
+        message: `Aguarde ${rateCheck.remainingSeconds}s antes de enviar outro relato para evitar duplicidade.`,
+        ticket: blockedTicket,
+      };
+    }
+
+    this.lastSubmissionTimestamp = Date.now();
+
     let deliveredRemotely = false;
-    let channelUsed: 'discord_webhook' | 'custom_endpoint' | 'local_fallback' = 'local_fallback';
+    let channelUsed: 'supabase_proxy' | 'discord_webhook' | 'custom_endpoint' | 'local_fallback' = 'local_fallback';
 
+    const supabaseProxy = deobfuscateSecret((this._config.supabaseProxyUrl || '').trim());
+    const supabaseAnonKey = deobfuscateSecret((this._config.supabaseAnonKey || '').trim());
     const webhookUrl = await this.getEffectiveWebhookUrl();
-    const customEndpoint = (this.config.customEndpointUrl || '').trim();
+    const customEndpoint = deobfuscateSecret((this._config.customEndpointUrl || '').trim());
 
-    // 1. Tenta enviar via Discord Webhook se configurado
-    if (webhookUrl) {
+    // Sanitiza todos os campos contra menções (@everyone / @here / cargos) e links de spam
+    const safeTitle = sanitizeDiscordText(payload.title, 200) || 'Relato via Ordo Companion';
+    const safeDescription = sanitizeDiscordText(payload.description, 3800);
+    const safeSender = sanitizeDiscordText(payload.senderName, 120);
+    const safeContact = sanitizeDiscordText(payload.contactReturn, 150);
+    const safeSteps = sanitizeDiscordText(payload.stepsToReproduce, 1000);
+
+    const signature = computeClientTicketSignature(protocol, nowIso, safeTitle);
+
+    // 1. Prioridade Máxima: Proxy Seguro no Supabase Edge Function (URL do Webhook fica oculta no servidor)
+    if (supabaseProxy) {
+      try {
+        const proxyHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-Ordo-Signature': signature,
+          'X-Ordo-Timestamp': nowIso,
+        };
+        if (supabaseAnonKey) {
+          proxyHeaders['apikey'] = supabaseAnonKey;
+          proxyHeaders['Authorization'] = `Bearer ${supabaseAnonKey}`;
+        }
+
+        const response = await fetch(supabaseProxy, {
+          method: 'POST',
+          headers: proxyHeaders,
+          body: JSON.stringify({
+            protocol,
+            ...payload,
+            title: safeTitle,
+            description: safeDescription,
+            senderName: safeSender || undefined,
+            contactReturn: safeContact || undefined,
+            stepsToReproduce: safeSteps || undefined,
+            createdAt: nowIso,
+          }),
+        });
+
+        if (response.ok || response.status === 204) {
+          deliveredRemotely = true;
+          channelUsed = 'supabase_proxy';
+        }
+      } catch {
+        // Prossegue para o próximo canal configurado
+      }
+    }
+
+    // 2. Envio via Discord Webhook (quando configurado, com bloqueio estrito de allowed_mentions)
+    if (!deliveredRemotely && webhookUrl) {
       try {
         const catInfo = CATEGORY_LABELS[payload.category] || CATEGORY_LABELS.bug;
         const fields: Array<{ name: string; value: string; inline?: boolean }> = [
@@ -305,26 +421,26 @@ export class SupportService {
           });
         }
 
-        if (payload.senderName?.trim()) {
+        if (safeSender) {
           fields.push({
             name: '👤 Jogador / Agente',
-            value: payload.senderName.trim(),
+            value: safeSender,
             inline: true,
           });
         }
 
-        if (payload.contactReturn?.trim()) {
+        if (safeContact) {
           fields.push({
             name: '📬 Contato para Retorno',
-            value: payload.contactReturn.trim(),
+            value: safeContact,
             inline: true,
           });
         }
 
-        if (payload.stepsToReproduce?.trim()) {
+        if (safeSteps) {
           fields.push({
             name: '🔄 Passos para Reproduzir',
-            value: payload.stepsToReproduce.trim().slice(0, 1000),
+            value: safeSteps,
             inline: false,
           });
         }
@@ -340,10 +456,11 @@ export class SupportService {
 
         const discordBody = {
           username: 'Ordo Companion • Central de Suporte',
+          allowed_mentions: { parse: [] }, // Impede qualquer ping @everyone, @here, cargos ou usuários
           embeds: [
             {
-              title: `${catInfo.emoji} [${protocol}] ${payload.title.trim().slice(0, 200)}`,
-              description: payload.description.trim().slice(0, 3800),
+              title: `${catInfo.emoji} [${protocol}] ${safeTitle}`,
+              description: safeDescription,
               color: catInfo.color,
               fields,
               timestamp: nowIso,
@@ -369,7 +486,7 @@ export class SupportService {
       }
     }
 
-    // 2. Se não enviou por Discord e houver Endpoint HTTP customizado (ex: Formspree / Supabase / API)
+    // 3. Se não enviou por Proxy/Discord e houver Endpoint HTTP customizado (ex: Formspree / Supabase / API)
     if (!deliveredRemotely && customEndpoint) {
       try {
         const response = await fetch(customEndpoint, {
@@ -377,10 +494,17 @@ export class SupportService {
           headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
+            'X-Ordo-Signature': signature,
+            'X-Ordo-Timestamp': nowIso,
           },
           body: JSON.stringify({
             protocol,
             ...payload,
+            title: safeTitle,
+            description: safeDescription,
+            senderName: safeSender || undefined,
+            contactReturn: safeContact || undefined,
+            stepsToReproduce: safeSteps || undefined,
             formattedReport: this.buildFormattedReport(payload, protocol),
             createdAt: nowIso,
           }),
@@ -403,21 +527,25 @@ export class SupportService {
       deliveryChannel: deliveredRemotely && channelUsed !== 'local_fallback' ? channelUsed : 'local',
       createdAt: nowIso,
     };
+    (ticketRecord as any).payload = { ...payload };
 
     await this.saveTicketToHistory(ticketRecord);
 
     const message = deliveredRemotely
-      ? `Seu relato foi enviado diretamente para o desenvolvedor com sucesso! Protocolo: #${protocol}.`
-      : `Relato registrado com o protocolo #${protocol}! Você também pode tocar em "Abrir no GitHub" ou "Enviar por E-mail" abaixo para encaminhar imediatamente.`;
+      ? `Seu relato foi transmitido diretamente para o desenvolvedor com sucesso! Protocolo: #${protocol}. O chamado já foi entregue no canal oficial.`
+      : `Relato registrado localmente com o protocolo #${protocol}! Como o envio automático não pôde ser completado no momento, use "Copiar Relatório" ou "Abrir no GitHub" para encaminhar.`;
 
     return {
       success: true,
       deliveredRemotely,
+      savedLocally: true,
       protocol,
       channelUsed,
+      channel: channelUsed,
+      timestamp: nowIso,
       message,
       ticket: ticketRecord,
-    };
+    } as any;
   }
 
   /**
@@ -435,7 +563,7 @@ export class SupportService {
       labels: catInfo.ghLabel,
     });
 
-    return `${this.config.githubIssuesUrl}/new?${params.toString()}`;
+    return `${this._config.githubIssuesUrl}/new?${params.toString()}`;
   }
 
   /**
@@ -451,7 +579,7 @@ export class SupportService {
     const encodedSubject = encodeURIComponent(subject);
     const encodedBody = encodeURIComponent(body);
 
-    return `mailto:${this.config.supportEmail}?subject=${encodedSubject}&body=${encodedBody}`;
+    return `mailto:${this._config.supportEmail}?subject=${encodedSubject}&body=${encodedBody}`;
   }
 
   /**
@@ -500,6 +628,13 @@ export class SupportService {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Alias para compatibilidade com suítes de testes
+   */
+  public async getTicketsHistory(): Promise<SupportTicketRecord[]> {
+    return this.getTicketHistory();
   }
 
   /**

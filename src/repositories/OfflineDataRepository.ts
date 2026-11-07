@@ -688,7 +688,7 @@ export class OfflineDataRepository implements IDataRepository {
     const onlyCustomOrEdited = Boolean(filters.onlyCustomOrEdited);
     const hasTokens = qTokens.length > 0;
 
-    return all.filter((ent) => {
+    const filtered = all.filter((ent) => {
       if (hasCategory && ent.category !== filters.category) {
         return false;
       }
@@ -761,6 +761,88 @@ export class OfflineDataRepository implements IDataRepository {
 
       return true;
     });
+
+    if (!hasTokens) {
+      return filtered;
+    }
+
+    const scored = filtered.map((ent, originalIndex) => {
+      let score = 0;
+      const nameNorm = normalizeText(ent.name).trim();
+
+      // 1. Exact title match: +1000
+      if (nameNorm === qNorm) {
+        score += 1000;
+      } else if (nameNorm.startsWith(qNorm)) {
+        // 2. Title starts with query: +500
+        score += 500;
+      }
+
+      // 3. Title contains tokens: +300
+      let tokensInTitle = 0;
+      for (const t of qTokens) {
+        if (nameNorm.includes(t)) {
+          tokensInTitle++;
+        }
+      }
+      if (tokensInTitle === qTokens.length && qTokens.length > 0) {
+        score += 300;
+      } else if (tokensInTitle > 0) {
+        score += Math.round((300 * tokensInTitle) / qTokens.length);
+      }
+
+      // 4. Subtitle / type match: +150
+      const subNorm = normalizeText(ent.subCategory || '').trim();
+      const catNorm = normalizeText(ent.category || '').trim();
+      const itemCatNorm = normalizeText(ent.itemCategory || '').trim();
+      if (
+        (subNorm && (subNorm.includes(qNorm) || qTokens.some((t) => subNorm.includes(t)))) ||
+        (catNorm && (catNorm.includes(qNorm) || qTokens.some((t) => catNorm.includes(t)))) ||
+        (itemCatNorm && (itemCatNorm.includes(qNorm) || qTokens.some((t) => itemCatNorm.includes(t))))
+      ) {
+        score += 150;
+      }
+
+      // 5. Element / class / tags: +100
+      const elementNorm = normalizeText(ent.element || '').trim();
+      const tagsNorm = (ent.tags || []).map((t) => normalizeText(t).trim());
+      const classesNorm = this.getCachedEntityClasses(ent).map((c) => normalizeText(c).trim());
+
+      let elementOrTagsMatched = false;
+      if (elementNorm && (elementNorm.includes(qNorm) || qTokens.some((t) => elementNorm.includes(t)))) {
+        elementOrTagsMatched = true;
+      }
+      if (!elementOrTagsMatched && tagsNorm.some((t) => t.includes(qNorm) || qTokens.some((tok) => t.includes(tok)))) {
+        elementOrTagsMatched = true;
+      }
+      if (!elementOrTagsMatched && classesNorm.some((c) => c.includes(qNorm) || qTokens.some((tok) => c.includes(tok)))) {
+        elementOrTagsMatched = true;
+      }
+      if (elementOrTagsMatched) {
+        score += 100;
+      }
+
+      // 6. Description / body match: +10
+      const descNorm = normalizeText(ent.description || '').trim();
+      const summaryNorm = normalizeText(ent.summary || '').trim();
+      if (
+        (descNorm && (descNorm.includes(qNorm) || qTokens.some((t) => descNorm.includes(t)))) ||
+        (summaryNorm && (summaryNorm.includes(qNorm) || qTokens.some((t) => summaryNorm.includes(t))))
+      ) {
+        score += 10;
+      }
+
+      return { ent, score, originalIndex };
+    });
+
+    scored.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return a.originalIndex - b.originalIndex;
+    });
+
+    return scored.map((s) => s.ent);
   }
 
   async createEntity(input: Omit<CompendiumEntity, 'id'>): Promise<CompendiumEntity> {

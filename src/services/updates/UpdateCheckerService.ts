@@ -15,6 +15,10 @@ export const DEFAULT_MANIFEST_URL =
   'https://raw.githubusercontent.com/Lecrepus17/OrdoCompanion/main/version.json';
 export const GITHUB_RELEASES_API_URL =
   'https://api.github.com/repos/Lecrepus17/OrdoCompanion/releases/latest';
+export const GITHUB_RELEASES_PAGE_URL =
+  'https://github.com/Lecrepus17/OrdoCompanion/releases';
+export const GITHUB_RELEASES_LATEST_URL =
+  'https://github.com/Lecrepus17/OrdoCompanion/releases/latest';
 
 /**
  * Compara duas versões semânticas (ex: '1.0.0' vs '1.1.0' ou 'v1.0.1' vs '1.0.0').
@@ -223,11 +227,60 @@ export class UpdateCheckerService {
   }
 
   /**
-   * Abre o link de download/release no navegador do usuário.
+   * Sonda leve para verificar se uma URL está acessível (não retorna 404 nem falha de rede).
+   */
+  public async verifyUrlReachable(url: string, timeoutMs = 3000): Promise<boolean> {
+    const trimmed = (url || '').trim();
+    if (!trimmed || !trimmed.startsWith('http')) {
+      return false;
+    }
+
+    try {
+      if (typeof AbortController !== 'undefined') {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const response = await fetch(trimmed, {
+            method: 'HEAD',
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          return response.ok || (response.status >= 200 && response.status < 400) || response.status === 405;
+        } catch {
+          clearTimeout(timeoutId);
+          return false;
+        }
+      } else {
+        const response = await fetch(trimmed, { method: 'HEAD' });
+        return response.ok || (response.status >= 200 && response.status < 400) || response.status === 405;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Abre o link de download/release no navegador do usuário com fallback resiliente.
+   * Se a URL for nula, vazia ou inacessível (404), redireciona para a página de releases.
    */
   public async openDownloadUrl(url?: string): Promise<boolean> {
-    const targetUrl =
-      url || 'https://github.com/Lecrepus17/OrdoCompanion/releases/latest';
+    const candidateUrl = (url || '').trim();
+    let targetUrl = candidateUrl || GITHUB_RELEASES_PAGE_URL;
+
+    // Se uma URL específica foi informada e não é a página geral de releases, verifica acessibilidade
+    if (candidateUrl && candidateUrl !== GITHUB_RELEASES_PAGE_URL) {
+      try {
+        const isReachable = await this.verifyUrlReachable(candidateUrl);
+        if (!isReachable) {
+          console.warn(
+            `[UpdateCheckerService] URL de download inacessível (404/offline): ${candidateUrl}. Acionando fallback para ${GITHUB_RELEASES_PAGE_URL}`
+          );
+          targetUrl = GITHUB_RELEASES_PAGE_URL;
+        }
+      } catch {
+        targetUrl = GITHUB_RELEASES_PAGE_URL;
+      }
+    }
 
     try {
       const supported = await Linking.canOpenURL(targetUrl);
@@ -235,11 +288,39 @@ export class UpdateCheckerService {
         await Linking.openURL(targetUrl);
         return true;
       }
+      if (targetUrl !== GITHUB_RELEASES_PAGE_URL) {
+        await Linking.openURL(GITHUB_RELEASES_PAGE_URL);
+        return true;
+      }
       return false;
     } catch (error) {
       console.warn('[UpdateCheckerService] Erro ao abrir URL de atualização:', error);
+      try {
+        if (targetUrl !== GITHUB_RELEASES_PAGE_URL) {
+          await Linking.openURL(GITHUB_RELEASES_PAGE_URL);
+          return true;
+        }
+      } catch {
+        return false;
+      }
       return false;
     }
+  }
+
+  /**
+   * Abre download do APK de forma resiliente, tentando o APK direto, o link do release e finalmente a página de releases.
+   */
+  public async openResilientApkDownload(apkUrl?: string, downloadUrl?: string): Promise<boolean> {
+    if (apkUrl?.trim()) {
+      const isReachable = await this.verifyUrlReachable(apkUrl.trim());
+      if (isReachable) {
+        return this.openDownloadUrl(apkUrl.trim());
+      }
+    }
+    if (downloadUrl?.trim()) {
+      return this.openDownloadUrl(downloadUrl.trim());
+    }
+    return this.openDownloadUrl(GITHUB_RELEASES_PAGE_URL);
   }
 }
 

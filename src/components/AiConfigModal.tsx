@@ -20,6 +20,7 @@ import {
   getDefaultGeminiApiKey,
   hasDefaultApiKey,
   isUsingDefaultApiKey,
+  sanitizeApiKey,
   testAiConnection,
   validateKey,
 } from '../services/ai/AiClient';
@@ -134,7 +135,7 @@ export function AiConfigModal({
     try {
       const res = await testAiConnection({
         provider,
-        apiKey: apiKey.trim(),
+        apiKey: sanitizeApiKey(apiKey),
         model,
         temperature: config.temperature,
         offlineFallback,
@@ -155,7 +156,7 @@ export function AiConfigModal({
     setIsTestingVoice(false);
     onSave({
       provider,
-      apiKey: apiKey.trim(),
+      apiKey: sanitizeApiKey(apiKey),
       model,
       temperature: config.temperature,
       offlineFallback,
@@ -427,7 +428,7 @@ export function AiConfigModal({
 
                 {hasCustomKey && provider === 'gemini' && !isCustomKeyValid && (
                   <Text style={{ color: '#EF4444', fontSize: 11, marginTop: 4, fontWeight: '600' }}>
-                    ⚠️ Formato inválido: a chave do Gemini deve iniciar com "AIzaSy" e conter 39 caracteres.
+                    ⚠️ Formato inválido: a chave do Gemini deve iniciar com "AIza" (chave oficial do Google AI Studio).
                   </Text>
                 )}
               </View>

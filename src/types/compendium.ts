@@ -226,7 +226,7 @@ export interface CharacterAttributes {
   VIG: number;
 }
 
-export type CriticalDamageMode = 'multiply_damage' | 'multiply_dice';
+export type CriticalDamageMode = 'multiply_dice' | 'multiply_damage' | 'max_damage' | 'ask_user';
 
 export interface WeaponAttackContext {
   weaponName: string;
