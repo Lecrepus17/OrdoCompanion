@@ -89,19 +89,16 @@ Sempre que o usuário pedir para preparar ou subir uma nova versão, o agente **
 ### Passo 2: Executar o Script Automatizado de Release (`npm run release`)
 * Execute:
   ```bash
-  npm run release <nova_versao> "Resumo 1; Resumo 2; Resumo 3"
+  npm run release <nova_versao>
   ```
-  *(Dica: se a versão não for passada, o script lê automaticamente a `Versão Sugerida` e os bullets da seção `## 🚀 Resumo...` de `docs/ATUALIZACOES_PENDENTES.md`).*
-* O script `scripts/create_release.js` executará **automaticamente**:
+* O script `scripts/create_release.js` executará **100% automaticamente (sem comandos manuais para o usuário)**:
   1. Atualização de `package.json` (`version`).
   2. Atualização de `app.json` (`expo.version` e incremento idempotente de `expo.android.versionCode`).
   3. Sincronização de `version.json` (`version`, `releaseName`, `releaseDate`, `downloadUrl`, `apkUrl` e `changelog`).
-  4. Extração da seção `## 🚀 Resumo...` de `docs/ATUALIZACOES_PENDENTES.md` e geração do arquivo **`docs/RELEASE_NOTES.md`** pronto para a caixa *"Describe this release"* do GitHub.
-  5. **Cópia automática do texto de `docs/RELEASE_NOTES.md` para a Área de Transferência (`Clipboard` / `Ctrl+V`)** do Windows/macOS/Linux preservando acentos e emojis UTF-8.
-
-### Passo 3: Atualizar os Documentos de Governança
-* Atualize o cabeçalho de `docs/ATUALIZACOES_PENDENTES.md` registrando a nova `Versão Atual` e abrindo a sugestão para o próximo ciclo.
-* Atualize `docs/COMMITS_PENDENTES.md` com o comando de commit e tag (`git tag v<nova_versao>`).
+  4. Extração da seção `## 🚀 Resumo...` de `docs/ATUALIZACOES_PENDENTES.md`, geração de **`docs/RELEASE_NOTES.md`** (copiado para o `Ctrl+V`), arquivamento em **`docs/HISTORICO_RELEASES.md`** e reset de **`docs/ATUALIZACOES_PENDENTES.md`** para o próximo ciclo.
+  5. Registro do commit em **`docs/COMMITS_PENDENTES.md`**.
+  6. Execução automática de **`git add`**, **`git commit`**, **`git tag -f v<nova_versao>`** e **`git push origin main refs/tags/v<nova_versao>`**.
+  7. **Publicação automática da Release no GitHub** via API REST oficial do GitHub (usando as credenciais do Git) já com título, tag e notas preenchidas.
 
 ### Passo 4: Resposta Obrigatória ao Usuário no Chat
 Ao responder ao usuário que a versão está pronta, **SEMPRE apresente na mensagem**:

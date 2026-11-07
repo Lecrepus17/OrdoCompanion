@@ -1,16 +1,16 @@
 {
-  "version": "1.3.0-beta.1",
+  "version": "1.3.0-beta.2",
   "minVersion": "1.0.0-beta.1",
-  "releaseName": "Ordo Companion v1.3.0-beta.1",
+  "releaseName": "Ordo Companion v1.3.0-beta.2",
   "releaseDate": "2026-11-07",
-  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.3.0-beta.1",
-  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.3.0-beta.1/OrdoCompanion.apk",
+  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.3.0-beta.2",
+  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.3.0-beta.2/OrdoCompanion.apk",
   "changelog": [
-    "Livro Base v1.3 (1.645 entidades e 28 Itens Amaldiçoados Especiais)",
-    "Anotações desenhadas em páginas de livros (Tablet/Stylus)",
-    "Modos de Dano Crítico flexível e Crítico Máximo",
-    "Compatibilidade 100% Android APK (BackHandler e Clipboard universal)",
-    "Resolução completa dos 22 problemas Mobile, PDF, Sync Drive e Voz nativa no G.L.I.T.C.H."
+    "Relatos enviados pela Central de Suporte agora chegam automaticamente ao canal oficial de suporte no Discord.",
+    "O painel de configuração de webhook do desenvolvedor não aparece mais para os usuários finais.",
+    "Mesa Virtual online funciona direto, sem precisar configurar Supabase (servidor oficial embutido).",
+    "G.L.I.T.C.H. ganha o Groq como segundo provedor gratuito padrão.",
+    "Botão \"Discord\" do suporte agora leva ao servidor oficial do Ordo Companion."
   ],
   "forceUpdate": false
 }

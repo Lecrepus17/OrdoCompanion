@@ -12,7 +12,18 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### ✅ 1. Atualização de Configurações do TypeScript no VS Code:
+### ✅ 1. Preparação da Release v1.3.0-beta.2 (versionCode 6):
+```bash
+git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "chore(release): prepara versao v1.3.0-beta.2 (versionCode 6)" \
+  -m "- Atualiza versao em package.json, app.json e version.json para 1.3.0-beta.2" \
+  -m "- Incrementa android.versionCode de 5 para 6 em app.json" \
+  -m "- Gera docs/RELEASE_NOTES.md e arquiva notas da v1.3.0-beta.2 em docs/HISTORICO_RELEASES.md" \
+  -m "- Reseta docs/ATUALIZACOES_PENDENTES.md para o proximo ciclo (1.3.0-beta.3) e atualiza docs/COMMITS_PENDENTES.md"
+git tag v1.3.0-beta.2
+```
+
+### ✅ 2. Atualização de Configurações do TypeScript no VS Code:
 ```bash
 git add .vscode/settings.json docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
 git commit -m "chore(vscode): atualiza chaves depreciadas do tsdk no settings.json" \

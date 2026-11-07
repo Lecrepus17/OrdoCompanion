@@ -17,6 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const { spawnSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
@@ -24,6 +25,7 @@ const packageJsonPath = path.join(rootDir, 'package.json');
 const appJsonPath = path.join(rootDir, 'app.json');
 const versionJsonPath = path.join(rootDir, 'version.json');
 const pendingUpdatesPath = path.join(rootDir, 'docs', 'ATUALIZACOES_PENDENTES.md');
+const pendingCommitsPath = path.join(rootDir, 'docs', 'COMMITS_PENDENTES.md');
 const releaseNotesPath = path.join(rootDir, 'docs', 'RELEASE_NOTES.md');
 const releaseHistoryPath = path.join(rootDir, 'docs', 'HISTORICO_RELEASES.md');
 
@@ -349,37 +351,217 @@ if (copied) {
   console.log(`✔ [Clipboard] Texto da release copiado automaticamente para a área de transferência (basta dar Ctrl+V no GitHub)!`);
 }
 
-const githubNewReleaseUrl = `https://github.com/Lecrepus17/OrdoCompanion/releases/new?tag=v${cleanVersion}&title=${encodeURIComponent(`Ordo Companion v${cleanVersion}`)}`;
+/**
+ * Registra o commit da release em docs/COMMITS_PENDENTES.md no histórico recente
+ */
+function recordReleaseCommitInGovernance(version, versionCode) {
+  if (!fs.existsSync(pendingCommitsPath)) return;
+  const content = fs.readFileSync(pendingCommitsPath, 'utf8');
+  if (content.includes(`Preparação da Release v${version}`)) return;
 
-if (flags.has('--open') && process.platform === 'win32') {
-  spawnSync('cmd', ['/c', 'start', '', githubNewReleaseUrl], { stdio: 'ignore' });
-  console.log(`✔ [Browser] Página de criação de Release aberta no navegador!`);
-}
+  const entry = [
+    `### ✅ 1. Preparação da Release v${version} (versionCode ${versionCode}):`,
+    '```bash',
+    'git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md',
+    `git commit -m "chore(release): prepara versao v${version} (versionCode ${versionCode})" \\`,
+    `  -m "- Atualiza versao em package.json, app.json e version.json para ${version}" \\`,
+    `  -m "- Incrementa android.versionCode para ${versionCode} em app.json" \\`,
+    `  -m "- Gera docs/RELEASE_NOTES.md e arquiva notas da v${version} em docs/HISTORICO_RELEASES.md" \\`,
+    `  -m "- Reseta docs/ATUALIZACOES_PENDENTES.md para o proximo ciclo e atualiza docs/COMMITS_PENDENTES.md"`,
+    `git tag v${version}`,
+    '```',
+    '',
+  ].join('\n');
 
-if (flags.has('--publish')) {
-  const ghRes = spawnSync(
-    'gh',
-    ['release', 'create', `v${cleanVersion}`, '--title', `Ordo Companion v${cleanVersion}`, '--notes-file', releaseNotesPath],
-    { stdio: 'inherit' }
-  );
-  if (ghRes.status === 0) {
-    console.log(`✔ [GitHub CLI] Release v${cleanVersion} publicada automaticamente no GitHub!`);
-  } else {
-    console.log(`⚠️ [GitHub CLI] Não foi possível publicar via 'gh'. Utilize o link abaixo e cole (Ctrl+V) as notas.`);
+  const marker = '## 📜 Histórico de Commits Recentes';
+  const idx = content.indexOf(marker);
+  if (idx !== -1) {
+    const afterMarker = idx + marker.length;
+    const updated =
+      content.slice(0, afterMarker) +
+      '\n\n' +
+      entry +
+      content.slice(afterMarker).replace(/^\r?\n+/, '');
+    fs.writeFileSync(pendingCommitsPath, updated, 'utf8');
+    console.log(`✔ [docs/COMMITS_PENDENTES.md] Registro da release v${version} adicionado ao histórico`);
   }
 }
 
-console.log('\n======================================================');
-console.log(`🚀 RELEASE v${cleanVersion} PREPARADA COM ISOLAMENTO DE CICLO!`);
-console.log('======================================================\n');
-console.log('📋 Próximos passos para publicar no GitHub Releases:\n');
-console.log('1. Gere o arquivo .apk pelo EAS Build:');
-console.log('   eas build -p android --profile production\n');
-console.log('2. Faça o commit e envie a tag para o GitHub:');
-console.log(`   git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md`);
-console.log(`   git commit -m "chore(release): prepara versao v${cleanVersion} (versionCode ${currentVersionCode})"`);
-console.log(`   git tag -f v${cleanVersion}`);
-console.log(`   git push origin main --tags\n`);
-console.log('3. Crie a Release no GitHub e cole (Ctrl+V) a descrição (já está no seu Clipboard e em docs/RELEASE_NOTES.md):');
-console.log(`   👉 ${githubNewReleaseUrl}\n`);
-console.log('   (Dica: renomeie o arquivo baixado para "OrdoCompanion.apk" ao anexar na release).\n');
+/**
+ * Obtém token do GitHub via variável de ambiente ou git credential fill
+ */
+function getGitHubToken() {
+  if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
+  if (process.env.GH_TOKEN) return process.env.GH_TOKEN;
+  try {
+    const res = spawnSync('git', ['credential', 'fill'], {
+      input: 'protocol=https\nhost=github.com\n\n',
+      encoding: 'utf8',
+    });
+    if (res.status === 0 && res.stdout) {
+      const match = res.stdout.match(/^password=(.+)$/m);
+      if (match) return match[1].trim();
+    }
+  } catch {}
+  return null;
+}
+
+/**
+ * Publica ou atualiza a Release no GitHub via REST API oficial
+ */
+function publishGitHubReleaseApi(version, releaseBody) {
+  return new Promise((resolve) => {
+    const token = getGitHubToken();
+    if (!token) {
+      resolve({ ok: false, reason: 'Token GitHub não encontrado' });
+      return;
+    }
+
+    const isPrerelease = /-(alpha|beta|rc)/i.test(version);
+    const payload = JSON.stringify({
+      tag_name: `v${version}`,
+      target_commitish: 'main',
+      name: `Ordo Companion v${version}`,
+      body: releaseBody,
+      draft: false,
+      prerelease: isPrerelease,
+    });
+
+    const req = https.request(
+      {
+        hostname: 'api.github.com',
+        path: '/repos/Lecrepus17/OrdoCompanion/releases',
+        method: 'POST',
+        headers: {
+          'User-Agent': 'OrdoCompanion-Release-Script',
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+        },
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              const parsed = JSON.parse(data);
+              resolve({ ok: true, htmlUrl: parsed.html_url });
+            } catch {
+              resolve({ ok: true, htmlUrl: `https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v${version}` });
+            }
+          } else {
+            resolve({ ok: false, reason: `HTTP ${res.statusCode}: ${data.slice(0, 200)}` });
+          }
+        });
+      }
+    );
+
+    req.on('error', (err) => resolve({ ok: false, reason: err.message }));
+    req.write(payload);
+    req.end();
+  });
+}
+
+(async () => {
+  recordReleaseCommitInGovernance(cleanVersion, currentVersionCode);
+
+  const releaseFiles = [
+    'package.json',
+    'app.json',
+    'version.json',
+    'docs/RELEASE_NOTES.md',
+    'docs/HISTORICO_RELEASES.md',
+    'docs/ATUALIZACOES_PENDENTES.md',
+    'docs/COMMITS_PENDENTES.md',
+  ];
+
+  let pushSucceeded = false;
+
+  if (!flags.has('--no-git')) {
+    spawnSync('git', ['add', ...releaseFiles], { cwd: rootDir, stdio: 'inherit' });
+
+    const diffCached = spawnSync('git', ['diff', '--cached', '--quiet'], { cwd: rootDir });
+    if (diffCached.status !== 0) {
+      const commitRes = spawnSync(
+        'git',
+        [
+          'commit',
+          '-m',
+          `chore(release): prepara versao v${cleanVersion} (versionCode ${currentVersionCode})`,
+          '-m',
+          `- Atualiza versao em package.json, app.json e version.json para ${cleanVersion}`,
+          '-m',
+          `- Incrementa android.versionCode para ${currentVersionCode} em app.json`,
+          '-m',
+          `- Gera docs/RELEASE_NOTES.md e arquiva notas da v${cleanVersion} em docs/HISTORICO_RELEASES.md`,
+          '-m',
+          `- Reseta docs/ATUALIZACOES_PENDENTES.md para o proximo ciclo e atualiza docs/COMMITS_PENDENTES.md`,
+        ],
+        { cwd: rootDir, stdio: 'inherit' }
+      );
+      if (commitRes.status === 0) {
+        console.log(`✔ [Git] Commit da release v${cleanVersion} criado automaticamente`);
+      }
+    } else {
+      console.log(`✔ [Git] Arquivos da release v${cleanVersion} já estavam comitados`);
+    }
+
+    spawnSync('git', ['tag', '-f', `v${cleanVersion}`], { cwd: rootDir, stdio: 'inherit' });
+    console.log(`✔ [Git] Tag v${cleanVersion} criada/atualizada localmente`);
+
+    if (!flags.has('--no-push')) {
+      console.log(`⏳ [Git] Enviando branch main e tag v${cleanVersion} para o GitHub...`);
+      const pushRes = spawnSync(
+        'git',
+        ['push', 'origin', 'main', `refs/tags/v${cleanVersion}`, '--force'],
+        { cwd: rootDir, stdio: 'inherit' }
+      );
+      if (pushRes.status === 0) {
+        pushSucceeded = true;
+        console.log(`✔ [Git] Push de main e tag v${cleanVersion} concluído com sucesso!`);
+      } else {
+        console.log(`⚠️ [Git] O push foi bloqueado pelo repositório remoto (verifique mensagens acima).`);
+      }
+    }
+  }
+
+  const releaseBodyText = fs.existsSync(releaseNotesPath)
+    ? fs.readFileSync(releaseNotesPath, 'utf8')
+    : '';
+  const githubNewReleaseUrl = `https://github.com/Lecrepus17/OrdoCompanion/releases/new?tag=v${cleanVersion}&title=${encodeURIComponent(`Ordo Companion v${cleanVersion}`)}&body=${encodeURIComponent(releaseBodyText)}`;
+
+  let publishedOnGitHub = false;
+  if (pushSucceeded && !flags.has('--no-publish')) {
+    const apiResult = await publishGitHubReleaseApi(cleanVersion, releaseBodyText);
+    if (apiResult.ok) {
+      publishedOnGitHub = true;
+      console.log(`✔ [GitHub Releases] Release v${cleanVersion} publicada automaticamente no GitHub!`);
+      console.log(`   👉 ${apiResult.htmlUrl}`);
+    } else {
+      const ghRes = spawnSync(
+        'gh',
+        ['release', 'create', `v${cleanVersion}`, '--title', `Ordo Companion v${cleanVersion}`, '--notes-file', releaseNotesPath],
+        { stdio: 'ignore' }
+      );
+      if (ghRes.status === 0) {
+        publishedOnGitHub = true;
+        console.log(`✔ [GitHub CLI] Release v${cleanVersion} publicada automaticamente no GitHub!`);
+      }
+    }
+  }
+
+  if (flags.has('--open') && process.platform === 'win32') {
+    spawnSync('cmd', ['/c', 'start', '', githubNewReleaseUrl], { stdio: 'ignore' });
+    console.log(`✔ [Browser] Página de criação de Release aberta no navegador com título, tag e notas já preenchidos!`);
+  }
+
+  console.log('\n======================================================');
+  console.log(`🚀 RELEASE v${cleanVersion} PROCESSADA AUTOMATICAMENTE!`);
+  console.log('======================================================\n');
+  if (!publishedOnGitHub) {
+    console.log('🔗 Link direto com Tag, Título e Notas já preenchidos automaticamente:');
+    console.log(`   👉 ${githubNewReleaseUrl}\n`);
+  }
+})();
