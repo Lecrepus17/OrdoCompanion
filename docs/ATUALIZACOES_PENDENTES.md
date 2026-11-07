@@ -20,7 +20,7 @@
 - *(Nenhuma modificação técnica registrada neste ciclo ainda)*
 
 ### 🐛 Correções de Bugs (Fixes)
-- *(Nenhuma correção registrada neste ciclo ainda)*
+- `scripts/create_release.js`: definido `prerelease: false` e `make_latest: 'true'` (e `--latest` no `gh`) para que toda nova versão publicada no GitHub Releases receba automaticamente o selo **Latest**.
 
 ### 🧪 Testes Automatizados
 - *(Aguardando novos testes do ciclo)*

@@ -12,7 +12,16 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### ✅ 1. Preparação da Release v1.3.0-beta.2 (versionCode 6):
+### ✅ 1. Selo Latest Automático nas Releases do GitHub:
+```bash
+git add scripts/create_release.js docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "fix(release): define make_latest=true ao publicar releases no GitHub" \
+  -m "- Configura prerelease: false e make_latest: 'true' na API REST do GitHub em create_release.js" \
+  -m "- Adiciona flag --latest no fallback via GitHub CLI" \
+  -m "- Atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
+### ✅ 2. Preparação da Release v1.3.0-beta.2 (versionCode 6):
 ```bash
 git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
 git commit -m "chore(release): prepara versao v1.3.0-beta.2 (versionCode 6)" \

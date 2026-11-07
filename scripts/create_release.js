@@ -417,14 +417,14 @@ function publishGitHubReleaseApi(version, releaseBody) {
       return;
     }
 
-    const isPrerelease = /-(alpha|beta|rc)/i.test(version);
     const payload = JSON.stringify({
       tag_name: `v${version}`,
       target_commitish: 'main',
       name: `Ordo Companion v${version}`,
       body: releaseBody,
       draft: false,
-      prerelease: isPrerelease,
+      prerelease: false,
+      make_latest: 'true',
     });
 
     const req = https.request(
@@ -542,7 +542,7 @@ function publishGitHubReleaseApi(version, releaseBody) {
     } else {
       const ghRes = spawnSync(
         'gh',
-        ['release', 'create', `v${cleanVersion}`, '--title', `Ordo Companion v${cleanVersion}`, '--notes-file', releaseNotesPath],
+        ['release', 'create', `v${cleanVersion}`, '--title', `Ordo Companion v${cleanVersion}`, '--notes-file', releaseNotesPath, '--latest'],
         { stdio: 'ignore' }
       );
       if (ghRes.status === 0) {
