@@ -21,7 +21,8 @@
     "test:db": "python scripts/test_database_integrity.py",
     "test:all": "npm run typecheck && npm run test && npm run test:db",
     "typecheck": "tsc --noEmit",
-    "release": "node scripts/create_release.js"
+    "release": "node scripts/create_release.js",
+    "build:apk": "node scripts/build_and_upload_apk.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
