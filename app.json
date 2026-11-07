@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ordo Companion",
     "slug": "ordo-companion",
-    "version": "1.3.0-beta.2",
+    "version": "1.4.0-beta.1",
     "orientation": "default",
     "scheme": "com.ordemparanormal.ordo",
     "userInterfaceStyle": "dark",
@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.ordemparanormal.ordo",
-      "versionCode": 6,
+      "versionCode": 7,
       "largeHeap": true,
       "softwareKeyboardLayoutMode": "pan",
       "usesCleartextTraffic": true,
