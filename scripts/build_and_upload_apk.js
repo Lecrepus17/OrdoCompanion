@@ -187,9 +187,7 @@ function sleep(ms) {
   const buildId = buildInfo.id;
   console.log(`✔ [EAS] Build enfileirada com sucesso!`);
   console.log(`   👉 ID da Build: ${buildId}`);
-  if (buildInfo.url) {
-    console.log(`   👉 Painel Expo: ${buildInfo.url}`);
-  }
+  console.log(`   👉 Acompanhar no navegador: https://expo.dev/accounts/lecrepus17/projects/ordo-companion/builds/${buildId}`);
 
   console.log(`\n⏳ [EAS] Monitorando o progresso da build no Expo Cloud...`);
   let finishedBuild = null;
