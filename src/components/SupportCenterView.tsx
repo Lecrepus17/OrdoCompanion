@@ -932,6 +932,8 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
       )}
 
       {/* Bloco 4: Configurações do Desenvolvedor / Mestre (Recebimento de Chamados) */}
+      {/* Visível apenas em desenvolvimento (__DEV__); em APKs de release o webhook vem de EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL (eas.json) */}
+      {__DEV__ && (
       <View style={styles.sectionCard} testID="dev-settings-card">
         <TouchableOpacity
           style={styles.devSettingsToggleHeader}
@@ -1137,6 +1139,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
           </View>
         )}
       </View>
+      )}
 
     </View>
   );
