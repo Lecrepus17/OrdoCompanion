@@ -1,10 +1,10 @@
-import React from 'react';
 import {
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -31,6 +31,14 @@ export interface CustomBottomTabBarProps {
   [key: string]: any;
 }
 
+export function isLandscapeViewport(width: number, height: number): boolean {
+  return width > height && height < 500;
+}
+
+export function calculateBottomTabBarHeight(isLandscape: boolean, bottomInset = 0): number {
+  return isLandscape ? 40 : 56 + bottomInset;
+}
+
 export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
   state,
   navigation,
@@ -42,9 +50,13 @@ export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
 }) => {
   const { colors } = useTheme();
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
 
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 6);
-  const tabHeight = 56 + bottomInset;
+  // Detecta orientação paisagem em smartphones e telas com altura reduzida
+  const isLandscape = isLandscapeViewport(width, height);
+
+  const bottomInset = isLandscape ? 0 : Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 6);
+  const tabHeight = calculateBottomTabBarHeight(isLandscape, bottomInset);
 
   const currentRoute = state.routes[state.index];
   const currentRouteName = currentRoute?.name;
@@ -60,6 +72,7 @@ export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           height: tabHeight,
+          paddingTop: isLandscape ? 2 : 6,
           paddingBottom: bottomInset,
         },
       ]}
@@ -99,13 +112,13 @@ export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
             accessibilityLabel={meta.label}
             testID={`tab-button-${tabKey}`}
             onPress={handlePress}
-            style={styles.tabButton}
+            style={[styles.tabButton, isLandscape && { paddingVertical: 0 }]}
             activeOpacity={0.7}
           >
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, isLandscape && { minHeight: 18 }]}>
               <Ionicons
                 name={(isFocused ? meta.icon : `${meta.icon}-outline`) as any}
-                size={21}
+                size={isLandscape ? 17 : 21}
                 color={isFocused ? colors.primary : colors.textMuted}
               />
               {isFocused && (
@@ -113,6 +126,7 @@ export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
                   style={[
                     styles.focusedIndicator,
                     { backgroundColor: colors.primary },
+                    isLandscape && { width: 10, height: 2, bottom: -2 },
                   ]}
                 />
               )}
@@ -124,6 +138,8 @@ export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
                 {
                   color: isFocused ? colors.primary : colors.textMuted,
                   fontWeight: isFocused ? '800' : '600',
+                  fontSize: isLandscape ? 9 : 10.5,
+                  marginTop: isLandscape ? 1 : 2,
                 },
               ]}
               numberOfLines={1}
@@ -142,13 +158,13 @@ export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
           accessibilityLabel="Outras Telas"
           testID="tab-button-more"
           onPress={onOpenMoreModal}
-          style={styles.tabButton}
+          style={[styles.tabButton, isLandscape && { paddingVertical: 0 }]}
           activeOpacity={0.7}
         >
-          <View style={styles.iconContainer}>
+          <View style={[styles.iconContainer, isLandscape && { minHeight: 18 }]}>
             <Ionicons
               name={isOverflowActive ? 'apps' : 'apps-outline'}
-              size={21}
+              size={isLandscape ? 17 : 21}
               color={isOverflowActive ? colors.primary : colors.textMuted}
             />
             {isOverflowActive ? (
@@ -156,6 +172,7 @@ export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
                 style={[
                   styles.focusedIndicator,
                   { backgroundColor: colors.primary },
+                  isLandscape && { width: 10, height: 2, bottom: -2 },
                 ]}
               />
             ) : (
@@ -163,9 +180,16 @@ export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
                 style={[
                   styles.overflowCountBadge,
                   { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+                  isLandscape && { top: -2, right: -6, minWidth: 12, height: 12, borderRadius: 6 },
                 ]}
               >
-                <Text style={[styles.overflowCountText, { color: colors.primary }]}>
+                <Text
+                  style={[
+                    styles.overflowCountText,
+                    { color: colors.primary },
+                    isLandscape && { fontSize: 7.5 },
+                  ]}
+                >
                   {overflowTabs.length}
                 </Text>
               </View>
@@ -178,6 +202,8 @@ export const CustomBottomTabBar: React.FC<CustomBottomTabBarProps> = ({
               {
                 color: isOverflowActive ? colors.primary : colors.textMuted,
                 fontWeight: isOverflowActive ? '800' : '600',
+                fontSize: isLandscape ? 9 : 10.5,
+                marginTop: isLandscape ? 1 : 2,
               },
             ]}
             numberOfLines={1}

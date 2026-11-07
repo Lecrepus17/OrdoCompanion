@@ -24,7 +24,7 @@ export interface SupportTicketPayload {
   stepsToReproduce?: string;
   senderName?: string;
   contactReturn?: string;
-  includeDiagnostics: boolean;
+  includeDiagnostics?: boolean;
   diagnostics?: SystemDiagnostics;
 }
 

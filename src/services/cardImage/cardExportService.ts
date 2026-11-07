@@ -1,7 +1,57 @@
 import { Platform, Share } from 'react-native';
 import * as Print from 'expo-print';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { generateCardSvg } from './svgCardRenderer';
 import { CardThemeDefinition, ExportCardOptions, RecordCardData } from './types';
+import { getCardThemeById } from './themeRegistry';
+
+interface FileSystemCompat {
+  cacheDirectory?: string | null;
+  documentDirectory?: string | null;
+  writeAsStringAsync?: (
+    uri: string,
+    contents: string,
+    options?: { encoding?: 'utf8' | 'base64' | string }
+  ) => Promise<void>;
+}
+
+const fs = FileSystem as unknown as FileSystemCompat;
+
+function getSafeCacheDirectory(): string {
+  const dir = fs.cacheDirectory || fs.documentDirectory || 'file:///mock-cache/';
+  return dir.endsWith('/') ? dir : `${dir}/`;
+}
+
+/**
+ * Normaliza os dados do registro garantindo integridade defensiva contra
+ * propriedades ausentes ou parciais (ex.: stats, description, tags).
+ */
+export function normalizeRecordCardData(
+  data: RecordCardData | Partial<RecordCardData>
+): RecordCardData {
+  const name = data?.name || 'Registro';
+  const rawCat = data?.category || 'compendium';
+  const categoryStr = typeof rawCat === 'string' ? rawCat : 'compendium';
+  const categoryLabel = data?.categoryLabel || categoryStr.toUpperCase();
+
+  return {
+    id: data?.id || 'record_card',
+    name,
+    category: rawCat,
+    categoryLabel,
+    subCategory: data?.subCategory,
+    element: data?.element,
+    bookTitle: data?.bookTitle,
+    pageNumber: data?.pageNumber,
+    stats: Array.isArray(data?.stats) ? data.stats : [],
+    summary: data?.summary,
+    description: data?.description || '',
+    extraSections: Array.isArray(data?.extraSections) ? data.extraSections : [],
+    tags: Array.isArray(data?.tags) ? data.tags : [],
+    motto: data?.motto,
+  };
+}
 
 /**
  * Sanitiza nome para arquivo seguro em qualquer sistema operacional
@@ -148,11 +198,13 @@ export function wrapCardSvgForPrint(
  * Formata os dados do registro como texto estilizado para Discord ou WhatsApp
  */
 export function formatRecordTextForSharing(
-  data: RecordCardData,
-  theme: CardThemeDefinition
+  rawInput: RecordCardData | Partial<RecordCardData>,
+  theme?: CardThemeDefinition
 ): string {
+  const activeTheme = theme || getCardThemeById('padrao_ordo');
+  const data = normalizeRecordCardData(rawInput);
   const parts: string[] = [];
-  const glyph = theme.elementGlyph ? `${theme.elementGlyph} ` : '';
+  const glyph = activeTheme.elementGlyph ? `${activeTheme.elementGlyph} ` : '';
 
   parts.push(`*${glyph}${(data.name || 'REGISTRO').toUpperCase()}*`);
   parts.push(`Categoria: ${data.categoryLabel || data.category}${data.subCategory ? ` • ${data.subCategory}` : ''}`);
@@ -191,10 +243,152 @@ export function formatRecordTextForSharing(
   }
 
   parts.push('');
-  parts.push(`_${theme.motto}_`);
+  parts.push(`_${activeTheme.motto}_`);
   parts.push('— Gerado via Ordo Companion');
 
   return parts.join('\n');
+}
+
+/**
+ * Empacota o SVG com dimensões exatas de cartão (1080x1350) e margens zeradas
+ * para geração fiel de arquivo sem margens brancas de folha A4.
+ */
+export function wrapCardSvgExactDimensions(
+  svgString: string,
+  title: string,
+  theme?: CardThemeDefinition,
+  width = 1080,
+  height = 1350
+): string {
+  const safeTheme = theme || getCardThemeById('padrao_ordo');
+  const bgColor = safeTheme.colors?.bgGradientStart || '#05070B';
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${title} - Ordo Realitas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    @page {
+      size: ${width}px ${height}px;
+      margin: 0;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: ${width}px;
+      height: ${height}px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: ${bgColor};
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .card-wrapper {
+      width: ${width}px;
+      height: ${height}px;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    svg {
+      width: ${width}px;
+      height: ${height}px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="card-wrapper">
+    ${svgString}
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * Gera um arquivo físico do cartão no armazenamento seguro local (cache).
+ * Suporta SVG vetorial direto e renderização com dimensões exatas do card (1080x1350).
+ */
+/**
+ * Gera um arquivo físico do cartão no armazenamento seguro local (cache).
+ * Suporta SVG vetorial direto e renderização com dimensões exatas do card (1080x1350).
+ */
+export async function generateLocalCardFile(
+  rawInput: RecordCardData | Partial<RecordCardData>,
+  theme: CardThemeDefinition,
+  rawSvg: string,
+  format: 'png' | 'svg',
+  width: number,
+  height: number
+): Promise<{ uri: string; fileName: string; mimeType: string }> {
+  const data = normalizeRecordCardData(rawInput);
+  const baseName = sanitizeFileName(data.name);
+  const cacheDir = getSafeCacheDirectory();
+
+  if (format === 'svg') {
+    const fileName = `Ordo_${baseName}_${theme.id}.svg`;
+    const fileUri = `${cacheDir}${fileName}`;
+    if (fs.writeAsStringAsync) {
+      await fs.writeAsStringAsync(fileUri, rawSvg, {
+        encoding: 'utf8',
+      });
+    }
+    return { uri: fileUri, fileName, mimeType: 'image/svg+xml' };
+  }
+
+  // format === 'png':
+  // 1. Tenta converter via canvas (se ambiente DOM suportar)
+  let pngDataUrl = '';
+  try {
+    pngDataUrl = await svgToPngDataUrl(rawSvg, width, height);
+  } catch {}
+
+  if (pngDataUrl && pngDataUrl.startsWith('data:image/png;base64,')) {
+    const fileName = `Ordo_${baseName}_${theme.id}.png`;
+    const fileUri = `${cacheDir}${fileName}`;
+    const base64 = pngDataUrl.replace(/^data:image\/png;base64,/, '');
+    if (fs.writeAsStringAsync) {
+      await fs.writeAsStringAsync(fileUri, base64, {
+        encoding: 'base64',
+      });
+    }
+    return { uri: fileUri, fileName, mimeType: 'image/png' };
+  }
+
+  // 2. No runtime nativo Android/Hermes:
+  // Renderiza arquivo sem margens com dimensões exatas de cartão (1080x1350) via Print.printToFileAsync
+  try {
+    const html = wrapCardSvgExactDimensions(rawSvg, data.name, theme, width, height);
+    const printRes = await Print.printToFileAsync({
+      html,
+      width,
+      height,
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+    });
+    if (printRes && printRes.uri) {
+      const fileName = `Ordo_${baseName}_${theme.id}_card.pdf`;
+      return { uri: printRes.uri, fileName, mimeType: 'application/pdf' };
+    }
+  } catch (printErr) {
+    console.warn('[cardExportService] printToFileAsync fallback:', printErr);
+  }
+
+  // Fallback: grava SVG vetorial direto
+  const fileName = `Ordo_${baseName}_${theme.id}.svg`;
+  const fileUri = `${cacheDir}${fileName}`;
+  if (fs.writeAsStringAsync) {
+    await fs.writeAsStringAsync(fileUri, rawSvg, {
+      encoding: 'utf8',
+    });
+  }
+  return { uri: fileUri, fileName, mimeType: 'image/svg+xml' };
 }
 
 export interface DownloadResult {
@@ -205,13 +399,14 @@ export interface DownloadResult {
 }
 
 /**
- * Realiza o download da imagem estilizada (PNG/SVG no Web, ou Salvar PDF/Imprimir no APK nativo)
+ * Realiza o download/salvamento da imagem estilizada (PNG/SVG no Web, ou compartilhamento/salvamento via expo-sharing no APK nativo)
  */
 export async function downloadCardImage(
-  data: RecordCardData,
+  rawInput: RecordCardData | Partial<RecordCardData>,
   theme: CardThemeDefinition,
   options: ExportCardOptions = {}
 ): Promise<DownloadResult> {
+  const data = normalizeRecordCardData(rawInput);
   const format = options.format || 'png';
   const width = options.width || 1080;
   const height = options.height || 1350;
@@ -249,44 +444,51 @@ export async function downloadCardImage(
     }
   }
 
-  // Mobile / APK Nativo: Usa Expo Print para acionar a folha oficial do Android com visualização completa e 'Salvar como PDF'
+  // Mobile / APK Nativo:
+  // NUNCA aciona o spooler de impressão de folha A4 (Print.printAsync).
+  // Gera o arquivo do cartão com dimensões exatas e despacha via expo-sharing
   try {
-    const html = wrapCardSvgForPrint(rawSvg, data.name, theme);
-    await Print.printAsync({ html });
-    return { success: true, fileName: `${fileName}.pdf`, format };
+    const file = await generateLocalCardFile(data, theme, rawSvg, format, width, height);
+
+    const isAvailable = await Sharing.isAvailableAsync();
+    if (isAvailable) {
+      await Sharing.shareAsync(file.uri, {
+        mimeType: file.mimeType,
+        dialogTitle: `Salvar Card ${data.name}`,
+        UTI: format === 'svg' ? 'public.svg-image' : file.mimeType === 'image/png' ? 'public.png' : 'com.adobe.pdf',
+      });
+      return { success: true, fileName: file.fileName, format };
+    }
+
+    // Fallback se expo-sharing não estiver disponível:
+    await Share.share({
+      title: data.name,
+      url: file.uri,
+      message: formatRecordTextForSharing(data, theme),
+    });
+    return { success: true, fileName: file.fileName, format };
   } catch (err: any) {
-    // Se o usuário dispensar ou cancelar o diálogo de impressão
     const msg = String(err?.message || '').toLowerCase();
     if (msg.includes('cancel') || msg.includes('dismiss')) {
       return { success: true, fileName, format };
     }
-
-    // Fallback: compartilha os dados textuais do registro
-    try {
-      const text = formatRecordTextForSharing(data, theme);
-      await Share.share({
-        title: data.name,
-        message: text,
-      });
-      return { success: true, fileName, format };
-    } catch {
-      return { success: false, fileName, format, error: err?.message || 'Erro ao exportar card' };
-    }
+    return { success: false, fileName, format, error: err?.message || 'Erro ao exportar card' };
   }
 }
 
 /**
- * Compartilha o registro via Web Share API com anexo de imagem quando suportado,
- * ou via Share nativo de React Native.
+ * Compartilha o registro com o arquivo anexado via Web Share API ou expo-sharing em dispositivos móveis.
  */
 export async function shareCardImage(
-  data: RecordCardData,
+  rawInput: RecordCardData | Partial<RecordCardData>,
   theme: CardThemeDefinition,
   options: ExportCardOptions = {}
 ): Promise<{ success: boolean; sharedAsFile: boolean }> {
+  const data = normalizeRecordCardData(rawInput);
   const text = formatRecordTextForSharing(data, theme);
   const width = options.width || 1080;
   const height = options.height || 1350;
+  const format = options.format || 'png';
 
   if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
     try {
@@ -309,7 +511,7 @@ export async function shareCardImage(
         }
       }
 
-      // Fallback para share padrão sem arquivo
+      // Fallback para share padrão sem arquivo na Web se files não suportado
       if (navigator.share) {
         await navigator.share({
           title: data.name,
@@ -319,21 +521,49 @@ export async function shareCardImage(
       }
     } catch (e: any) {
       if (e?.name === 'AbortError') {
-        // Usuário apenas fechou o diálogo nativo
         return { success: false, sharedAsFile: false };
       }
       console.warn('Web share falhou:', e);
     }
   }
 
-  // React Native Share
+  // Mobile / APK Nativo:
+  // Gera o arquivo físico do card e compartilha via expo-sharing
   try {
+    const rawSvg = generateCardSvg(data, theme, { width, height });
+    const file = await generateLocalCardFile(data, theme, rawSvg, format, width, height);
+
+    const isAvailable = await Sharing.isAvailableAsync();
+    if (isAvailable) {
+      await Sharing.shareAsync(file.uri, {
+        mimeType: file.mimeType,
+        dialogTitle: `Compartilhar Card ${data.name}`,
+        UTI: format === 'svg' ? 'public.svg-image' : file.mimeType === 'image/png' ? 'public.png' : 'com.adobe.pdf',
+      });
+      return { success: true, sharedAsFile: true };
+    }
+
+    // Fallback se expo-sharing não estiver disponível:
     await Share.share({
       title: data.name,
+      url: file.uri,
       message: text,
     });
-    return { success: true, sharedAsFile: false };
-  } catch {
-    return { success: false, sharedAsFile: false };
+    return { success: true, sharedAsFile: true };
+  } catch (err: any) {
+    const msg = String(err?.message || '').toLowerCase();
+    if (msg.includes('cancel') || msg.includes('dismiss')) {
+      return { success: false, sharedAsFile: false };
+    }
+    // Fallback de texto puro somente se a geração de arquivo falhar completamente
+    try {
+      await Share.share({
+        title: data.name,
+        message: text,
+      });
+      return { success: true, sharedAsFile: false };
+    } catch {
+      return { success: false, sharedAsFile: false };
+    }
   }
 }

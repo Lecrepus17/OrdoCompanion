@@ -22,6 +22,76 @@ import { sortBooksCanonical } from '../../repositories/OfflineDataRepository';
 import { confirmAction } from '../../utils/alert';
 import { localPdfStorage } from '../../services/pdf/PdfAccessService';
 
+interface BookThemeMeta {
+  badge: string;
+  accent: string;
+  bgTint: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  primaryLabel: string;
+  subLabel: string;
+}
+
+const getBookThemeInfo = (book: BookInfo): BookThemeMeta => {
+  const id = (book.id || '').toLowerCase();
+  const title = (book.title || '').toLowerCase();
+
+  if (id === 'livro_base' || title.includes('livro base') || title.includes('regras')) {
+    return {
+      badge: 'BASE',
+      accent: '#F59E0B',
+      bgTint: 'rgba(245, 158, 11, 0.1)',
+      icon: 'shield-outline',
+      primaryLabel: 'LIVRO BASE',
+      subLabel: 'REGRAS v1.3',
+    };
+  }
+
+  if (id === 'sobrevivendo_ao_horror' || title.includes('horror') || title.includes('sobrevivendo')) {
+    return {
+      badge: 'EXPANSÃO',
+      accent: '#EF4444',
+      bgTint: 'rgba(239, 68, 68, 0.1)',
+      icon: 'skull-outline',
+      primaryLabel: 'HORROR',
+      subLabel: 'SUPLEMENTO',
+    };
+  }
+
+  const matchNum = id.match(/arquivos_secretos_(\d+)/) || title.match(/#(\d+)/) || title.match(/arquivo.*?(\d+)/i);
+  if (matchNum) {
+    const rawNum = parseInt(matchNum[1], 10);
+    const num = String(rawNum).padStart(2, '0');
+    const colorMap: Record<string, { accent: string; bgTint: string }> = {
+      '01': { accent: '#38BDF8', bgTint: 'rgba(56, 189, 248, 0.1)' },
+      '02': { accent: '#10B981', bgTint: 'rgba(16, 185, 129, 0.1)' },
+      '03': { accent: '#A855F7', bgTint: 'rgba(168, 85, 247, 0.1)' },
+      '04': { accent: '#F97316', bgTint: 'rgba(249, 115, 22, 0.1)' },
+      '05': { accent: '#F43F5E', bgTint: 'rgba(244, 63, 94, 0.1)' },
+      '06': { accent: '#6366F1', bgTint: 'rgba(99, 102, 241, 0.1)' },
+      '07': { accent: '#14B8A6', bgTint: 'rgba(20, 184, 166, 0.1)' },
+      '09': { accent: '#E11D48', bgTint: 'rgba(225, 29, 72, 0.1)' },
+    };
+    const c = colorMap[num] || { accent: '#06B6D4', bgTint: 'rgba(6, 182, 212, 0.1)' };
+    return {
+      badge: `#${num}`,
+      accent: c.accent,
+      bgTint: c.bgTint,
+      icon: 'document-text-outline',
+      primaryLabel: 'CASOS',
+      subLabel: `ARQUIVO #${num}`,
+    };
+  }
+
+  return {
+    badge: 'DOSSIÊ',
+    accent: '#3B82F6',
+    bgTint: 'rgba(59, 130, 246, 0.1)',
+    icon: 'folder-open-outline',
+    primaryLabel: book.title ? book.title.toUpperCase().slice(0, 14) : 'LIVRO',
+    subLabel: `${book.pageCount} PÁG.`,
+  };
+};
+
 const BookCoverCard: React.FC<{
   book: BookInfo;
   colors: ThemeColors;
@@ -31,25 +101,14 @@ const BookCoverCard: React.FC<{
   const [imgError, setImgError] = useState(false);
   const isServerActive = isPdfServerConfigured();
   const coverThumbUrl = isServerActive ? getRenderedPdfPageUrl(book.fileName, 1, 90) : '';
-
-  const getBookThemeInfo = () => {
-    const id = book.id.toLowerCase();
-    if (id.includes('horror')) {
-      return { icon: 'skull-outline' as const, accent: '#EF4444', label: 'Suplemento' };
-    }
-    if (id.includes('base')) {
-      return { icon: 'shield-outline' as const, accent: '#F59E0B', label: 'Livro Base' };
-    }
-    return { icon: 'folder-open-outline' as const, accent: '#3B82F6', label: 'Dossiê' };
-  };
-
-  const themeInfo = getBookThemeInfo();
+  const theme = useMemo(() => getBookThemeInfo(book), [book]);
 
   return (
     <TouchableOpacity
-      style={styles.coverThumbWrap}
+      style={[styles.coverThumbWrap, { borderColor: theme.accent }]}
       activeOpacity={0.85}
       onPress={onPress}
+      accessibilityLabel={`Capa do livro ${book.title}`}
     >
       {coverThumbUrl && !imgError ? (
         <Image
@@ -60,14 +119,26 @@ const BookCoverCard: React.FC<{
         />
       ) : (
         <View style={styles.coverFallbackCard}>
-          <Ionicons name={themeInfo.icon} size={24} color={themeInfo.accent} />
-          <Text style={styles.coverFallbackTitle} numberOfLines={2}>
-            {book.title}
-          </Text>
-          <Text style={styles.coverFallbackSub}>{themeInfo.label}</Text>
+          <View style={[styles.coverTopStrip, { backgroundColor: theme.accent }]} />
+          <View style={[styles.coverBadgePill, { borderColor: theme.accent, backgroundColor: theme.bgTint }]}>
+            <Text style={[styles.coverBadgePillText, { color: theme.accent }]}>
+              {theme.badge}
+            </Text>
+          </View>
+          <View style={styles.coverIconWrap}>
+            <Ionicons name={theme.icon} size={22} color={theme.accent} />
+          </View>
+          <View style={styles.coverTextWrap}>
+            <Text style={styles.coverFallbackTitle} numberOfLines={2}>
+              {theme.primaryLabel}
+            </Text>
+            <Text style={[styles.coverFallbackSub, { color: theme.accent }]} numberOfLines={1}>
+              {theme.subLabel}
+            </Text>
+          </View>
         </View>
       )}
-      <View style={styles.pdfTagCorner}>
+      <View style={[styles.pdfTagCorner, { backgroundColor: theme.accent }]}>
         <Text style={styles.pdfTagCornerText}>PDF</Text>
       </View>
     </TouchableOpacity>
@@ -113,7 +184,7 @@ export default function BooksScreen() {
   }, []);
 
   const openExternalPdf = useCallback(async (book: BookInfo, pageNo: number = 1) => {
-    const opened = await openPdfDocument(book.fileName, pageNo);
+    const opened = await openPdfDocument(book.fileName, pageNo, book.driveFileId);
     if (!opened) {
       openBookAtPage(book, pageNo, 'text');
     }
@@ -531,11 +602,11 @@ const createStyles = (colors: ThemeColors) =>
       gap: 14,
     },
     coverThumbWrap: {
-      width: 62,
-      height: 84,
+      width: 68,
+      height: 96,
       borderRadius: 8,
       backgroundColor: colors.surfaceElevated,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: colors.border,
       overflow: 'hidden',
       position: 'relative',
@@ -555,7 +626,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     pdfTagCornerText: {
       color: '#FFF',
-      fontSize: 9,
+      fontSize: 8,
       fontWeight: '900',
     },
     bookInfoCol: {
@@ -626,25 +697,60 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '600',
     },
     coverFallbackCard: {
+      flex: 1,
       width: '100%',
       height: '100%',
       backgroundColor: colors.surfaceElevated,
       alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 5,
+      paddingHorizontal: 4,
+    },
+    coverTopStrip: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+    },
+    coverBadgePill: {
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: 4,
+      borderWidth: 1,
+      marginTop: 2,
+    },
+    coverBadgePillText: {
+      fontSize: 8,
+      fontWeight: '900',
+      letterSpacing: 0.5,
+      textAlign: 'center',
+    },
+    coverIconWrap: {
+      alignItems: 'center',
       justifyContent: 'center',
-      padding: 4,
-      gap: 2,
+      marginVertical: 1,
+    },
+    coverTextWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
+      paddingBottom: 2,
     },
     coverFallbackTitle: {
       color: colors.text,
-      fontSize: 8,
-      fontWeight: '800',
+      fontSize: 8.5,
+      fontWeight: '900',
       textAlign: 'center',
+      letterSpacing: 0.2,
+      lineHeight: 11,
     },
     coverFallbackSub: {
-      color: colors.textMuted,
       fontSize: 7,
-      fontWeight: '700',
+      fontWeight: '800',
       textAlign: 'center',
+      marginTop: 1,
+      letterSpacing: 0.3,
     },
     bannerServerPill: {
       flexDirection: 'row',

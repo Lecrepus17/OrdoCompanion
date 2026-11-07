@@ -28,6 +28,7 @@ import {
   TrainingDegree,
 } from '../../types/compendium';
 import { confirmAction } from '../../utils/alert';
+import { copyToClipboard } from '../../utils/clipboard';
 import { parseCritical } from '../../utils/weapons';
 import PrintSheetModal from '../../components/PrintSheetModal';
 import CreateAgentModal from '../../components/CreateAgentModal';
@@ -520,10 +521,24 @@ export default function CharactersScreen() {
     setAttackModalVisible(true);
   };
 
+  const openEditAttackModal = (atk: CharacterAttack) => {
+    setEditingAttackId(atk.id);
+    setAtkName(atk.name || '');
+    setAtkSkill(atk.skillName || (atk.test?.includes('Luta') ? 'Luta' : 'Pontaria'));
+    setAtkBonus(atk.attackBonus !== undefined ? String(atk.attackBonus) : '0');
+    setAtkTest(atk.test || 'Pontaria');
+    setAtkDamage(atk.damage || '1d6');
+    setAtkCritical(atk.critical || '20/x2');
+    setAtkRange(atk.range || 'Curto');
+    setAtkSpecial(atk.special || '');
+    setAttackModalVisible(true);
+  };
+
   const handleSaveAttack = async () => {
     if (!activeChar || !atkName.trim()) return;
     const existing = activeChar.attacks || [];
     const bonusNum = parseInt(atkBonus, 10) || 0;
+    const currentAttack = editingAttackId ? existing.find((a) => a.id === editingAttackId) : null;
 
     const attackEntry: CharacterAttack = {
       id: editingAttackId || `atk_${Date.now()}`,
@@ -535,6 +550,8 @@ export default function CharactersScreen() {
       critical: atkCritical.trim() || '20/x2',
       range: atkRange.trim() || 'Curto',
       special: atkSpecial.trim(),
+      customWeaponId: currentAttack?.customWeaponId,
+      proficiency: currentAttack?.proficiency,
     };
 
     const next = editingAttackId
@@ -1104,11 +1121,7 @@ export default function CharactersScreen() {
                   onPress={async () => {
                     if (!sharingChar) return;
                     const code = encodeAgentShareCode(sharingChar);
-                    try {
-                      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(code);
-                      }
-                    } catch {}
+                    await copyToClipboard(code, `Ficha de ${sharingChar.name}`);
                     setCopiedCodeToast(true);
                   }}
                 >
@@ -1146,7 +1159,12 @@ export default function CharactersScreen() {
           <Text style={styles.backBtnText}>Todas as Fichas</Text>
         </TouchableOpacity>
 
-        <View style={styles.topBarRightActions}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.topBarActionsScroll}
+          contentContainerStyle={styles.topBarRightActions}
+        >
           <TouchableOpacity
             style={[
               styles.recalcBtn,
@@ -1199,7 +1217,7 @@ export default function CharactersScreen() {
             <Ionicons name="calculator-outline" size={16} color="#FCA5A5" />
             <Text style={styles.recalcBtnText}>Recalcular Status</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
 
       {/* Sub navigation bar for sections */}
@@ -1745,8 +1763,8 @@ export default function CharactersScreen() {
 
             {/* Defesa, Proteção & Resistências (Da ficha oficial) */}
             <View style={styles.sectionCard}>
-              <View style={[styles.cardHeaderRow, { marginBottom: 10 }]}>
-                <Text style={styles.sectionTitle}>Defesa, Proteção & Resistências</Text>
+              <View style={[styles.cardHeaderRow, { marginBottom: 10, flexWrap: 'wrap', gap: 8 }]}>
+                <Text style={[styles.sectionTitle, { flexShrink: 1 }]}>Defesa, Proteção & Resistências</Text>
                 <TouchableOpacity
                   style={styles.defenseAssistantBtn}
                   onPress={() => setProtectionModalVisible(true)}
@@ -2102,6 +2120,17 @@ export default function CharactersScreen() {
                         <TouchableOpacity
                           onPress={(e) => {
                             e.stopPropagation?.();
+                            openEditAttackModal(atk);
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          testID={`sheet-attack-edit-${atk.id}`}
+                          accessibilityLabel={`Editar arma ${atk.name}`}
+                        >
+                          <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation?.();
                             openAttackPreview();
                           }}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -2115,6 +2144,7 @@ export default function CharactersScreen() {
                               attacks: (activeChar.attacks || []).filter((a) => a.id !== atk.id),
                             })
                           }
+                          testID={`sheet-attack-delete-${atk.id}`}
                         >
                           <Ionicons name="trash-outline" size={18} color="#EF4444" />
                         </TouchableOpacity>
@@ -2989,7 +3019,9 @@ export default function CharactersScreen() {
       >
         <View style={styles.modalWrap}>
           <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 14) }]}>
-            <Text style={styles.modalTitle}>Novo Ataque / Arma</Text>
+            <Text style={styles.modalTitle}>
+              {editingAttackId ? 'Editar Ataque / Arma' : 'Novo Ataque / Arma'}
+            </Text>
             <TouchableOpacity onPress={() => setAttackModalVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
@@ -3078,7 +3110,9 @@ export default function CharactersScreen() {
             </View>
 
             <TouchableOpacity style={styles.saveHeaderBtnLarge} onPress={handleSaveAttack}>
-              <Text style={styles.saveHeaderBtnText}>Salvar Ataque</Text>
+              <Text style={styles.saveHeaderBtnText}>
+                {editingAttackId ? 'Salvar Alterações' : 'Salvar Ataque'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -3513,7 +3547,17 @@ export default function CharactersScreen() {
           />
 
           {pickerModalType === 'link_compendium' && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 14, paddingBottom: 10 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0, height: 46 }}
+              contentContainerStyle={{
+                gap: 6,
+                paddingHorizontal: 14,
+                paddingVertical: 4,
+                alignItems: 'center',
+              }}
+            >
               {[
                 { id: 'all', label: 'Todos' },
                 { id: 'class_powers', label: 'Poderes de Classe' },
@@ -3918,11 +3962,7 @@ export default function CharactersScreen() {
                 onPress={async () => {
                   if (!sharingChar) return;
                   const code = encodeAgentShareCode(sharingChar);
-                  try {
-                    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-                      await navigator.clipboard.writeText(code);
-                    }
-                  } catch {}
+                  await copyToClipboard(code, `Ficha de ${sharingChar.name}`);
                   setCopiedCodeToast(true);
                 }}
               >
@@ -4049,7 +4089,7 @@ const StatCounterRow: React.FC<{
   );
 };
 
-const createStyles = (colors: ThemeColors) =>
+export const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
   container: {
     flex: 1,
@@ -4174,16 +4214,23 @@ const createStyles = (colors: ThemeColors) =>
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 0,
+    marginRight: 10,
   },
   backBtnText: {
     color: colors.text,
     fontWeight: '700',
     fontSize: 13,
   },
+  topBarActionsScroll: {
+    flexShrink: 1,
+    flexGrow: 0,
+  },
   topBarRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingLeft: 4,
   },
   printHeaderBtn: {
     flexDirection: 'row',
@@ -4545,6 +4592,8 @@ const createStyles = (colors: ThemeColors) =>
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   addAttackButtonsRow: {
     flexDirection: 'row',
@@ -5007,12 +5056,14 @@ const createStyles = (colors: ThemeColors) =>
     fontWeight: '700',
   },
   rankPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   rankPillActive: {
     backgroundColor: colors.primarySoft,
@@ -5022,6 +5073,8 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   rankPillTextActive: {
     color: colors.text,
@@ -5037,6 +5090,7 @@ const createStyles = (colors: ThemeColors) =>
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
+    flexShrink: 0,
   },
   defenseAssistantBtnText: {
     color: '#38BDF8',

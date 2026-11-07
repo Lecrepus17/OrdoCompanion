@@ -26,7 +26,7 @@ import {
   ParanormalRelic,
   RELIC_PERSONAS,
 } from '../../types/ai';
-import { sendAiChatMessage, getEffectiveApiKey } from '../../services/ai/AiClient';
+import { sendAiChatMessage, getEffectiveApiKey, validateKey } from '../../services/ai/AiClient';
 import { GlitchVoiceService } from '../../services/ai/GlitchVoiceService';
 import { AiChatMessageItem } from '../../components/AiChatMessageItem';
 import { AiConfigModal } from '../../components/AiConfigModal';
@@ -97,10 +97,17 @@ export default function OracleScreen() {
   const [selectedPageNumber, setSelectedPageNumber] = useState(1);
 
   const flatListRef = useRef<FlatList>(null);
+  const inputRef = useRef<any>(null);
   const isMountedRef = useRef(true);
 
   const activeRelic = config.relicPersona || (config.anfitriaoMode ? 'anfitriao' : 'none');
-  const isMissingKey = !getEffectiveApiKey(config) && config.provider !== 'offline';
+  const effectiveApiKey = getEffectiveApiKey(config);
+  const isMissingKey =
+    config.provider === 'offline'
+      ? false
+      : config.provider === 'gemini'
+      ? !validateKey(effectiveApiKey)
+      : !effectiveApiKey;
   const currentRelicMeta = RELIC_PERSONAS[activeRelic] || RELIC_PERSONAS.none;
 
   const activeAgent = useMemo(() => {
@@ -245,7 +252,12 @@ export default function OracleScreen() {
     }
 
     if (!GlitchVoiceService.isSttSupported()) {
-      setVoiceNotice('Reconhecimento de voz não suportado neste navegador ou dispositivo.');
+      setVoiceNotice(
+        Platform.OS === 'web'
+          ? 'Reconhecimento de voz não suportado neste navegador. Digite sua mensagem no campo abaixo.'
+          : 'Reconhecimento de voz (STT) indisponível neste dispositivo. Digite sua mensagem no campo de texto.'
+      );
+      inputRef.current?.focus();
       setTimeout(() => {
         if (isMountedRef.current) setVoiceNotice(null);
       }, 4000);
@@ -297,6 +309,14 @@ export default function OracleScreen() {
       return;
     }
 
+    if (!GlitchVoiceService.isTtsSupported()) {
+      setVoiceNotice('Sintetizador de voz não suportado neste dispositivo.');
+      setTimeout(() => {
+        if (isMountedRef.current) setVoiceNotice(null);
+      }, 4000);
+      return;
+    }
+
     GlitchVoiceService.stopSpeaking();
     setSpeakingMessageId(messageId);
 
@@ -306,8 +326,14 @@ export default function OracleScreen() {
       onEnd: () => {
         if (isMountedRef.current) setSpeakingMessageId(null);
       },
-      onError: () => {
-        if (isMountedRef.current) setSpeakingMessageId(null);
+      onError: (err: any) => {
+        if (isMountedRef.current) {
+          setSpeakingMessageId(null);
+          setVoiceNotice(err?.message || 'Falha ao reproduzir áudio.');
+          setTimeout(() => {
+            if (isMountedRef.current) setVoiceNotice(null);
+          }, 4000);
+        }
       },
     });
   };
@@ -833,6 +859,7 @@ export default function OracleScreen() {
         ]}
       >
         <TextInput
+          ref={inputRef}
           style={[
             styles.textInput,
             {

@@ -6,11 +6,63 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento. Todas as alterações foram consolidadas e commitadas)*
+*(Nenhum commit pendente no momento — todas as etapas foram comitadas com sucesso).*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### 1. Resolução Completa dos 22 Problemas de UI Mobile, APK, PDF, Sincronização Drive, IA G.L.I.T.C.H. e Fluxo de Prints:
+```bash
+git add .gitignore GEMINI.md .agents/skills/screenshot-bug-triage/SKILL.md src/services/ai/AiClient.ts src/services/ai/AiKnowledgeRetrieval.ts src/services/ai/AiOfflineEngine.ts src/services/ai/GlitchVoiceService.ts src/app/(tabs)/oracle.tsx src/components/AiConfigModal.tsx src/components/PdfViewerModal.tsx src/utils/pdfUrl.ts src/app/(tabs)/books.tsx src/app/(tabs)/characters.tsx src/components/PrintSheetModal.tsx src/components/cardImage/RecordImageExportModal.tsx src/services/cardImage/cardExportService.ts src/services/support/SupportService.ts src/services/support/types.ts src/components/SupportCenterView.tsx src/app/(tabs)/_layout.tsx src/components/CustomBottomTabBar.tsx src/repositories/OfflineDataRepository.ts src/services/sync/SmartMergeEngine.ts src/context/AppContext.tsx tests/pdfUrl.test.ts tests/pdfViewer.test.ts tests/e2e_issues_suite.test.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "fix(mobile): resolve os 22 problemas de ui, apk, pdf, sync drive, voz e ia reportados nos prints" \
+  -m "- Corrige validacao da chave padrao Gemini com fallback offline, TTS nativo via expo-speech e priorizacao RAG no modo offline (Problemas 5, 7, 21)" \
+  -m "- Implementa download direto de PDF, pre-visualizacao in-app, remocao de spinner/botao flutuante travado e tipografia do leitor texto (Problemas 3, 4, 8, 16, 22)" \
+  -m "- Adiciona rolagem horizontal no topo da ficha, edicao de arma in-place no agente, pilulas sem corte, ajuste do botao de protecao e pre-visualizacao de impressao (Problemas 10, 11, 12, 18, 20)" \
+  -m "- Corrige sobreposicao de botoes PNG, compartilhamento nativo de imagem via expo-sharing, layout em paisagem do gerador e formato PNG 1080x1350 (Problemas 6, 9, 14, 15)" \
+  -m "- Ajusta deep-link do Discord, modal de configuracoes do desenvolvedor/webhook, cabecalho do menu de suporte e compactacao global em modo paisagem (Problemas 1, 2, 17, 19)" \
+  -m "- Implementa tombstones deletedDynamicBookIds no SmartMergeEngine e OfflineDataRepository impedindo retorno de PDFs excluidos ao sincronizar com o Drive (Problema 13)" \
+  -m "- Adiciona suite E2E automatizada em tests/e2e_issues_suite.test.ts (39 testes cobrindo os 22 problemas, 100% aprovados)" \
+  -m "- Configura fluxo continuo de triagem de prints em docs/imagens dos problemas no .gitignore, GEMINI.md e skill screenshot-bug-triage" \
+  -m "- Atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
+### 2. Suporte a Anotações Desenhadas na Página do Livro no Tablet (Stylus e Gestos):
+```bash
+git add src/types/annotations.ts src/services/annotations/pageAnnotationsService.ts src/utils/annotationGeometry.ts src/components/PageAnnotationOverlay.tsx src/components/AnnotationToolbar.tsx tests/pageAnnotations.test.ts tests/pageAnnotationOverlay.test.tsx
+git commit -m "feat(books): implementa suporte a anotacoes desenhadas na pagina do livro no tablet" \
+  -m "- Cria PageAnnotationOverlay com captura de gestos PanResponder e renderizacao vetorial multiplataforma (SVG na Web e Native segments)" \
+  -m "- Implementa AnnotationToolbar dedicada para tablets e celulares com ferramentas de Caneta, Marca-Texto, Borracha e paleta dos 5 Elementos" \
+  -m "- Adiciona utilitarios geometricos com normalizacao de coordenadas [0, 1] e hit-test de borracha em annotationGeometry.ts" \
+  -m "- Implementa PageAnnotationsService para persistencia local no AsyncStorage com cache sincrono e indexacao de paginas anotadas" \
+  -m "- Integra botao Anotar, badge indicador e suporte a Undo/Redo/Limpar no PdfViewerModal em modos pagina unica e rolagem continua" \
+  -m "- Adiciona suites de testes em tests/pageAnnotations.test.ts e tests/pageAnnotationOverlay.test.tsx (100% aprovados)"
+```
+
+### 3. Validação do Livro Base v1.3 e Integração de 28 Itens Amaldiçoados Especiais (1.645 Entidades):
+```bash
+git add data/compendium_seed.json src/data/seed/compendium_seed.json scripts/parse_entities.py
+git commit -m "feat(compendium): valida livro base v1.3 e cataloga 28 itens amaldicoados especiais (1645 entidades)" \
+  -m "- Valida e audita extração canônica do Livro Base oficial v1.3 (332 páginas) com todas as erratas integradas" \
+  -m "- Implementa parser dedicado para os 28 Itens Amaldiçoados Especiais (Punhos Enraivecidos, Jaqueta de Veríssimo, Crânio Espiral, etc.) em parse_entities.py" \
+  -m "- Expande compêndio para 1.645 entidades únicas (311 itens, 107 rituais, 58 armas, 39 condições, 59 origens, 606 regras)" \
+  -m "- Sincroniza binários do PDF oficial v1.3 em pdfs/, public/pdfs/ e dist/pdfs/ para visualização in-app" \
+  -m "- Valida integridade referencial com test_database_integrity.py e suíte completa de Smart Testing Gates (100% aprovados)"
+```
+
+### 4. Conclusão da Compatibilidade Android APK (BackHandler, Clipboard Universal e Blindagem Hermes):
+```bash
+git add src/utils/clipboard.ts src/app/(tabs)/master.tsx src/components/AiChatMessageItem.tsx src/components/AppManualModal.tsx src/components/CreateAgentModal.tsx src/components/LevelUpModal.tsx src/components/MoreTabsModal.tsx src/components/PrerequisiteAlertModal.tsx src/components/ProtectionModal.tsx src/components/RecordPreviewModal.tsx src/components/ThemeSelectorModal.tsx src/components/UpdateNotificationModal.tsx src/components/UserProfileModal.tsx src/services/virtualTable/tableSessionExportService.ts src/utils/sheetPrinter.ts tests/backHandlerNavigation.test.tsx tests/clipboard.test.ts
+git commit -m "feat(android): completa 100% de compatibilidade apk hermes com backhandler e clipboard unificado" \
+  -m "- Implementa utilitário universal clipboard.ts com cópia e leitura resilientes e fallback para Share.share no Android nativo" \
+  -m "- Substitui ocorrências diretas de navigator.clipboard em fichas, perfil, IA GLITCH, suporte e exportação de cards" \
+  -m "- Adiciona fluxo de restauração manual de backup com TextInput nativo no UserProfileModal, eliminando dependência de window.prompt" \
+  -m "- Implementa interceptação de BackHandler com retrocesso de etapas e diálogo confirmAction em CreateAgentModal e LevelUpModal" \
+  -m "- Implementa navegação hierárquica por hardware em master.tsx deselecionando campanha ativa antes de fechar tela" \
+  -m "- Adiciona listeners seguros de BackHandler em todos os modais da aplicação prevenindo fechamento involuntário do app" \
+  -m "- Blinda chamadas a window.open e document.createElement em sheetPrinter.ts e tableSessionExportService.ts com integração Expo Print e Sharing" \
+  -m "- Adiciona baterias de testes em tests/clipboard.test.ts e tests/backHandlerNavigation.test.tsx (100% aprovados)"
+```
 
 ### 1. Compatibilidade Android APK, Agente Especializado e Runtime Hermes:
 ```bash

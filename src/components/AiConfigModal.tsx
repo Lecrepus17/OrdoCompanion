@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   Linking,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -14,7 +16,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { AiConfig, AiProvider, ParanormalRelic, RELIC_PERSONAS } from '../types/ai';
-import { hasDefaultApiKey, isUsingDefaultApiKey, testAiConnection } from '../services/ai/AiClient';
+import {
+  getDefaultGeminiApiKey,
+  hasDefaultApiKey,
+  isUsingDefaultApiKey,
+  testAiConnection,
+  validateKey,
+} from '../services/ai/AiClient';
 import { GlitchVoiceService } from '../services/ai/GlitchVoiceService';
 
 interface AiConfigModalProps {
@@ -75,12 +83,26 @@ export function AiConfigModal({
   const [showKey, setShowKey] = useState(false);
   const [selectedPersonaTab, setSelectedPersonaTab] = useState<'all' | 'specialist' | 'canon' | 'relics'>('all');
 
-  const defaultKeyAvailable = hasDefaultApiKey(provider);
+  const defaultGeminiKey = getDefaultGeminiApiKey();
+  const isDefaultGeminiValid = validateKey(defaultGeminiKey);
+  const defaultKeyAvailable = provider === 'gemini' ? isDefaultGeminiValid : hasDefaultApiKey(provider);
   const isUsingDefault = !apiKey.trim() && defaultKeyAvailable;
   const hasCustomKey = Boolean(apiKey.trim());
+  const isCustomKeyValid = provider === 'gemini' ? validateKey(apiKey.trim()) : true;
 
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Intercepta botão físico de retorno no Android
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    const onBackPress = () => {
+      onClose();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [visible, onClose]);
 
   // Sincroniza o estado interno sempre que o modal for aberto ou a config externa for alterada
   useEffect(() => {
@@ -358,6 +380,29 @@ export function AiConfigModal({
                   </View>
                 )}
 
+                {/* Se não houver chave pessoal nem chave padrão válida para Gemini */}
+                {!hasCustomKey && !isDefaultGeminiValid && provider === 'gemini' && (
+                  <View
+                    style={[
+                      styles.keyStatusBanner,
+                      {
+                        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                        borderColor: 'rgba(59, 130, 246, 0.35)',
+                      },
+                    ]}
+                  >
+                    <Ionicons name="information-circle" size={17} color="#3B82F6" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#3B82F6', fontWeight: '800', fontSize: 12 }}>
+                        Chave do Google Gemini Necessária
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2, lineHeight: 15 }}>
+                        Para conectar com a nuvem, cole sua chave gratuita do Google AI Studio abaixo. Se preferir não usar chave, selecione o Modo Offline 100% gratuito.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
                 <View style={[styles.inputWrap, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
@@ -379,6 +424,12 @@ export function AiConfigModal({
                     <Ionicons name={showKey ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textMuted} />
                   </TouchableOpacity>
                 </View>
+
+                {hasCustomKey && provider === 'gemini' && !isCustomKeyValid && (
+                  <Text style={{ color: '#EF4444', fontSize: 11, marginTop: 4, fontWeight: '600' }}>
+                    ⚠️ Formato inválido: a chave do Gemini deve iniciar com "AIzaSy" e conter 39 caracteres.
+                  </Text>
+                )}
               </View>
             )}
 

@@ -18,6 +18,8 @@ import {
   setMasterGoogleDriveFolderUrl,
   testPdfServerConnection,
   normalizeServerUrl,
+  getGoogleDriveDirectDownloadUrl,
+  getGoogleDriveFileViewUrl,
 } from '../src/utils/pdfUrl';
 
 describe('Utilitários de URLs e Páginas PDF (pdfUrl.ts)', () => {
@@ -189,6 +191,44 @@ describe('Utilitários de URLs e Páginas PDF (pdfUrl.ts)', () => {
       await assert.doesNotReject(async () => {
         await downloadPdfDocument('Livro base.pdf');
       });
+    });
+  });
+
+  describe('Google Drive Direct Download & File View (Issues 3 & 8)', () => {
+    it('getGoogleDriveDirectDownloadUrl deve retornar link de download direto do arquivo', () => {
+      const url = getGoogleDriveDirectDownloadUrl('1abcXYZ_456');
+      assert.strictEqual(url, 'https://drive.google.com/uc?export=download&id=1abcXYZ_456');
+    });
+
+    it('getGoogleDriveDirectDownloadUrl deve preservar URLs completas já informadas', () => {
+      const fullUrl = 'https://drive.google.com/uc?export=download&id=custom';
+      assert.strictEqual(getGoogleDriveDirectDownloadUrl(fullUrl), fullUrl);
+    });
+
+    it('getGoogleDriveDirectDownloadUrl deve retornar vazio para id vazio', () => {
+      assert.strictEqual(getGoogleDriveDirectDownloadUrl(''), '');
+    });
+
+    it('getGoogleDriveFileViewUrl deve retornar link direto de visualização do arquivo', () => {
+      const url = getGoogleDriveFileViewUrl('1abcXYZ_456');
+      assert.strictEqual(url, 'https://drive.google.com/file/d/1abcXYZ_456/view');
+    });
+
+    it('getCloudPdfUrl com driveFileId deve retornar download direto e nunca a pasta raiz', () => {
+      const url = getCloudPdfUrl('livro.pdf', 'file_id_999');
+      assert.strictEqual(url, 'https://drive.google.com/uc?export=download&id=file_id_999');
+      assert.ok(!url.includes('drive/folders/'));
+    });
+
+    it('getEmbeddedPdfViewerUrl com driveFileId deve usar URL direta do arquivo', () => {
+      const url = getEmbeddedPdfViewerUrl('livro.pdf', 1, 'file_id_999');
+      assert.strictEqual(url, 'https://drive.google.com/file/d/file_id_999/view');
+      assert.ok(!url.includes('drive/folders/'));
+    });
+
+    it('getCleanPdfUrl com driveFileId deve retornar link direto de download', () => {
+      const url = getCleanPdfUrl('livro.pdf', 'file_id_999');
+      assert.strictEqual(url, 'https://drive.google.com/uc?export=download&id=file_id_999');
     });
   });
 });

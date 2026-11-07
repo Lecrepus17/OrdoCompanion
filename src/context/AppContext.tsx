@@ -1256,6 +1256,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (isDynamic) {
           await defaultRepository.deleteDynamicPdfBook(bookId);
+          await defaultRepository.markDynamicBookDeleted(bookId);
           setVersionTick((v) => v + 1);
           cloudSyncManager.scheduleAutoSync();
           return {

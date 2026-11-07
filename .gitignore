@@ -28,6 +28,10 @@ pdfs/
 # Agent teamwork scratch
 .agents/teamwork/
 
+# Bug screenshots drop folder (local workflow)
+docs/imagens dos problemas/
+docs/imagens_dos_problemas/
+
 # Environment files
 .env
 .env.*

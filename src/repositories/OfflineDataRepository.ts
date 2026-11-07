@@ -42,6 +42,7 @@ const STORAGE_KEYS = {
   USER_PROFILE: '@ordem_paranormal:user_profile_v1',
   DELETED_CHARACTER_IDS: '@ordem_paranormal:deleted_character_ids_v1',
   DELETED_CAMPAIGN_IDS: '@ordem_paranormal:deleted_campaign_ids_v1',
+  DELETED_DYNAMIC_BOOK_IDS: '@ordem_paranormal:deleted_dynamic_book_ids_v1',
 };
 
 export function normalizeText(str: string): string {
@@ -509,6 +510,12 @@ export class OfflineDataRepository implements IDataRepository {
 
     await Promise.all([this.persistDynamicBooks(), this.persistDynamicEntities()]);
 
+    const deletedList = await this.getDeletedDynamicBookIds();
+    if (deletedList.includes(cleanBook.id)) {
+      const filtered = deletedList.filter((id) => id !== cleanBook.id);
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_DYNAMIC_BOOK_IDS, JSON.stringify(filtered));
+    }
+
     return await this.unlockBook(cleanBook.id, {
       method: 'custom_py',
       fileName: cleanBook.fileName,
@@ -570,7 +577,10 @@ export class OfflineDataRepository implements IDataRepository {
     // 5. Invalida cache de entidades
     this.invalidateEntityCache();
 
-    // 6. Persiste alterações no armazenamento local
+    // 6. Grava tombstone de deleção para evitar ressurreição no sync com Drive
+    await this.markDynamicBookDeleted(bookId);
+
+    // 7. Persiste alterações no armazenamento local
     await Promise.all([
       this.persistDynamicBooks(),
       this.persistDynamicEntities(),
@@ -1052,6 +1062,23 @@ export class OfflineDataRepository implements IDataRepository {
     }
   }
 
+  async getDeletedDynamicBookIds(): Promise<string[]> {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.DELETED_DYNAMIC_BOOK_IDS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async markDynamicBookDeleted(bookId: string): Promise<void> {
+    const list = await this.getDeletedDynamicBookIds();
+    if (!list.includes(bookId)) {
+      list.push(bookId);
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_DYNAMIC_BOOK_IDS, JSON.stringify(list));
+    }
+  }
+
   async getCharacters(): Promise<CharacterSheet[]> {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEYS.CHARACTERS);
@@ -1104,7 +1131,7 @@ export class OfflineDataRepository implements IDataRepository {
   }
 
   async exportUserDataJson(): Promise<string> {
-    const [favorites, savedLists, characters, campaigns, customWeapons, userProfile, deletedCharacterIds, deletedCampaignIds] = await Promise.all([
+    const [favorites, savedLists, characters, campaigns, customWeapons, userProfile, deletedCharacterIds, deletedCampaignIds, deletedDynamicBookIds] = await Promise.all([
       this.getFavorites(),
       this.getSavedLists(),
       this.getCharacters(),
@@ -1113,6 +1140,7 @@ export class OfflineDataRepository implements IDataRepository {
       this.getUserProfile(),
       this.getDeletedCharacterIds(),
       this.getDeletedCampaignIds(),
+      this.getDeletedDynamicBookIds(),
     ]);
 
     const payload = {
@@ -1130,6 +1158,7 @@ export class OfflineDataRepository implements IDataRepository {
       customWeapons,
       deletedCharacterIds,
       deletedCampaignIds,
+      deletedDynamicBookIds,
     };
 
     return JSON.stringify(payload, null, 2);
@@ -1137,6 +1166,11 @@ export class OfflineDataRepository implements IDataRepository {
 
   async importUserDataJson(rawJson: string): Promise<void> {
     const parsed = JSON.parse(rawJson);
+    const localDeletedDynamic = await this.getDeletedDynamicBookIds();
+    const deletedDynamicSet = new Set<string>([
+      ...(Array.isArray(parsed.deletedDynamicBookIds) ? parsed.deletedDynamicBookIds : []),
+      ...localDeletedDynamic,
+    ]);
 
     if (parsed.userProfile && typeof parsed.userProfile === 'object') {
       await this.saveUserProfile(parsed.userProfile);
@@ -1144,7 +1178,7 @@ export class OfflineDataRepository implements IDataRepository {
 
     if (parsed.unlockedBooks && typeof parsed.unlockedBooks === 'object') {
       for (const [bid, rec] of Object.entries(parsed.unlockedBooks)) {
-        if (rec && typeof rec === 'object') {
+        if (rec && typeof rec === 'object' && !deletedDynamicSet.has(bid)) {
           this.unlockedBooksMap.set(bid, rec as UnlockedBookRecord);
         }
       }
@@ -1153,7 +1187,7 @@ export class OfflineDataRepository implements IDataRepository {
 
     if (Array.isArray(parsed.dynamicBooks)) {
       for (const db of parsed.dynamicBooks) {
-        if (db && db.id) {
+        if (db && db.id && !deletedDynamicSet.has(db.id)) {
           this.dynamicBooksMap.set(db.id, db);
           this.bookFileNameByIdMap.set(db.id, db.fileName);
           this.booksPagesMap.set(db.id, db);
@@ -1167,7 +1201,7 @@ export class OfflineDataRepository implements IDataRepository {
 
     if (Array.isArray(parsed.dynamicEntities)) {
       for (const de of parsed.dynamicEntities) {
-        if (de && de.id) {
+        if (de && de.id && (!de.bookId || !deletedDynamicSet.has(de.bookId))) {
           this.dynamicEntitiesMap.set(de.id, de);
         }
       }
@@ -1222,6 +1256,39 @@ export class OfflineDataRepository implements IDataRepository {
       const existing = await this.getDeletedCampaignIds();
       const union = Array.from(new Set([...existing, ...parsed.deletedCampaignIds]));
       await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CAMPAIGN_IDS, JSON.stringify(union));
+    }
+
+    if (Array.isArray(parsed.deletedDynamicBookIds) || localDeletedDynamic.length > 0) {
+      const union = Array.from(deletedDynamicSet);
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_DYNAMIC_BOOK_IDS, JSON.stringify(union));
+
+      let hasChanges = false;
+      for (const delId of union) {
+        if (this.dynamicBooksMap.has(delId)) {
+          this.dynamicBooksMap.delete(delId);
+          this.booksPagesMap.delete(delId);
+          this.bookFileNameByIdMap.delete(delId);
+          this.entityCountByBookMap.delete(delId);
+          hasChanges = true;
+        }
+        if (this.unlockedBooksMap.has(delId)) {
+          this.unlockedBooksMap.delete(delId);
+          hasChanges = true;
+        }
+        for (const [eid, ent] of Array.from(this.dynamicEntitiesMap.entries())) {
+          if (ent.bookId === delId) {
+            this.dynamicEntitiesMap.delete(eid);
+            hasChanges = true;
+          }
+        }
+      }
+      if (hasChanges) {
+        await Promise.all([
+          this.persistDynamicBooks(),
+          this.persistDynamicEntities(),
+          this.persistUnlockedBooks(),
+        ]);
+      }
     }
 
     this.invalidateEntityCache();

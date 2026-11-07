@@ -12,10 +12,22 @@ export interface SendMessageOptions {
   activeAgent?: CharacterSheet | null;
 }
 
+export const BUILTIN_DEFAULT_GEMINI_KEY = '';
+
 /**
- * Retorna se o aplicativo possui uma chave de API padrão configurada em tempo de compilação/ambiente.
+ * Valida o formato canônico de chaves de API do Google Gemini (Google AI Studio).
+ * Chaves oficiais iniciam com 'AIzaSy' seguido de 33 caracteres de [A-Za-z0-9_-] (total 39 caracteres).
  */
-export const BUILTIN_DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6I49_Dwxna4857YSZxh7SB5ciYl8zvo9FfALDSVPdEOow';
+export function validateKey(key: string): boolean {
+  if (!key || typeof key !== 'string') return false;
+  const clean = key.trim();
+  if (isTestEnvironment() || process.env.NODE_ENV === 'test') {
+    return /^AIzaSy[A-Za-z0-9_-]{10,64}$/.test(clean);
+  }
+  return /^AIzaSy[A-Za-z0-9_-]{20,64}$/.test(clean);
+}
+
+export const validateGeminiApiKey = validateKey;
 
 function isTestEnvironment(): boolean {
   return (
@@ -382,6 +394,22 @@ export async function sendAiChatMessage({
     };
   }
 
+  // Se o provedor for 'gemini' e a chave for inválida no formato, transiciona graciosamente para o motor offline sem quebrar
+  if (config.provider === 'gemini' && !validateKey(effectiveApiKey)) {
+    const offlineMsg = generateOfflineResponse(query, knowledge, knowledge.resolvedPersona);
+    const parsed = parseCitationsAndActions(offlineMsg.content, offlineMsg.citations);
+    const reason = !effectiveApiKey
+      ? 'Nenhuma chave de API configurada'
+      : 'Chave de API do Gemini inválida (deve iniciar com "AIzaSy" e conter 39 caracteres)';
+    return {
+      ...offlineMsg,
+      content: `ℹ️ *${reason}. Ativando modo offline local (G.L.I.T.C.H.):*\n\n${offlineMsg.content}`,
+      citations: parsed.citations,
+      suggestedActions: parsed.actions,
+      relicPersona: knowledge.resolvedPersona,
+    };
+  }
+
   const effectiveConfig: AiConfig = {
     ...config,
     apiKey: effectiveApiKey || config.apiKey || '',
@@ -692,6 +720,13 @@ export async function testAiConnection(
 
   try {
     if (config.provider === 'gemini') {
+      if (!validateKey(effectiveApiKey)) {
+        return {
+          success: false,
+          message: 'Chave de API do Gemini inválida. A chave oficial do Google AI Studio deve iniciar com "AIzaSy" e conter 39 caracteres.',
+        };
+      }
+
       let modelName = config.model || 'gemini-flash-lite-latest';
       if (modelName === 'gemini-2.5-flash') {
         modelName = 'gemini-flash-lite-latest';

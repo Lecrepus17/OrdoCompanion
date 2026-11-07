@@ -81,6 +81,67 @@ export function retrieveAiKnowledge(
   const isArbitro = resolvedPersona === 'arbitro_regras';
   const isBuildAdvisor = resolvedPersona === 'build_advisor';
 
+  const isCombatOrWeaponQuery =
+    lowerQuery.includes('arma') ||
+    lowerQuery.includes('armas') ||
+    lowerQuery.includes('dano') ||
+    lowerQuery.includes('combate') ||
+    lowerQuery.includes('ataque') ||
+    keywords.includes('arma') ||
+    keywords.includes('armas') ||
+    keywords.includes('dano') ||
+    keywords.includes('combate');
+
+  // Priorização para perguntas sobre armas, dano e combate (Issue 5 & 21)
+  if (isCombatOrWeaponQuery) {
+    const isHighDamageQuery =
+      lowerQuery.includes('mais') ||
+      lowerQuery.includes('maior') ||
+      lowerQuery.includes('melhor') ||
+      lowerQuery.includes('forte') ||
+      lowerQuery.includes('top');
+
+    const weaponEntities = allEntities.filter(
+      (e) => (e.category === 'weapon' || (e.category === 'item' && (e as any).damage)) && (e as any).damage && (e as any).damage !== '—'
+    );
+
+    if (isHighDamageQuery && (lowerQuery.includes('arma') || lowerQuery.includes('dano'))) {
+      const parseDicePotential = (dmgStr: string): number => {
+        const m = dmgStr.match(/(\d+)d(\d+)/);
+        if (m) {
+          const num = parseInt(m[1], 10);
+          const die = parseInt(m[2], 10);
+          return (num * (die + 1)) / 2;
+        }
+        return 0;
+      };
+
+      const sortedWeapons = [...weaponEntities].sort((a, b) => {
+        const potA = parseDicePotential((a as any).damage || '');
+        const potB = parseDicePotential((b as any).damage || '');
+        return potB - potA;
+      });
+
+      for (const w of sortedWeapons.slice(0, 6)) {
+        if (!matchedEntityIds.has(w.id)) {
+          matchedEntityIds.add(w.id);
+          matchedEntities.push(w);
+        }
+      }
+    } else {
+      for (const w of weaponEntities) {
+        const norm = normalizeText(w.name);
+        if (lowerQuery.includes(norm) || keywords.some((kw) => norm.includes(kw))) {
+          if (!matchedEntityIds.has(w.id)) {
+            matchedEntityIds.add(w.id);
+            matchedEntities.push(w);
+          }
+        }
+        if (matchedEntities.length >= 6) break;
+      }
+    }
+  }
+
   // Se for Co-Mestre e a query sugerir encontro/monstro/pista, prioriza criaturas e itens amaldiçoados
   if (isCoMestre) {
     const threats = allEntities.filter((e) => e.category === 'creature');
@@ -172,18 +233,33 @@ export function retrieveAiKnowledge(
   }
 
   // 3. Busca no Manual do Usuário e Telas do Aplicativo
-  let matchedManualSections = searchManual(query).slice(0, 3);
-  if (matchedManualSections.length === 0) {
-    const seenSecIds = new Set<string>();
-    for (const kw of keywords) {
-      const secResults = searchManual(kw);
-      for (const s of secResults) {
-        if (!seenSecIds.has(s.id)) {
-          seenSecIds.add(s.id);
-          matchedManualSections.push(s);
+  const isExplicitAppManualQuery =
+    lowerQuery.includes('app') ||
+    lowerQuery.includes('aplicativo') ||
+    lowerQuery.includes('tela') ||
+    lowerQuery.includes('telas') ||
+    lowerQuery.includes('interface') ||
+    lowerQuery.includes('manual') ||
+    lowerQuery.includes('como usar') ||
+    lowerQuery.includes('como rolar') ||
+    lowerQuery.includes('onde clico') ||
+    lowerQuery.includes('onde fica');
+
+  let matchedManualSections: ManualSection[] = [];
+  if (!isCombatOrWeaponQuery || isExplicitAppManualQuery) {
+    matchedManualSections = searchManual(query).slice(0, 3);
+    if (matchedManualSections.length === 0) {
+      const seenSecIds = new Set<string>();
+      for (const kw of keywords) {
+        const secResults = searchManual(kw);
+        for (const s of secResults) {
+          if (!seenSecIds.has(s.id)) {
+            seenSecIds.add(s.id);
+            matchedManualSections.push(s);
+          }
         }
+        if (matchedManualSections.length >= 3) break;
       }
-      if (matchedManualSections.length >= 3) break;
     }
   }
 

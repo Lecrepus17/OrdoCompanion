@@ -145,8 +145,38 @@ export function generateOfflineResponse(
 
   parts.push(greeting);
 
-  // 1. Resposta baseada no Manual do Aplicativo (como fazer algo no app)
-  if (knowledge.matchedManualSections.length > 0) {
+  // 1. Resposta prioritária baseada em Entidades do Compêndio (Armas, Rituais, Poderes, Criaturas)
+  if (knowledge.matchedEntities.length > 0) {
+    parts.push(`\n\n${compendiumIntroHeader}`);
+
+    const hasWeapons = knowledge.matchedEntities.some(
+      (e) => e.category === 'weapon' || Boolean((e as any).damage)
+    );
+
+    for (const ent of knowledge.matchedEntities.slice(0, 5)) {
+      parts.push(`\n**[Entidade: ${ent.name}]** *(${ent.category} • ${ent.element || 'Geral'})*`);
+      const sourceBook = ent.bookTitle || 'Livro Base';
+      parts.push(`Fonte: ${sourceBook}${ent.pageNumber ? ` — [${sourceBook}, Pág. ${ent.pageNumber}]` : ''}`);
+      if (ent.description || ent.summary) {
+        parts.push(`${ent.description || ent.summary}`);
+      }
+      if (ent.damage) {
+        const crit = (ent as any).critical ? ` | Crítico: \`${(ent as any).critical}\`` : '';
+        const range = (ent as any).range ? ` | Alcance: ${(ent as any).range}` : '';
+        parts.push(`**Dano:** \`${ent.damage}\`${crit}${range} [Rolar: ${ent.damage}]`);
+      }
+      if (ent.circle) {
+        parts.push(`**Círculo:** ${ent.circle}º`);
+      }
+    }
+
+    if (hasWeapons) {
+      parts.push(`\n👉 *Consulte todas as armas, modificações e estatísticas na aba [Aba: weapons].*`);
+    }
+  }
+
+  // 2. Resposta baseada no Manual do Aplicativo (exibida quando não há entidades específicas ou quando relevante)
+  if (knowledge.matchedManualSections.length > 0 && knowledge.matchedEntities.length === 0) {
     const mainSec = knowledge.matchedManualSections[0];
     parts.push(`\n\n${manualIntroHeader} ${mainSec.title}`);
     parts.push(`*${mainSec.summary}*`);
@@ -170,23 +200,10 @@ export function generateOfflineResponse(
     if (mainSec.proTip) {
       parts.push(`\n${tipPrefix} ${mainSec.proTip}`);
     }
-  }
-
-  // 2. Resposta baseada em Entidades do Compêndio
-  if (knowledge.matchedEntities.length > 0) {
-    parts.push(`\n\n${compendiumIntroHeader}`);
-
-    for (const ent of knowledge.matchedEntities.slice(0, 3)) {
-      parts.push(`\n**[Entidade: ${ent.name}]** *(${ent.category} • ${ent.element || 'Geral'})*`);
-      const sourceBook = ent.bookTitle || 'Livro Base';
-      parts.push(`Fonte: ${sourceBook}${ent.pageNumber ? ` — [${sourceBook}, Pág. ${ent.pageNumber}]` : ''}`);
-      parts.push(`${ent.description || ent.summary || ''}`);
-      if (ent.damage) {
-        parts.push(`**Dano:** \`${ent.damage}\` [Rolar: ${ent.damage}]`);
-      }
-      if (ent.circle) {
-        parts.push(`**Círculo:** ${ent.circle}º`);
-      }
+  } else if (knowledge.matchedManualSections.length > 0 && knowledge.matchedEntities.length > 0) {
+    const mainSec = knowledge.matchedManualSections[0];
+    if (mainSec.proTip) {
+      parts.push(`\n${tipPrefix} ${mainSec.proTip}`);
     }
   }
 

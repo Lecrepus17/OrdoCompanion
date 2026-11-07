@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { useApp } from '../context/AppContext';
 import { showAlert } from '../utils/alert';
+import { copyToClipboard } from '../utils/clipboard';
 import {
   CATEGORY_LABELS,
   SEVERITY_LABELS,
@@ -104,8 +105,20 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   const [lastSubmittedTicket, setLastSubmittedTicket] = useState<SupportTicketRecord | null>(null);
   const [ticketHistory, setTicketHistory] = useState<SupportTicketRecord[]>([]);
 
+  const [showDevSettings, setShowDevSettings] = useState(false);
+  const [webhookInput, setWebhookInput] = useState('');
+  const [activeWebhookUrl, setActiveWebhookUrl] = useState('');
+  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
+  const [isSavingWebhook, setIsSavingWebhook] = useState(false);
 
   const contactConfig = useMemo(() => supportService.getConfig(), []);
+
+  useEffect(() => {
+    supportService.getEffectiveWebhookUrl().then((url) => {
+      setActiveWebhookUrl(url);
+      setWebhookInput(url);
+    });
+  }, []);
 
   // Preenche nome e contato a partir do perfil do jogador
   useEffect(() => {
@@ -192,8 +205,8 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
 
   const copyTextToClipboard = async (text: string, successTitle: string, successMsg: string) => {
     try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
+      const ok = await copyToClipboard(text, successTitle);
+      if (ok) {
         showAlert(successTitle, successMsg);
         return true;
       }
@@ -298,6 +311,81 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
     showAlert('Histórico Limpo', 'O histórico local de relatos foi removido deste dispositivo.');
   };
 
+  const handleOpenDiscord = async () => {
+    const raw = contactConfig.discordHandle || 'lecrepus17';
+    const handleToCopy = raw.startsWith('@') ? raw : `@${raw}`;
+    await copyTextToClipboard(
+      handleToCopy,
+      'Discord Copiado & Abrindo!',
+      `O usuário "${handleToCopy}" foi copiado para a área de transferência! Abrindo o Discord para você conversar ou adicionar o desenvolvedor.`
+    );
+    await supportService.openExternalUrl(contactConfig.discordInviteUrl);
+  };
+
+  const handleCopyDiscordHandle = async () => {
+    const raw = contactConfig.discordHandle || 'lecrepus17';
+    const handleToCopy = raw.startsWith('@') ? raw : `@${raw}`;
+    await copyTextToClipboard(
+      handleToCopy,
+      'Discord Copiado!',
+      `O usuário "${handleToCopy}" foi copiado. Basta adicionar ou enviar mensagem no Discord!`
+    );
+  };
+
+  const handleSaveWebhook = async () => {
+    setIsSavingWebhook(true);
+    try {
+      await supportService.setCustomWebhookUrl(webhookInput.trim());
+      const eff = await supportService.getEffectiveWebhookUrl();
+      setActiveWebhookUrl(eff);
+      showAlert(
+        'Configuração Salva',
+        eff
+          ? 'URL do Discord Webhook salva com sucesso! Os novos relatos enviados pelos jogadores serão entregues no seu servidor em tempo real.'
+          : 'Webhook personalizado removido. O aplicativo agora opera no modo local.'
+      );
+    } catch (err: any) {
+      showAlert('Erro ao Salvar', err?.message || 'Falha ao salvar a URL do Webhook.');
+    } finally {
+      setIsSavingWebhook(false);
+    }
+  };
+
+  const handleTestWebhook = async () => {
+    setIsTestingWebhook(true);
+    try {
+      const result = await supportService.testWebhook(webhookInput.trim());
+      showAlert(
+        result.success ? 'Teste de Webhook com Sucesso!' : 'Falha no Teste do Webhook',
+        result.message
+      );
+    } catch (err: any) {
+      showAlert('Erro no Teste', err?.message || 'Falha de conexão.');
+    } finally {
+      setIsTestingWebhook(false);
+    }
+  };
+
+  const handleClearWebhook = async () => {
+    setWebhookInput('');
+    await supportService.setCustomWebhookUrl('');
+    setActiveWebhookUrl('');
+    showAlert('Webhook Removido', 'A URL do Webhook foi desvinculada.');
+  };
+
+  const handleExportAllTicketsJson = async () => {
+    if (ticketHistory.length === 0) {
+      showAlert('Nenhum Chamado', 'Não há chamados salvos localmente neste aparelho para exportar.');
+      return;
+    }
+    const jsonStr = JSON.stringify(ticketHistory, null, 2);
+    await copyTextToClipboard(
+      jsonStr,
+      'Histórico Exportado!',
+      `O histórico de ${ticketHistory.length} chamado(s) em formato JSON foi copiado para a área de transferência.`
+    );
+  };
+
   const content = (
     <View style={[styles.container, embedded && styles.containerEmbedded]}>
       {/* Banner Introdutório da Central de Suporte */}
@@ -349,7 +437,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
                 <TouchableOpacity
                   testID="contact-discord-open-btn"
                   style={[styles.channelBtnPrimary, { backgroundColor: '#5865F2' }]}
-                  onPress={() => supportService.openExternalUrl(contactConfig.discordInviteUrl)}
+                  onPress={handleOpenDiscord}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="open-outline" size={14} color="#FFF" />
@@ -359,13 +447,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
                 <TouchableOpacity
                   testID="contact-discord-copy-btn"
                   style={styles.channelBtnSecondary}
-                  onPress={() =>
-                    copyTextToClipboard(
-                      contactConfig.discordHandle,
-                      'Discord Copiado!',
-                      `O usuário "${contactConfig.discordHandle}" foi copiado. Basta adicionar ou enviar mensagem no Discord!`
-                    )
-                  }
+                  onPress={handleCopyDiscordHandle}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="copy-outline" size={14} color={colors.text} />
@@ -849,6 +931,212 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
         </View>
       )}
 
+      {/* Bloco 4: Configurações do Desenvolvedor / Mestre (Recebimento de Chamados) */}
+      <View style={styles.sectionCard} testID="dev-settings-card">
+        <TouchableOpacity
+          style={styles.devSettingsToggleHeader}
+          onPress={() => setShowDevSettings((prev) => !prev)}
+          activeOpacity={0.8}
+          testID="dev-settings-toggle-btn"
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+            <View style={[styles.devIconBadge, { backgroundColor: colors.primarySoft }]}>
+              <Ionicons name="construct-outline" size={16} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionHeaderTitle}>PAINEL DO DESENVOLVEDOR / MESTRE</Text>
+              <Text style={styles.devHeaderSubtitle}>
+                Onde encontrar os relatos e configurar recebimento via Discord Webhook
+              </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {activeWebhookUrl ? (
+              <View style={styles.onlinePill}>
+                <View style={styles.onlineDot} />
+                <Text style={styles.onlinePillText}>Webhook Ativo</Text>
+              </View>
+            ) : (
+              <View style={[styles.onlinePill, { borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.14)' }]}>
+                <View style={[styles.onlineDot, { backgroundColor: '#F59E0B' }]} />
+                <Text style={[styles.onlinePillText, { color: '#F59E0B' }]}>Modo Local</Text>
+              </View>
+            )}
+            <Ionicons
+              name={showDevSettings ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={colors.primary}
+            />
+          </View>
+        </TouchableOpacity>
+
+        {showDevSettings && (
+          <View style={styles.devSettingsBody}>
+            {/* Guia explicativo claro para o dono */}
+            <View style={styles.devGuideCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="information-circle" size={18} color={colors.primary} />
+                <Text style={styles.devGuideTitle}>Como dono e desenvolvedor, onde encontro os relatos?</Text>
+              </View>
+              <Text style={styles.devGuideText}>
+                • <Text style={{ fontWeight: '800', color: colors.text }}>1. Modo Padrão (Sem Webhook):</Text> Quando um usuário envia um relato pelo app, o protocolo é gravado no <Text style={{ fontWeight: '800' }}>armazenamento local do próprio aparelho dele</Text> (na seção &quot;Meus Relatos&quot;). Para receber imediatamente, o usuário pode tocar em &quot;Abrir Issue no GitHub&quot; ou &quot;Enviar por E-mail&quot;.
+              </Text>
+              <Text style={styles.devGuideText}>
+                • <Text style={{ fontWeight: '800', color: colors.text }}>2. Modo Tempo Real (Discord Webhook Recomendado):</Text> Para que todos os relatos cheguem instantaneamente no seu Discord particular ou da equipe:
+              </Text>
+              <View style={styles.devStepsList}>
+                <Text style={styles.devStepItem}>① No seu Discord, clique na engrenagem do servidor ➔ <Text style={{ fontWeight: '800' }}>Integrações</Text> ➔ <Text style={{ fontWeight: '800' }}>Webhooks</Text>.</Text>
+                <Text style={styles.devStepItem}>② Crie um webhook no canal desejado (ex: #relatos-bugs) e clique em <Text style={{ fontWeight: '800' }}>Copiar URL do Webhook</Text>.</Text>
+                <Text style={styles.devStepItem}>③ Cole a URL abaixo e toque em <Text style={{ fontWeight: '800' }}>Salvar Webhook</Text>.</Text>
+                <Text style={styles.devStepItem}>④ Pronto! Qualquer chamado enviado pelo app chegará automaticamente no seu canal com protocolo, categoria e diagnóstico completo!</Text>
+              </View>
+            </View>
+
+            {/* Configuração do Webhook */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.fieldLabel}>URL do Discord Webhook</Text>
+              <TextInput
+                testID="dev-settings-webhook-input"
+                style={styles.input}
+                placeholder="https://discord.com/api/webhooks/..."
+                placeholderTextColor={colors.textMuted}
+                value={webhookInput}
+                onChangeText={setWebhookInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Text style={styles.fieldHint}>
+                {activeWebhookUrl
+                  ? `Webhook ativo salvo: ${activeWebhookUrl.slice(0, 45)}...`
+                  : 'Nenhum Webhook salvo. Cole a URL acima para começar a receber chamados no Discord.'}
+              </Text>
+            </View>
+
+            {/* Botões de Ação do Webhook */}
+            <View style={styles.devActionsRow}>
+              <TouchableOpacity
+                testID="dev-settings-save-webhook-btn"
+                style={[styles.smallConfigBtn, { backgroundColor: colors.primary }]}
+                onPress={handleSaveWebhook}
+                disabled={isSavingWebhook}
+                activeOpacity={0.8}
+              >
+                {isSavingWebhook ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="save-outline" size={15} color="#FFF" />
+                    <Text style={styles.smallConfigBtnText}>Salvar Webhook</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                testID="dev-settings-test-webhook-btn"
+                style={[styles.smallConfigBtn, { backgroundColor: '#10B981' }]}
+                onPress={handleTestWebhook}
+                disabled={isTestingWebhook || !webhookInput.trim()}
+                activeOpacity={0.8}
+              >
+                {isTestingWebhook ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="paper-plane-outline" size={15} color="#FFF" />
+                    <Text style={styles.smallConfigBtnText}>Testar Conexão</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {activeWebhookUrl ? (
+                <TouchableOpacity
+                  testID="dev-settings-clear-webhook-btn"
+                  style={[styles.smallConfigBtn, { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border }]}
+                  onPress={handleClearWebhook}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="trash-outline" size={15} color={colors.textMuted} />
+                  <Text style={[styles.smallConfigBtnText, { color: colors.text }]}>Remover</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Visualização do Histórico e Diagnóstico Geral */}
+            <View style={styles.devHistoryBox}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="file-tray-full-outline" size={16} color={colors.primary} />
+                  <Text style={styles.devHistoryTitle}>Chamados Armazenados Localmente ({ticketHistory.length})</Text>
+                </View>
+                {ticketHistory.length > 0 && (
+                  <TouchableOpacity
+                    testID="dev-settings-export-json-btn"
+                    style={styles.devExportBtn}
+                    onPress={handleExportAllTicketsJson}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="code-download-outline" size={14} color={colors.primary} />
+                    <Text style={[styles.devExportBtnText, { color: colors.primary }]}>Exportar JSON</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {ticketHistory.length === 0 ? (
+                <Text style={styles.devEmptyHistoryText}>
+                  Nenhum chamado registrado neste dispositivo até o momento.
+                </Text>
+              ) : (
+                <View style={{ gap: 6, marginTop: 4 }}>
+                  {ticketHistory.map((t) => (
+                    <View key={t.id} style={styles.devTicketRow}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={styles.devTicketProtocol}>#{t.protocol}</Text>
+                          <View
+                            style={[
+                              styles.deliveryBadge,
+                              {
+                                backgroundColor:
+                                  t.status === 'sent_remote'
+                                    ? 'rgba(16, 185, 129, 0.15)'
+                                    : 'rgba(245, 158, 11, 0.15)',
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.deliveryBadgeText,
+                                {
+                                  color: t.status === 'sent_remote' ? '#10B981' : '#F59E0B',
+                                },
+                              ]}
+                            >
+                              {t.status === 'sent_remote' ? 'Entregue Remoto' : 'Salvo Local'}
+                            </Text>
+                          </View>
+                          <Text style={styles.devTicketChannel}>via {t.deliveryChannel || 'local'}</Text>
+                        </View>
+                        <Text style={styles.devTicketTitle} numberOfLines={1}>
+                          {t.title}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.devCopySingleBtn}
+                        onPress={() => {
+                          const rep = supportService.buildFormattedReport(t, t.protocol);
+                          copyTextToClipboard(rep, `Protocolo #${t.protocol}`, 'Relato copiado!');
+                        }}
+                      >
+                        <Ionicons name="copy-outline" size={14} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
 
     </View>
   );
@@ -876,6 +1164,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     scrollContent: {
+      paddingTop: 10,
       paddingBottom: 36,
     },
     container: {
@@ -1342,5 +1631,147 @@ const createStyles = (colors: ThemeColors) =>
       color: '#FFFFFF',
       fontSize: 12,
       fontWeight: '800',
+    },
+    devSettingsToggleHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 2,
+    },
+    devIconBadge: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    devHeaderSubtitle: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    devSettingsBody: {
+      marginTop: 8,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      gap: 12,
+    },
+    devGuideCard: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 10,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 8,
+    },
+    devGuideTitle: {
+      fontSize: 12.5,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    devGuideText: {
+      fontSize: 11.5,
+      color: colors.textSecondary,
+      lineHeight: 16,
+    },
+    devStepsList: {
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 10,
+      gap: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    devStepItem: {
+      fontSize: 11,
+      color: colors.text,
+      lineHeight: 15,
+    },
+    devActionsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    devHistoryBox: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 10,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 8,
+    },
+    devHistoryTitle: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    devExportBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    devExportBtnText: {
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    devEmptyHistoryText: {
+      fontSize: 11.5,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      paddingVertical: 6,
+    },
+    devTicketRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      padding: 8,
+      borderRadius: 8,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    devTicketProtocol: {
+      fontSize: 11,
+      fontWeight: '900',
+      color: colors.primary,
+    },
+    deliveryBadge: {
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: 4,
+    },
+    deliveryBadgeText: {
+      fontSize: 9.5,
+      fontWeight: '800',
+    },
+    devTicketChannel: {
+      fontSize: 10,
+      color: colors.textMuted,
+    },
+    devTicketTitle: {
+      fontSize: 11.5,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 2,
+    },
+    devCopySingleBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 6,
+      backgroundColor: colors.surfaceElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
     },
   });

@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +29,7 @@ import {
 } from '../../services/cardImage/themeRegistry';
 import { CardThemeDefinition } from '../../services/cardImage/types';
 import { RecordImageCard } from './RecordImageCard';
+import { copyToClipboard } from '../../utils/clipboard';
 
 export interface RecordImageExportModalProps {
   visible: boolean;
@@ -41,6 +44,10 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
+  const isLandscape = windowWidth > windowHeight || windowHeight < 520;
+  const isNarrowScreen = windowWidth < 460;
 
   // 1. Extração dos dados do card
   const cardData = useMemo(() => {
@@ -68,6 +75,16 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
     }
   }, [visible, recommendedTheme]);
 
+  // Interceptação de hardware back press no Android
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
   const activeTheme: CardThemeDefinition = useMemo(() => {
     return getCardThemeById(selectedThemeId);
   }, [selectedThemeId]);
@@ -92,7 +109,7 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
         if (Platform.OS === 'web') {
           showFeedback(`Download concluído: ${res.fileName}`);
         } else {
-          showFeedback('Pronto! Salve como PDF ou imprima seu card.');
+          showFeedback(`Card ${exportFormat.toUpperCase()} salvo com sucesso!`);
         }
       } else {
         showFeedback(`Aviso: ${res.error || 'Não foi possível exportar'}`);
@@ -123,12 +140,11 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
   const handleCopyText = async () => {
     try {
       const text = formatRecordTextForSharing(cardData, activeTheme);
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(text);
-        showFeedback('Texto do registro copiado para a área de transferência!');
+      const ok = await copyToClipboard(text, cardData.name);
+      if (ok) {
+        showFeedback('Texto do registro copiado/compartilhado com sucesso!');
       } else {
-        // Fallback para share
-        await handleShare();
+        showFeedback('Falha ao copiar texto.');
       }
     } catch {
       showFeedback('Falha ao copiar texto.');
@@ -153,19 +169,45 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
           accessibilityLabel="Fechar ao tocar fora"
         />
 
-        <View style={[styles.modalBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.modalBox,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              height: isLandscape ? '98%' : '92%',
+              maxHeight: isLandscape ? '98%' : '94%',
+              maxWidth: isLandscape ? 740 : 620,
+            },
+          ]}
+        >
           {/* 1. Header do Modal */}
-          <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <View
+            style={[
+              styles.header,
+              {
+                borderBottomColor: colors.border,
+                paddingVertical: isLandscape ? 8 : 14,
+              },
+            ]}
+          >
             <View style={styles.headerTitleWrap}>
               <View style={styles.titleWithIcon}>
-                <Ionicons name="image" size={20} color={colors.primary} />
-                <Text style={[styles.headerTitle, { color: colors.text }]}>
+                <Ionicons name="image" size={isLandscape ? 18 : 20} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.headerTitle,
+                    { color: colors.text, fontSize: isLandscape ? 15 : 17 },
+                  ]}
+                >
                   Gerar Imagem do Registro
                 </Text>
               </View>
-              <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-                Tema automático baseado no {cardData.element ? `elemento (${cardData.element})` : `tipo (${cardData.categoryLabel})`}
-              </Text>
+              {!isLandscape && (
+                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+                  Tema automático baseado no {cardData.element ? `elemento (${cardData.element})` : `tipo (${cardData.categoryLabel})`}
+                </Text>
+              )}
             </View>
 
             <TouchableOpacity
@@ -187,8 +229,18 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
           )}
 
           {/* 2. Seletor de Temas e Fundos (Carrossel Horizontal) */}
-          <View style={styles.themeSelectorContainer}>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
+          <View
+            style={[
+              styles.themeSelectorContainer,
+              { paddingVertical: isLandscape ? 4 : 10 },
+            ]}
+          >
+            <Text
+              style={[
+                styles.sectionLabel,
+                { color: colors.textMuted, marginBottom: isLandscape ? 4 : 8 },
+              ]}
+            >
               ESTILO &amp; FUNDO DA IMAGEM:
             </Text>
             <ScrollView
@@ -208,6 +260,8 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
                       {
                         backgroundColor: isSelected ? th.colors.surfaceBg : colors.surfaceElevated,
                         borderColor: isSelected ? th.colors.borderColor : colors.border,
+                        paddingVertical: isLandscape ? 4 : 7,
+                        paddingHorizontal: isLandscape ? 9 : 12,
                       },
                     ]}
                     onPress={() => setSelectedThemeId(th.id)}
@@ -240,84 +294,127 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
 
           {/* 3. Área de Pré-Visualização do Cartão */}
           <ScrollView
-            style={styles.previewScrollView}
-            contentContainerStyle={styles.previewScrollContent}
-            showsVerticalScrollIndicator={false}
+            style={[
+              styles.previewScrollView,
+              { minHeight: isLandscape ? 80 : 180 },
+            ]}
+            contentContainerStyle={[
+              styles.previewScrollContent,
+              { padding: isLandscape ? 10 : 16 },
+            ]}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
           >
             <View style={styles.cardWrapper}>
               <RecordImageCard data={cardData} theme={activeTheme} />
             </View>
           </ScrollView>
 
-          {/* 4. Barra de Ações Inferior */}
-          <View style={[styles.footerBar, { borderTopColor: colors.border, backgroundColor: colors.surfaceElevated }]}>
+          {/* 4. Barra de Ações Inferior (Responsiva contra sobreposição e corte em landscape) */}
+          <View
+            style={[
+              styles.footerBar,
+              isNarrowScreen && !isLandscape ? styles.footerBarNarrow : styles.footerBarWide,
+              {
+                borderTopColor: colors.border,
+                backgroundColor: colors.surfaceElevated,
+                paddingVertical: isLandscape ? 6 : 10,
+              },
+            ]}
+          >
             {/* Seletor de formato (PNG ou SVG) */}
-            <View style={styles.formatToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.formatBtn,
-                  exportFormat === 'png' && [styles.formatBtnActive, { backgroundColor: colors.primary }],
-                ]}
-                onPress={() => setExportFormat('png')}
-              >
-                <Text
+            <View style={isNarrowScreen && !isLandscape ? styles.formatRowNarrow : styles.formatRowWide}>
+              <Text style={[styles.formatLabel, { color: colors.textMuted }]}>FORMATO:</Text>
+              <View style={styles.formatToggle}>
+                <TouchableOpacity
                   style={[
-                    styles.formatBtnText,
-                    { color: exportFormat === 'png' ? '#FFFFFF' : colors.textMuted },
+                    styles.formatBtn,
+                    exportFormat === 'png' && [styles.formatBtnActive, { backgroundColor: colors.primary }],
                   ]}
+                  onPress={() => setExportFormat('png')}
+                  testID="format-btn-png"
                 >
-                  PNG
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.formatBtnText,
+                      { color: exportFormat === 'png' ? '#FFFFFF' : colors.textMuted },
+                    ]}
+                  >
+                    PNG
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.formatBtn,
-                  exportFormat === 'svg' && [styles.formatBtnActive, { backgroundColor: colors.primary }],
-                ]}
-                onPress={() => setExportFormat('svg')}
-              >
-                <Text
+                <TouchableOpacity
                   style={[
-                    styles.formatBtnText,
-                    { color: exportFormat === 'svg' ? '#FFFFFF' : colors.textMuted },
+                    styles.formatBtn,
+                    exportFormat === 'svg' && [styles.formatBtnActive, { backgroundColor: colors.primary }],
                   ]}
+                  onPress={() => setExportFormat('svg')}
+                  testID="format-btn-svg"
                 >
-                  SVG
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.formatBtnText,
+                      { color: exportFormat === 'svg' ? '#FFFFFF' : colors.textMuted },
+                    ]}
+                  >
+                    SVG
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Ações Principais */}
-            <View style={styles.mainActionsRow}>
+            <View
+              style={[
+                styles.mainActionsRow,
+                isNarrowScreen && !isLandscape && styles.mainActionsRowNarrow,
+              ]}
+            >
               {/* Copiar Texto */}
               <TouchableOpacity
-                style={[styles.secondaryActionBtn, { borderColor: colors.border }]}
+                style={[
+                  styles.secondaryActionBtn,
+                  { borderColor: colors.border },
+                  isNarrowScreen && !isLandscape && { flex: 1 },
+                ]}
                 onPress={handleCopyText}
                 accessibilityLabel="Copiar texto formatado"
                 testID="btn-copy-card-text"
               >
-                <Ionicons name="copy-outline" size={17} color={colors.text} />
+                <Ionicons name="copy-outline" size={16} color={colors.text} />
                 <Text style={[styles.secondaryActionBtnText, { color: colors.text }]}>Copiar</Text>
               </TouchableOpacity>
 
               {/* Compartilhar */}
               <TouchableOpacity
-                style={[styles.primaryActionBtn, { backgroundColor: colors.surfaceHighlight, borderColor: colors.accent }]}
+                style={[
+                  styles.primaryActionBtn,
+                  { backgroundColor: colors.surfaceHighlight, borderColor: colors.accent },
+                  isNarrowScreen && !isLandscape && { flex: 1.4 },
+                ]}
                 onPress={handleShare}
                 disabled={isExporting}
                 accessibilityLabel="Compartilhar imagem estilizada"
                 testID="btn-share-card-image"
               >
-                <Ionicons name="share-social-outline" size={18} color={colors.accent || colors.primary} />
-                <Text style={[styles.primaryActionBtnText, { color: colors.accent || colors.primary }]}>
+                <Ionicons name="share-social-outline" size={17} color={colors.accent || colors.primary} />
+                <Text
+                  style={[styles.primaryActionBtnText, { color: colors.accent || colors.primary }]}
+                  numberOfLines={1}
+                >
                   Compartilhar
                 </Text>
               </TouchableOpacity>
 
               {/* Baixar Imagem */}
               <TouchableOpacity
-                style={[styles.downloadBtn, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.downloadBtn,
+                  { backgroundColor: colors.primary },
+                  isNarrowScreen && !isLandscape && { flex: 1.2 },
+                ]}
                 onPress={handleDownload}
                 disabled={isExporting}
                 accessibilityLabel="Baixar imagem"
@@ -327,8 +424,8 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Ionicons name="download" size={18} color="#FFFFFF" />
-                    <Text style={styles.downloadBtnText}>Baixar</Text>
+                    <Ionicons name="download" size={17} color="#FFFFFF" />
+                    <Text style={styles.downloadBtnText} numberOfLines={1}>Baixar</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -350,9 +447,6 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     width: '100%',
-    maxWidth: 620,
-    height: '92%',
-    maxHeight: '94%',
     borderRadius: 16,
     borderWidth: 1.5,
     overflow: 'hidden',
@@ -363,7 +457,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
     borderBottomWidth: 1,
   },
   headerTitleWrap: {
@@ -377,7 +470,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   headerTitle: {
-    fontSize: 17,
     fontWeight: '800',
   },
   headerSubtitle: {
@@ -404,13 +496,11 @@ const styles = StyleSheet.create({
   },
   themeSelectorContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
   },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
-    marginBottom: 8,
   },
   themeScroll: {
     flexDirection: 'row',
@@ -421,8 +511,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1.5,
   },
@@ -451,11 +539,9 @@ const styles = StyleSheet.create({
   previewScrollView: {
     flex: 1,
     flexGrow: 1,
-    minHeight: 280,
     backgroundColor: '#05070B',
   },
   previewScrollContent: {
-    padding: 16,
     alignItems: 'center',
     flexGrow: 1,
   },
@@ -465,12 +551,34 @@ const styles = StyleSheet.create({
   },
   footerBar: {
     borderTopWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 8,
+  },
+  footerBarWide: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    flexWrap: 'wrap',
+  },
+  footerBarNarrow: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  formatRowWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  formatRowNarrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 2,
+  },
+  formatLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   formatToggle: {
     flexDirection: 'row',
@@ -479,8 +587,8 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   formatBtn: {
-    paddingHorizontal: 9,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 6,
   },
   formatBtnActive: {
@@ -495,15 +603,23 @@ const styles = StyleSheet.create({
   mainActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flex: 1,
+    gap: 6,
+    flexWrap: 'wrap',
     justifyContent: 'flex-end',
+  },
+  mainActionsRowNarrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    width: '100%',
   },
   secondaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 5,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
@@ -515,26 +631,28 @@ const styles = StyleSheet.create({
   primaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
   },
   primaryActionBtnText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
   },
   downloadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 8,
   },
   downloadBtnText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#FFFFFF',
   },

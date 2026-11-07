@@ -1,6 +1,8 @@
 import { Linking, NativeModules, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PDF_SERVER_STORAGE_KEY = '@ordem_paranormal:pdf_server_url';
@@ -268,9 +270,37 @@ export function getEffectivePdfFileBaseUrl(): string {
 }
 
 /**
+ * Retorna o link de download direto de um arquivo específico no Google Drive a partir do driveFileId.
+ * Não abre a pasta raiz do Drive, garantindo download direto do arquivo.
+ */
+export function getGoogleDriveDirectDownloadUrl(driveFileId: string): string {
+  if (!driveFileId) return '';
+  const cleanId = driveFileId.trim();
+  if (cleanId.startsWith('http://') || cleanId.startsWith('https://')) {
+    return cleanId;
+  }
+  return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(cleanId)}`;
+}
+
+/**
+ * Retorna a URL direta de visualização de um arquivo específico no Google Drive a partir do driveFileId.
+ */
+export function getGoogleDriveFileViewUrl(driveFileId: string): string {
+  if (!driveFileId) return '';
+  const cleanId = driveFileId.trim();
+  if (cleanId.startsWith('http://') || cleanId.startsWith('https://')) {
+    return cleanId;
+  }
+  return `https://drive.google.com/file/d/${encodeURIComponent(cleanId)}/view`;
+}
+
+/**
  * Retorna a URL na nuvem (Google Drive do Mestre ou Servidor Remoto) de um arquivo PDF oficial.
  */
-export function getCloudPdfUrl(fileName: string): string {
+export function getCloudPdfUrl(fileName: string, driveFileId?: string): string {
+  if (driveFileId) {
+    return getGoogleDriveDirectDownloadUrl(driveFileId);
+  }
   const cleanName = (fileName || '').trim();
   if (!cleanName) return '';
   const serverBase = getServerBaseUrl();
@@ -284,7 +314,14 @@ export function getCloudPdfUrl(fileName: string): string {
 /**
  * Retorna a URL do visualizador embutido para abrir o PDF externamente sem falhas.
  */
-export function getEmbeddedPdfViewerUrl(fileName: string, pageNumber: number = 1): string {
+export function getEmbeddedPdfViewerUrl(
+  fileName: string,
+  pageNumber: number = 1,
+  driveFileId?: string
+): string {
+  if (driveFileId) {
+    return getGoogleDriveFileViewUrl(driveFileId);
+  }
   const cloudUrl = getCloudPdfUrl(fileName);
   if (!cloudUrl) return '';
   if (cloudUrl.includes('drive.google.com')) {
@@ -299,17 +336,20 @@ export function getEmbeddedPdfViewerUrl(fileName: string, pageNumber: number = 1
  * ideal para download e visualização em leitores nativos de celular que
  * não aceitam caracteres de hash no caminho do arquivo.
  */
-export function getCleanPdfUrl(fileName: string): string {
+export function getCleanPdfUrl(fileName: string, driveFileId?: string): string {
   const cleanName = (fileName || '').trim();
-  if (!cleanName) return '';
-  if (localPdfUrlResolver) {
+  if (!cleanName && !driveFileId) return '';
+  if (localPdfUrlResolver && cleanName) {
     const localUrl = localPdfUrlResolver(cleanName);
     if (localUrl) return localUrl;
+  }
+  if (driveFileId) {
+    return getGoogleDriveDirectDownloadUrl(driveFileId);
   }
   const base = getEffectivePdfFileBaseUrl();
   if (!base) return '';
   if (base.includes('drive.google.com')) {
-    return base;
+    return '';
   }
   const encodedFile = encodeURIComponent(cleanName);
   return `${base}/pdfs/${encodedFile}`;
@@ -382,57 +422,136 @@ export async function testPdfServerConnection(url: string): Promise<{ ok: boolea
 
 /**
  * Realiza o download direto / abertura externa do arquivo PDF no sistema operacional.
+ * Suporta driveFileId para download direto sem redirecionar para a pasta raiz do Google Drive.
  */
-export async function downloadPdfDocument(fileName: string): Promise<boolean> {
-  const cleanUrl = getCleanPdfUrl(fileName);
-  if (!cleanUrl) {
-    return false;
+export async function downloadPdfDocument(
+  fileName: string,
+  driveFileId?: string
+): Promise<boolean> {
+  const cleanName = (fileName || '').trim();
+
+  // 1. Se o arquivo estiver disponível localmente no dispositivo (file:// ou Blob)
+  if (localPdfUrlResolver && cleanName) {
+    const localUrl = localPdfUrlResolver(cleanName);
+    if (localUrl) {
+      if (Platform.OS === 'web') {
+        if (typeof document !== 'undefined' && document.body) {
+          const a = document.createElement('a');
+          a.href = localUrl;
+          a.download = cleanName;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          return true;
+        }
+      } else {
+        try {
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(localUrl, {
+              mimeType: 'application/pdf',
+              dialogTitle: `Baixar ${cleanName}`,
+              UTI: 'com.adobe.pdf',
+            });
+            return true;
+          } else {
+            await Linking.openURL(localUrl);
+            return true;
+          }
+        } catch (err) {
+          console.warn('[PDF] Falha ao compartilhar PDF local:', err);
+        }
+      }
+    }
   }
 
-  if (Platform.OS === 'web' && typeof document !== 'undefined' && document.body) {
-    const a = document.createElement('a');
-    a.href = cleanUrl;
-    a.download = fileName;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    return true;
-  }
+  // 2. Se temos driveFileId, gera link direto do arquivo específico no Google Drive (sem abrir a pasta raiz)
+  const directDownloadUrl = driveFileId
+    ? getGoogleDriveDirectDownloadUrl(driveFileId)
+    : getCleanPdfUrl(cleanName);
 
-  try {
-    await Linking.openURL(cleanUrl);
-    return true;
-  } catch {
-    const cloudUrl = getCloudPdfUrl(fileName);
-    if (cloudUrl && cloudUrl !== cleanUrl) {
-      try {
-        await Linking.openURL(cloudUrl);
+  if (directDownloadUrl) {
+    if (Platform.OS === 'web') {
+      if (typeof document !== 'undefined' && document.body) {
+        const a = document.createElement('a');
+        a.href = directDownloadUrl;
+        a.download = cleanName;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         return true;
-      } catch {}
-    }
-    try {
-      await WebBrowser.openBrowserAsync(cloudUrl || cleanUrl);
-      return true;
-    } catch (e) {
-      console.warn('[PDF] Falha ao iniciar download:', e);
-      return false;
+      }
+      if (typeof window !== 'undefined' && typeof window.open === 'function') {
+        window.open(directDownloadUrl, '_blank', 'noopener,noreferrer');
+        return true;
+      }
+    } else {
+      // No Android / iOS: Tenta download via FileSystem para cache/document e aciona Sharing
+      try {
+        const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+        if (cacheDir && typeof FileSystem.downloadAsync === 'function') {
+          const targetUri = `${cacheDir}${encodeURIComponent(cleanName || 'documento')}.pdf`;
+          const downloadRes = await FileSystem.downloadAsync(directDownloadUrl, targetUri);
+          if (downloadRes?.uri && (await Sharing.isAvailableAsync())) {
+            await Sharing.shareAsync(downloadRes.uri, {
+              mimeType: 'application/pdf',
+              dialogTitle: `Salvar ${cleanName}`,
+              UTI: 'com.adobe.pdf',
+            });
+            return true;
+          }
+        }
+      } catch (e) {
+        console.warn('[PDF] Tentando download direto via Linking:', e);
+      }
+
+      try {
+        await Linking.openURL(directDownloadUrl);
+        return true;
+      } catch {
+        try {
+          await WebBrowser.openBrowserAsync(directDownloadUrl);
+          return true;
+        } catch (e) {
+          console.warn('[PDF] Falha ao iniciar download direto:', e);
+        }
+      }
     }
   }
+
+  // 3. Fallback: Se não há driveFileId nem servidor, tenta abrir a nuvem sem travar
+  const cloudUrl = getCloudPdfUrl(cleanName, driveFileId);
+  if (cloudUrl && cloudUrl !== directDownloadUrl) {
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(cloudUrl, '_blank', 'noopener,noreferrer');
+        return true;
+      }
+      await Linking.openURL(cloudUrl);
+      return true;
+    } catch {}
+  }
+
+  return false;
 }
 
 /**
  * Abre o documento PDF no leitor mais adequado para o dispositivo:
- * - Na Web Desktop: Abre uma nova aba limpa diretamente no arquivo.
+ * - Na Web Desktop: Abre uma nova aba limpa diretamente no arquivo ou na visualização direta do Drive.
  * - Na Web Mobile: Efetua download/abertura direta do arquivo.
- * - No APK / Celular Nativo (Android/iOS): Abre o arquivo via Linking (permitindo usar o leitor
- *   de PDF nativo do celular ou baixar o PDF oficial) com fallback para o WebBrowser.
+ * - No APK / Celular Nativo (Android/iOS):
+ *   - Arquivos locais file:// são abertos de forma 100% segura via Sharing.shareAsync / sistema sem quebrar Chrome Custom Tabs.
+ *   - Arquivos remotos ou no Drive com driveFileId são abertos diretamente no arquivo individual.
  */
 export async function openPdfDocument(
   fileName: string,
-  pageNumber: number = 1
+  pageNumber: number = 1,
+  driveFileId?: string
 ): Promise<boolean> {
+  const cleanName = (fileName || '').trim();
   const isMobile =
     Platform.OS !== 'web' ||
     (typeof navigator !== 'undefined' &&
@@ -440,45 +559,122 @@ export async function openPdfDocument(
 
   if (Platform.OS === 'web') {
     if (isMobile && typeof document !== 'undefined') {
-      return await downloadPdfDocument(fileName);
+      return await downloadPdfDocument(cleanName, driveFileId);
     }
 
-    const targetUrl = getRawPdfUrl(fileName, pageNumber);
-    if (!targetUrl) return false;
+    if (driveFileId) {
+      const driveViewUrl = getGoogleDriveFileViewUrl(driveFileId);
+      if (typeof window !== 'undefined' && typeof window.open === 'function') {
+        window.open(driveViewUrl, '_blank', 'noopener,noreferrer');
+        return true;
+      }
+    }
 
-    if (typeof window !== 'undefined' && typeof window.open === 'function') {
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
-      return true;
+    const targetUrl = getRawPdfUrl(cleanName, pageNumber);
+    if (targetUrl) {
+      if (typeof window !== 'undefined' && typeof window.open === 'function') {
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        return true;
+      }
     }
     return false;
   }
 
-  // Em Android/iOS (APK ou Expo Go), resolve a URL limpa (servidor local ou GitHub Raw na nuvem)
-  const cleanUrl = getCleanPdfUrl(fileName);
-  const cloudUrl = getCloudPdfUrl(fileName);
-  const primaryUrl = isPdfServerConfigured() ? cleanUrl : cloudUrl || cleanUrl;
+  // No APK / Celular Nativo (Android / iOS):
+  // 1. Trata com segurança URLs file:// ou content:// locais para NUNCA abrir no Chrome Custom Tabs
+  //    (Custom Tabs rejeita esquemas file:// locais e provoca crash no Android)
+  let localUri: string | null = null;
+  if (localPdfUrlResolver && cleanName) {
+    localUri = localPdfUrlResolver(cleanName);
+  }
 
-  if (!primaryUrl) return false;
-
-  // No APK / Celular Nativo: abre no leitor embutido (Chrome Custom Tabs)
-  // para permitir leitura com zoom e controle de páginas SEM sair do aplicativo
-  const embeddedUrl = getEmbeddedPdfViewerUrl(fileName, pageNumber) || primaryUrl;
-  try {
-    await WebBrowser.openBrowserAsync(embeddedUrl, {
-      presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-      toolbarColor: '#09090B',
-      controlsColor: '#EF4444',
-      showTitle: true,
-      enableBarCollapsing: true,
-    });
-    return true;
-  } catch {
+  if (localUri && (localUri.startsWith('file://') || localUri.startsWith('content://'))) {
     try {
-      await Linking.openURL(primaryUrl);
-      return true;
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(localUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Abrir ${cleanName}`,
+          UTI: 'com.adobe.pdf',
+        });
+        return true;
+      } else {
+        await Linking.openURL(localUri);
+        return true;
+      }
     } catch (e) {
-      console.warn('[PDF] Falha ao abrir documento:', e);
-      return false;
+      console.warn('[PDF] Falha ao abrir arquivo local via Sharing:', e);
+      try {
+        await Linking.openURL(localUri);
+        return true;
+      } catch {}
     }
   }
+
+  // 2. Se temos servidor de PDFs ativo (HTTP)
+  if (isPdfServerConfigured()) {
+    const serverCleanUrl = getCleanPdfUrl(cleanName);
+    const embeddedUrl = getEmbeddedPdfViewerUrl(cleanName, pageNumber) || serverCleanUrl;
+    if (embeddedUrl) {
+      try {
+        await WebBrowser.openBrowserAsync(embeddedUrl, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+          toolbarColor: '#09090B',
+          controlsColor: '#EF4444',
+          showTitle: true,
+          enableBarCollapsing: true,
+        });
+        return true;
+      } catch {
+        try {
+          await Linking.openURL(serverCleanUrl);
+          return true;
+        } catch {}
+      }
+    }
+  }
+
+  // 3. Se temos driveFileId, abre a visualização direta do arquivo individual no Google Drive
+  if (driveFileId) {
+    const fileViewUrl = getGoogleDriveFileViewUrl(driveFileId);
+    try {
+      await WebBrowser.openBrowserAsync(fileViewUrl, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        toolbarColor: '#09090B',
+        controlsColor: '#EF4444',
+        showTitle: true,
+        enableBarCollapsing: true,
+      });
+      return true;
+    } catch {
+      try {
+        await Linking.openURL(fileViewUrl);
+        return true;
+      } catch {}
+    }
+  }
+
+  // 4. Fallback remoto geral
+  const cloudUrl = getCloudPdfUrl(cleanName, driveFileId);
+  if (cloudUrl) {
+    try {
+      await WebBrowser.openBrowserAsync(cloudUrl, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        toolbarColor: '#09090B',
+        controlsColor: '#EF4444',
+        showTitle: true,
+        enableBarCollapsing: true,
+      });
+      return true;
+    } catch {
+      try {
+        await Linking.openURL(cloudUrl);
+        return true;
+      } catch (e) {
+        console.warn('[PDF] Falha ao abrir documento:', e);
+        return false;
+      }
+    }
+  }
+
+  return false;
 }

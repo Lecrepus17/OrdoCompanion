@@ -36,8 +36,8 @@ export function cleanTextForTts(
 
   let cleaned = rawText;
 
-  // 1. Remove tags internas do sistema: [Livro: ...], [Aba: ...], etc.
-  cleaned = cleaned.replace(/\[(?:Livro|Aba|Regra|Ritual|VD|Origem|Poder|Monstro|Ação)[^\]]*\]/gi, '');
+  // 1. Remove tags internas do sistema: [Livro: ...], [Aba: ...], [Rolar: ...], etc.
+  cleaned = cleaned.replace(/\[(?:Livro|Aba|Regra|Ritual|VD|Origem|Poder|Monstro|Ação|Rolar)[^\]]*\]/gi, '');
   cleaned = cleaned.replace(/\[\/?(?:STATUS|ALERT|SYSTEM|CONTEXT|CODE|FORMULA)[^\]]*\]/gi, '');
 
   // 2. Remove blocos de código markdown (```...```) e código inline (`...`)
@@ -102,6 +102,17 @@ export function cleanTextForTts(
   return cleaned;
 }
 
+function getExpoSpeech(): any {
+  const scope = typeof globalThis !== 'undefined' ? (globalThis as any) : {};
+  if (scope.ExpoSpeech) return scope.ExpoSpeech;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-speech');
+  } catch {
+    return null;
+  }
+}
+
 class GlitchVoiceServiceImpl {
   private activeUtterance: any = null;
   private activeRecognition: any = null;
@@ -117,8 +128,13 @@ class GlitchVoiceServiceImpl {
 
   /**
    * Verifica se Text-to-Speech (TTS) é suportado no ambiente atual.
+   * Retorna true no mobile quando expo-speech estiver disponível e no web com speechSynthesis.
    */
   isTtsSupported(): boolean {
+    if (Platform.OS !== 'web') {
+      const expoSpeech = getExpoSpeech();
+      return Boolean(expoSpeech && typeof expoSpeech.speak === 'function');
+    }
     const scope = this.getGlobalScope();
     return 'speechSynthesis' in scope && typeof scope.SpeechSynthesisUtterance !== 'undefined';
   }
@@ -136,6 +152,9 @@ class GlitchVoiceServiceImpl {
    */
   isSpeaking(): boolean {
     if (this.isSpeakingState) return true;
+    if (Platform.OS !== 'web') {
+      return this.isSpeakingState;
+    }
     const scope = this.getGlobalScope();
     if (scope.speechSynthesis) {
       return Boolean(scope.speechSynthesis.speaking);
@@ -155,6 +174,7 @@ class GlitchVoiceServiceImpl {
    * sintetizado puramente em Web Audio API (sem arquivos externos ou rede).
    */
   playRadioStatic(effect: 'start' | 'end' = 'start'): void {
+    if (Platform.OS !== 'web') return;
     const scope = this.getGlobalScope();
     try {
       const AudioCtx = scope.AudioContext || scope.webkitAudioContext;
@@ -226,6 +246,48 @@ class GlitchVoiceServiceImpl {
       return;
     }
 
+    if (Platform.OS !== 'web') {
+      const expoSpeech = getExpoSpeech();
+      if (!expoSpeech || typeof expoSpeech.speak !== 'function') {
+        options?.onError?.(new Error('Sintetizador de voz nativo (expo-speech) não disponível neste dispositivo.'));
+        return;
+      }
+
+      try {
+        this.isSpeakingState = true;
+        options?.onStart?.();
+
+        const pitch = options?.militaryTone ? (options.pitch ?? 0.88) : (options?.pitch ?? 1.0);
+        const rate = options?.militaryTone ? (options.rate ?? 1.08) : (options?.rate ?? 1.0);
+
+        expoSpeech.speak(preparedText, {
+          language: options?.lang || 'pt-BR',
+          pitch,
+          rate,
+          volume: options?.volume ?? 1.0,
+          onStart: () => {
+            this.isSpeakingState = true;
+          },
+          onDone: () => {
+            this.isSpeakingState = false;
+            options?.onEnd?.();
+          },
+          onStopped: () => {
+            this.isSpeakingState = false;
+            options?.onEnd?.();
+          },
+          onError: (err: any) => {
+            this.isSpeakingState = false;
+            options?.onError?.(err);
+          },
+        });
+      } catch (err) {
+        this.isSpeakingState = false;
+        options?.onError?.(err);
+      }
+      return;
+    }
+
     try {
       const scope = this.getGlobalScope();
       const UtteranceClass = scope.SpeechSynthesisUtterance;
@@ -286,6 +348,15 @@ class GlitchVoiceServiceImpl {
   stopSpeaking(): void {
     this.isSpeakingState = false;
     this.activeUtterance = null;
+    if (Platform.OS !== 'web') {
+      const expoSpeech = getExpoSpeech();
+      if (expoSpeech && typeof expoSpeech.stop === 'function') {
+        try {
+          expoSpeech.stop();
+        } catch {}
+      }
+      return;
+    }
     const scope = this.getGlobalScope();
     if (scope.speechSynthesis) {
       try {

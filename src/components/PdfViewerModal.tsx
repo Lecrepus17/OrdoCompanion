@@ -20,9 +20,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { BookInfo } from '../types/compendium';
+import { AnnotationStroke, AnnotationToolType } from '../types/annotations';
 import { confirmAction } from '../utils/alert';
 import { localPdfStorage, slugifyPdfName } from '../services/pdf/PdfAccessService';
 import { GoogleDriveService } from '../services/sync/GoogleDriveService';
+import { pageAnnotationsService } from '../services/annotations/pageAnnotationsService';
+import { PageAnnotationOverlay } from './PageAnnotationOverlay';
+import { AnnotationToolbar } from './AnnotationToolbar';
 import {
   downloadPdfDocument,
   getCleanPdfUrl,
@@ -76,6 +80,9 @@ const PDFJS_CDN_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174
 const PDFJS_CDN_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 function loadScriptTag(src: string): Promise<void> {
+  if (typeof document === 'undefined') {
+    return Promise.resolve();
+  }
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = src;
@@ -283,10 +290,43 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
     [bookFileName, pageNumber, dpi, isServerConfigured]
   );
   const [retryKey, setRetryKey] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const hasImageSource = Boolean(rawImageUrl);
+  const [loading, setLoading] = useState(() => (hasImageSource || Platform.OS === 'web'));
+  const [error, setError] = useState(() => (!hasImageSource && Platform.OS !== 'web'));
   const [webCanvasReady, setWebCanvasReady] = useState(false);
+  const [scrollStrokes, setScrollStrokes] = useState<AnnotationStroke[]>([]);
   const itemCanvasRef = useRef<any>(null);
+
+  // No Android APK / offline: se não há servidor gráfico configurado ou a URL da imagem é vazia,
+  // finaliza imediatamente o loading para evitar trava infinita e exibe a folha de texto oficial.
+  useEffect(() => {
+    if (Platform.OS !== 'web' && (!isServerConfigured || !rawImageUrl)) {
+      setLoading(false);
+      setError(true);
+    }
+  }, [isServerConfigured, rawImageUrl]);
+
+  // Timeout de segurança no mobile para nunca travar a rolagem se a imagem demorar
+  useEffect(() => {
+    if (loading && !error && Platform.OS !== 'web') {
+      const timer = setTimeout(() => {
+        setLoading(false);
+        setError(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, error]);
+
+  useEffect(() => {
+    if (!bookId || pageNumber < 1) return;
+    let isMounted = true;
+    pageAnnotationsService.getPageAnnotations(bookId, pageNumber).then((strokes) => {
+      if (isMounted) setScrollStrokes(strokes);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [bookId, pageNumber]);
 
   const imageUrl = useMemo(
     () => (rawImageUrl ? `${rawImageUrl}${retryKey > 0 ? `&retry=${retryKey}` : ''}` : ''),
@@ -314,7 +354,7 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
         const canvas: HTMLCanvasElement | null = itemCanvasRef.current;
         if (!canvas) return;
         const scale = pageWidth / (baseViewport.width || pageWidth);
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, 2);
         const viewport = page.getViewport({ scale: scale * dpr });
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
@@ -347,7 +387,7 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
     };
   }, [error, rawImageUrl, bookFileName, pageNumber, pageWidth, retryKey]);
 
-  const showFallbackTextSheet = error && !webCanvasReady && !loading;
+  const showFallbackTextSheet = (error || !rawImageUrl) && !webCanvasReady && !loading;
 
   return (
     <View style={[styles.scrollPageWrap, { height: containerHeight }]}>
@@ -409,6 +449,22 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
             <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.scrollPageLoadingText}>Carregando página {pageNumber}...</Text>
           </View>
+        )}
+
+        {Boolean(bookId) && scrollStrokes.length > 0 && (
+          <PageAnnotationOverlay
+            bookId={bookId!}
+            pageNumber={pageNumber}
+            width={pageWidth}
+            height={pageHeight}
+            strokes={scrollStrokes}
+            onStrokesChange={() => {}}
+            isDrawingActive={false}
+            readOnly={true}
+            currentTool="pen"
+            currentColor="#EF4444"
+            currentWidth={3}
+          />
         )}
 
         {showFallbackTextSheet && !loading && (
@@ -487,6 +543,81 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
   );
 });
 
+export function renderFormattedBookText(
+  rawText: string | undefined,
+  zoom: number,
+  colors: ThemeColors,
+  styles: any
+) {
+  const text = (rawText || '').trim();
+  if (!text) {
+    return (
+      <View style={styles.textEmptyStateWrap}>
+        <Ionicons name="image-outline" size={28} color={colors.textMuted} />
+        <Text style={[styles.textModeContent, { fontSize: Math.max(13, Math.round(14 * zoom)), textAlign: 'center' }]}>
+          Esta página consiste em arte, capa, mapa ou diagrama oficial do livro sem camada textual extraível.
+        </Text>
+      </View>
+    );
+  }
+
+  const lines = text.split('\n');
+  return (
+    <View style={styles.formattedTextContainer}>
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <View key={`spacer_${idx}`} style={{ height: 6 }} />;
+        }
+
+        const isHeading =
+          trimmed.length <= 65 &&
+          trimmed === trimmed.toUpperCase() &&
+          /[A-ZÀ-Ú]/.test(trimmed) &&
+          !/^\d+$/.test(trimmed) &&
+          !trimmed.startsWith('PÁG') &&
+          !trimmed.startsWith('PAG');
+
+        if (isHeading) {
+          return (
+            <View key={`heading_${idx}`} style={styles.formattedHeadingWrap}>
+              <View style={styles.formattedHeadingBar} />
+              <Text
+                style={[
+                  styles.formattedHeadingText,
+                  {
+                    fontSize: Math.max(14, Math.round(16 * zoom)),
+                    lineHeight: Math.max(20, Math.round(23 * zoom)),
+                  },
+                ]}
+                selectable
+              >
+                {trimmed}
+              </Text>
+            </View>
+          );
+        }
+
+        return (
+          <Text
+            key={`line_${idx}`}
+            style={[
+              styles.formattedParaText,
+              {
+                fontSize: Math.max(12, Math.round(14 * zoom)),
+                lineHeight: Math.max(19, Math.round(23 * zoom)),
+              },
+            ]}
+            selectable
+          >
+            {trimmed}
+          </Text>
+        );
+      })}
+    </View>
+  );
+}
+
 export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   visible,
   onClose,
@@ -523,6 +654,16 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const [showInBookSearch, setShowInBookSearch] = useState<boolean>(false);
   const [inBookQuery, setInBookQuery] = useState<string>(highlightTerm);
 
+  // Estados de anotações desenhadas na página (Tablet, Stylus e Gestos)
+  const [isAnnotationModeActive, setIsAnnotationModeActive] = useState<boolean>(false);
+  const [currentTool, setCurrentTool] = useState<AnnotationToolType>('pen');
+  const [currentColor, setCurrentColor] = useState<string>('#EF4444');
+  const [currentWidth, setCurrentWidth] = useState<number>(3.5);
+  const [currentPageStrokes, setCurrentPageStrokes] = useState<AnnotationStroke[]>([]);
+  const [annotatedPages, setAnnotatedPages] = useState<number[]>([]);
+  const [undoStack, setUndoStack] = useState<AnnotationStroke[][]>([]);
+  const [redoStack, setRedoStack] = useState<AnnotationStroke[][]>([]);
+
   // Estados de carregamento e dimensões da página
   const [imageLoading, setImageLoading] = useState<boolean>(serverConfigured);
   const [imageError, setImageError] = useState<boolean>(!serverConfigured);
@@ -548,6 +689,93 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     setIsMaximized((m) => !m);
   }, []);
 
+  // Carrega os traços da página atual ao navegar ou abrir modal
+  useEffect(() => {
+    if (!book) {
+      setCurrentPageStrokes([]);
+      return;
+    }
+    let isMounted = true;
+    pageAnnotationsService.getPageAnnotations(book.id, safeCurrentPage).then((strokes) => {
+      if (isMounted) {
+        setCurrentPageStrokes(strokes);
+        setUndoStack([]);
+        setRedoStack([]);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [book?.id, safeCurrentPage]);
+
+  // Carrega índice de páginas anotadas neste livro
+  useEffect(() => {
+    if (!book) {
+      setAnnotatedPages([]);
+      return;
+    }
+    let isMounted = true;
+    pageAnnotationsService.listAnnotatedPages(book.id).then((pages) => {
+      if (isMounted) setAnnotatedPages(pages);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [book?.id, currentPageStrokes]);
+
+  const handleStrokesChange = useCallback(
+    (newStrokes: AnnotationStroke[]) => {
+      if (!book) return;
+      setUndoStack((prev) => [...prev, currentPageStrokes]);
+      setRedoStack([]);
+      setCurrentPageStrokes(newStrokes);
+      pageAnnotationsService.savePageAnnotations(book.id, safeCurrentPage, newStrokes);
+    },
+    [book, safeCurrentPage, currentPageStrokes]
+  );
+
+  const handleUndo = useCallback(() => {
+    if (!book || undoStack.length === 0) return;
+    const previous = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, prev.length - 1));
+    setRedoStack((prev) => [...prev, currentPageStrokes]);
+    setCurrentPageStrokes(previous);
+    pageAnnotationsService.savePageAnnotations(book.id, safeCurrentPage, previous);
+  }, [book, safeCurrentPage, undoStack, currentPageStrokes]);
+
+  const handleRedo = useCallback(() => {
+    if (!book || redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setRedoStack((prev) => prev.slice(0, prev.length - 1));
+    setUndoStack((prev) => [...prev, currentPageStrokes]);
+    setCurrentPageStrokes(next);
+    pageAnnotationsService.savePageAnnotations(book.id, safeCurrentPage, next);
+  }, [book, safeCurrentPage, redoStack, currentPageStrokes]);
+
+  const handleClearPageAnnotations = useCallback(() => {
+    if (!book) return;
+    confirmAction({
+      title: 'Limpar Anotações da Página',
+      message: `Deseja realmente apagar todos os traços desenhados na Página ${safeCurrentPage}?`,
+      confirmText: 'Limpar',
+      cancelText: 'Cancelar',
+      destructive: true,
+      onConfirm: async () => {
+        setUndoStack((prev) => [...prev, currentPageStrokes]);
+        setRedoStack([]);
+        setCurrentPageStrokes([]);
+        await pageAnnotationsService.clearPageAnnotations(book.id, safeCurrentPage);
+      },
+    });
+  }, [book, safeCurrentPage, currentPageStrokes]);
+
+  const toggleAnnotationMode = useCallback(() => {
+    if (!isAnnotationModeActive && viewMode === 'pdf_scroll') {
+      setViewMode('pdf_page');
+    }
+    setIsAnnotationModeActive((prev) => !prev);
+  }, [isAnnotationModeActive, viewMode]);
+
   // Lista de páginas para o modo de rolagem contínua
   const pagesList = useMemo(() => {
     if (!book || !book.pageCount) return [];
@@ -559,6 +787,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const screenWidth = Math.max(300, rawWindowWidth || 360);
   const isCompact = screenWidth < 480;
   const isVerySmall = screenWidth < 390;
+  const isSmallScreen = screenWidth < 400;
+  const isNarrow = screenWidth < 440;
   const safeAspect = pageAspect > 0.1 && Number.isFinite(pageAspect) ? pageAspect : 1211 / 1625;
   const pageHorizontalMargin = isMaximized ? 8 : 24;
   const pageMaxWidth = isMaximized ? Math.min(screenWidth - 8, 1200) : 880;
@@ -728,16 +958,34 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     setCanvasReady(false);
   }, [safeCurrentPage, book?.id]);
 
+  // Navegação hierárquica do botão Voltar (Android APK / Hardware Back Press)
+  const handleBackNavigation = useCallback(() => {
+    if (isAnnotationModeActive) {
+      setIsAnnotationModeActive(false);
+      return true;
+    }
+    if (showInBookSearch) {
+      setShowInBookSearch(false);
+      return true;
+    }
+    if (showTocList) {
+      setShowTocList(false);
+      return true;
+    }
+    if (isMaximized) {
+      setIsMaximized(false);
+      return true;
+    }
+    onClose();
+    return true;
+  }, [isAnnotationModeActive, showInBookSearch, showTocList, isMaximized, onClose]);
+
   // Intercepta botão de retorno físico no Android nativo
   useEffect(() => {
     if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
-    const onBackPress = () => {
-      onClose();
-      return true;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    const sub = BackHandler.addEventListener('hardwareBackPress', handleBackNavigation);
     return () => sub.remove();
-  }, [visible, onClose]);
+  }, [visible, handleBackNavigation]);
 
   // Intercepta a seta de retorno do navegador na Web
   useEffect(() => {
@@ -768,7 +1016,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
   // Atalhos de teclado na Web
   useEffect(() => {
-    if (Platform.OS !== 'web' || !visible || !book) return;
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !visible || !book) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeTag = (document.activeElement as HTMLElement)?.tagName;
@@ -849,7 +1097,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
         const targetW = Math.min(Dimensions.get('window').width - 28, 920);
         const baseScale = (targetW / (baseViewport.width || targetW)) * zoom;
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, 2);
         const viewport = page.getViewport({ scale: baseScale * dpr });
 
         canvas.width = Math.floor(viewport.width);
@@ -916,12 +1164,12 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
   const handleOpenExternalPdf = useCallback(async () => {
     if (!book) return;
-    await openPdfDocument(book.fileName, safeCurrentPage);
+    await openPdfDocument(book.fileName, safeCurrentPage, book.driveFileId);
   }, [book, safeCurrentPage]);
 
   const handleDownloadPdf = useCallback(async () => {
     if (!book) return;
-    await downloadPdfDocument(book.fileName);
+    await downloadPdfDocument(book.fileName, book.driveFileId);
   }, [book]);
 
   const handleDeletePdf = useCallback(() => {
@@ -1002,13 +1250,13 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const hasValidRenderedImageUrl = Boolean(renderedImageUrl && renderedImageUrl.startsWith('http'));
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={() => { handleBackNavigation(); }}>
       <View style={styles.container}>
         {/* Top Header (ocultado quando maximizado para leitura 100% limpa) */}
         {!isMaximized && (
           <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 10) }]}>
             <TouchableOpacity
-              style={styles.modalBackBtn}
+              style={[styles.modalBackBtn, isSmallScreen && { paddingHorizontal: 6, gap: 0 }]}
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Voltar para a listagem de livros"
@@ -1017,63 +1265,65 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               <Text style={styles.modalBackBtnText}>Voltar</Text>
             </TouchableOpacity>
 
-            <View style={styles.titleWrap}>
+            <View style={[styles.titleWrap, isSmallScreen && { minWidth: 0, flexShrink: 1, marginRight: 4 }]}>
               <View style={styles.bookBadgeRow}>
                 <Ionicons name="document-attach" size={16} color={colors.primary} />
-                <Text style={styles.bookTitle} numberOfLines={1}>
+                <Text style={[styles.bookTitle, isSmallScreen && { fontSize: 13 }]} numberOfLines={1}>
                   {book.title}
                 </Text>
-                <View style={styles.filePill}>
-                  <Text style={styles.filePillText} numberOfLines={1}>
-                    {book.fileName}
-                  </Text>
-                </View>
+                {!isNarrow && (
+                  <View style={styles.filePill}>
+                    <Text style={styles.filePillText} numberOfLines={1}>
+                      {book.fileName}
+                    </Text>
+                  </View>
+                )}
               </View>
-              <Text style={styles.pageSubTitle} numberOfLines={1}>
+              <Text style={[styles.pageSubTitle, isSmallScreen && { fontSize: 10 }]} numberOfLines={1}>
                 Página {safeCurrentPage} de {book.pageCount}
                 {activePageData?.section ? ` • ${activePageData.section}` : ''}
               </Text>
             </View>
 
-            <View style={styles.topActions}>
+            <View style={[styles.topActions, isSmallScreen && { gap: 3 }]}>
               <TouchableOpacity
-                style={styles.iconBtn}
+                style={[styles.iconBtn, isSmallScreen && styles.iconBtnSmall]}
                 onPress={() => {
                   onClose();
                   openManual('books');
                 }}
                 accessibilityLabel="Manual do Leitor de PDF"
               >
-                <Ionicons name="help-circle-outline" size={19} color={colors.primary} />
+                <Ionicons name="help-circle-outline" size={isSmallScreen ? 16 : 19} color={colors.primary} />
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.iconBtn, showInBookSearch && styles.iconBtnActive]}
+                style={[styles.iconBtn, isSmallScreen && styles.iconBtnSmall, showInBookSearch && styles.iconBtnActive]}
                 onPress={() => {
                   setShowInBookSearch((s) => !s);
                   setShowTocList(false);
                 }}
                 accessibilityLabel="Buscar no livro"
               >
-                <Ionicons name="search" size={18} color={colors.text} />
+                <Ionicons name="search" size={isSmallScreen ? 16 : 18} color={colors.text} />
               </TouchableOpacity>
 
               {book.toc && book.toc.length > 0 && (
                 <TouchableOpacity
-                  style={[styles.iconBtn, showTocList && styles.iconBtnActive]}
+                  style={[styles.iconBtn, isSmallScreen && styles.iconBtnSmall, showTocList && styles.iconBtnActive]}
                   onPress={() => {
                     setShowTocList((s) => !s);
                     setShowInBookSearch(false);
                   }}
                   accessibilityLabel="Sumário do livro"
                 >
-                  <Ionicons name="list" size={19} color={colors.text} />
+                  <Ionicons name="list" size={isSmallScreen ? 16 : 19} color={colors.text} />
                 </TouchableOpacity>
               )}
 
               {/* Indicador de Status do Livro (PDF Original ou Modo Integrado) */}
               <View
-                style={styles.serverStatusPill}
+                style={[styles.serverStatusPill, isNarrow && styles.serverStatusPillCompact]}
                 accessibilityLabel="Status do Acervo"
               >
                 <View
@@ -1087,31 +1337,64 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                     },
                   ]}
                 />
-                <Text style={styles.serverStatusText}>
-                  {book.hasLocalPdf || book.driveSynced || (book.id && localPdfStorage.hasPdfOffline(book.id))
-                    ? 'PDF Próprio'
-                    : 'Modo Integrado'}
-                </Text>
+                {!isNarrow && (
+                  <Text style={styles.serverStatusText}>
+                    {book.hasLocalPdf || book.driveSynced || (book.id && localPdfStorage.hasPdfOffline(book.id))
+                      ? 'PDF Próprio'
+                      : 'Modo Integrado'}
+                  </Text>
+                )}
               </View>
+
+              {/* Botão de Anotações Desenhadas / Tablet Stylus */}
+              <TouchableOpacity
+                testID="btn-toggle-annotations"
+                style={[
+                  styles.annotationToggleBtn,
+                  isNarrow && styles.annotationToggleBtnCompact,
+                  isAnnotationModeActive && styles.annotationToggleBtnActive,
+                ]}
+                onPress={toggleAnnotationMode}
+                accessibilityLabel="Anotar na página (Suporte a Tablet e Stylus)"
+              >
+                <Ionicons
+                  name={isAnnotationModeActive ? 'pencil' : 'pencil-outline'}
+                  size={15}
+                  color={isAnnotationModeActive ? '#FFF' : colors.primary}
+                />
+                {!isNarrow && (
+                  <Text
+                    style={[
+                      styles.annotationToggleBtnText,
+                      isAnnotationModeActive && styles.annotationToggleBtnTextActive,
+                    ]}
+                  >
+                    Anotar
+                  </Text>
+                )}
+                {annotatedPages.includes(safeCurrentPage) && (
+                  <View style={styles.hasAnnotationIndicator} />
+                )}
+              </TouchableOpacity>
 
               {/* Botão de Maximizar Visualização */}
               <TouchableOpacity
-                style={styles.maximizeBtn}
+                style={[styles.maximizeBtn, isNarrow && styles.maximizeBtnCompact]}
                 onPress={toggleMaximized}
                 accessibilityLabel="Maximizar visualização (Modo Foco)"
               >
                 <Ionicons name="expand-outline" size={16} color={colors.primary} />
-                {!isVerySmall && <Text style={styles.maximizeBtnText}>Maximizar</Text>}
+                {!isNarrow && <Text style={styles.maximizeBtnText}>Maximizar</Text>}
               </TouchableOpacity>
 
               {/* No celular ou desktop, permite abrir/baixar o PDF original diretamente */}
               {isMobile ? (
                 <TouchableOpacity
-                  style={styles.iconBtn}
+                  style={[styles.iconBtn, isSmallScreen && styles.iconBtnSmall]}
                   onPress={handleDownloadPdf}
                   accessibilityLabel="Baixar arquivo PDF original"
                 >
-                  <Ionicons name="download-outline" size={18} color={colors.text} />
+                  <Ionicons name="download-outline" size={isSmallScreen ? 16 : 18} color={colors.text} />
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
@@ -1126,15 +1409,15 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
               <TouchableOpacity
                 testID="btn-delete-pdf-viewer"
-                style={styles.iconBtn}
+                style={[styles.iconBtn, isSmallScreen && styles.iconBtnSmall]}
                 onPress={handleDeletePdf}
                 accessibilityLabel="Excluir este PDF"
               >
-                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                <Ionicons name="trash-outline" size={isSmallScreen ? 16 : 18} color="#EF4444" />
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="Fechar">
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Ionicons name="close" size={isSmallScreen ? 20 : 24} color={colors.text} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1367,20 +1650,27 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
           </View>
         )}
 
+        {/* Barra de Ferramentas de Anotação Manual / Tablet */}
+        {isAnnotationModeActive && (
+          <AnnotationToolbar
+            currentTool={currentTool}
+            onSelectTool={setCurrentTool}
+            currentColor={currentColor}
+            onSelectColor={setCurrentColor}
+            currentWidth={currentWidth}
+            onSelectWidth={setCurrentWidth}
+            canUndo={undoStack.length > 0}
+            onUndo={handleUndo}
+            canRedo={redoStack.length > 0}
+            onRedo={handleRedo}
+            onClearPage={handleClearPageAnnotations}
+            onCloseToolbar={() => setIsAnnotationModeActive(false)}
+            isTablet={screenWidth >= 600}
+          />
+        )}
+
         {/* Área Principal do Visualizador */}
         <View style={styles.viewportArea}>
-          {/* Botão Flutuante de Maximizar no canto superior do documento */}
-          {!isMaximized && (viewMode === 'pdf_scroll' || viewMode === 'pdf_page') && (
-            <TouchableOpacity
-              style={styles.floatingQuickMaximizeBtn}
-              onPress={toggleMaximized}
-              accessibilityLabel="Maximizar documento para tela cheia"
-            >
-              <Ionicons name="expand-outline" size={15} color="#FFF" />
-              <Text style={styles.floatingQuickMaximizeText}>Maximizar Tela</Text>
-            </TouchableOpacity>
-          )}
-
           {/* Controles Flutuantes no Modo Maximizado */}
           {isMaximized && (
             <View style={[styles.floatingControlsTop, { top: Math.max(insets.top, 10) }]}>
@@ -1390,6 +1680,26 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                   Pág. {safeCurrentPage} / {book.pageCount}
                 </Text>
               </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.floatingActionBtn,
+                  isAnnotationModeActive && { backgroundColor: '#DC2626' },
+                ]}
+                onPress={toggleAnnotationMode}
+                accessibilityLabel="Anotar na página"
+              >
+                <Ionicons
+                  name={isAnnotationModeActive ? 'pencil' : 'pencil-outline'}
+                  size={16}
+                  color={isAnnotationModeActive ? '#FFF' : colors.text}
+                />
+                {!isCompact && (
+                  <Text style={styles.floatingBtnText}>
+                    {isAnnotationModeActive ? 'Anotando' : 'Anotar'}
+                  </Text>
+                )}
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.floatingActionBtn}
@@ -1542,32 +1852,43 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                   <View style={styles.fallbackNotice}>
                     <View style={styles.fallbackTextCard}>
                       <View style={styles.fallbackTextHeader}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                           <Ionicons name="book-outline" size={16} color={colors.primary} />
                           <Text style={styles.fallbackTextSection} numberOfLines={1}>
                             {activePageData?.section || book.title}
                           </Text>
                         </View>
+                        <View style={styles.fontScalingRow}>
+                          <TouchableOpacity
+                            style={styles.fontScaleBtn}
+                            onPress={() => setZoom((z) => Math.max(0.7, Number((z - 0.15).toFixed(2))))}
+                            accessibilityLabel="Diminuir tamanho da fonte"
+                          >
+                            <Text style={styles.fontScaleBtnText}>A-</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.fontScaleResetBtn}
+                            onPress={() => setZoom(1.0)}
+                            accessibilityLabel="Restaurar tamanho da fonte"
+                          >
+                            <Text style={styles.fontScaleLabel}>{Math.round(zoom * 100)}%</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.fontScaleBtn}
+                            onPress={() => setZoom((z) => Math.min(2.2, Number((z + 0.15).toFixed(2))))}
+                            accessibilityLabel="Aumentar tamanho da fonte"
+                          >
+                            <Text style={styles.fontScaleBtnText}>A+</Text>
+                          </TouchableOpacity>
+                        </View>
                         <Text style={styles.textModePageBadge}>
                           Pág. {safeCurrentPage} / {book.pageCount}
                         </Text>
                       </View>
-                      <Text
-                        style={[
-                          styles.fallbackTextBody,
-                          {
-                            fontSize: Math.round(14 * zoom),
-                            lineHeight: Math.round(22 * zoom),
-                          },
-                        ]}
-                        selectable
-                      >
-                        {activePageData?.text ||
-                          'Esta página consiste em capa, arte de capítulo, mapa ou diagrama oficial do livro.'}
-                      </Text>
+                      {renderFormattedBookText(activePageData?.text, zoom, colors, styles)}
                     </View>
 
-                    <View style={styles.fallbackBtnsRow}>
+                    <View style={[styles.fallbackBtnsRow, { flexWrap: 'wrap', gap: 8, justifyContent: 'center' }]}>
                       <TouchableOpacity
                         style={styles.externalBtn}
                         onPress={handleOpenExternalPdf}
@@ -1598,6 +1919,23 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                       )}
                     </View>
                   </View>
+                )}
+
+                {/* Camada 3: Anotações Desenhadas na Página (Tablet, Stylus e Gestos) */}
+                {Boolean(book) && (
+                  <PageAnnotationOverlay
+                    bookId={book!.id}
+                    pageNumber={safeCurrentPage}
+                    width={basePageWidth}
+                    height={basePageHeight}
+                    strokes={currentPageStrokes}
+                    onStrokesChange={handleStrokesChange}
+                    isDrawingActive={isAnnotationModeActive}
+                    currentTool={currentTool}
+                    currentColor={currentColor}
+                    currentWidth={currentWidth}
+                    readOnly={!isAnnotationModeActive}
+                  />
                 )}
               </View>
             </ScrollView>
@@ -1687,9 +2025,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                     <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800', marginBottom: 8, textTransform: 'uppercase' }}>
                       Texto Oficial da Página {safeCurrentPage}:
                     </Text>
-                    <Text style={styles.textModeContent} selectable>
-                      {activePageData?.text}
-                    </Text>
+                    {renderFormattedBookText(activePageData?.text, zoom, colors, styles)}
                   </View>
                 )}
               </View>
@@ -1708,6 +2044,29 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                     </Text>
                   </View>
                   <View style={styles.textModeHeaderRight}>
+                    <View style={styles.fontScalingRow}>
+                      <TouchableOpacity
+                        style={styles.fontScaleBtn}
+                        onPress={() => setZoom((z) => Math.max(0.7, Number((z - 0.15).toFixed(2))))}
+                        accessibilityLabel="Diminuir tamanho da fonte"
+                      >
+                        <Text style={styles.fontScaleBtnText}>A-</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.fontScaleResetBtn}
+                        onPress={() => setZoom(1.0)}
+                        accessibilityLabel="Restaurar tamanho padrão da fonte"
+                      >
+                        <Text style={styles.fontScaleLabel}>{Math.round(zoom * 100)}%</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.fontScaleBtn}
+                        onPress={() => setZoom((z) => Math.min(2.2, Number((z + 0.15).toFixed(2))))}
+                        accessibilityLabel="Aumentar tamanho da fonte"
+                      >
+                        <Text style={styles.fontScaleBtnText}>A+</Text>
+                      </TouchableOpacity>
+                    </View>
                     <View style={styles.textModeOfflineBadge}>
                       <Text style={styles.textModeOfflineBadgeText}>100% Offline</Text>
                     </View>
@@ -1716,21 +2075,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                     </Text>
                   </View>
                 </View>
-                <Text
-                  style={[
-                    styles.textModeContent,
-                    {
-                      fontSize: Math.round(15 * zoom),
-                      lineHeight: Math.round(25 * zoom),
-                    },
-                  ]}
-                  selectable
-                >
-                  {activePageData?.text ||
-                    'Esta página consiste em arte, mapa ou diagrama oficial do livro sem camada textual extraível.'}
-                </Text>
+                {renderFormattedBookText(activePageData?.text, zoom, colors, styles)}
 
-                <View style={[styles.fallbackBtnsRow, { marginTop: 16, justifyContent: 'flex-end' }]}>
+                <View style={[styles.fallbackBtnsRow, { marginTop: 16, justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 }]}>
                   <TouchableOpacity
                     style={styles.retryBtn}
                     onPress={handleOpenExternalPdf}
@@ -2043,29 +2390,88 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 12,
       fontWeight: '800',
     },
-    floatingQuickMaximizeBtn: {
-      position: 'absolute',
-      top: 12,
-      right: 14,
-      zIndex: 40,
+    iconBtnSmall: {
+      width: 32,
+      height: 32,
+      borderRadius: 7,
+    },
+    serverStatusPillCompact: {
+      paddingHorizontal: 6,
+      paddingVertical: 6,
+    },
+    annotationToggleBtnCompact: {
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+    },
+    maximizeBtnCompact: {
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+    },
+    formattedTextContainer: {
+      gap: 4,
+      width: '100%',
+    },
+    formattedHeadingWrap: {
+      marginTop: 14,
+      marginBottom: 6,
+      paddingBottom: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(239, 68, 68, 0.25)',
+    },
+    formattedHeadingBar: {
+      width: 20,
+      height: 2,
+      backgroundColor: colors.primary,
+      marginBottom: 4,
+      borderRadius: 1,
+    },
+    formattedHeadingText: {
+      color: colors.primary,
+      fontWeight: '800',
+      letterSpacing: 0.6,
+    },
+    formattedParaText: {
+      color: colors.text,
+      lineHeight: 23,
+      marginBottom: 6,
+    },
+    textEmptyStateWrap: {
+      paddingVertical: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    fontScalingRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      backgroundColor: 'rgba(24, 24, 27, 0.90)',
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 20,
+      gap: 4,
+      backgroundColor: colors.surfaceElevated,
       borderWidth: 1,
-      borderColor: colors.primary,
-      shadowColor: '#000',
-      shadowOpacity: 0.35,
-      shadowRadius: 6,
-      elevation: 6,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
     },
-    floatingQuickMaximizeText: {
-      color: '#FFFFFF',
-      fontSize: 12,
+    fontScaleBtn: {
+      paddingHorizontal: 5,
+      paddingVertical: 2,
+      borderRadius: 4,
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    },
+    fontScaleBtnText: {
+      color: colors.text,
+      fontSize: 11,
       fontWeight: '800',
+    },
+    fontScaleResetBtn: {
+      paddingHorizontal: 4,
+    },
+    fontScaleLabel: {
+      color: colors.primary,
+      fontSize: 10,
+      fontWeight: '800',
+      minWidth: 32,
+      textAlign: 'center',
     },
     externalBtn: {
       flexDirection: 'row',
@@ -2768,5 +3174,40 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primary,
       fontSize: 12,
       fontWeight: '700',
+    },
+    annotationToggleBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+      borderWidth: 1,
+      borderColor: 'rgba(239, 68, 68, 0.3)',
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      borderRadius: 8,
+      position: 'relative',
+    },
+    annotationToggleBtnActive: {
+      backgroundColor: '#DC2626',
+      borderColor: '#EF4444',
+    },
+    annotationToggleBtnText: {
+      color: '#EF4444',
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    annotationToggleBtnTextActive: {
+      color: '#FFF',
+    },
+    hasAnnotationIndicator: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: '#EAB308',
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      borderWidth: 1,
+      borderColor: '#18181B',
     },
   });

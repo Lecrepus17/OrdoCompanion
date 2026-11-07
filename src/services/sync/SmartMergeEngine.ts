@@ -10,6 +10,13 @@ import {
 } from '../../types/compendium';
 import { DriveStoredPdfRef, MergeResult, UserDataBackupPayload } from './types';
 
+declare module './types' {
+  interface UserDataBackupPayload {
+    deletedDynamicBookIds?: string[];
+  }
+}
+
+
 /**
  * Converte timestamp ISO para millisegundos com fallback seguro
  */
@@ -356,6 +363,19 @@ export class SmartMergeEngine {
     }
 
     // 8. Livros Desbloqueados (União de Conjuntos - Nunca perde acesso a um livro já desbloqueado)
+    // Rastreia IDs de livros dinâmicos explicitamente excluídos para evitar ressuscitar PDFs no Google Drive
+    const mergedDeletedDynamicBookIds = Array.from(new Set([
+      ...(local.deletedDynamicBookIds || []),
+      ...(remote.deletedDynamicBookIds || []),
+    ]));
+    const deletedDynamicBookSet = new Set(mergedDeletedDynamicBookIds);
+    if (mergedDeletedDynamicBookIds.length > (local.deletedDynamicBookIds || []).length) {
+      hasLocalChangesToApply = true;
+    }
+    if (mergedDeletedDynamicBookIds.length > (remote.deletedDynamicBookIds || []).length) {
+      hasRemoteChangesToUpload = true;
+    }
+
     const localUnlocked = local.unlockedBooks || {};
     const remoteUnlocked = remote.unlockedBooks || {};
     const mergedUnlockedBooks: Record<string, UnlockedBookRecord> = {};
@@ -365,6 +385,11 @@ export class SmartMergeEngine {
     ]);
 
     for (const bid of allUnlockedIds) {
+      if (deletedDynamicBookSet.has(bid)) {
+        if (remoteUnlocked[bid]) hasRemoteChangesToUpload = true;
+        if (localUnlocked[bid]) hasLocalChangesToApply = true;
+        continue;
+      }
       const loc = localUnlocked[bid];
       const rem = remoteUnlocked[bid];
       if (loc && rem) {
@@ -396,15 +421,25 @@ export class SmartMergeEngine {
     const remoteDynBooks = remote.dynamicBooks || [];
     const dynBookMap = new Map<string, BookWithPages>();
     for (const b of remoteDynBooks) {
-      if (b && b.id) dynBookMap.set(b.id, b);
+      if (b && b.id) {
+        if (deletedDynamicBookSet.has(b.id)) {
+          hasRemoteChangesToUpload = true;
+          continue;
+        }
+        dynBookMap.set(b.id, b);
+      }
     }
     for (const b of localDynBooks) {
       if (b && b.id) {
+        if (deletedDynamicBookSet.has(b.id)) {
+          hasLocalChangesToApply = true;
+          continue;
+        }
         if (!dynBookMap.has(b.id)) hasRemoteChangesToUpload = true;
         dynBookMap.set(b.id, b);
       }
     }
-    if (dynBookMap.size > localDynBooks.length) {
+    if (dynBookMap.size > localDynBooks.filter((b) => b && !deletedDynamicBookSet.has(b.id)).length) {
       hasLocalChangesToApply = true;
     }
     const mergedDynamicBooks = Array.from(dynBookMap.values());
@@ -413,15 +448,25 @@ export class SmartMergeEngine {
     const remoteDynEnts = remote.dynamicEntities || [];
     const dynEntMap = new Map<string, CompendiumEntity>();
     for (const e of remoteDynEnts) {
-      if (e && e.id) dynEntMap.set(e.id, e);
+      if (e && e.id) {
+        if (e.bookId && deletedDynamicBookSet.has(e.bookId)) {
+          hasRemoteChangesToUpload = true;
+          continue;
+        }
+        dynEntMap.set(e.id, e);
+      }
     }
     for (const e of localDynEnts) {
       if (e && e.id) {
+        if (e.bookId && deletedDynamicBookSet.has(e.bookId)) {
+          hasLocalChangesToApply = true;
+          continue;
+        }
         if (!dynEntMap.has(e.id)) hasRemoteChangesToUpload = true;
         dynEntMap.set(e.id, e);
       }
     }
-    if (dynEntMap.size > localDynEnts.length) {
+    if (dynEntMap.size > localDynEnts.filter((e) => e && (!e.bookId || !deletedDynamicBookSet.has(e.bookId))).length) {
       hasLocalChangesToApply = true;
     }
     const mergedDynamicEntities = Array.from(dynEntMap.values());
@@ -429,10 +474,19 @@ export class SmartMergeEngine {
     // 10. Referências de Arquivos PDF salvos no Google Drive
     const localDrivePdfs = local.drivePdfFiles || {};
     const remoteDrivePdfs = remote.drivePdfFiles || {};
-    const mergedDrivePdfs: Record<string, DriveStoredPdfRef> = {
-      ...remoteDrivePdfs,
-      ...localDrivePdfs,
-    };
+    const mergedDrivePdfs: Record<string, DriveStoredPdfRef> = {};
+    const allDrivePdfBookIds = new Set([
+      ...Object.keys(localDrivePdfs),
+      ...Object.keys(remoteDrivePdfs),
+    ]);
+    for (const bid of allDrivePdfBookIds) {
+      if (deletedDynamicBookSet.has(bid)) {
+        if (remoteDrivePdfs[bid]) hasRemoteChangesToUpload = true;
+        if (localDrivePdfs[bid]) hasLocalChangesToApply = true;
+        continue;
+      }
+      mergedDrivePdfs[bid] = remoteDrivePdfs[bid] || localDrivePdfs[bid];
+    }
 
     const mergedPayload: UserDataBackupPayload = {
       exportedAt: nowIso,
@@ -451,6 +505,7 @@ export class SmartMergeEngine {
       customWeapons: mergedWeapons,
       deletedCharacterIds: mergedDeletedCharIds,
       deletedCampaignIds: mergedDeletedCampIds,
+      deletedDynamicBookIds: mergedDeletedDynamicBookIds,
     };
 
     return {

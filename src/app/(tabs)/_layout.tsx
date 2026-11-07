@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useTheme } from '../../theme';
 import { useApp } from '../../context/AppContext';
 import { ThemeSelectorModal } from '../../components/ThemeSelectorModal';
@@ -49,6 +49,10 @@ export default function TabsLayout() {
     return clean || 'index';
   }, [pathname]);
 
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height && height < 500;
+  const isNarrow = width < 400;
+
   return (
     <>
       <Tabs
@@ -61,136 +65,155 @@ export default function TabsLayout() {
           />
         )}
         screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
+          headerStyle: {
+            backgroundColor: colors.surface,
+            height: isLandscape ? 40 : undefined,
+          },
+          headerStatusBarHeight: isLandscape ? 0 : undefined,
           headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: '800', fontSize: 15 },
-          headerTitleContainerStyle: { maxWidth: '54%' },
+          headerTitleStyle: {
+            fontWeight: '800',
+            fontSize: isLandscape ? 13 : isNarrow ? 14 : 15,
+          },
+          headerTitleContainerStyle: {
+            maxWidth: isNarrow ? '50%' : '65%',
+            marginRight: isNarrow ? 4 : 8,
+          },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
           headerLeft: () => null,
-          headerRight: () => (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                marginRight: 10,
-              }}
-            >
-              {/* Botão de Acesso Rápido ao G.L.I.T.C.H. (IA) */}
-              <TouchableOpacity
-                onPress={() => router.navigate('/(tabs)/oracle' as any)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  paddingHorizontal: 9,
-                  paddingVertical: 6,
-                  borderRadius: 8,
-                  backgroundColor: colors.primarySoft,
-                  borderWidth: 1,
-                  borderColor: colors.primary,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 34,
-                  minHeight: 34,
-                }}
-                accessibilityLabel="G.L.I.T.C.H. - Inteligência Artificial"
-              >
-                <Ionicons name="sparkles" size={17} color={colors.primary} />
-              </TouchableOpacity>
+          headerRight: () => {
+            const btnPaddingH = isLandscape ? 5 : isNarrow ? 6 : 9;
+            const btnPaddingV = isLandscape ? 3 : isNarrow ? 4 : 6;
+            const btnMinDim = isLandscape ? 28 : isNarrow ? 30 : 34;
+            const iconSize = isLandscape ? 14 : isNarrow ? 15 : 17;
+            const containerGap = isLandscape ? 4 : isNarrow ? 4 : 6;
+            const marginRight = isLandscape ? 6 : isNarrow ? 6 : 10;
 
-              {/* Botão de Manual / Guia da Tela Atual */}
-              <TouchableOpacity
-                onPress={() => openManual(getSectionFromPathname(pathname))}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            return (
+              <View
                 style={{
-                  paddingHorizontal: 9,
-                  paddingVertical: 6,
-                  borderRadius: 8,
-                  backgroundColor: colors.primarySoft,
-                  borderWidth: 1,
-                  borderColor: colors.primary,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 34,
-                  minHeight: 34,
+                  gap: containerGap,
+                  marginRight,
                 }}
-                accessibilityLabel="Manual e Guia da Tela Atual"
               >
-                <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
-              </TouchableOpacity>
+                {/* Botão de Acesso Rápido ao G.L.I.T.C.H. (IA) */}
+                <TouchableOpacity
+                  onPress={() => router.navigate('/(tabs)/oracle' as any)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    paddingHorizontal: btnPaddingH,
+                    paddingVertical: btnPaddingV,
+                    borderRadius: 8,
+                    backgroundColor: colors.primarySoft,
+                    borderWidth: 1,
+                    borderColor: colors.primary,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: btnMinDim,
+                    minHeight: btnMinDim,
+                  }}
+                  accessibilityLabel="G.L.I.T.C.H. - Inteligência Artificial"
+                >
+                  <Ionicons name="sparkles" size={iconSize} color={colors.primary} />
+                </TouchableOpacity>
 
-              {/* Botão de Trocar Tema */}
-              <TouchableOpacity
-                onPress={() => setThemeModalVisible(true)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  paddingHorizontal: 9,
-                  paddingVertical: 6,
-                  borderRadius: 8,
-                  backgroundColor: colors.primarySoft,
-                  borderWidth: 1,
-                  borderColor: colors.primary,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 34,
-                  minHeight: 34,
-                }}
-                accessibilityLabel="Trocar Tema"
-              >
-                <Ionicons name="color-palette" size={17} color={colors.primary} />
-              </TouchableOpacity>
+                {/* Botão de Manual / Guia da Tela Atual */}
+                <TouchableOpacity
+                  onPress={() => openManual(getSectionFromPathname(pathname))}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    paddingHorizontal: btnPaddingH,
+                    paddingVertical: btnPaddingV,
+                    borderRadius: 8,
+                    backgroundColor: colors.primarySoft,
+                    borderWidth: 1,
+                    borderColor: colors.primary,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: btnMinDim,
+                    minHeight: btnMinDim,
+                  }}
+                  accessibilityLabel="Manual e Guia da Tela Atual"
+                >
+                  <Ionicons name="help-circle-outline" size={iconSize + 1} color={colors.primary} />
+                </TouchableOpacity>
 
-              {/* Botão de Perfil / Informações Gerais */}
-              <TouchableOpacity
-                onPress={() => {
-                  setUserProfileTab('identidade');
-                  setUserProfileModalVisible(true);
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  paddingHorizontal: 9,
-                  paddingVertical: 6,
-                  borderRadius: 8,
-                  backgroundColor: userProfile?.playerName ? colors.primarySoft : colors.surfaceElevated,
-                  borderWidth: 1,
-                  borderColor: userProfile?.playerName ? colors.primary : colors.border,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 34,
-                  minHeight: 34,
-                }}
-                accessibilityLabel="Informações do Jogador e Perfil"
-              >
-                <Ionicons
-                  name={userProfile?.playerName ? 'person' : 'person-outline'}
-                  size={17}
-                  color={userProfile?.playerName ? colors.primary : colors.textSecondary}
-                />
-                {(userProfile?.cloudSyncEnabled || syncAuthState?.isAuthenticated) && (
-                  <View
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: 4,
-                      backgroundColor:
-                        syncStatus === 'syncing'
-                          ? '#3B82F6'
-                          : syncStatus === 'error'
-                          ? '#EF4444'
-                          : '#10B981',
-                      position: 'absolute',
-                      top: 4,
-                      right: 4,
-                    }}
+                {/* Botão de Trocar Tema */}
+                <TouchableOpacity
+                  onPress={() => setThemeModalVisible(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    paddingHorizontal: btnPaddingH,
+                    paddingVertical: btnPaddingV,
+                    borderRadius: 8,
+                    backgroundColor: colors.primarySoft,
+                    borderWidth: 1,
+                    borderColor: colors.primary,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: btnMinDim,
+                    minHeight: btnMinDim,
+                  }}
+                  accessibilityLabel="Trocar Tema"
+                >
+                  <Ionicons name="color-palette" size={iconSize} color={colors.primary} />
+                </TouchableOpacity>
+
+                {/* Botão de Perfil / Informações Gerais */}
+                <TouchableOpacity
+                  onPress={() => {
+                    setUserProfileTab('identidade');
+                    setUserProfileModalVisible(true);
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    paddingHorizontal: btnPaddingH,
+                    paddingVertical: btnPaddingV,
+                    borderRadius: 8,
+                    backgroundColor: userProfile?.playerName ? colors.primarySoft : colors.surfaceElevated,
+                    borderWidth: 1,
+                    borderColor: userProfile?.playerName ? colors.primary : colors.border,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: btnMinDim,
+                    minHeight: btnMinDim,
+                  }}
+                  accessibilityLabel="Informações do Jogador e Perfil"
+                >
+                  <Ionicons
+                    name={userProfile?.playerName ? 'person' : 'person-outline'}
+                    size={iconSize}
+                    color={userProfile?.playerName ? colors.primary : colors.textSecondary}
                   />
-                )}
-              </TouchableOpacity>
-            </View>
-          ),
+                  {(userProfile?.cloudSyncEnabled || syncAuthState?.isAuthenticated) && (
+                    <View
+                      style={{
+                        width: isLandscape ? 5 : 7,
+                        height: isLandscape ? 5 : 7,
+                        borderRadius: 4,
+                        backgroundColor:
+                          syncStatus === 'syncing'
+                            ? '#3B82F6'
+                            : syncStatus === 'error'
+                            ? '#EF4444'
+                            : '#10B981',
+                        position: 'absolute',
+                        top: 3,
+                        right: 3,
+                      }}
+                    />
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          },
         }}
       >
         <Tabs.Screen
@@ -277,7 +300,7 @@ export default function TabsLayout() {
           name="oracle"
           options={{
             title: 'G.L.I.T.C.H.',
-            headerTitle: 'G.L.I.T.C.H. - Guia Lógico de Interferências Transcendentais do Caos Humano',
+            headerTitle: 'G.L.I.T.C.H. Paranormal',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="sparkles" size={size} color={String(color)} />
             ),
@@ -287,7 +310,7 @@ export default function TabsLayout() {
           name="support"
           options={{
             title: 'Suporte',
-            headerTitle: 'Suporte, Feedback & Relato de Erros',
+            headerTitle: 'Suporte & Feedback',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="bug-outline" size={size} color={String(color)} />
             ),

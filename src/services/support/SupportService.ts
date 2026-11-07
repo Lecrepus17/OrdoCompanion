@@ -22,7 +22,7 @@ export const DEFAULT_SUPPORT_CONFIG: SupportContactConfig = {
     process.env.EXPO_PUBLIC_SUPPORT_EMAIL || 'pedro.eduardo1777@gmail.com',
   discordInviteUrl:
     process.env.EXPO_PUBLIC_SUPPORT_DISCORD_INVITE ||
-    'https://discord.com/users/lecrepus17',
+    'https://discord.gg/ordorealitas',
   discordHandle:
     process.env.EXPO_PUBLIC_SUPPORT_DISCORD_HANDLE || 'lecrepus17',
   discordWebhookUrl:
@@ -107,6 +107,70 @@ export class SupportService {
         await AsyncStorage.setItem(SUPPORT_CUSTOM_WEBHOOK_KEY, clean);
       }
     } catch {}
+  }
+
+  /**
+   * Envia uma mensagem de teste para verificar se o Webhook do Discord está ativo e funcionando.
+   */
+  public async testWebhook(webhookUrl?: string): Promise<{ success: boolean; message: string }> {
+    const targetUrl = (webhookUrl || (await this.getEffectiveWebhookUrl())).trim();
+    if (!targetUrl) {
+      return {
+        success: false,
+        message: 'Nenhum Webhook configurado. Preencha a URL do Discord Webhook para testar.',
+      };
+    }
+
+    if (
+      !targetUrl.startsWith('https://discord.com/api/webhooks/') &&
+      !targetUrl.startsWith('https://discordapp.com/api/webhooks/')
+    ) {
+      return {
+        success: false,
+        message: 'URL inválida. O Webhook do Discord deve começar com "https://discord.com/api/webhooks/".',
+      };
+    }
+
+    try {
+      const testBody = {
+        username: 'Ordo Companion • Teste de Integração',
+        embeds: [
+          {
+            title: '✅ Conexão Estabelecida com Sucesso!',
+            description:
+              'A integração do Webhook com o Ordo Companion está ativa! Chamados e relatos de erros enviados pelos jogadores chegarão diretamente neste canal.',
+            color: 0x10b981,
+            timestamp: new Date().toISOString(),
+            footer: {
+              text: 'Ordo Companion • Central de Suporte & Dev',
+            },
+          },
+        ],
+      };
+
+      const response = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testBody),
+      });
+
+      if (response.ok || response.status === 204) {
+        return {
+          success: true,
+          message: 'Webhook testado com sucesso! Uma mensagem de verificação foi enviada ao seu canal no Discord.',
+        };
+      }
+
+      return {
+        success: false,
+        message: `O Discord recusou o envio (Status HTTP ${response.status}). Verifique se a URL do Webhook está correta e ativa.`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Falha na conexão de rede ao testar o Webhook: ${err?.message || 'Erro de rede'}`,
+      };
+    }
   }
 
   /**
