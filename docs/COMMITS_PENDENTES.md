@@ -12,6 +12,24 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ 1. Painel Dev Oculto em Release na Central de Suporte:
+```bash
+git add src/components/SupportCenterView.tsx
+git commit -m "feat(support): oculta painel do desenvolvedor em builds de release" \
+  -m "- Envolve o Painel do Desenvolvedor / Mestre da Central de Suporte em __DEV__, ocultando-o no APK de release"
+```
+
+### ✅ 2. Configuração Oficial do Build (Webhook, Supabase, Groq, Discord e Rotação do Gemini):
+```bash
+git add eas.json .env.example src/services/virtualTable/SupabaseTableConnector.ts src/services/virtualTable/VirtualTableManager.ts src/services/support/SupportService.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "feat(config): embute webhook, supabase, groq e convite do discord oficiais no build" \
+  -m "- Adiciona EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL, SUPABASE_URL/ANON_KEY, DEFAULT_GROQ_API_KEY e SUPPORT_DISCORD_INVITE aos perfis do eas.json" \
+  -m "- DEFAULT_SUPABASE_CONFIG passa a ler variaveis de ambiente e VirtualTableManager usa o Supabase oficial como padrao" \
+  -m "- Rotaciona a chave padrao do Gemini e remove chave real do .env.example" \
+  -m "- Atualiza fallback do convite do Discord no SupportService" \
+  -m "- Atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
 ### 1. Automação de Release Notes, Clipboard e Isolamento de Ciclo entre Versões:
 ```bash
 git add scripts/create_release.js .agents/skills/update-recorder/SKILL.md GEMINI.md docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md

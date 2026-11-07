@@ -11,9 +11,14 @@
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
-        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6IjmqyqMsatHBN5IBspyi2lpY_JxvSEnO-Bgi1T6nG0HA",
+        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6JnaNm3-ZCXskM6uLS2C3fDOus0v6WfRcIR9DhHvAUYWw",
         "EXPO_PUBLIC_MASTER_PASSWORD": "ORDOCOMPANIONEOMELHOR",
-        "EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL": "https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br"
+        "EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL": "https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br",
+        "EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1568445384949239929/2YZUqlS8tZuq0cKtOJTn9qIKbk4sND9_VqTH5DPPKfhilz-6A0K2BqJr70QYD8_B2R1G",
+        "EXPO_PUBLIC_SUPPORT_DISCORD_INVITE": "https://discord.gg/vPCZzr2wFR",
+        "EXPO_PUBLIC_DEFAULT_GROQ_API_KEY": "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",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://avkzalgedowqyjejmtql.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_FocFzQGGoWOIA0NHgqT-jw_4WASLuyf"
       }
     },
     "preview": {
@@ -25,9 +30,14 @@
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
-        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6IjmqyqMsatHBN5IBspyi2lpY_JxvSEnO-Bgi1T6nG0HA",
+        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6JnaNm3-ZCXskM6uLS2C3fDOus0v6WfRcIR9DhHvAUYWw",
         "EXPO_PUBLIC_MASTER_PASSWORD": "ORDOCOMPANIONEOMELHOR",
-        "EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL": "https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br"
+        "EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL": "https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br",
+        "EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1568445384949239929/2YZUqlS8tZuq0cKtOJTn9qIKbk4sND9_VqTH5DPPKfhilz-6A0K2BqJr70QYD8_B2R1G",
+        "EXPO_PUBLIC_SUPPORT_DISCORD_INVITE": "https://discord.gg/vPCZzr2wFR",
+        "EXPO_PUBLIC_DEFAULT_GROQ_API_KEY": "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",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://avkzalgedowqyjejmtql.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_FocFzQGGoWOIA0NHgqT-jw_4WASLuyf"
       }
     },
     "production": {
@@ -38,9 +48,14 @@
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "556485656355-ef063m1qrjff7g3g6i1j8kriuh2l1i7i.apps.googleusercontent.com",
-        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6IjmqyqMsatHBN5IBspyi2lpY_JxvSEnO-Bgi1T6nG0HA",
+        "EXPO_PUBLIC_DEFAULT_GEMINI_API_KEY": "AQ.Ab8RN6JnaNm3-ZCXskM6uLS2C3fDOus0v6WfRcIR9DhHvAUYWw",
         "EXPO_PUBLIC_MASTER_PASSWORD": "ORDOCOMPANIONEOMELHOR",
-        "EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL": "https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br"
+        "EXPO_PUBLIC_GDRIVE_BOOKS_FOLDER_URL": "https://drive.google.com/drive/folders/1OL9QXvphFLto-dPf_18METkqWEVLCey_?hl=pt-br",
+        "EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1568445384949239929/2YZUqlS8tZuq0cKtOJTn9qIKbk4sND9_VqTH5DPPKfhilz-6A0K2BqJr70QYD8_B2R1G",
+        "EXPO_PUBLIC_SUPPORT_DISCORD_INVITE": "https://discord.gg/vPCZzr2wFR",
+        "EXPO_PUBLIC_DEFAULT_GROQ_API_KEY": "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",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://avkzalgedowqyjejmtql.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_FocFzQGGoWOIA0NHgqT-jw_4WASLuyf"
       }
     }
   },

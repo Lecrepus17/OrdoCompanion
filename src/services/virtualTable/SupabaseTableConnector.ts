@@ -14,10 +14,11 @@ import {
 } from './IVirtualTableConnector';
 
 // Chaves padrão para testes (ou preenchidas pelo usuário nas configurações da mesa)
+// Padrão oficial embutido no build via EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY (eas.json / .env).
+// Usa apenas o Realtime (broadcast + presence), sem tabelas. Nunca usar a service_role aqui.
 export const DEFAULT_SUPABASE_CONFIG = {
-  // Configuração opcional de sandbox/fallback
-  url: '',
-  anonKey: '',
+  url: (process.env.EXPO_PUBLIC_SUPABASE_URL || '').trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, ''),
+  anonKey: (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim(),
 };
 
 export class SupabaseTableConnector implements IVirtualTableConnector {

@@ -19,7 +19,7 @@ import {
   TableEventHandlers,
 } from './IVirtualTableConnector';
 import { LocalSimTableConnector } from './LocalSimTableConnector';
-import { SupabaseTableConnector } from './SupabaseTableConnector';
+import { DEFAULT_SUPABASE_CONFIG, SupabaseTableConnector } from './SupabaseTableConnector';
 
 const STORAGE_KEYS = {
   CONFIG: '@ordem_paranormal:vtt_config_v1',
@@ -294,13 +294,17 @@ export class VirtualTableManager {
       this.connector = null;
     }
 
-    const hasSupabase = !!(this.config.supabaseUrl && this.config.supabaseAnonKey);
+    // Prioriza as credenciais do mestre; senão, usa o Supabase oficial embutido no build
+    const hasCustomSupabase = !!(this.config.supabaseUrl && this.config.supabaseAnonKey);
+    const supabaseUrl = hasCustomSupabase ? this.config.supabaseUrl : DEFAULT_SUPABASE_CONFIG.url;
+    const supabaseAnonKey = hasCustomSupabase ? this.config.supabaseAnonKey : DEFAULT_SUPABASE_CONFIG.anonKey;
+    const hasSupabase = !!(supabaseUrl && supabaseAnonKey);
 
     // Seleciona o conector apropriado
     if (!forceLocalSim && hasSupabase) {
       this.connector = new SupabaseTableConnector({
-        url: this.config.supabaseUrl,
-        anonKey: this.config.supabaseAnonKey,
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
       });
     } else {
       // Fallback seguro: Simulador Local

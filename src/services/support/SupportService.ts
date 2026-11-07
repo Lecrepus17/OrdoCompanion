@@ -22,7 +22,7 @@ export const DEFAULT_SUPPORT_CONFIG: SupportContactConfig = {
     process.env.EXPO_PUBLIC_SUPPORT_EMAIL || 'pedro.eduardo1777@gmail.com',
   discordInviteUrl:
     process.env.EXPO_PUBLIC_SUPPORT_DISCORD_INVITE ||
-    'https://discord.gg/ordorealitas',
+    'https://discord.gg/vPCZzr2wFR',
   discordHandle:
     process.env.EXPO_PUBLIC_SUPPORT_DISCORD_HANDLE || 'lecrepus17',
   discordWebhookUrl:
