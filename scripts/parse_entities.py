@@ -1441,6 +1441,80 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                     ):
                         add_item(book_id, book_title, pno, m.group(1), m.group(2), subcat)
 
+    # 6F. Livro Base Special Cursed Items (pages 158-161 on v1.3 or 148-151 on v1.1)
+    if lb:
+        lb_special_items = [
+            ("Coração Pulsante", "Sangue", 158, "II", "1"),
+            ("Coroa de Espinhos", "Sangue", 158, "II", "1"),
+            ("Frasco de Vitalidade", "Sangue", 158, "II", "1"),
+            ("Pérola de Sangue", "Sangue", 158, "II", "1"),
+            ("Punhos Enraivecidos", "Sangue", 158, "II", "1"),
+            ("Seringa de Transfiguração", "Sangue", 158, "II", "1"),
+            ("Amarras Mortais", "Morte", 158, "II", "1"),
+            ("Casaco de Lodo", "Morte", 159, "II", "1"),
+            ("Coletora", "Morte", 159, "II", "1"),
+            ("Crânio Espiral", "Morte", 159, "II", "1"),
+            ("Frasco de Lodo", "Morte", 159, "II", "1"),
+            ("Vislumbre do Fim", "Morte", 159, "II", "1"),
+            ("Anéis do Elo Mental", "Conhecimento", 159, "II", "1"),
+            ("Lanterna Reveladora", "Conhecimento", 159, "II", "1"),
+            ("Máscara das Pessoas nas Sombras", "Conhecimento", 159, "II", "1"),
+            ("Munição Jurada", "Conhecimento", 160, "II", "1"),
+            ("Pergaminho da Pertinácia", "Conhecimento", 160, "II", "1"),
+            ("Arcabuz dos Moretti", "Energia", 160, "II", "1"),
+            ("Bateria Reversa", "Energia", 160, "II", "1"),
+            ("Peitoral da Segunda Chance", "Energia", 160, "II", "1"),
+            ("Relógio de Arnaldo", "Energia", 160, "II", "1"),
+            ("Talismã da Sorte", "Energia", 160, "II", "1"),
+            ("Teclado de Conexão Neural", "Energia", 160, "II", "1"),
+            ("Tela do Pesadelo", "Energia", 161, "II", "1"),
+            ("Veículo Energizado", "Energia", 161, "II", "1"),
+            ("Jaqueta de Veríssimo", "Medo", 161, "IV", "2"),
+            ("Dedo Decepado", "Variável", 161, "II", "1"),
+            ("Selos Paranormais", "Variável", 161, "Variável", "1"),
+        ]
+        lb_pages = {p["pageNumber"]: p["text"] for p in lb.get("pages", [])}
+        is_v13 = len(lb.get("pages", [])) >= 330
+        page_range = range(158, 162) if is_v13 else range(148, 152)
+        lb_cursed_text = "\n\n".join(lb_pages.get(p, "") for p in page_range)
+
+        for i, (name, el, pno_v13, cat, spc) in enumerate(lb_special_items):
+            actual_pno = pno_v13 if is_v13 else (pno_v13 - 10)
+            next_candidates = [n[0] for n in lb_special_items[i+1:i+3]] + [
+                "O PAPEL DO MESTRE", "CAPÍTULO 6", "MEDO", "CONHECIMENTO", "ENERGIA", "MORTE", "SANGUE"
+            ]
+            pat = rf"(?m)^{re.escape(name)}\s*\n([\s\S]+?)(?=(?:{'|'.join('^' + re.escape(c) for c in next_candidates)}|\Z))"
+            m = re.search(pat, lb_cursed_text)
+            desc = ""
+            if m:
+                desc = re.sub(r"\s+", " ", m.group(1)).strip()
+            if not desc or len(desc) < 25:
+                for p in page_range:
+                    if name in lb_pages.get(p, ""):
+                        actual_pno = p
+                        break
+                desc = f"Item Amaldiçoado Especial ({el}). Categoria: {cat}. Espaços: {spc}."
+
+            key = ("livro_base", name.lower())
+            if key not in seen_items:
+                seen_items.add(key)
+                items.append({
+                    "id": make_id("item", "livro_base", name),
+                    "category": "item",
+                    "subCategory": "Item Amaldiçoado Especial",
+                    "name": name,
+                    "bookId": "livro_base",
+                    "bookTitle": "Livro Base",
+                    "pageNumber": actual_pno,
+                    "element": el,
+                    "itemCategory": cat,
+                    "spaces": spc,
+                    "diceFormulas": extract_dice_formulas(desc),
+                    "summary": desc.split(".")[0].strip() + ".",
+                    "description": desc,
+                    "tags": ["Item Amaldiçoado Especial", el, "Livro Base", "Item"],
+                })
+
     return weapons, items
 
 
