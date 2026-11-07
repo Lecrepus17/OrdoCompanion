@@ -14,6 +14,7 @@ Bem-vindo à central de documentação unificada do **Ordo Companion**. Todos os
 | [**`ATUALIZACOES_PENDENTES.md`**](./ATUALIZACOES_PENDENTES.md) | Release Manager & Equipe | **Changelog Vivo & SemVer**: Registro consolidado de todas as novas features, correções e refatorações prontas para o próximo lançamento de versão. |
 | [**`COMMITS_PENDENTES.md`**](./COMMITS_PENDENTES.md) | Git Architect & Devs | **Fila e Histórico de Commits**: Mensagens padronizadas em Conventional Commits prontas para execução imediata no Git. |
 | [**`MELHORIAS_AGENTES_IA.md`**](./MELHORIAS_AGENTES_IA.md) | Engenharia de IA | **Especificação Técnica da IA**: Relatório de evolução do assistente paranormal G.L.I.T.C.H., personas das Relíquias e pipeline RAG. |
+| [**`PLANO_VIDEO_PROMOCIONAL.md`**](./PLANO_VIDEO_PROMOCIONAL.md) | IA & Divulgação | **⏳ Pendência aprovada**: Plano completo (Remotion + captura no emulador) do vídeo promocional do APK para Discord, LinkedIn e redes sociais. Executar quando o usuário pedir. |
 | [**`screenshots/`**](./screenshots/) | Todos | **Galeria de Telas Oficiais**: Capturas de tela e mockups em alta resolução utilizados na documentação e no `README.md`. |
 
 ---

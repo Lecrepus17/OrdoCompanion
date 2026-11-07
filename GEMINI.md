@@ -76,7 +76,7 @@ Qualquer agente trabalhando em regras, fichas ou compêndio deve respeitar as me
 | **IA Paranormal (G.L.I.T.C.H.)** | Prompts de sistema, personas da Ordem, injeção de contexto RAG, provedores remotos e motor offline.<br>• `src/services/ai/**`<br>• `src/types/ai.ts` | 🔮 `glitch-prompt-engineer`<br>*(Engenheiro de IA Paranormal)* | `glitch-prompt-audit` | Calibrar tom tático militar/investigativo, resiliência do modo offline (`AiOfflineEngine`), RAG enxuto com economia de tokens e estrita fidelidade sem alucinação de regras. |
 | **Pipeline de Dados & Compêndio** | Extração de PDFs oficiais (10 livros), scripts OCR/regex em Python, seeds JSON e páginas de livros.<br>• `scripts/extract_*.py`<br>• `data/compendium_seed.json` | 📚 `data-pipeline-architect`<br>*(Arquiteto de Compêndio)* | `data-pipeline-audit` | Auditar integridade referencial dos 10 suplementos oficiais (1.261 páginas), índices remissivos "Ver no Livro", busca fonética e normalização de entidades. |
 | **Compatibilidade & Runtime Android APK** | Execução no Android (.apk), empacotamento, botões físicos, hardware back press, sistema de arquivos local, Scoped Storage, expo-sharing, expo-file-system ou isolamento de APIs web/DOM.<br>• `android/**`<br>• `app.json`<br>• `eas.json`<br>• `src/utils/alert.ts`<br>• `src/utils/clipboard.ts`<br>• `src/utils/agentSharing.ts`<br>• `src/utils/sheetPrinter.ts`<br>• Exportadores de arquivos e modais nativos | 🤖 `android-apk-guardian`<br>*(Guardião de Compatibilidade Android APK)* | `android-apk-audit` | Auditar código contra vazamento de globais de browser (`window`, `document`, `navigator`); assegurar interceptação de `BackHandler` em modais e sub-telas; validar integridade de I/O em disco e compartilhamento via `expo-sharing` e estabilidade de layout/teclado no Android. |
-| **Triagem em Lote de Prints de Problemas** | Capturas de tela salvas na pasta `docs/imagens dos problemas/` com o título do arquivo descrevendo o erro encontrado no celular.<br>• `docs/imagens dos problemas/*.{png,jpg,jpeg,webp}` | 📸 Orquestrador Multi-Domínio<br>*(UI + APK + Sync + IA + Regras)* | `screenshot-bug-triage` | Inspecionar cada print e seu nome de arquivo, rotear para os agentes especializados correspondentes, corrigir todos os erros, validar testes, limpar as imagens processadas da pasta e atualizar a governança. |
+| **Triagem em Lote de Prints de Problemas** | Capturas de tela salvas na pasta `docs/imagensDosProblemas/` com o título do arquivo descrevendo o erro encontrado no celular.<br>• `docs/imagensDosProblemas/*.{png,jpg,jpeg,webp}` | 📸 Orquestrador Multi-Domínio<br>*(UI + APK + Sync + IA + Regras)* | `screenshot-bug-triage` | Inspecionar cada print e seu nome de arquivo, rotear para os agentes especializados correspondentes, corrigir todos os erros, validar testes, limpar as imagens processadas da pasta e atualizar a governança. |
 | **Testes, Lógica & Integridade** | Qualquer alteração de código, correção de bugs, refatoração de utilitários ou mudanças nos JSONs do compêndio.<br>• `tests/**`<br>• `scripts/test_database_integrity.py`<br>• `src/types/**` | 🧪 `qa-reliability-engineer`<br>*(QA & Integridade)* | `run-suite` | Aplicar Smart Testing Gates (`npm run test:rules`, `npm run test:front`, `npm run test:sync` ou `npm run test:all`), garantindo `typecheck` e ausência de regressões. |
 | **Finalização de Recurso & Publicação de Release** | Conclusão de funcionalidades ou pedido para preparar/subir nova versão.<br>• `scripts/create_release.js`<br>• `docs/ATUALIZACOES_PENDENTES.md`<br>• `docs/RELEASE_NOTES.md`<br>• `version.json`, `app.json`, `package.json` | 📋 `release-manager`<br>*(Gerente de Releases)* | `update-recorder` | Atualizar `docs/ATUALIZACOES_PENDENTES.md`, classificar SemVer e, ao preparar release, rodar `npm run test:all` + `npm run release`, gerando `docs/RELEASE_NOTES.md` (copiado automaticamente para o Clipboard `Ctrl+V`) e exibindo o texto pronto para o GitHub Releases. |
 | **Registro de Commits Git** | Finalização do ciclo de trabalho e preparação para persistir alterações no Git. | 🎯 `git-commit-architect`<br>*(Arquiteto de Commits)* | `commit-generator` | Inspecionar `git status`, redigir mensagem semântica (Conventional Commits) e atualizar `docs/COMMITS_PENDENTES.md` com comando pronto de terminal. |
@@ -155,17 +155,17 @@ Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução 
 * **Configuração**: `TypeName: "self"`, `Role: "Android APK Auditor"`, `Prompt: "Audite todos os módulos modificados contra a skill android-apk-audit, verificando BackHandler, chamadas a window/document/navigator e operações de disco nativas..."`.
 * **Benefício**: Garante que funcionalidades novas não quebrem no dispositivo móvel em produção sem travar a thread de UI.
 
-#### 📸 Padrão 5: Triagem em Lote de Prints de Problemas (`docs/imagens dos problemas/`)
-* **Cenário**: O desenvolvedor acumula capturas de tela do celular na pasta `docs/imagens dos problemas/` (ignorada no `.gitignore`), onde o nome de cada arquivo descreve o erro encontrado.
+#### 📸 Padrão 5: Triagem em Lote de Prints de Problemas (`docs/imagensDosProblemas/`)
+* **Cenário**: O desenvolvedor acumula capturas de tela do celular na pasta `docs/imagensDosProblemas/` (ignorada no `.gitignore`), onde o nome de cada arquivo descreve o erro encontrado.
 * **Skill Vinculada**: `.agents/skills/screenshot-bug-triage/SKILL.md`
 * **Fluxo Automático**:
-  1. Inspecionar todas as imagens em `docs/imagens dos problemas/` (`read_file`) cruzando o título do arquivo com o componente visual exibido.
+  1. Inspecionar todas as imagens em `docs/imagensDosProblemas/` (`read_file`) cruzando o título do arquivo com o componente visual exibido.
   2. Rotear cada problema para o especialista do domínio (`mobile-ui-expert`, `android-apk-guardian`, `sync-offline-guardian`, `glitch-prompt-engineer`, `rpg-rules-expert`).
   3. Implementar as correções, validar com `npm run typecheck` e testes automatizados, **excluir as imagens já resolvidas da pasta** (mantendo a pasta pronta para o próximo lote) e atualizar a governança.
 * **Prompt Padrão (Direto)**:
-  > `Processe e corrija todos os problemas da pasta docs/imagens dos problemas seguindo a skill screenshot-bug-triage. Ao finalizar e validar nos testes, limpe as imagens processadas da pasta.`
+  > `Processe e corrija todos os problemas da pasta docs/imagensDosProblemas seguindo a skill screenshot-bug-triage. Ao finalizar e validar nos testes, limpe as imagens processadas da pasta.`
 * **Prompt Padrão (Multi-Agente `/teamwork`)**:
-  > `/teamwork [skip-interview] Processe e resolva todos os problemas documentados nos prints em docs/imagens dos problemas (onde o nome de cada arquivo descreve o erro). Inspecione as imagens, distribua para os agentes especializados (mobile-ui-expert, android-apk-guardian, sync-offline-guardian, glitch-prompt-engineer, rpg-rules-expert), valide com npm run typecheck e testes automatizados, limpe as imagens da pasta após corrigir e atualize a governança.`
+  > `/teamwork [skip-interview] Processe e resolva todos os problemas documentados nos prints em docs/imagensDosProblemas (onde o nome de cada arquivo descreve o erro). Inspecione as imagens, distribua para os agentes especializados (mobile-ui-expert, android-apk-guardian, sync-offline-guardian, glitch-prompt-engineer, rpg-rules-expert), valide com npm run typecheck e testes automatizados, limpe as imagens da pasta após corrigir e atualize a governança.`
 
 ---
 
@@ -282,3 +282,14 @@ Executado **automaticamente** pelos agentes `release-manager` e `git-commit-arch
 2. **Atualizar `docs/COMMITS_PENDENTES.md`** (via skill `commit-generator`):
    * Gerar o título e a descrição padronizada no formato Conventional Commits.
    * Incluir o comando pronto `git add <arquivos-específicos> && git commit -m ...` apenas com os arquivos da demanda para o desenvolvedor.
+
+---
+
+## 7. Pendências Aprovadas (Backlog para Execução Futura)
+
+> [!IMPORTANT]
+> Os itens abaixo **já foram planejados e aprovados** pelo usuário. Quando ele pedir algum deles, **não replaneje do zero**: leia o documento vinculado e execute seguindo as instruções e decisões registradas lá.
+
+| Pendência | Gatilhos do Usuário | Documento do Plano | Status |
+| :--- | :--- | :--- | :--- |
+| 🎬 **Vídeo Promocional do APK** (Remotion + captura no emulador, música, textos animados, saídas 16:9 / 9:16 / Discord) | "faz o vídeo", "vídeo promocional", "vídeo do apk", "vídeo para LinkedIn/Discord" | [`docs/PLANO_VIDEO_PROMOCIONAL.md`](docs/PLANO_VIDEO_PROMOCIONAL.md) | ⏳ Pendente |

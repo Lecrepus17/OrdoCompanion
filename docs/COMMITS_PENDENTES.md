@@ -6,11 +6,43 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento — todas as etapas foram comitadas com sucesso).*
+*(Nenhum commit pendente no momento — todas as frentes foram comitadas).*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 1. Plano do Vídeo Promocional e Governança Consolidada:
+```bash
+git add docs/PLANO_VIDEO_PROMOCIONAL.md docs/README.md GEMINI.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "docs(marketing): registra plano aprovado do video promocional do apk e atualiza governanca" \
+  -m "- Cria docs/PLANO_VIDEO_PROMOCIONAL.md com roteiro, decisoes do usuario, estrutura Remotion e captura hibrida via emulador" \
+  -m "- Adiciona secao Pendencias Aprovadas no GEMINI.md e padroniza pasta docs/imagensDosProblemas" \
+  -m "- Indexa o plano em docs/README.md e atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
+### ✅ 2. Blindagem de Segurança do Webhook do Discord (Proxy Supabase), Ofuscação de Chaves e Limpeza do Git (`c84194c`):
+```bash
+git add eas.json .env.example scripts/obfuscate_secrets.js src/utils/secretObfuscator.ts supabase/functions/support-webhook/index.ts supabase/migrations/20261107_support_tickets_security.sql tests/supportService.test.ts
+git commit -m "feat(security): implementa proxy supabase para webhook, ofuscacao de chaves e protecao anti-spam" \
+  -m "- Remove chaves de API, senha mestre e URL do Discord Webhook em texto claro do eas.json" \
+  -m "- Cria utilitario secretObfuscator.ts e CLI scripts/obfuscate_secrets.js (formato obf:v1: com XOR + Base64)" \
+  -m "- Implementa Supabase Edge Function (support-webhook) e migracao RLS com validacao de assinatura X-Ordo-Signature e rate limit por IP" \
+  -m "- Adiciona testes unitarios de seguranca em tests/supportService.test.ts"
+```
+
+### ✅ 3. Resolução dos 18 Problemas Reportados nos Prints (`19ec0b0`):
+```bash
+git add package.json .gitignore .agents/skills/screenshot-bug-triage/SKILL.md docs/HISTORICO_RELEASES.md src/app/oauthredirect.tsx src/app/_layout.tsx src/app/(tabs)/books.tsx src/app/(tabs)/characters.tsx src/app/(tabs)/dice.tsx src/app/(tabs)/oracle.tsx src/components/AiConfigModal.tsx src/components/PdfViewerModal.tsx src/components/SupportCenterView.tsx src/components/UpdateNotificationModal.tsx src/components/UserProfileModal.tsx src/repositories/OfflineDataRepository.ts src/services/ai/AiClient.ts src/services/ai/GlitchVoiceService.ts src/services/cardImage/cardDataExtractor.ts src/services/cardImage/cardExportService.ts src/services/cardImage/svgCardRenderer.ts src/services/pdf/PdfAccessService.ts src/services/support/SupportService.ts src/services/support/types.ts src/services/updates/UpdateCheckerService.ts src/types/compendium.ts src/utils/dice.ts tests/compendiumSearchRanking.test.ts tests/criticalDamageRules.test.ts tests/dicePresets.test.ts tests/pdfViewerModes.test.tsx tests/cardLayoutAlignment.test.ts tests/supportAndUpdates.test.ts tests/glitchResilience.test.ts tests/m1ChallengerStress.test.tsx tests/m1EdgeCaseCompatibility.test.tsx TEST_READY.md
+git commit -m "feat(mobile): resolve os 18 problemas de interface, leitor pdf, busca, dados, critico e cards reportados nos prints" \
+  -m "- Implementa leitor de PDF/texto com modo duplo, rolagem continua em FlatList e fallback resiliente (Features 11, 12, 13, 14)" \
+  -m "- Adiciona algoritmo aditivo de relevancia e ranqueamento na busca do compendio priorizando correspondencia exata e prefixos (Feature 10)" \
+  -m "- Implementa selecao de calculo de dano critico (dados, dano, maximo, perguntar), atalho para armaria e presets customizados de dados no AsyncStorage (Features 15, 16, 17)" \
+  -m "- Adiciona exportacao real de imagens PNG/SVG nativas via expo-sharing, alinhamento de subtitulo e desduplicacao de resumo nos cards (Features 18, 19, 20)" \
+  -m "- Implementa rota /oauthredirect para retorno de login Google, download resiliente de APK com fallback para releases, convite permanente do Discord e transparencia de tickets ORD- (Features 1, 2, 3, 4)" \
+  -m "- Melhora IA GLITCH com sanitizacao Gemini, fallback Groq 8B, sintese TTS defensiva, feedback STT gracioso e ScrollView no topo do Oraculo (Features 5, 6, 7, 8, 9)" \
+  -m "- Remove 100% dos prints resolvidos em docs/imagensDosProblemas/ e adiciona 7 suites E2E (133 testes)"
+```
 
 ### ✅ 1. Selo Latest Automático nas Releases do GitHub:
 ```bash
@@ -91,7 +123,7 @@ git commit -m "fix(mobile): resolve os 22 problemas de ui, apk, pdf, sync drive,
   -m "- Ajusta deep-link do Discord, modal de configuracoes do desenvolvedor/webhook, cabecalho do menu de suporte e compactacao global em modo paisagem (Problemas 1, 2, 17, 19)" \
   -m "- Implementa tombstones deletedDynamicBookIds no SmartMergeEngine e OfflineDataRepository impedindo retorno de PDFs excluidos ao sincronizar com o Drive (Problema 13)" \
   -m "- Adiciona suite E2E automatizada em tests/e2e_issues_suite.test.ts (39 testes cobrindo os 22 problemas, 100% aprovados)" \
-  -m "- Configura fluxo continuo de triagem de prints em docs/imagens dos problemas no .gitignore, GEMINI.md e skill screenshot-bug-triage" \
+  -m "- Configura fluxo continuo de triagem de prints em docs/imagensDosProblemas no .gitignore, GEMINI.md e skill screenshot-bug-triage" \
   -m "- Atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
 ```
 
