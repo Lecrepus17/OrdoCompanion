@@ -1,12 +1,12 @@
 # 📋 Atualizações Pendentes para o Próximo Release
 
-> **Versão Atual**: `1.2.0-beta.2`  
-> **Versão Sugerida**: `1.3.0-beta.1` (Motivo: [Minor] Atualização para o Livro Base oficial v1.3 com 1.645 entidades, 28 Itens Amaldiçoados Especiais integrados, resolução completa dos 22 problemas mobile/APK/UI/Sync/IA e sistema de dano crítico flexível)  
-> **Última Atualização**: 2026-11-06 22:12
+> **Versão Atual**: `1.3.0-beta.1` (Android `versionCode: 5`)  
+> **Versão Sugerida**: `1.3.0-beta.2` (Ciclo aberto para o próximo lote de melhorias após publicação da v1.3.0-beta.1)  
+> **Última Atualização**: 2026-11-06 22:25
 
 ---
 
-## 🚀 Resumo do Próximo Release v1.3.0-beta.1 (Changelog de Usuário)
+## 🚀 Resumo do Release Preparado v1.3.0-beta.1 (Changelog de Usuário)
 
 * **Livro de Regras Base Atualizado para a Versão Oficial 1.3 (332 páginas)**:
   * **Índice e Regras Expandidos**: Compêndio ampliado para **1.645 entidades únicas** no total, incluindo **606 regras e mecânicas oficiais** indexadas diretamente do Sumário expandido da v1.3.
@@ -78,10 +78,12 @@
 - `src/utils/sheetPrinter.ts` & `src/services/virtualTable/tableSessionExportService.ts`: Blindagem dupla contra vazamento de `window.open` e `document.createElement`, com impressão e compartilhamento via `expo-print`, `expo-sharing` e `Share.share`.
 - `docs/PLANO_COMPATIBILIDADE_ANDROID_APK.md`: Registro de 100% de paridade, conclusão dos passos de BackHandler, Clipboard e PDF/Impressão e compilação de 1.392 módulos Hermes.
 
-### 🧪 Testes Automatizados (582 testes passando - 100% de sucesso)
+### 🧪 Testes Automatizados (690 testes passando em 151 suítes - 100% de sucesso)
+- `tests/e2e_issues_suite.test.ts`: 39 testes E2E cobrindo todas as 22 correções de prints mobile, UI, APK, PDF, Sync Drive e Voz/IA.
+- `tests/pageAnnotations.test.ts` & `tests/pageAnnotationOverlay.test.tsx`: Testes unitários e de componente para anotações desenhadas em páginas de livros (Tablet/Stylus).
 - `tests/clipboard.test.ts`: 6 testes unitários cobrindo cópia e leitura Web, simulação de Hermes Android, Share.share nativo e tolerância a falhas.
 - `tests/backHandlerNavigation.test.tsx`: 4 testes cobrindo consumo de evento de hardware, recuo de etapas em modais multi-passo e hierarquia de campanhas no Android.
-- `tests/databaseIntegrity.test.ts` & `scripts/test_database_integrity.py`: Validação de 1.617 entidades e integridade referencial dos 10 suplementos.
+- `tests/databaseIntegrity.test.ts` & `scripts/test_database_integrity.py`: Validação de 1.645 entidades únicas (incluindo os 28 Itens Amaldiçoados Especiais) e integridade referencial dos 10 suplementos.
 - `tests/levelUpModal.test.tsx`: Asserção de habilidades de trilha de NEX 65% atualizada conforme progressão canônica.
 - `tests/compendiumPdfIntegration.test.tsx`: Índice da seção "Mecânica Básica" atualizado para a folha 19 da v1.3.
 - `tests/dice.test.ts`: 20 testes de cálculo de dano crítico determinístico e alternativo.
@@ -99,7 +101,7 @@
 - `tests/tabNavigation.test.ts`: 11 testes cobrindo navegação canônica, menu Mais e migração de perfis legados.
 - `tests/pdfOutOfMemoryPrevention.test.tsx`: 3 testes cobrindo prevenção de OOM e streaming de disco.
 - `tests/compendiumPdfIntegration.test.tsx`: 5 testes cobrindo badges de páginas referentes e visualizador in-app.
-- Suíte completa verificada com `npm run test:all`: **491 testes aprovados em 112 suítes, 0 falhas, 0 pendências**, e 1.371 entidades validadas em `test_database_integrity.py`.
+- Suíte completa verificada com `npm run test:all`: **690 testes aprovados em 151 suítes, 0 falhas, 0 pendências**, e **1.645 entidades** validadas em `test_database_integrity.py`.
 
 ---
 

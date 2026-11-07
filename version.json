@@ -1,12 +1,16 @@
 {
-  "version": "1.2.0-beta.2",
+  "version": "1.3.0-beta.1",
   "minVersion": "1.0.0-beta.1",
-  "releaseName": "Ordo Companion v1.2.0-beta.2",
-  "releaseDate": "2026-11-02",
-  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.2.0-beta.2",
-  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.2.0-beta.2/OrdoCompanion.apk",
+  "releaseName": "Ordo Companion v1.3.0-beta.1",
+  "releaseDate": "2026-11-07",
+  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.3.0-beta.1",
+  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.3.0-beta.1/OrdoCompanion.apk",
   "changelog": [
-    "Recalculo automatico de vitais, voz no GLITCH e exportacao de sessao"
+    "Livro Base v1.3 (1.645 entidades e 28 Itens Amaldiçoados Especiais)",
+    "Anotações desenhadas em páginas de livros (Tablet/Stylus)",
+    "Modos de Dano Crítico flexível e Crítico Máximo",
+    "Compatibilidade 100% Android APK (BackHandler e Clipboard universal)",
+    "Resolução completa dos 22 problemas Mobile, PDF, Sync Drive e Voz nativa no G.L.I.T.C.H."
   ],
   "forceUpdate": false
 }

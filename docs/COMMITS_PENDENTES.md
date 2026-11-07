@@ -12,6 +12,17 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### 1. Preparação da Release v1.3.0-beta.1 (versionCode 5):
+```bash
+git add package.json app.json version.json docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "chore(release): prepara versao v1.3.0-beta.1 (versionCode 5)" \
+  -m "- Atualiza versao em package.json, app.json e version.json para 1.3.0-beta.1" \
+  -m "- Incrementa android.versionCode de 4 para 5 em app.json" \
+  -m "- Sincroniza manifesto version.json com URLs da release v1.3.0-beta.1 e changelog consolidado" \
+  -m "- Atualiza registros de governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+git tag v1.3.0-beta.1
+```
+
 ### 1. Resolução Completa dos 22 Problemas de UI Mobile, APK, PDF, Sincronização Drive, IA G.L.I.T.C.H. e Fluxo de Prints:
 ```bash
 git add .gitignore GEMINI.md .agents/skills/screenshot-bug-triage/SKILL.md src/services/ai/AiClient.ts src/services/ai/AiKnowledgeRetrieval.ts src/services/ai/AiOfflineEngine.ts src/services/ai/GlitchVoiceService.ts src/app/(tabs)/oracle.tsx src/components/AiConfigModal.tsx src/components/PdfViewerModal.tsx src/utils/pdfUrl.ts src/app/(tabs)/books.tsx src/app/(tabs)/characters.tsx src/components/PrintSheetModal.tsx src/components/cardImage/RecordImageExportModal.tsx src/services/cardImage/cardExportService.ts src/services/support/SupportService.ts src/services/support/types.ts src/components/SupportCenterView.tsx src/app/(tabs)/_layout.tsx src/components/CustomBottomTabBar.tsx src/repositories/OfflineDataRepository.ts src/services/sync/SmartMergeEngine.ts src/context/AppContext.tsx tests/pdfUrl.test.ts tests/pdfViewer.test.ts tests/e2e_issues_suite.test.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
