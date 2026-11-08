@@ -164,6 +164,16 @@ export const mockShareCalls: Array<{ url: string; options?: any }> = [];
 export function clearMockShareCalls() {
   mockShareCalls.length = 0;
 }
+
+export const mockContentUriCalls: string[] = [];
+export let mockContentUriThrows = false;
+export function setMockContentUriThrows(throwsError: boolean) {
+  mockContentUriThrows = throwsError;
+}
+export function clearMockContentUriCalls() {
+  mockContentUriCalls.length = 0;
+  mockContentUriThrows = false;
+}
 dom.window.alert = (msg: string) => {
   mockWindowAlerts.push(String(msg));
 };
@@ -178,6 +188,12 @@ export const mockAlertCalls: Array<{ title: string; message?: string; buttons?: 
 export function clearMockAlerts() {
   mockAlertCalls.length = 0;
   mockWindowAlerts.length = 0;
+}
+
+// Mock PDF Reader state for tests
+export const mockPdfInstances: Array<{ props: any; ref: any }> = [];
+export function clearMockPdfInstances(): void {
+  mockPdfInstances.length = 0;
 }
 
 // Mock Router for Expo Router
@@ -330,6 +346,15 @@ Module.prototype.require = function (id: string) {
         }
         return Array.from(entries);
       },
+      getContentUriAsync: async (uri: string) => {
+        mockContentUriCalls.push(uri);
+        if (mockContentUriThrows) {
+          throw new Error('Simulated SecurityException on Android');
+        }
+        return uri.startsWith('file://')
+          ? uri.replace('file://', 'content://com.ordocompanion.fileprovider')
+          : uri;
+      },
     };
   }
   if (id === 'expo-document-picker') {
@@ -404,6 +429,87 @@ Module.prototype.require = function (id: string) {
       MaterialCommunityIcons: IconStub,
     };
   }
+  if (id === 'react-native-blob-util') {
+    const mockBlobUtil = {
+      fs: {
+        dirs: {
+          MainBundleDir: '/mock/main-bundle',
+          CacheDir: 'file:///mock-cache/',
+          DocumentDir: 'file:///mock-documents/',
+          DownloadDir: 'file:///mock-downloads/',
+        },
+        exists: async (_path: string) => true,
+        stat: async (_path: string) => ({ size: 1024 }),
+        unlink: async (_path: string) => {},
+        cp: async (_src: string, _dest: string) => {},
+        mv: async (_src: string, _dest: string) => {},
+        mkdir: async (_path: string) => {},
+        readFile: async (_path: string, _encoding?: string) => '',
+        writeFile: async (_path: string, _data: any, _encoding?: string) => {},
+      },
+      fetch: async () => ({
+        info: () => ({ status: 200 }),
+        path: () => 'file:///mock-cache/downloaded.pdf',
+        readFile: async () => '',
+      }),
+      config: () => ({
+        fetch: async () => ({
+          info: () => ({ status: 200 }),
+          path: () => 'file:///mock-cache/downloaded.pdf',
+          readFile: async () => '',
+        }),
+      }),
+      wrap: (path: string) => path,
+    };
+    (mockBlobUtil as any).default = mockBlobUtil;
+    (mockBlobUtil as any).ReactNativeBlobUtil = mockBlobUtil;
+    (mockBlobUtil as any).__esModule = true;
+    return mockBlobUtil;
+  }
+  if (id === 'react-native-pdf') {
+    const React = require('react');
+    const { View } = require('react-native-web');
+    const MockPdf = React.forwardRef((props: any, ref: any) => {
+      React.useImperativeHandle(ref, () => ({
+        setPage: (page: number) => {
+          props.onPageChanged?.(page, props.numberOfPages || 100);
+        },
+      }));
+
+      React.useEffect(() => {
+        mockPdfInstances.push({ props, ref });
+        const rawUri = props.source?.uri || (typeof props.source === 'string' ? props.source : props.uri);
+        if (!rawUri) return;
+        const uri = String(rawUri);
+        if (uri.includes('invalid') || uri.includes('error') || uri.includes('fail')) {
+          props.onError?.(new Error(`Mock PDF Load Error for uri: ${uri}`));
+        } else if (props.onLoadComplete) {
+          props.onLoadComplete(props.numberOfPages || 100, uri);
+        }
+      }, [props.source?.uri, props.uri]);
+
+      return React.createElement(
+        View,
+        {
+          testID: props.testID || 'native-pdf-reader',
+          style: props.style,
+          onError: props.onError,
+          onPageChanged: props.onPageChanged,
+          onLoadComplete: props.onLoadComplete,
+          source: props.source,
+          page: props.page,
+          horizontal: props.horizontal,
+          enablePaging: props.enablePaging,
+        },
+        props.children
+      );
+    });
+    MockPdf.displayName = 'MockPdf';
+    (MockPdf as any).default = MockPdf;
+    (MockPdf as any).Pdf = MockPdf;
+    (MockPdf as any).__esModule = true;
+    return MockPdf;
+  }
   // eslint-disable-next-line prefer-rest-params
   return originalRequire.apply(this, arguments as unknown as [id: string]);
 };
@@ -432,5 +538,8 @@ export function resetMockStorage(): void {
   clearMockFileSystem();
   seedDefaultUnlockedBooksForTest();
   clearMockAlerts();
+  clearMockShareCalls();
+  clearMockContentUriCalls();
+  clearMockPdfInstances();
   mockRouter.reset();
 }

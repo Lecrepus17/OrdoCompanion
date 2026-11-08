@@ -5,6 +5,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -15,13 +16,15 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { BookInfo } from '../types/compendium';
 import { AnnotationStroke, AnnotationToolType } from '../types/annotations';
-import { confirmAction } from '../utils/alert';
+import { confirmAction, showAlert } from '../utils/alert';
 import { localPdfStorage, slugifyPdfName } from '../services/pdf/PdfAccessService';
 import { GoogleDriveService } from '../services/sync/GoogleDriveService';
 import { pageAnnotationsService } from '../services/annotations/pageAnnotationsService';
@@ -35,6 +38,12 @@ import {
   isPdfServerConfigured,
   openPdfDocument,
 } from '../utils/pdfUrl';
+import {
+  NativePdfReader,
+  NativePdfReaderRef,
+  isNativePdfReaderAvailable,
+} from './pdf/NativePdfReader';
+import { resolveNativePdfUri } from '../utils/nativePdfSource';
 
 export type PdfViewerMode = 'pdf_scroll' | 'pdf_page' | 'pdf_native' | 'text';
 
@@ -678,14 +687,198 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const isScrollingProgrammatically = useRef<boolean>(false);
   const [textLayout, setTextLayout] = useState<'scroll' | 'page'>('scroll');
 
+  // Estados e ref para o leitor de PDF nativo offline (Android / iOS)
+  const [nativePdfUri, setNativePdfUri] = useState<string | null>(null);
+  const [isResolvingNativePdf, setIsResolvingNativePdf] = useState<boolean>(false);
+  const [nativePdfFailed, setNativePdfFailed] = useState<boolean>(false);
+  const [totalNativePages, setTotalNativePages] = useState<number | null>(null);
+  const nativeReaderRef = useRef<NativePdfReaderRef>(null);
+  const hasInitialNativeLoadRef = useRef<boolean>(false);
+
+  const useNativeReader = Boolean(
+    Platform.OS !== 'web' &&
+    isNativePdfReaderAvailable &&
+    nativePdfUri &&
+    !nativePdfFailed &&
+    (viewMode === 'pdf_scroll' || viewMode === 'pdf_page' || viewMode === 'pdf_native')
+  );
+
   const totalPages = Math.max(1, book?.pageCount || 1);
-  const safeCurrentPage = Math.max(1, Math.min(totalPages, currentPage || 1));
+  const effectiveTotalPages = totalNativePages && totalNativePages > 0 ? totalNativePages : totalPages;
+  const safeCurrentPage = Math.max(1, Math.min(effectiveTotalPages, currentPage || 1));
   const currentPageRef = useRef<number>(safeCurrentPage);
   const prevZoomRef = useRef<number>(zoom);
 
   useEffect(() => {
     currentPageRef.current = safeCurrentPage;
   }, [safeCurrentPage]);
+
+  // Resolução da URI local do PDF nativo em plataformas móveis
+  useEffect(() => {
+    if (!visible || !book || Platform.OS === 'web') {
+      setNativePdfUri(null);
+      setIsResolvingNativePdf(false);
+      setNativePdfFailed(false);
+      setTotalNativePages(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsResolvingNativePdf(true);
+    setNativePdfFailed(false);
+
+    resolveNativePdfUri(book)
+      .then((resolvedUri) => {
+        if (!isMounted) return;
+        setNativePdfUri(resolvedUri);
+        setIsResolvingNativePdf(false);
+        if (!resolvedUri && !isPdfServerConfigured() && (viewMode === 'pdf_scroll' || viewMode === 'pdf_page' || viewMode === 'pdf_native')) {
+          setViewMode('text');
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn('[PdfViewerModal] Erro ao resolver URI do PDF nativo:', err);
+        setNativePdfUri(null);
+        setNativePdfFailed(true);
+        setIsResolvingNativePdf(false);
+        if (!isPdfServerConfigured()) {
+          setViewMode('text');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, book?.id, book?.fileName]);
+
+  // Abertura segura de PDF externo (Android Scoped Storage / Content URI / Web)
+  const handleOpenExternalPdf = useCallback(async () => {
+    if (!book) return;
+
+    // 1. Tenta abrir o arquivo local offline do dispositivo via Sharing ou Linking
+    let fileUri = nativePdfUri;
+    if (!fileUri && Platform.OS !== 'web') {
+      try {
+        fileUri = await resolveNativePdfUri(book);
+      } catch {}
+    }
+
+    if (fileUri && Platform.OS !== 'web') {
+      try {
+        let shareUri = fileUri;
+        // No Android, converte file:// para content:// via FileSystem para evitar FileUriExposedException
+        if (
+          Platform.OS === 'android' &&
+          shareUri.startsWith('file://') &&
+          typeof (FileSystem as any)?.getContentUriAsync === 'function'
+        ) {
+          try {
+            shareUri = await (FileSystem as any).getContentUriAsync(shareUri);
+          } catch (contentUriError) {
+            console.warn('[PdfViewerModal] getContentUriAsync falhou, usando fileUri:', contentUriError);
+            shareUri = fileUri;
+          }
+        }
+
+        const canShare = await Sharing.isAvailableAsync().catch(() => false);
+        if (canShare) {
+          await Sharing.shareAsync(shareUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: `Abrir ${book.title}`,
+            UTI: 'com.adobe.pdf',
+          });
+          return;
+        }
+
+        const canOpen = await Linking.canOpenURL(shareUri).catch(() => false);
+        if (canOpen) {
+          await Linking.openURL(shareUri);
+          return;
+        }
+      } catch (shareErr) {
+        console.warn('[PdfViewerModal] Erro ao abrir PDF local com visualizador externo:', shareErr);
+      }
+    }
+
+    // 2. Fallback geral para openPdfDocument (Web, servidor local HTTP ou Google Drive)
+    try {
+      await openPdfDocument(book.fileName, safeCurrentPage, book.driveFileId);
+    } catch (e) {
+      console.warn('[PdfViewerModal] Falha ao abrir documento externo:', e);
+      showAlert(
+        'Não foi possível abrir o PDF',
+        'Verifique se há um aplicativo leitor de PDF instalado no dispositivo.'
+      );
+    }
+  }, [book, nativePdfUri, safeCurrentPage]);
+
+  // Callbacks para o leitor de PDF nativo
+  const handleNativePageChanged = useCallback((newPage: number, numberOfPages?: number) => {
+    if (typeof newPage === 'number' && newPage > 0 && newPage !== currentPageRef.current) {
+      setCurrentPage(newPage);
+      currentPageRef.current = newPage;
+      setPageInputText(String(newPage));
+    }
+    if (typeof numberOfPages === 'number' && numberOfPages > 0) {
+      setTotalNativePages(numberOfPages);
+    }
+  }, []);
+
+  const handleNativeLoadComplete = useCallback((numberOfPages: number, _filePath: string) => {
+    if (numberOfPages > 0) {
+      setTotalNativePages(numberOfPages);
+    }
+    if (currentPageRef.current > 1 && nativeReaderRef.current) {
+      try {
+        nativeReaderRef.current.setPage(currentPageRef.current);
+      } catch {}
+    }
+  }, []);
+
+  // Ajusta a página inicial caso o PDF nativo possua mais páginas que o metadado inicial do livro
+  useEffect(() => {
+    if (visible && book && totalNativePages && totalNativePages > 0 && !hasInitialNativeLoadRef.current) {
+      hasInitialNativeLoadRef.current = true;
+      if (initialPage && initialPage > (book.pageCount || 1)) {
+        const reclamped = Math.max(1, Math.min(totalNativePages, Math.round(initialPage)));
+        setCurrentPage(reclamped);
+        currentPageRef.current = reclamped;
+        setPageInputText(String(reclamped));
+        if (nativeReaderRef.current) {
+          try {
+            nativeReaderRef.current.setPage(reclamped);
+          } catch {}
+        }
+      }
+    }
+  }, [visible, book, totalNativePages, initialPage]);
+
+  const handleNativeError = useCallback(
+    (error: any) => {
+      console.warn('[PdfViewerModal] Erro no leitor de PDF nativo:', error);
+      setNativePdfFailed(true);
+      setViewMode('text');
+      confirmAction({
+        title: 'Falha na Leitura do PDF',
+        message:
+          'Não foi possível renderizar o arquivo PDF no leitor integrado. Deseja abrir em um aplicativo externo?',
+        confirmText: 'Abrir no Celular',
+        cancelText: 'Ler Texto Oficial',
+        onConfirm: () => {
+          handleOpenExternalPdf();
+        },
+      });
+    },
+    [handleOpenExternalPdf]
+  );
+
+  // Garante que o modo de anotação seja desativado ao engajar o leitor nativo
+  useEffect(() => {
+    if (useNativeReader && isAnnotationModeActive) {
+      setIsAnnotationModeActive(false);
+    }
+  }, [useNativeReader, isAnnotationModeActive]);
 
   const toggleMaximized = useCallback(() => {
     setIsMaximized((m) => !m);
@@ -772,11 +965,18 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   }, [book, safeCurrentPage, currentPageStrokes]);
 
   const toggleAnnotationMode = useCallback(() => {
+    if (useNativeReader) {
+      showAlert(
+        'Anotações Indisponíveis',
+        'O recurso de anotações manuscritas não está disponível durante a leitura nativa de PDF.'
+      );
+      return;
+    }
     if (!isAnnotationModeActive && viewMode === 'pdf_scroll') {
       setViewMode('pdf_page');
     }
     setIsAnnotationModeActive((prev) => !prev);
-  }, [isAnnotationModeActive, viewMode]);
+  }, [useNativeReader, isAnnotationModeActive, viewMode]);
 
   // Lista de páginas para o modo de rolagem contínua
   const pagesList = useMemo(() => {
@@ -862,13 +1062,19 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   const goToPage = useCallback(
     (target: number, animated = true) => {
       if (!book) return;
-      const clamped = Math.max(1, Math.min(book.pageCount || 1, Math.round(target)));
+      const clamped = Math.max(1, Math.min(effectiveTotalPages, Math.round(target)));
       const isFarJump = Math.abs(clamped - currentPageRef.current) > 2;
       const shouldAnimate = isFarJump ? false : animated;
 
       setCurrentPage(clamped);
       currentPageRef.current = clamped;
       setPageInputText(String(clamped));
+
+      if (useNativeReader && nativeReaderRef.current) {
+        try {
+          nativeReaderRef.current.setPage(clamped);
+        } catch {}
+      }
 
       if (viewMode === 'pdf_scroll' && flatListRef.current) {
         isScrollingProgrammatically.current = true;
@@ -885,7 +1091,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         } catch {}
       }
     },
-    [book, viewMode, scrollFlatListToPage]
+    [book, effectiveTotalPages, useNativeReader, viewMode, scrollFlatListToPage, textLayout]
   );
 
   // Preserva estritamente a página atual ao alterar o zoom
@@ -910,6 +1116,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   // Sincroniza página inicial e livro quando o modal abre
   useEffect(() => {
     if (visible && book) {
+      hasInitialNativeLoadRef.current = false;
       const hasDirectPdf = Boolean(
         book.hasLocalPdf ||
         book.localPdfAvailable ||
@@ -925,7 +1132,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
           : initialMode;
       setViewMode(targetMode);
 
-      const clamped = Math.max(1, Math.min(book.pageCount || 1, initialPage || 1));
+      const clamped = Math.max(1, Math.min(effectiveTotalPages, Math.round(initialPage || 1)));
       setCurrentPage(clamped);
       currentPageRef.current = clamped;
       setPageInputText(String(clamped));
@@ -933,6 +1140,13 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
       if (highlightTerm) {
         setInBookQuery(highlightTerm);
       }
+
+      if (useNativeReader && nativeReaderRef.current) {
+        try {
+          nativeReaderRef.current.setPage(clamped);
+        } catch {}
+      }
+
       if (targetMode === 'pdf_scroll') {
         isScrollingProgrammatically.current = true;
         setTimeout(() => {
@@ -1171,11 +1385,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     (typeof navigator !== 'undefined' &&
       /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
 
-  const handleOpenExternalPdf = useCallback(async () => {
-    if (!book) return;
-    await openPdfDocument(book.fileName, safeCurrentPage, book.driveFileId);
-  }, [book, safeCurrentPage]);
-
   const handleDownloadPdf = useCallback(async () => {
     if (!book) return;
     await downloadPdfDocument(book.fileName, book.driveFileId);
@@ -1289,7 +1498,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 )}
               </View>
               <Text style={[styles.pageSubTitle, isSmallScreen && { fontSize: 10 }]} numberOfLines={1}>
-                Página {safeCurrentPage} de {book.pageCount}
+                Página {safeCurrentPage} de {effectiveTotalPages}
                 {activePageData?.section ? ` • ${activePageData.section}` : ''}
               </Text>
             </View>
@@ -1362,26 +1571,45 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                   styles.annotationToggleBtn,
                   isNarrow && styles.annotationToggleBtnCompact,
                   isAnnotationModeActive && styles.annotationToggleBtnActive,
+                  useNativeReader && styles.btnDisabled,
                 ]}
+                disabled={useNativeReader}
                 onPress={toggleAnnotationMode}
-                accessibilityLabel="Anotar na página (Suporte a Tablet e Stylus)"
+                accessibilityLabel={
+                  useNativeReader
+                    ? 'Anotações não disponíveis no leitor nativo de PDF'
+                    : 'Anotar na página (Suporte a Tablet e Stylus)'
+                }
+                accessibilityHint={
+                  useNativeReader
+                    ? 'Recurso de anotação desativado no leitor nativo.'
+                    : undefined
+                }
+                accessibilityState={{ disabled: useNativeReader }}
               >
                 <Ionicons
                   name={isAnnotationModeActive ? 'pencil' : 'pencil-outline'}
                   size={15}
-                  color={isAnnotationModeActive ? '#FFF' : colors.primary}
+                  color={
+                    useNativeReader
+                      ? colors.textSecondary
+                      : isAnnotationModeActive
+                      ? '#FFF'
+                      : colors.primary
+                  }
                 />
                 {!isNarrow && (
                   <Text
                     style={[
                       styles.annotationToggleBtnText,
                       isAnnotationModeActive && styles.annotationToggleBtnTextActive,
+                      useNativeReader && { color: colors.textSecondary },
                     ]}
                   >
                     Anotar
                   </Text>
                 )}
-                {annotatedPages.includes(safeCurrentPage) && (
+                {annotatedPages.includes(safeCurrentPage) && !useNativeReader && (
                   <View style={styles.hasAnnotationIndicator} />
                 )}
               </TouchableOpacity>
@@ -1566,7 +1794,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               )}
             </View>
 
-            {(viewMode === 'pdf_scroll' || viewMode === 'pdf_page' || viewMode === 'text') && (
+            {!useNativeReader && (viewMode === 'pdf_scroll' || viewMode === 'pdf_page' || viewMode === 'text') && (
               <View style={styles.zoomRow}>
                 <TouchableOpacity
                   style={styles.zoomBtn}
@@ -1722,7 +1950,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         )}
 
         {/* Barra de Ferramentas de Anotação Manual / Tablet */}
-        {isAnnotationModeActive && (
+        {!useNativeReader && isAnnotationModeActive && (
           <AnnotationToolbar
             currentTool={currentTool}
             onSelectTool={setCurrentTool}
@@ -1748,29 +1976,31 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               <View style={styles.floatingBadge}>
                 <Ionicons name="document-text" size={13} color={colors.primary} />
                 <Text style={styles.floatingBadgeText}>
-                  Pág. {safeCurrentPage} / {book.pageCount}
+                  Pág. {safeCurrentPage} / {effectiveTotalPages}
                 </Text>
               </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.floatingActionBtn,
-                  isAnnotationModeActive && { backgroundColor: '#DC2626' },
-                ]}
-                onPress={toggleAnnotationMode}
-                accessibilityLabel="Anotar na página"
-              >
-                <Ionicons
-                  name={isAnnotationModeActive ? 'pencil' : 'pencil-outline'}
-                  size={16}
-                  color={isAnnotationModeActive ? '#FFF' : colors.text}
-                />
-                {!isCompact && (
-                  <Text style={styles.floatingBtnText}>
-                    {isAnnotationModeActive ? 'Anotando' : 'Anotar'}
-                  </Text>
-                )}
-              </TouchableOpacity>
+              {!useNativeReader && (
+                <TouchableOpacity
+                  style={[
+                    styles.floatingActionBtn,
+                    isAnnotationModeActive && { backgroundColor: '#DC2626' },
+                  ]}
+                  onPress={toggleAnnotationMode}
+                  accessibilityLabel="Anotar na página"
+                >
+                  <Ionicons
+                    name={isAnnotationModeActive ? 'pencil' : 'pencil-outline'}
+                    size={16}
+                    color={isAnnotationModeActive ? '#FFF' : colors.text}
+                  />
+                  {!isCompact && (
+                    <Text style={styles.floatingBtnText}>
+                      {isAnnotationModeActive ? 'Anotando' : 'Anotar'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={styles.floatingActionBtn}
@@ -1806,13 +2036,13 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
               <View style={styles.floatingPageIndicator}>
                 <Text style={styles.floatingPageIndicatorText}>
-                  {safeCurrentPage} / {book.pageCount}
+                  {safeCurrentPage} / {effectiveTotalPages}
                 </Text>
               </View>
 
               <TouchableOpacity
-                style={[styles.floatingNavBtn, safeCurrentPage >= book.pageCount && styles.btnDisabled]}
-                disabled={safeCurrentPage >= book.pageCount}
+                style={[styles.floatingNavBtn, safeCurrentPage >= effectiveTotalPages && styles.btnDisabled]}
+                disabled={safeCurrentPage >= effectiveTotalPages}
                 onPress={() => goToPage(safeCurrentPage + 1)}
                 accessibilityLabel="Próxima página"
               >
@@ -1822,8 +2052,28 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
             </View>
           )}
 
-          {/* MODO 1: ROLAGEM CONTÍNUA COM TODAS AS PÁGINAS */}
-          {viewMode === 'pdf_scroll' && (
+          {/* Leitor Nativo Android / iOS para arquivos locais */}
+          {useNativeReader ? (
+            <View style={styles.nativePdfContainer}>
+              <NativePdfReader
+                ref={nativeReaderRef}
+                key={`${book.id}_${viewMode === 'pdf_page' ? 'page' : 'scroll'}`}
+                uri={nativePdfUri!}
+                page={safeCurrentPage}
+                horizontal={viewMode === 'pdf_page'}
+                enablePaging={viewMode === 'pdf_page'}
+                onPageChanged={handleNativePageChanged}
+                onLoadComplete={handleNativeLoadComplete}
+                onError={handleNativeError}
+                backgroundColor={colors.background}
+                testID="native-pdf-reader"
+                style={styles.nativePdfView}
+              />
+            </View>
+          ) : (
+            <>
+              {/* MODO 1: ROLAGEM CONTÍNUA COM TODAS AS PÁGINAS */}
+              {viewMode === 'pdf_scroll' && (
             <FlatList
               key={`pdf_scroll_list_${book.id}`}
               ref={flatListRef}
@@ -1993,7 +2243,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 )}
 
                 {/* Camada 3: Anotações Desenhadas na Página (Tablet, Stylus e Gestos) */}
-                {Boolean(book) && (
+                {Boolean(book) && !useNativeReader && (
                   <PageAnnotationOverlay
                     bookId={book!.id}
                     pageNumber={safeCurrentPage}
@@ -2058,7 +2308,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                       <Text style={styles.textModeOfflineBadgeText}>Leitor In-App</Text>
                     </View>
                     <Text style={styles.textModePageBadge}>
-                      Pág. {safeCurrentPage} / {book.pageCount}
+                      Pág. {safeCurrentPage} / {effectiveTotalPages}
                     </Text>
                   </View>
                 </View>
@@ -2102,8 +2352,18 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               </View>
             </ScrollView>
           )}
+        </>
+      )}
 
-          {/* MODO 4: TEXTO OFICIAL (100% OFFLINE) */}
+      {/* Indicador de carregamento enquanto resolve URI nativa */}
+      {isResolvingNativePdf && Platform.OS !== 'web' && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Carregando documento PDF...</Text>
+        </View>
+      )}
+
+      {/* MODO 4: TEXTO OFICIAL (100% OFFLINE) */}
           {viewMode === 'text' && textLayout === 'scroll' && (
             <FlatList
               key={`text_scroll_list_${book.id}`}
@@ -2249,13 +2509,13 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 keyboardType="numeric"
                 selectTextOnFocus
               />
-              <Text style={styles.pageTotalLabel}>/ {book.pageCount}</Text>
+              <Text style={styles.pageTotalLabel}>/ {effectiveTotalPages}</Text>
             </View>
 
             <View style={styles.navGroup}>
               <TouchableOpacity
-                style={[styles.navBtn, safeCurrentPage >= book.pageCount && styles.btnDisabled]}
-                disabled={safeCurrentPage >= book.pageCount}
+                style={[styles.navBtn, safeCurrentPage >= effectiveTotalPages && styles.btnDisabled]}
+                disabled={safeCurrentPage >= effectiveTotalPages}
                 onPress={() => goToPage(safeCurrentPage + 1)}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
                 accessibilityLabel="Próxima página"
@@ -2269,8 +2529,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.smallJumpBtn, safeCurrentPage >= book.pageCount && styles.btnDisabled]}
-                disabled={safeCurrentPage >= book.pageCount}
+                style={[styles.smallJumpBtn, safeCurrentPage >= effectiveTotalPages && styles.btnDisabled]}
+                disabled={safeCurrentPage >= effectiveTotalPages}
                 onPress={() => goToPage(safeCurrentPage + 10, false)}
                 hitSlop={{ top: 12, bottom: 12, left: 6, right: 10 }}
                 accessibilityLabel="Avançar 10 páginas"
@@ -2804,6 +3064,17 @@ const createStyles = (colors: ThemeColors) =>
     viewportArea: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    nativePdfContainer: {
+      flex: 1,
+      width: '100%',
+      height: '100%',
+      backgroundColor: colors.background,
+    },
+    nativePdfView: {
+      flex: 1,
+      width: '100%',
+      height: '100%',
     },
     scrollListContent: {
       paddingVertical: 14,

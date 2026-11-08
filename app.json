@@ -43,7 +43,9 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
-      "expo-sharing"
+      "expo-sharing",
+      "@config-plugins/react-native-pdf",
+      "@config-plugins/react-native-blob-util"
     ],
     "experiments": {
       "typedRoutes": false

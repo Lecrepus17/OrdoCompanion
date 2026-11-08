@@ -6,16 +6,22 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### ⏳ 1. Plano de Desenvolvimento do Leitor de PDF Nativo (APK):
-```bash
-git add docs/PLANO_LEITOR_PDF_NATIVO.md docs/COMMITS_PENDENTES.md
-git commit -m "docs(pdf): adiciona plano de leitor de pdf nativo offline com react-native-pdf" \
-  -m "- Cria docs/PLANO_LEITOR_PDF_NATIVO.md com diagnostico (dependencia do servidor Metro no APK), etapas, testes e criterios de aceite"
-```
+*(Nenhum commit pendente na fila no momento)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 1. Leitor de PDF Nativo Offline no APK (`react-native-pdf`):
+```bash
+git add package.json package-lock.json app.json src/types/declarations.d.ts src/utils/nativePdfSource.ts src/components/pdf/NativePdfReader.native.tsx src/components/pdf/NativePdfReader.web.tsx src/components/pdf/NativePdfReader.tsx src/components/PdfViewerModal.tsx tests/setup.ts tests/nativePdfReader.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "feat(pdf): adiciona leitor de pdf nativo offline no apk com react-native-pdf" \
+  -m "- Renderiza PDFs locais (file://) dentro do app no Android/iOS sem depender do servidor Metro" \
+  -m "- Cria NativePdfReader com isolamento por plataforma (.native.tsx, .web.tsx e stub Node/test)" \
+  -m "- Implementa resolveNativePdfUri em src/utils/nativePdfSource.ts com streaming direto do disco (cache: false)" \
+  -m "- Integra navegacao de paginas, TOC, links Ver no Livro e fallback para modo texto/abertura externa com content URI no PdfViewerModal" \
+  -m "- Adiciona mocks em tests/setup.ts e suite de testes em tests/nativePdfReader.test.tsx"
+```
 
 ### ✅ 1. Alinhamento Fiel de Abas/Cabeçalhos do App e Crédito Musical (Sub_Clair) no Vídeo Promocional:
 ```bash
