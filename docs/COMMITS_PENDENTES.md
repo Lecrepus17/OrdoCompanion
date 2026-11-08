@@ -12,7 +12,16 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### ✅ 1. Preparação da Release v1.4.0-beta.1 (versionCode 7):
+### ✅ 1. Automação de Build e Upload de APK (`d4c0225`):
+```bash
+git add package.json package-lock.json scripts/build_and_upload_apk.js
+git commit -m "fix(build): sincroniza package-lock.json com expo-speech e adiciona script build:apk" \
+  -m "- Sincroniza package-lock.json com expo-speech@58.0.3 para suportar npm ci no EAS Build" \
+  -m "- Cria script scripts/build_and_upload_apk.js para compilacao e upload automatico de APK no GitHub Releases"
+git tag -f v1.4.0-beta.1
+```
+
+### ✅ 2. Preparação da Release v1.4.0-beta.1 (versionCode 7):
 ```bash
 git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
 git commit -m "chore(release): prepara versao v1.4.0-beta.1 (versionCode 7)" \
