@@ -12,6 +12,14 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ 1. Remoção do Plano de Compatibilidade Android APK Concluído:
+```bash
+git add docs/PLANO_COMPATIBILIDADE_ANDROID_APK.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "docs: remove plano de compatibilidade android apk apos conclusao integral" \
+  -m "- Remove docs/PLANO_COMPATIBILIDADE_ANDROID_APK.md visto que todas as diretrizes de compatibilidade com o runtime Hermes Android ja foram 100% implementadas e validadas" \
+  -m "- Atualiza governanca em docs/ATUALIZACOES_PENDENTES.md e docs/COMMITS_PENDENTES.md"
+```
+
 ### ✅ 1. Automação de Build e Upload de APK (`d4c0225`):
 ```bash
 git add package.json package-lock.json scripts/build_and_upload_apk.js
