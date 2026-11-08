@@ -136,6 +136,20 @@ export const EndCard: React.FC = () => {
         <div style={{ marginTop: 8 }}>
           <CtaBadge delay={16} />
         </div>
+
+        {/* Crédito da Trilha Sonora (Sub_Clair) */}
+        <div
+          style={{
+            marginTop: 6,
+            opacity: badgeIn,
+            color: VIDEO_THEME.textMuted,
+            fontSize: isPortrait ? 16 : 15,
+            fontFamily: "'Consolas', 'Courier New', monospace",
+            letterSpacing: '0.06em',
+          }}
+        >
+          {COPY.musicCredit}
+        </div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

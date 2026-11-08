@@ -17,6 +17,14 @@ git commit -m "docs(pdf): adiciona plano de leitor de pdf nativo offline com rea
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ 1. Alinhamento Fiel de Abas/Cabeçalhos do App e Crédito Musical (Sub_Clair) no Vídeo Promocional:
+```bash
+git add video/src/copy.ts video/src/components/PhoneFrame.tsx video/src/components/EndCard.tsx video/scripts/add_music.ps1 video/LEGENDAS_POSTS.md docs/COMMITS_PENDENTES.md
+git commit -m "chore(marketing): alinha nomes reais das abas no video e adiciona creditos de Sub_Clair" \
+  -m "- Atualiza PhoneFrame.tsx para exibir os cabecalhos (Guia Ordem Paranormal, Acervo de Livros, Fichas de Agentes, etc.) e a barra inferior (Compendio, Agentes, Livros, Salvos, Dados, Mais) identicos ao app real" \
+  -m "- Sincroniza cortes de cena com os drops da faixa de Sub_Clair (4.0s e 23.5s) e adiciona credito visual no EndCard e em LEGENDAS_POSTS.md"
+```
+
 ### ✅ 1. Projeto Remotion para Vídeo Promocional do APK (`video/`):
 ```bash
 git add .gitignore tsconfig.json docs/PLANO_VIDEO_PROMOCIONAL.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md video/package.json video/package-lock.json video/tsconfig.json video/remotion.config.ts video/README.md video/LEGENDAS_POSTS.md video/public/icon.png video/scripts/capture.ps1 video/scripts/render.ps1 video/scripts/add_music.ps1 video/src/

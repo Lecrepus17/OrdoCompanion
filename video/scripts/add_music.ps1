@@ -19,9 +19,9 @@ $targets = @(
 
 foreach ($t in $targets) {
     if (Test-Path $t.In) {
-        Write-Host "Aplicando musica com fade-in (1s) e fade-out (2s) em $($t.In)..." -ForegroundColor Yellow
+        Write-Host "Aplicando musica em $($t.In)..." -ForegroundColor Yellow
         npx remotion ffmpeg -y -i $t.In -i $musicPath `
-            -filter_complex "[1:a]atrim=0:45,afade=t=in:st=0:d=1,afade=t=out:st=43:d=2,volume=0.85[a]" `
+            -filter_complex "[1:a]atrim=0:45,volume=0.85[a]" `
             -map 0:v:0 -map "[a]" -c:v copy -c:a aac -b:a $t.Bitrate -shortest $t.Temp
         Move-Item $t.Temp $t.In -Force
         Write-Host "  -> Concluido: $($t.In)" -ForegroundColor Green
