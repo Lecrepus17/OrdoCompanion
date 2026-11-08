@@ -1,6 +1,6 @@
 # 🎬 Plano: Vídeo Promocional do Ordo Companion (APK)
 
-> **Status**: ⏳ **PENDENTE — Aprovado, aguardando o usuário pedir a execução**
+> **Status**: ✅ **CONCLUÍDO — Projeto `video/` (Remotion) implementado e renderizado (aguardando apenas `video/public/music.mp3` opcional do usuário)**
 > **Criado em**: 2026-11-07
 > **Gatilhos para retomar**: "faz o vídeo", "vídeo promocional", "vídeo do apk", "vídeo para o LinkedIn/Discord", "executa o plano do vídeo".
 

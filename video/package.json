@@ -1,0 +1,29 @@
+{
+  "name": "ordo-companion-promo-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vídeo promocional do Ordo Companion em Remotion (16:9, 9:16 e Discord)",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "render:16x9": "remotion render src/index.ts Promo16x9 out/ordo-companion-16x9.mp4",
+    "render:9x16": "remotion render src/index.ts Promo9x16 out/ordo-companion-9x16.mp4",
+    "render:discord": "remotion render src/index.ts Promo16x9 out/ordo-companion-discord.mp4 --scale=0.667 --crf=30",
+    "render:thumb": "remotion still src/index.ts Thumbnail out/thumbnail.png",
+    "render:all": "powershell -ExecutionPolicy Bypass -File scripts/render.ps1",
+    "add:music": "powershell -ExecutionPolicy Bypass -File scripts/add_music.ps1",
+    "capture": "powershell -ExecutionPolicy Bypass -File scripts/capture.ps1"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.276",
+    "@remotion/transitions": "4.0.276",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.276"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "typescript": "5.7.2"
+  }
+}

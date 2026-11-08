@@ -31,6 +31,12 @@ pdfs/
 # Bug screenshots drop folder (local workflow)
 docs/imagensDosProblemas/
 
+# Promotional video workspace (Remotion)
+video/node_modules/
+video/out/
+video/public/clips/
+video/public/music.mp3
+
 # Environment files
 .env
 .env.*

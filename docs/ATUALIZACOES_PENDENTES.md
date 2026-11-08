@@ -11,6 +11,7 @@
 
 ## 🚀 Resumo do Próximo Release v1.4.0-beta.2 (Changelog de Usuário)
 - **Documentação e Manutenção**: Remoção do documento transitório de plano de compatibilidade Android APK, com todas as diretrizes e salvaguardas já incorporadas e ativas no código.
+- **Mídia e Divulgação (Tooling)**: Implementação do estúdio de vídeo promocional em `video/` com Remotion (formatos `16:9`, `9:16`, Discord `< 10 MB`, `thumbnail.png` e legendas prontas).
 
 ---
 
@@ -18,6 +19,7 @@
 
 ### 🧹 Limpeza & Documentação (Chore / Docs)
 - Remove `docs/PLANO_COMPATIBILIDADE_ANDROID_APK.md`: Todas as etapas planejadas (interceptação de `BackHandler`, utilitário `clipboard.ts` com fallback e blindagem de exportação de PDFs via `expo-print`/`expo-sharing`) já foram integralmente implementadas e testadas.
+- Implementa projeto isolado `video/` em Remotion (`Promo16x9`, `Promo9x16`, `Thumbnail`, moldura 3D `PhoneFrame`, `AnimatedBackground`, `GlitchText`, `CtaBadge`, `EndCard`, scripts `capture.ps1` e `render.ps1`, e `LEGENDAS_POSTS.md`) conforme `docs/PLANO_VIDEO_PROMOCIONAL.md` (sem impacto na versão de código do app).
 
 ### 🐛 Correções de Bugs (Fixes)
 - *(Nenhuma correção registrada neste ciclo ainda)*

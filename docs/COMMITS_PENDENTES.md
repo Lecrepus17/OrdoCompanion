@@ -6,11 +6,26 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento — todas as frentes foram comitadas).*
+### ⏳ 1. Plano de Desenvolvimento do Leitor de PDF Nativo (APK):
+```bash
+git add docs/PLANO_LEITOR_PDF_NATIVO.md docs/COMMITS_PENDENTES.md
+git commit -m "docs(pdf): adiciona plano de leitor de pdf nativo offline com react-native-pdf" \
+  -m "- Cria docs/PLANO_LEITOR_PDF_NATIVO.md com diagnostico (dependencia do servidor Metro no APK), etapas, testes e criterios de aceite"
+```
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 1. Projeto Remotion para Vídeo Promocional do APK (`video/`):
+```bash
+git add .gitignore tsconfig.json docs/PLANO_VIDEO_PROMOCIONAL.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md video/package.json video/package-lock.json video/tsconfig.json video/remotion.config.ts video/README.md video/LEGENDAS_POSTS.md video/public/icon.png video/scripts/capture.ps1 video/scripts/render.ps1 video/scripts/add_music.ps1 video/src/
+git commit -m "chore(marketing): adiciona projeto remotion para video promocional do apk" \
+  -m "- Cria workspace isolado em video/ com Remotion 4 (composicoes Promo16x9, Promo9x16 e Thumbnail)" \
+  -m "- Implementa componentes visuais 3D (PhoneFrame, AnimatedBackground, GlitchText, CtaBadge, EndCard) com paleta oficial do tema escuro" \
+  -m "- Adiciona scripts automatizados de captura via ADB (capture.ps1), renderizacao multi-formato (render.ps1), mixagem rapida de audio (add_music.ps1) e legendas prontas (LEGENDAS_POSTS.md)" \
+  -m "- Atualiza .gitignore, tsconfig.json, docs/PLANO_VIDEO_PROMOCIONAL.md e governanca"
+```
 
 ### ✅ 1. Remoção do Plano de Compatibilidade Android APK Concluído:
 ```bash
