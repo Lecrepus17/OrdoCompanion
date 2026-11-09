@@ -12,6 +12,17 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ 1. Correção de Tela Preta ao Rolar PDF Nativo e Exibição da Página do PDF nos Registros do Compêndio:
+```bash
+git add src/components/pdf/NativePdfReader.native.tsx src/components/PdfViewerModal.tsx src/app/entity/[id].tsx src/services/pdf/PdfAccessService.ts src/services/pdf/PdfCacheService.ts tests/nativePdfReader.test.tsx tests/frontendEntityScreens.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "fix(pdf): corrige tela preta ao rolar pdf nativo e exibe pagina real no compendio" \
+  -m "- Isola a prop page inicial no NativePdfReader.native.tsx evitando que onPageChanged re-acione drawPdf() e recicle os bitmaps no Android durante a rolagem" \
+  -m "- Elimina efeitos colaterais desnecessarios por pagina no PdfViewerModal quando useNativeReader esta ativo e preserva o modo PDF ao resolver a URI local" \
+  -m "- Renderiza a pagina real do PDF via NativePdfReader na secao Pagina Original do PDF dos registros do compendio (entity/[id].tsx) sem substituir pelo texto" \
+  -m "- Preserva fileUri em markBookAvailableOffline, normaliza sufixos -v1-3 em slugifyPdfName e amplia resolucao em getLocalPdfFileUri" \
+  -m "- Adiciona testes em tests/nativePdfReader.test.tsx e tests/frontendEntityScreens.test.tsx"
+```
+
 ### ✅ 1. Suporte a Build ID Existente e Otimização do EAS CLI no Upload de APK:
 ```bash
 git add scripts/build_and_upload_apk.js docs/COMMITS_PENDENTES.md

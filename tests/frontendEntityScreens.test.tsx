@@ -122,4 +122,39 @@ describe('Frontend - Telas de Entidade e Editor (entity/[id].tsx & editor.tsx)',
     await fireClick(generateImgBtn);
     assert.ok(getByText('Gerar Imagem do Registro'));
   });
+
+  test('EntityDetailScreen deve exibir a página real do PDF (NativePdfReader) na seção Página Original do PDF no celular quando o PDF estiver disponível localmente', async () => {
+    const { addMockFileSystemFile, clearMockFileSystem } = await import('./setup');
+    const { localPdfStorage } = await import('../src/services/pdf/PdfAccessService');
+    const NodePdfReaderModule = await import('../src/components/pdf/NativePdfReader');
+
+    try {
+      NodePdfReaderModule.setNativePdfReaderAvailableForTest(true);
+      const targetUri = 'file:///mock-documents/pdfs/livro_base.pdf';
+      addMockFileSystemFile(targetUri);
+      await localPdfStorage.savePdfOfflineFromUri('livro_base', 'Livro base.pdf', targetUri, 1000);
+
+      const all = defaultRepository.getAllEntities();
+      const sampleRitual =
+        all.find((e) => e.bookId === 'livro_base' && e.category === 'ritual') || all[0];
+      mockRouter.params = { id: sampleRitual.id };
+
+      const { queryByTestId, getByText } = await renderWithProviders(<EntityDetailScreen />, {
+        mobile: 'android',
+      });
+
+      await React.act(async () => {
+        await new Promise((r) => setTimeout(r, 60));
+      });
+
+      assert.ok(getByText('Página Original do PDF'));
+      assert.ok(
+        queryByTestId('entity-pdf-page-preview'),
+        'Deve renderizar o preview nativo da página do PDF no registro do compêndio'
+      );
+    } finally {
+      NodePdfReaderModule.resetNativePdfReaderAvailableForTest();
+      clearMockFileSystem();
+    }
+  });
 });

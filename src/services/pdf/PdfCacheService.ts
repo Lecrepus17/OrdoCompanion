@@ -303,5 +303,30 @@ export async function getLocalPdfFileUri(
     } catch {}
   }
 
+  // Varredura adicional no diretório persistente para localizar arquivos salvos com prefixo do bookId
+  if (typeof fs.readDirectoryAsync === 'function') {
+    try {
+      const dirInfo = await fs.getInfoAsync(dir);
+      if (dirInfo?.exists && dirInfo.isDirectory) {
+        const files = await fs.readDirectoryAsync(dir);
+        for (const file of files) {
+          const lower = file.toLowerCase();
+          if (!lower.endsWith('.pdf')) continue;
+          if (
+            lower === `${safeBookSlug}.pdf` ||
+            lower.startsWith(`${safeBookSlug}__`) ||
+            (cleanName && (lower === `${cleanName}.pdf` || lower.includes(cleanName)))
+          ) {
+            const fullUri = dir.endsWith('/') ? `${dir}${file}` : `${dir}/${file}`;
+            const fileInfo = await fs.getInfoAsync(fullUri);
+            if (fileInfo?.exists && !fileInfo.isDirectory) {
+              return fullUri;
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
   return null;
 }

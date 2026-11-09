@@ -646,7 +646,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     book?.driveFileId ||
     book?.driveSynced ||
     book?.pdfUrl ||
-    (book?.id ? localPdfStorage.hasPdfOffline(book.id) : false)
+    (book?.id ? localPdfStorage.hasPdfOffline(book.id) : false) ||
+    (book?.fileName ? localPdfStorage.getLocalPdfFileUriByFileNameSync(book.fileName) : false)
   );
   const serverConfigured = isPdfServerConfigured();
   const computedInitialMode: PdfViewerMode =
@@ -732,7 +733,11 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         if (!isMounted) return;
         setNativePdfUri(resolvedUri);
         setIsResolvingNativePdf(false);
-        if (!resolvedUri && !isPdfServerConfigured() && (viewMode === 'pdf_scroll' || viewMode === 'pdf_page' || viewMode === 'pdf_native')) {
+        if (resolvedUri) {
+          if (initialMode === 'pdf_scroll' || initialMode === 'pdf_page' || initialMode === 'pdf_native') {
+            setViewMode((prev) => (prev === 'text' ? initialMode : prev));
+          }
+        } else if (!isPdfServerConfigured() && (viewMode === 'pdf_scroll' || viewMode === 'pdf_page' || viewMode === 'pdf_native')) {
           setViewMode('text');
         }
       })
@@ -816,18 +821,18 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   // Callbacks para o leitor de PDF nativo
   const handleNativePageChanged = useCallback((newPage: number, numberOfPages?: number) => {
     if (typeof newPage === 'number' && newPage > 0 && newPage !== currentPageRef.current) {
-      setCurrentPage(newPage);
       currentPageRef.current = newPage;
+      setCurrentPage(newPage);
       setPageInputText(String(newPage));
     }
     if (typeof numberOfPages === 'number' && numberOfPages > 0) {
-      setTotalNativePages(numberOfPages);
+      setTotalNativePages((prev) => (prev === numberOfPages ? prev : numberOfPages));
     }
   }, []);
 
   const handleNativeLoadComplete = useCallback((numberOfPages: number, _filePath: string) => {
     if (numberOfPages > 0) {
-      setTotalNativePages(numberOfPages);
+      setTotalNativePages((prev) => (prev === numberOfPages ? prev : numberOfPages));
     }
     if (currentPageRef.current > 1 && nativeReaderRef.current) {
       try {
@@ -884,10 +889,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     setIsMaximized((m) => !m);
   }, []);
 
-  // Carrega os traços da página atual ao navegar ou abrir modal
+  // Carrega os traços da página atual ao navegar ou abrir modal (apenas quando fora do leitor nativo)
   useEffect(() => {
-    if (!book) {
-      setCurrentPageStrokes([]);
+    if (!book || useNativeReader) {
+      setCurrentPageStrokes((prev) => (prev.length === 0 ? prev : []));
       return;
     }
     let isMounted = true;
@@ -901,12 +906,12 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [book?.id, safeCurrentPage]);
+  }, [book?.id, safeCurrentPage, useNativeReader]);
 
   // Carrega índice de páginas anotadas neste livro
   useEffect(() => {
-    if (!book) {
-      setAnnotatedPages([]);
+    if (!book || useNativeReader) {
+      setAnnotatedPages((prev) => (prev.length === 0 ? prev : []));
       return;
     }
     let isMounted = true;
@@ -916,7 +921,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [book?.id, currentPageStrokes]);
+  }, [book?.id, currentPageStrokes, useNativeReader]);
 
   const handleStrokesChange = useCallback(
     (newStrokes: AnnotationStroke[]) => {
@@ -1118,12 +1123,14 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     if (visible && book) {
       hasInitialNativeLoadRef.current = false;
       const hasDirectPdf = Boolean(
+        nativePdfUri ||
         book.hasLocalPdf ||
         book.localPdfAvailable ||
         book.driveFileId ||
         book.driveSynced ||
         book.pdfUrl ||
-        (book.id ? localPdfStorage.hasPdfOffline(book.id) : false)
+        (book.id ? localPdfStorage.hasPdfOffline(book.id) : false) ||
+        (book.fileName ? localPdfStorage.getLocalPdfFileUriByFileNameSync(book.fileName) : false)
       );
       const isServerActive = isPdfServerConfigured();
       const targetMode: PdfViewerMode =
@@ -1157,11 +1164,11 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         }, 80);
       }
     }
-  }, [visible, book?.id, initialPage]);
+  }, [visible, book?.id, initialPage, initialMode]);
 
   // Garante posicionamento na página correta ao alternar para o modo de rolagem contínua
   useEffect(() => {
-    if (viewMode === 'pdf_scroll' && visible && book) {
+    if (viewMode === 'pdf_scroll' && visible && book && !useNativeReader) {
       isScrollingProgrammatically.current = true;
       setTimeout(() => {
         scrollFlatListToPage(currentPageRef.current, false);
@@ -1170,16 +1177,17 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         }, 250);
       }, 60);
     }
-  }, [viewMode]);
+  }, [viewMode, useNativeReader]);
 
   useEffect(() => {
     setPageInputText(String(safeCurrentPage));
+    if (useNativeReader) return;
     const url = book ? getRenderedPdfPageUrl(book.fileName, safeCurrentPage, targetDpi) : '';
     const hasValidImageUrl = Boolean(url);
     setImageLoading(hasValidImageUrl);
     setImageError(!hasValidImageUrl);
     setCanvasReady(false);
-  }, [safeCurrentPage, book?.id]);
+  }, [safeCurrentPage, book?.id, useNativeReader]);
 
   // Navegação hierárquica do botão Voltar (Android APK / Hardware Back Press)
   const handleBackNavigation = useCallback(() => {

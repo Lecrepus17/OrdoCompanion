@@ -338,6 +338,36 @@ describe('NativePdfReader & Offline Mobile PDF Viewer Suite', () => {
         'utf-8'
       );
       assert.ok(/cache:\s*false/.test(nativeContent), 'Native reader must stream directly from disk (cache: false)');
+      assert.ok(
+        /page=\{initialPageRef\.current\}/.test(nativeContent),
+        'Native reader must pass initialPageRef.current to PdfComponent to prevent Android drawPdf() black screen on scroll'
+      );
+      assert.equal(
+        /page=\{page\}/.test(nativeContent),
+        false,
+        'Native reader must not pass dynamic page prop directly to PdfComponent'
+      );
+    });
+
+    it('preserves fileUri in markBookAvailableOffline and resolves multi-segment versioned filenames (livro-base-v1-3.pdf)', async () => {
+      const targetUri = 'file:///mock-documents/pdfs/livro_base.pdf';
+      addMockFileSystemFile(targetUri);
+      await localPdfStorage.savePdfOfflineFromUri('livro_base', 'Livro base.pdf', targetUri, 1000);
+      await localPdfStorage.markBookAvailableOffline('livro_base', 'Livro base.pdf', 1000);
+
+      const compendiumBook: BookInfo = {
+        id: 'livro_base',
+        title: 'Livro Base',
+        fileName: 'livro-base-v1-3.pdf',
+        pageCount: 332,
+        toc: [],
+      };
+      const resolved = await resolveNativePdfUri(compendiumBook);
+      assert.equal(resolved, targetUri);
+      assert.equal(
+        localPdfStorage.getLocalPdfFileUriByFileNameSync('livro-base-v1-3.pdf'),
+        targetUri
+      );
     });
   });
 });

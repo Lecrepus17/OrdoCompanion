@@ -56,116 +56,147 @@ export function resetNativePdfReaderAvailableForTest(): void {
   isNativePdfReaderAvailable = Boolean(PdfComponent);
 }
 
-export const NativePdfReader = forwardRef<NativePdfReaderRef, NativePdfReaderProps>(
-  (
-    {
-      uri,
-      page = 1,
-      horizontal = false,
-      enablePaging = false,
-      onLoadComplete,
-      onPageChanged,
-      onError,
-      style,
-      testID = 'native-pdf-reader',
-      backgroundColor = '#121214',
-      children,
-    },
-    ref
-  ) => {
-    if (!PdfComponent || !isNativePdfReaderAvailable) {
-      return null;
-    }
-
-    const pdfRef = useRef<any>(null);
-    const lastReportedPageRef = useRef<number>(page || 1);
-
-    useImperativeHandle(
-      ref,
-      () => ({
-        setPage: (targetPage: number) => {
-          if (pdfRef.current && typeof pdfRef.current.setPage === 'function') {
-            pdfRef.current.setPage(targetPage);
-          }
-        },
-      }),
-      []
-    );
-
-    // Synchronize external page changes (TOC, input, deep link) while preventing scroll feedback loops
-    useEffect(() => {
-      if (typeof page === 'number' && page > 0 && page !== lastReportedPageRef.current) {
-        lastReportedPageRef.current = page;
-        if (pdfRef.current && typeof pdfRef.current.setPage === 'function') {
-          pdfRef.current.setPage(page);
-        }
+export const NativePdfReader = React.memo(
+  forwardRef<NativePdfReaderRef, NativePdfReaderProps>(
+    (
+      {
+        uri,
+        page = 1,
+        horizontal = false,
+        enablePaging = false,
+        onLoadComplete,
+        onPageChanged,
+        onError,
+        style,
+        testID = 'native-pdf-reader',
+        backgroundColor = '#121214',
+        children,
+      },
+      ref
+    ) => {
+      if (!PdfComponent || !isNativePdfReaderAvailable) {
+        return null;
       }
-    }, [page]);
 
-    // Direct disk streaming: cache=false prevents copying large PDFs into RAM
-    const source = useMemo(() => {
-      const normalizedUri =
-        uri && !uri.startsWith('file://') && !uri.startsWith('http://') && !uri.startsWith('https://')
-          ? `file://${uri}`
-          : uri;
-      return { uri: normalizedUri, cache: false };
-    }, [uri]);
+      const pdfRef = useRef<any>(null);
+      const lastReportedPageRef = useRef<number>(page || 1);
+      const initialPageRef = useRef<number>(page || 1);
+      const prevConfigKeyRef = useRef<string>(`${uri}|${Boolean(horizontal)}|${Boolean(enablePaging)}`);
 
-    const handleLoadComplete = useCallback(
-      (numberOfPages: number, filePath: string) => {
-        onLoadComplete?.(numberOfPages, filePath);
-      },
-      [onLoadComplete]
-    );
+      const currentConfigKey = `${uri}|${Boolean(horizontal)}|${Boolean(enablePaging)}`;
+      if (prevConfigKeyRef.current !== currentConfigKey) {
+        prevConfigKeyRef.current = currentConfigKey;
+        initialPageRef.current = page || 1;
+        lastReportedPageRef.current = page || 1;
+      }
 
-    const handlePageChanged = useCallback(
-      (newPage: number, numberOfPages: number) => {
-        lastReportedPageRef.current = newPage;
-        onPageChanged?.(newPage, numberOfPages);
-      },
-      [onPageChanged]
-    );
+      const onLoadCompleteRef = useRef(onLoadComplete);
+      onLoadCompleteRef.current = onLoadComplete;
 
-    const handleError = useCallback(
-      (error: any) => {
-        onError?.(error);
-      },
-      [onError]
-    );
+      const onPageChangedRef = useRef(onPageChanged);
+      onPageChangedRef.current = onPageChanged;
 
-    const renderActivityIndicator = useCallback(() => {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#E53E3E" />
-        </View>
+      const onErrorRef = useRef(onError);
+      onErrorRef.current = onError;
+
+      useImperativeHandle(
+        ref,
+        () => ({
+          setPage: (targetPage: number) => {
+            if (typeof targetPage === 'number' && targetPage > 0) {
+              lastReportedPageRef.current = targetPage;
+              if (pdfRef.current && typeof pdfRef.current.setPage === 'function') {
+                pdfRef.current.setPage(targetPage);
+              }
+            }
+          },
+        }),
+        []
       );
-    }, []);
 
-    return (
-      <PdfComponent
-        ref={pdfRef}
-        source={source}
-        page={page}
-        horizontal={Boolean(horizontal)}
-        enablePaging={Boolean(enablePaging)}
-        minScale={1.0}
-        maxScale={4.0}
-        fitPolicy={0}
-        spacing={8}
-        enableAntialiasing={true}
-        enableRTL={false}
-        trustAllCerts={false}
-        onLoadComplete={handleLoadComplete}
-        onPageChanged={handlePageChanged}
-        onError={handleError}
-        style={[styles.pdf, { backgroundColor }, style]}
-        renderActivityIndicator={renderActivityIndicator}
-        testID={testID}
-      >
-        {children}
-      </PdfComponent>
-    );
-  }
+      // Synchronize external page changes (TOC, input, deep link) while preventing scroll feedback loops.
+      // IMPORTANT: Never pass the dynamic `page` state directly to <PdfComponent page={...} />,
+      // because on Android RCTPdfManager.onAfterUpdateTransaction calls pdfView.drawPdf() on any prop update,
+      // which recycles the Pdfium bitmap cache during scroll and turns the screen black!
+      useEffect(() => {
+        if (typeof page === 'number' && page > 0 && page !== lastReportedPageRef.current) {
+          lastReportedPageRef.current = page;
+          if (pdfRef.current && typeof pdfRef.current.setPage === 'function') {
+            pdfRef.current.setPage(page);
+          }
+        }
+      }, [page]);
+
+      // Direct disk streaming: cache=false prevents copying large PDFs into RAM
+      const source = useMemo(() => {
+        const normalizedUri =
+          uri && !uri.startsWith('file://') && !uri.startsWith('http://') && !uri.startsWith('https://')
+            ? `file://${uri}`
+            : uri;
+        return { uri: normalizedUri, cache: false };
+      }, [uri]);
+
+      const combinedStyle = useMemo(
+        () => [styles.pdf, { backgroundColor }, style],
+        [backgroundColor, style]
+      );
+
+      const handleLoadComplete = useCallback(
+        (numberOfPages: number, filePath: string) => {
+          onLoadCompleteRef.current?.(numberOfPages, filePath);
+        },
+        []
+      );
+
+      const handlePageChanged = useCallback(
+        (newPage: number, numberOfPages: number) => {
+          lastReportedPageRef.current = newPage;
+          onPageChangedRef.current?.(newPage, numberOfPages);
+        },
+        []
+      );
+
+      const handleError = useCallback(
+        (error: any) => {
+          onErrorRef.current?.(error);
+        },
+        []
+      );
+
+      const renderActivityIndicator = useCallback(() => {
+        return (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#E53E3E" />
+          </View>
+        );
+      }, []);
+
+      return (
+        <PdfComponent
+          ref={pdfRef}
+          source={source}
+          page={initialPageRef.current}
+          horizontal={Boolean(horizontal)}
+          enablePaging={Boolean(enablePaging)}
+          minScale={1.0}
+          maxScale={4.0}
+          fitPolicy={0}
+          spacing={8}
+          enableAntialiasing={true}
+          enableRTL={false}
+          trustAllCerts={false}
+          onLoadComplete={handleLoadComplete}
+          onPageChanged={handlePageChanged}
+          onError={handleError}
+          style={combinedStyle}
+          renderActivityIndicator={renderActivityIndicator}
+          testID={testID}
+        >
+          {children}
+        </PdfComponent>
+      );
+    }
+  )
 );
 
 NativePdfReader.displayName = 'NativePdfReader';

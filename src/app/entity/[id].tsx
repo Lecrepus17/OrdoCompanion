@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CATEGORY_LABELS, COLORS, getElementStyle, ThemeColors, useTheme, useThemedStyles } from '../../theme';
 import { PdfViewerModal, PdfViewerMode } from '../../components/PdfViewerModal';
+import {
+  NativePdfReader,
+  isNativePdfReaderAvailable,
+} from '../../components/pdf/NativePdfReader';
+import { resolveNativePdfUri } from '../../utils/nativePdfSource';
 import { RecordImageExportModal } from '../../components/cardImage/RecordImageExportModal';
 import { getRenderedPdfPageUrl } from '../../utils/pdfUrl';
 import { confirmAction } from '../../utils/alert';
@@ -46,6 +52,34 @@ export default function EntityDetailScreen() {
   const [viewerMode, setViewerMode] = useState<PdfViewerMode>('pdf_scroll');
   const [listModalOpen, setListModalOpen] = useState(false);
   const [cardImageModalOpen, setCardImageModalOpen] = useState(false);
+  const [nativePdfUri, setNativePdfUri] = useState<string | null>(null);
+  const [nativePreviewFailed, setNativePreviewFailed] = useState<boolean>(false);
+
+  const entityBook = entity
+    ? books.find((b) => b.id === entity.bookId) ||
+      catalogBooks.find((b) => b.id === entity.bookId) ||
+      null
+    : null;
+
+  useEffect(() => {
+    if (!entityBook || Platform.OS === 'web') {
+      setNativePdfUri(null);
+      setNativePreviewFailed(false);
+      return;
+    }
+    let isMounted = true;
+    setNativePreviewFailed(false);
+    resolveNativePdfUri(entityBook)
+      .then((uri) => {
+        if (isMounted) setNativePdfUri(uri);
+      })
+      .catch(() => {
+        if (isMounted) setNativePdfUri(null);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [entityBook?.id, entityBook?.fileName]);
 
   if (!entity) {
     return (
@@ -58,10 +92,6 @@ export default function EntityDetailScreen() {
   const isFav = favoriteIds.has(entity.id);
   const elStyle = getElementStyle(entity.element, colors);
   const catInfo = CATEGORY_LABELS[entity.category] || CATEGORY_LABELS.all;
-  const entityBook =
-    books.find((b) => b.id === entity.bookId) ||
-    catalogBooks.find((b) => b.id === entity.bookId) ||
-    null;
   const pageData = entityBook && entity.pageNumber ? getBookPage(entityBook.id, entity.pageNumber) : undefined;
   const canRestoreDefault = hasOriginalVersion(entity.id);
 
@@ -458,7 +488,23 @@ export default function EntityDetailScreen() {
               activeOpacity={0.88}
               onPress={() => handleOpenPageReader('pdf_scroll')}
             >
-              {getRenderedPdfPageUrl(entityBook.fileName, entity.pageNumber, 120) ? (
+              {Platform.OS !== 'web' &&
+              isNativePdfReaderAvailable &&
+              nativePdfUri &&
+              !nativePreviewFailed ? (
+                <View style={styles.pdfPreviewImage} pointerEvents="none">
+                  <NativePdfReader
+                    uri={nativePdfUri}
+                    page={entity.pageNumber || 1}
+                    horizontal={true}
+                    enablePaging={true}
+                    onError={() => setNativePreviewFailed(true)}
+                    backgroundColor={colors.surfaceElevated}
+                    style={styles.pdfPreviewImage}
+                    testID="entity-pdf-page-preview"
+                  />
+                </View>
+              ) : getRenderedPdfPageUrl(entityBook.fileName, entity.pageNumber, 120) ? (
                 <Image
                   source={{
                     uri: getRenderedPdfPageUrl(entityBook.fileName, entity.pageNumber, 120),
@@ -467,25 +513,25 @@ export default function EntityDetailScreen() {
                   resizeMode="contain"
                 />
               ) : (
-                <View style={{ padding: 16, gap: 8, width: '100%' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="book-outline" size={24} color={colors.primary} />
-                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800', flex: 1 }} numberOfLines={1}>
-                      {pageData?.section || `${entity.bookTitle} • Página ${entity.pageNumber}`}
-                    </Text>
-                  </View>
-                  {Boolean(pageData?.text) ? (
+                <View style={{ padding: 20, gap: 10, width: '100%', alignItems: 'center' }}>
+                  <Ionicons name="document-attach-outline" size={38} color={colors.primary} />
+                  <Text
+                    style={{ color: colors.text, fontSize: 15, fontWeight: '800', textAlign: 'center' }}
+                    numberOfLines={1}
+                  >
+                    {entity.bookTitle} • Página {entity.pageNumber}
+                  </Text>
+                  {Boolean(pageData?.section) && (
                     <Text
-                      style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 18 }}
-                      numberOfLines={4}
+                      style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', textAlign: 'center' }}
+                      numberOfLines={1}
                     >
-                      {pageData?.text}
-                    </Text>
-                  ) : (
-                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                      Toque para ler a página completa no leitor integrado do aplicativo
+                      {pageData?.section}
                     </Text>
                   )}
+                  <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center' }}>
+                    Toque para abrir a Página {entity.pageNumber} do documento PDF no leitor integrado
+                  </Text>
                 </View>
               )}
               <View style={styles.pdfPreviewFooterBadge}>

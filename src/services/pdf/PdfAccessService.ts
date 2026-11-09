@@ -264,7 +264,9 @@ function computeSha256InternalSync(bytes: Uint8Array): string {
 
 export function slugifyPdfName(fileName: string): string {
   const withoutExt = (fileName || '').replace(/\.pdf$/i, '');
-  const withoutVersion = withoutExt.replace(/[-_\s]+v\d+$/i, '').replace(/\.+/g, '-');
+  const withoutVersion = withoutExt
+    .replace(/(?:[-_\s]+v\d+(?:[-_.]\d+)*)+$/i, '')
+    .replace(/\.+/g, '-');
   return withoutVersion
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -679,12 +681,14 @@ class LocalPdfStorageManager {
   public async markBookAvailableOffline(bookId: string, fileName: string, size = 0): Promise<void> {
     await this.initialize();
     const existing = this.metaMap.get(bookId);
+    const existingMem = this.memoryCache.get(bookId);
     this.metaMap.set(bookId, {
       bookId,
       fileName: fileName || existing?.fileName || `${bookId}.pdf`,
       size: size || existing?.size || 1,
       sha256: existing?.sha256,
-      storedAt: new Date().toISOString(),
+      storedAt: existing?.storedAt || new Date().toISOString(),
+      fileUri: existing?.fileUri || existingMem?.fileUri,
     });
     await this.persistMeta();
   }
