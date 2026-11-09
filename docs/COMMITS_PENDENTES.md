@@ -12,7 +12,15 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### ✅ 1. Preparação da Release v1.5.0-beta.1 (versionCode 8):
+### ✅ 1. Suporte a Build ID Existente e Otimização do EAS CLI no Upload de APK:
+```bash
+git add scripts/build_and_upload_apk.js docs/COMMITS_PENDENTES.md
+git commit -m "chore(build): suporta build id manual e otimiza chamada eas no build_and_upload_apk" \
+  -m "- Permite passar o buildId como argumento opcional para retomar o monitoramento de builds em andamento" \
+  -m "- Remove flags redundantes para evitar falhas de GraphQL com versoes antigas do eas-cli"
+```
+
+### ✅ 2. Preparação da Release v1.5.0-beta.1 (versionCode 8):
 ```bash
 git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
 git commit -m "chore(release): prepara versao v1.5.0-beta.1 (versionCode 8)" \

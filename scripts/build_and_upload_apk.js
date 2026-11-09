@@ -158,34 +158,41 @@ function sleep(ms) {
   const release = await getReleaseData(token, versionTag);
   console.log(`✔ [GitHub] Release identificada (ID: ${release.id})`);
 
-  console.log(`\n⏳ [EAS] Disparando compilação do APK de produção no Expo Cloud...`);
-  const startBuildRes = spawnSync('npx', ['eas', 'build', '-p', 'android', '--profile', 'production', '--no-wait', '--non-interactive', '--json'], {
-    cwd: rootDir,
-    encoding: 'utf8',
-    shell: true,
-  });
+  const passedBuildId = process.argv[2] && !process.argv[2].startsWith('-') ? process.argv[2] : null;
+  let buildId = passedBuildId;
 
-  if (startBuildRes.status !== 0) {
-    console.error('❌ Falha ao disparar eas build:', startBuildRes.stderr || startBuildRes.stdout);
-    process.exit(1);
-  }
+  if (!buildId) {
+    console.log(`\n⏳ [EAS] Disparando compilação do APK de produção no Expo Cloud...`);
+    const startBuildRes = spawnSync('npx', ['eas', 'build', '-p', 'android', '--profile', 'production', '--no-wait', '--json'], {
+      cwd: rootDir,
+      encoding: 'utf8',
+      shell: true,
+    });
 
-  let buildInfo;
-  try {
-    const rawOut = startBuildRes.stdout.trim();
-    const jsonStart = rawOut.indexOf('[');
-    if (jsonStart !== -1) {
-      buildInfo = JSON.parse(rawOut.slice(jsonStart))[0];
-    } else {
-      buildInfo = JSON.parse(rawOut);
+    if (startBuildRes.status !== 0) {
+      console.error('❌ Falha ao disparar eas build:', startBuildRes.stderr || startBuildRes.stdout);
+      process.exit(1);
     }
-  } catch (err) {
-    console.error('❌ Falha ao analisar saída JSON do EAS:', startBuildRes.stdout);
-    process.exit(1);
-  }
 
-  const buildId = buildInfo.id;
-  console.log(`✔ [EAS] Build enfileirada com sucesso!`);
+    let buildInfo;
+    try {
+      const rawOut = startBuildRes.stdout.trim();
+      const jsonStart = rawOut.indexOf('[');
+      if (jsonStart !== -1) {
+        buildInfo = JSON.parse(rawOut.slice(jsonStart))[0];
+      } else {
+        buildInfo = JSON.parse(rawOut);
+      }
+    } catch (err) {
+      console.error('❌ Falha ao analisar saída JSON do EAS:', startBuildRes.stdout);
+      process.exit(1);
+    }
+
+    buildId = buildInfo.id;
+    console.log(`✔ [EAS] Build enfileirada com sucesso!`);
+  } else {
+    console.log(`✔ [EAS] Utilizando Build existente: ${buildId}`);
+  }
   console.log(`   👉 ID da Build: ${buildId}`);
   console.log(`   👉 Acompanhar no navegador: https://expo.dev/accounts/lecrepus17/projects/ordo-companion/builds/${buildId}`);
 
