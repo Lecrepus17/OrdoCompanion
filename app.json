@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.ordemparanormal.ordo",
-      "versionCode": 9,
+      "versionCode": 10,
       "largeHeap": true,
       "softwareKeyboardLayoutMode": "pan",
       "usesCleartextTraffic": true,

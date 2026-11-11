@@ -2,7 +2,13 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+import groovy.json.JsonSlurper
+
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def appJsonFile = new File(projectRoot, "app.json")
+def appJson = appJsonFile.exists() ? new JsonSlurper().parseText(appJsonFile.text) : null
+def parsedVersionName = appJson?.expo?.version ?: "1.5.0-beta.2"
+def parsedVersionCode = (appJson?.expo?.android?.versionCode ?: 10) as Integer
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -92,8 +98,8 @@ android {
         applicationId 'com.ordemparanormal.ordo'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.1.0-beta.3"
+        versionCode parsedVersionCode
+        versionName parsedVersionName
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -103,6 +109,8 @@ android {
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
+            v1SigningEnabled true
+            v2SigningEnabled true
         }
     }
     buildTypes {

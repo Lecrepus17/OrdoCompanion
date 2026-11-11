@@ -470,6 +470,7 @@ function publishGitHubReleaseApi(version, releaseBody) {
   const releaseFiles = [
     'package.json',
     'app.json',
+    'android/app/build.gradle',
     'version.json',
     'docs/RELEASE_NOTES.md',
     'docs/HISTORICO_RELEASES.md',
