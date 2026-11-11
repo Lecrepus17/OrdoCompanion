@@ -12,7 +12,16 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
-### ✅ 1. Preparação da Release v1.5.0-beta.2 (versionCode 9):
+### ✅ 1. Correção do Pacote Inválido e Sincronização do Build Gradle Nativo no APK v1.5.0-beta.2:
+```bash
+git add android/app/build.gradle app.json scripts/create_release.js docs/COMMITS_PENDENTES.md
+git commit -m "fix(android): sincroniza versionCode (10) e versionName no build.gradle nativo com v1 e v2 signing" \
+  -m "- Sincroniza dinamicamente versionCode e versionName do app.json no android/app/build.gradle" \
+  -m "- Incrementa versionCode para 10 para resolver rejeicao de instalacao por versao antiga" \
+  -m "- Inclui android/app/build.gradle nos arquivos gerenciados pelo create_release.js"
+```
+
+### ✅ 2. Preparação da Release v1.5.0-beta.2 (versionCode 9):
 ```bash
 git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
 git commit -m "chore(release): prepara versao v1.5.0-beta.2 (versionCode 9)" \
