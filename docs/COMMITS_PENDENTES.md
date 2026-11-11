@@ -12,6 +12,17 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ 1. Preparação da Release v1.5.0-beta.2 (versionCode 9):
+```bash
+git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "chore(release): prepara versao v1.5.0-beta.2 (versionCode 9)" \
+  -m "- Atualiza versao em package.json, app.json e version.json para 1.5.0-beta.2" \
+  -m "- Incrementa android.versionCode para 9 em app.json" \
+  -m "- Gera docs/RELEASE_NOTES.md e arquiva notas da v1.5.0-beta.2 em docs/HISTORICO_RELEASES.md" \
+  -m "- Reseta docs/ATUALIZACOES_PENDENTES.md para o proximo ciclo e atualiza docs/COMMITS_PENDENTES.md"
+git tag v1.5.0-beta.2
+```
+
 ### ✅ 1. Correção de Tela Preta ao Rolar PDF Nativo e Exibição da Página do PDF nos Registros do Compêndio:
 ```bash
 git add src/components/pdf/NativePdfReader.native.tsx src/components/PdfViewerModal.tsx src/app/entity/[id].tsx src/services/pdf/PdfAccessService.ts src/services/pdf/PdfCacheService.ts tests/nativePdfReader.test.tsx tests/frontendEntityScreens.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md

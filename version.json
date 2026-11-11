@@ -1,14 +1,13 @@
 {
-  "version": "1.5.0-beta.1",
+  "version": "1.5.0-beta.2",
   "minVersion": "1.0.0-beta.1",
-  "releaseName": "Ordo Companion v1.5.0-beta.1",
-  "releaseDate": "2026-11-08",
-  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.5.0-beta.1",
-  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.5.0-beta.1/OrdoCompanion.apk",
+  "releaseName": "Ordo Companion v1.5.0-beta.2",
+  "releaseDate": "2026-11-11",
+  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.5.0-beta.2",
+  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.5.0-beta.2/OrdoCompanion.apk",
   "changelog": [
-    "Leitor de PDF Nativo Offline no APK: Livros PDF baixados ou importados agora são renderizados nativamente dentro do aplicativo Android/iOS sem precisar de conexão nem do servidor Metro, mantendo rolagem contínua, modo página única, zoom por pinça, busca por página, sumário e links \"Ver no Livro\".",
-    "Documentação e Manutenção: Remoção do documento transitório de plano de compatibilidade Android APK, com todas as diretrizes e salvaguardas já incorporadas e ativas no código.",
-    "Mídia e Divulgação (Tooling): Implementação do estúdio de vídeo promocional em `video/` com Remotion (formatos `16:9`, `9:16`, Discord `< 10 MB`, `thumbnail.png` e legendas prontas)."
+    "Estabilidade do Leitor de PDF Nativo no Celular",
+    "Página Real do PDF nos Registros do Compêndio"
   ],
   "forceUpdate": false
 }
