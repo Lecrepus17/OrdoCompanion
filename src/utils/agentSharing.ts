@@ -11,7 +11,7 @@ for (let i = 0; i < BASE64_CHARS.length; i++) {
 /**
  * Converte string JavaScript (UTF-16) em sequência de bytes UTF-8 (compatível com Hermes/Android)
  */
-function stringToUtf8ByteArray(str: string): number[] {
+export function stringToUtf8ByteArray(str: string): number[] {
   const bytes: number[] = [];
   const len = str.length;
   for (let i = 0; i < len; i++) {
@@ -47,7 +47,7 @@ function stringToUtf8ByteArray(str: string): number[] {
 /**
  * Converte sequência de bytes UTF-8 em string JavaScript (compatível com Hermes/Android)
  */
-function utf8ByteArrayToString(bytes: number[]): string {
+export function utf8ByteArrayToString(bytes: ArrayLike<number>): string {
   let result = '';
   const len = bytes.length;
   let i = 0;
@@ -98,6 +98,99 @@ function utf8ByteArrayToString(bytes: number[]): string {
   }
 
   return result;
+}
+
+/**
+ * Decodifica bytes Latin-1 (ISO-8859-1) em string JS 100% compatível com Hermes/Android,
+ * sem dependência de TextDecoder('latin1').
+ */
+export function latin1BytesToString(bytes: ArrayLike<number>): string {
+  const len = bytes.length;
+  const chunks: string[] = [];
+  const CHUNK_SIZE = 8192;
+  for (let start = 0; start < len; start += CHUNK_SIZE) {
+    const end = Math.min(start + CHUNK_SIZE, len);
+    let chunk = '';
+    for (let i = start; i < end; i++) {
+      chunk += String.fromCharCode(bytes[i] & 0xff);
+    }
+    chunks.push(chunk);
+  }
+  return chunks.join('');
+}
+
+/**
+ * Decodifica bytes UTF-8 de forma tolerante (equivalente a TextDecoder('utf-8', { fatal: false })),
+ * substituindo sequências inválidas por '\uFFFD' sem lançar exceções no Hermes.
+ */
+export function utf8ByteArrayToStringLossy(bytes: ArrayLike<number>): string {
+  const len = bytes.length;
+  const chunks: string[] = [];
+  let acc = '';
+  let i = 0;
+
+  while (i < len) {
+    const b1 = bytes[i++];
+    if (b1 < 0x80) {
+      acc += String.fromCharCode(b1);
+    } else if (b1 >= 0xc2 && b1 <= 0xdf) {
+      if (i < len && (bytes[i] & 0xc0) === 0x80) {
+        const b2 = bytes[i++];
+        const cp = ((b1 & 0x1f) << 6) | (b2 & 0x3f);
+        acc += String.fromCharCode(cp);
+      } else {
+        acc += '\uFFFD';
+      }
+    } else if (b1 >= 0xe0 && b1 <= 0xef) {
+      const b2Min = b1 === 0xe0 ? 0xa0 : 0x80;
+      const b2Max = b1 === 0xed ? 0x9f : 0xbf;
+      if (i < len && bytes[i] >= b2Min && bytes[i] <= b2Max) {
+        const b2 = bytes[i++];
+        if (i < len && (bytes[i] & 0xc0) === 0x80) {
+          const b3 = bytes[i++];
+          const cp = ((b1 & 0x0f) << 12) | ((b2 & 0x3f) << 6) | (b3 & 0x3f);
+          acc += String.fromCharCode(cp);
+        } else {
+          // Sequência de 3 bytes truncada (maximal subpart WHATWG)
+          acc += '\uFFFD';
+        }
+      } else {
+        acc += '\uFFFD';
+      }
+    } else if (b1 >= 0xf0 && b1 <= 0xf4) {
+      const b2Min = b1 === 0xf0 ? 0x90 : 0x80;
+      const b2Max = b1 === 0xf4 ? 0x8f : 0xbf;
+      if (i < len && bytes[i] >= b2Min && bytes[i] <= b2Max) {
+        const b2 = bytes[i++];
+        if (i < len && (bytes[i] & 0xc0) === 0x80) {
+          const b3 = bytes[i++];
+          if (i < len && (bytes[i] & 0xc0) === 0x80) {
+            const b4 = bytes[i++];
+            const cp =
+              ((b1 & 0x07) << 18) | ((b2 & 0x3f) << 12) | ((b3 & 0x3f) << 6) | (b4 & 0x3f);
+            const u = cp - 0x10000;
+            acc += String.fromCharCode(0xd800 + (u >> 10), 0xdc00 + (u & 0x3ff));
+          } else {
+            acc += '\uFFFD';
+          }
+        } else {
+          acc += '\uFFFD';
+        }
+      } else {
+        acc += '\uFFFD';
+      }
+    } else {
+      acc += '\uFFFD';
+    }
+
+    if (acc.length >= 8192) {
+      chunks.push(acc);
+      acc = '';
+    }
+  }
+
+  if (acc.length > 0) chunks.push(acc);
+  return chunks.join('');
 }
 
 /**

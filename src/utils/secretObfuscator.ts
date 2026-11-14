@@ -10,6 +10,8 @@
  *    (@everyone, @here, menções de cargos/usuários) e links maliciosos de spam.
  */
 
+import { stringToUtf8ByteArray, utf8ByteArrayToString } from './agentSharing';
+
 const DEFAULT_OBFUSCATION_KEY = 'OrdoRealitas::Verissimo::Membrana::2026';
 const OBFUSCATION_PREFIX = 'obf:v1:';
 
@@ -62,9 +64,8 @@ export function obfuscateSecret(plainText: string, customKey = DEFAULT_OBFUSCATI
   if (!clean) return '';
   if (clean.startsWith(OBFUSCATION_PREFIX)) return clean;
 
-  const encoder = new TextEncoder();
-  const inputBytes = encoder.encode(clean);
-  const keyBytes = encoder.encode(customKey || DEFAULT_OBFUSCATION_KEY);
+  const inputBytes = stringToUtf8ByteArray(clean);
+  const keyBytes = stringToUtf8ByteArray(customKey || DEFAULT_OBFUSCATION_KEY);
   const outBytes = new Uint8Array(inputBytes.length);
 
   for (let i = 0; i < inputBytes.length; i++) {
@@ -88,8 +89,7 @@ export function deobfuscateSecret(encodedText: string, customKey = DEFAULT_OBFUS
   try {
     const rawB64 = clean.slice(OBFUSCATION_PREFIX.length);
     const encryptedBytes = base64ToBytes(rawB64);
-    const encoder = new TextEncoder();
-    const keyBytes = encoder.encode(customKey || DEFAULT_OBFUSCATION_KEY);
+    const keyBytes = stringToUtf8ByteArray(customKey || DEFAULT_OBFUSCATION_KEY);
     const outBytes = new Uint8Array(encryptedBytes.length);
 
     for (let i = 0; i < encryptedBytes.length; i++) {
@@ -98,7 +98,7 @@ export function deobfuscateSecret(encodedText: string, customKey = DEFAULT_OBFUS
       outBytes[i] = encryptedBytes[i] ^ k ^ shift;
     }
 
-    return new TextDecoder().decode(outBytes);
+    return utf8ByteArrayToString(outBytes);
   } catch {
     return '';
   }

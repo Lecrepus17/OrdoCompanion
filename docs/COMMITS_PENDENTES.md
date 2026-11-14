@@ -6,20 +6,6 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### 4. Auditoria Hermes APK: Substituição de `TextEncoder`/`TextDecoder` por Codecs Puros em Segredos e PDFs:
-**Título**: `fix(android,hermes): substitui TextEncoder e TextDecoder por codecs puros em segredos e pdfs`
-
-**Descrição**:
-- Exporta `stringToUtf8ByteArray` e `utf8ByteArrayToString` e adiciona `latin1BytesToString` e `utf8ByteArrayToStringLossy` em `src/utils/agentSharing.ts` sem dependência de globais Web/Node
-- Remove `new TextEncoder()` e `new TextDecoder()` de `src/utils/secretObfuscator.ts` (`obfuscateSecret` e `deobfuscateSecret`), evitando retorno vazio silencioso no runtime Hermes do Android
-- Substitui `TextDecoder('latin1')`, `TextEncoder` e `TextDecoder('utf-8', { fatal: false })` em `src/services/pdf/PdfAccessService.ts` (`estimatePdfPageCountFromBytes`, `computeMasterPasswordHash` e `extractPagesFromPdfBytesFallback`)
-- Adiciona testes de regressão simulando `TextEncoder = undefined` e `TextDecoder = undefined` em `tests/supportService.test.ts` e `tests/pdfAccessAndUnlock.test.tsx`
-
-```bash
-git add src/utils/agentSharing.ts src/utils/secretObfuscator.ts src/services/pdf/PdfAccessService.ts tests/supportService.test.ts tests/pdfAccessAndUnlock.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
-git commit -m "fix(android,hermes): substitui TextEncoder e TextDecoder por codecs puros em segredos e pdfs" -m "- Exporta codecs UTF-8 e adiciona latin1BytesToString/utf8ByteArrayToStringLossy em agentSharing.ts" -m "- Remove TextEncoder/TextDecoder de secretObfuscator.ts para evitar falha silenciosa no Hermes" -m "- Substitui TextDecoder/TextEncoder em estimatePdfPageCountFromBytes, computeMasterPasswordHash e fallback PDF" -m "- Adiciona testes simulando Hermes (sem TextEncoder/TextDecoder) em supportService.test.ts e pdfAccessAndUnlock.test.tsx"
-```
-
 ### 5. Unificação de Armas (Agentes <-> Armaria), Cálculo de Crítico e Botão Crítico Máx Sempre Visível:
 **Título**: `feat(weapons,combat): unifica armas entre agentes e armaria e corrige calculo de critico`
 
@@ -97,6 +83,9 @@ git commit -m "fix(cards): corrige overflow da moldura e ajusta altura da imagem
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 4. Auditoria Hermes APK: Substituição de `TextEncoder`/`TextDecoder` por Codecs Puros em Segredos e PDFs:
+- **Título**: `fix(android,hermes): substitui TextEncoder e TextDecoder por codecs puros em segredos e pdfs`
 
 ### ✅ 3. Reconhecimento de Voz Nativo (Microfone STT) no G.L.I.T.C.H. para Android/iOS:
 - **Título**: `feat(ai,android): implementa reconhecimento de voz nativo no microfone do glitch`

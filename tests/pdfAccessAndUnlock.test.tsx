@@ -7,6 +7,7 @@ import {
   KNOWN_PDF_SIGNATURES,
   cacheUnlockedBooksOffline,
   computeSha256Hex,
+  estimatePdfPageCountFromBytes,
   identifyUploadedPdf,
   localPdfStorage,
   processUnregisteredPdfWithPythonPipeline,
@@ -14,6 +15,10 @@ import {
   computeMasterPasswordHash,
   verifyAdminUnlockCode,
 } from '../src/services/pdf/PdfAccessService';
+import {
+  latin1BytesToString,
+  utf8ByteArrayToStringLossy,
+} from '../src/utils/agentSharing';
 import { SmartMergeEngine } from '../src/services/sync/SmartMergeEngine';
 import BooksScreen from '../src/app/(tabs)/books';
 import CompendiumScreen from '../src/app/(tabs)/index';
@@ -355,5 +360,39 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     // Remove do cache
     await localPdfStorage.removePdfOffline('livro_regras');
     assert.strictEqual(localPdfStorage.hasPdfOffline('livro_regras'), false);
+  });
+
+  test('Compatibilidade Hermes Android APK: decodificação PDF e hash mestre funcionam sem TextEncoder/TextDecoder', async () => {
+    const g = globalThis as { TextEncoder?: unknown; TextDecoder?: unknown };
+    const origEncoder = g.TextEncoder;
+    const origDecoder = g.TextDecoder;
+
+    const expectedHash = await computeMasterPasswordHash('Ordo-Hermes-Teste-2026!');
+
+    g.TextEncoder = undefined;
+    g.TextDecoder = undefined;
+
+    try {
+      const latin1Str = latin1BytesToString([0x25, 0x50, 0x44, 0x46, 0x20, 0xe7, 0xe3]);
+      assert.strictEqual(latin1Str, '%PDF çã');
+
+      // Bytes UTF-8 inválidos / truncados não devem lançar exceção e devem virar U+FFFD
+      const lossy = utf8ByteArrayToStringLossy([0xff, 0x80, 0x41, 0xc3, 0xa7, 0xe2, 0x82]);
+      assert.strictEqual(lossy, '\uFFFD\uFFFDAç\uFFFD');
+
+      const fakePdfText = '%PDF-1.7\n1 0 obj << /Type /Pages /Count 3 >> endobj\n<< /Type /Page >>\n<< /Type /Page >>';
+      const fakePdfBytes = new Uint8Array(Array.from(fakePdfText, (ch) => ch.charCodeAt(0)));
+      assert.strictEqual(estimatePdfPageCountFromBytes(fakePdfBytes), 3);
+
+      const fakePdfNoCount = '%PDF-1.7\n1 0 obj << /Count 312 /Type /Pages >> endobj';
+      const fakePdfNoCountBytes = new Uint8Array(Array.from(fakePdfNoCount, (ch) => ch.charCodeAt(0)));
+      assert.strictEqual(estimatePdfPageCountFromBytes(fakePdfNoCountBytes), 312);
+
+      const hashUnderHermes = await computeMasterPasswordHash('Ordo-Hermes-Teste-2026!');
+      assert.strictEqual(hashUnderHermes, expectedHash);
+    } finally {
+      g.TextEncoder = origEncoder;
+      g.TextDecoder = origDecoder;
+    }
   });
 });

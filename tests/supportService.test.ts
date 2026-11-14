@@ -290,4 +290,29 @@ test('Central de Suporte & Relato de Erros (SupportService.ts)', async (t) => {
 
     await service.clearTicketHistory();
   });
+
+  await t.test('Compatibilidade Hermes Android APK: obfuscateSecret, deobfuscateSecret e resolveEnvSecret funcionam sem TextEncoder/TextDecoder', () => {
+    const g = globalThis as { TextEncoder?: unknown; TextDecoder?: unknown };
+    const origEncoder = g.TextEncoder;
+    const origDecoder = g.TextDecoder;
+    g.TextEncoder = undefined;
+    g.TextDecoder = undefined;
+
+    try {
+      const secrets = [
+        'https://discord.com/api/webhooks/999/OrdoSegredo_AçãoParanormal#2026!',
+        'AIzaSyDummyKey-ComAcento-Ção-🛡️',
+      ];
+
+      for (const secret of secrets) {
+        const obfuscated = obfuscateSecret(secret);
+        assert.ok(obfuscated.startsWith('obf:v1:'));
+        assert.equal(deobfuscateSecret(obfuscated), secret);
+        assert.equal(resolveEnvSecret(obfuscated), secret);
+      }
+    } finally {
+      g.TextEncoder = origEncoder;
+      g.TextDecoder = origDecoder;
+    }
+  });
 });
