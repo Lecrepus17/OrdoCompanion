@@ -6,21 +6,6 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### 7. Extração Completa dos Mascarados (Arquivos Secretos #02), Armas Amaldiçoadas e Botão Do Compêndio no Inventário:
-**Título**: `fix(compendium,weapons): restaura itens, armas, poderes e aliados dos Mascarados e integra ao inventario`
-
-**Descrição**:
-- Corrige `scripts/parse_entities.py` para interromper corretamente blocos de `PODER PARANORMAL` (impedindo `Pressão Atmosférica` de engolir o restante da p. 47 de *Arquivos Secretos #02*), capturar poderes singulares (`PODER GERAL`, `PODER DE COMBATENTE/ESPECIALISTA/OCULTISTA`) e `Poderes de Intenção`, extrair os itens amaldiçoados dos Mascarados (`Manoplas do Colosso`, `Elmo do Colosso`, `Machado do Mutilador`, `Punhal X`, `Sniper Fantasma`, `A Antena`, `Faca Predadora`), `Catalisador Sofisticado e Horrorizado`, `Acoplável`, recursos do Hexatombe, aliados de `#02`/`#06`/`#09`, `Pistola Taser` e VD 120 do `Felino-infernal` (`1.708` entidades no seed)
-- Inclui itens com estatísticas de arma (`Boolean(damage)`) no filtro `category: 'weapon'` de `OfflineDataRepository.ts`, em `WeaponEditorModal.tsx` e em `compendiumWeapons` de `characters.tsx`, permitindo equipar armas amaldiçoadas diretamente na Armaria e na aba Ataques
-- Adiciona a habilidade oficial `Acoplável` e aprimora `resolveWeaponTypeFromEntity` em `src/utils/weapons.ts` para tipagem precisa de armas balísticas e corpo a corpo amaldiçoadas
-- Adiciona o botão **Do Compêndio** (`add_item_compendium`) na aba Inventário de `src/app/(tabs)/characters.tsx` e inclui `Poder Geral` e `Poder de Intenção` na filtragem de poderes
-- Adiciona cobertura automatizada em `tests/databaseIntegrity.test.ts` e `tests/repository.test.ts`
-
-```bash
-git add scripts/parse_entities.py data/compendium_seed.json data/books_pages_seed.json src/data/seed/compendium_seed.json src/data/seed/books_pages_seed.json src/repositories/OfflineDataRepository.ts src/utils/weapons.ts src/components/WeaponEditorModal.tsx "src/app/(tabs)/characters.tsx" tests/databaseIntegrity.test.ts tests/repository.test.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
-git commit -m "fix(compendium,weapons): restaura itens, armas, poderes e aliados dos Mascarados e integra ao inventario" -m "- Corrige parse_entities.py para extrair todos os itens amaldiçoados, armas, poderes, aliados e recursos dos Mascarados (AS02 p. 47 e demais paginas)" -m "- Inclui armas amaldiçoadas com dano no filtro weapon do repositorio, WeaponEditorModal e Ficha" -m "- Adiciona modificacao Acoplavel e corrige resolveWeaponTypeFromEntity em src/utils/weapons.ts" -m "- Adiciona botao Do Compendio na aba Inventario e amplia filtro de poderes em characters.tsx" -m "- Adiciona testes em tests/databaseIntegrity.test.ts e tests/repository.test.ts"
-```
-
 ### 8. Motor de Modificadores Dinâmicos de Dano por Agente, Preparação de Golpe Tático e Conjuração de Rituais:
 **Título**: `feat(rules,characters): implementa modificadores dinamicos de dano por agente, preparacao de golpe e rituais`
 
@@ -54,6 +39,9 @@ git commit -m "fix(cards): corrige overflow da moldura e ajusta altura da imagem
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 7. Extração Completa dos Mascarados (Arquivos Secretos #02), Armas Amaldiçoadas e Botão Do Compêndio no Inventário:
+- **Título**: `fix(compendium,weapons): restaura itens, armas, poderes e aliados dos Mascarados e integra ao inventario`
 
 ### ✅ 6. Registro de Pendência Técnica (Modificadores Dinâmicos de Dano por Agente):
 - **Título**: `docs(roadmap): registra pendencia de modificadores dinamicos de dano por agente`

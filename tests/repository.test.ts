@@ -265,5 +265,33 @@ describe('Repositório de Dados e Compêndio (OfflineDataRepository)', () => {
         assert.strictEqual(results[0].bookId, 'livro_base');
       }
     });
+
+    it('searchEntities com category weapon deve incluir itens amaldiçoados com estatísticas de arma', () => {
+      const manoplasResults = repo.searchEntities({
+        query: 'Manoplas do Colosso',
+        category: 'weapon',
+        bookId: 'all',
+        element: 'all',
+        circle: 'all',
+        itemCategory: 'all',
+      });
+      assert.ok(
+        manoplasResults.some((e) => e.name === 'Manoplas do Colosso'),
+        'Filtro category: weapon deve retornar Manoplas do Colosso'
+      );
+
+      const sniperResults = repo.searchEntities({
+        query: 'Sniper Fantasma',
+        category: 'weapon',
+        bookId: 'all',
+        element: 'all',
+        circle: 'all',
+        itemCategory: 'all',
+      });
+      assert.ok(
+        sniperResults.some((e) => e.name === 'Sniper Fantasma'),
+        'Filtro category: weapon deve retornar Sniper Fantasma'
+      );
+    });
   });
 });

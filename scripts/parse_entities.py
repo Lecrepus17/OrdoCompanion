@@ -83,7 +83,7 @@ def is_title_case_header(text: str) -> bool:
         "FALHOU", "NORMAL", "PRECÁRIA", "CONFORTÁVEL", "LUXUOSA", "AFINIDADE",
     ):
         return False
-    small_words = {"de", "da", "do", "das", "dos", "e", "em", "para", "por", "com", "no", "na", "ao", "à", "às", "o", "a", "os", "as", "ou", "me", "se", "te", "nos", "lhe", "lhes", "que", "dum", "duma", "<elemento>"}
+    small_words = {"de", "da", "do", "das", "dos", "e", "em", "para", "por", "com", "como", "no", "na", "ao", "à", "às", "o", "a", "os", "as", "ou", "me", "se", "te", "nos", "lhe", "lhes", "que", "dum", "duma", "<elemento>"}
     for w in words:
         w_clean = w.strip("()-+’'\"<>")
         if not w_clean:
@@ -781,7 +781,7 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
 
             if "PODER PARANORMAL" in txt.upper():
                 for m in re.finditer(
-                    r"(?m)^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40}(?:\n[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40})?)\n+\s*PODER PARANORMAL\s+(SANGUE|MORTE|CONHECIMENTO|ENERGIA|MEDO)\s*\n+([\s\S]+?)(?:\n+Afinidade:\s*([^\n]+(?:\n\n?[^\n]+)*?))?(?=\n+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40}\n+\s*PODER PARANORMAL|\Z)",
+                    r"(?m)^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40}(?:\n[A-ZÁÉÍÓÚÂÊÔÃÕÇa-z][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40})?)\n+\s*PODER PARANORMAL\s+(SANGUE|MORTE|CONHECIMENTO|ENERGIA|MEDO)\s*\n+([\s\S]+?)(?:\n+Afinidade:\s*([^\n]+(?:\n\n?[^\n]+)*?))?(?=\n+(?:[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40}(?:\n[A-ZÁÉÍÓÚÂÊÔÃÕÇa-z][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40})?\n+\s*(?:PODER\s+(?:PARANORMAL|GERAL|DE\s+(?:COMBATENTE|ESPECIALISTA|OCULTISTA))|ITEM(?:\s+|\n+)(?:AMALDIÇOADO|PARANORMAL)|HABILIDADE\s+DE\s+ARMA|ARMA\b)|[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç.\-\s]{1,35}\s+(?:COMO\s+ALIAD[OA]|como\s+Aliad[oa])\??\s*$)|\Z)",
                     txt,
                 ):
                     pname = m.group(1).replace("\n", " ").strip()
@@ -791,6 +791,116 @@ def parse_powers_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, Any]]
                     req_m = re.search(r"Pré-requisitos?:\s*([^\.]+)\.", pbody)
                     prereq = req_m.group(1).strip() if req_m else "Nenhum"
                     add_power(book_id, book_title, pno, pname, pbody, "Poder Paranormal", el, prereq, pafin)
+
+            # Varredura linha a linha para cabeçalhos singulares (PODER GERAL / PODER DE COMBATENTE / ESPECIALISTA / OCULTISTA)
+            singular_subcat_map = {
+                "PODER GERAL": "Poder Geral",
+                "PODER DE COMBATENTE": "Poder de Combatente",
+                "PODER DE ESPECIALISTA": "Poder de Especialista",
+                "PODER DE OCULTISTA": "Poder de Ocultista",
+            }
+            if any(h in txt.upper() for h in singular_subcat_map):
+                raw_lines = [l.rstrip() for l in txt.splitlines()]
+                non_empty = [(idx, re.sub(r"\s+", " ", l).strip()) for idx, l in enumerate(raw_lines) if l.strip()]
+                stop_re = re.compile(
+                    r"^(?:PODER\s+(?:GERAL|PARANORMAL|DE\s+(?:COMBATENTE|ESPECIALISTA|OCULTISTA))|"
+                    r"ITEM\s+(?:AMALDIÇOADO|PARANORMAL)|HABILIDADE\s+DE\s+ARMA|ARMA|EQUIPAMENTO\s+GERAL|"
+                    r".+?\s+NA\s+SUA\s+MESA)$"
+                )
+                for k, (line_idx, ne_line) in enumerate(non_empty):
+                    subcat = singular_subcat_map.get(ne_line.upper())
+                    if not subcat or ne_line != ne_line.upper():
+                        continue
+                    title_parts: List[str] = []
+                    for back in (1, 2):
+                        if k - back < 0:
+                            break
+                        _, cand = non_empty[k - back]
+                        cand_u = cand.upper()
+                        if (
+                            len(cand) > 45
+                            or cand.endswith((".", ":", ";", "!", "?"))
+                            or stop_re.match(cand_u)
+                            or "NA SUA MESA" in cand_u
+                            or "COMO ALIAD" in cand_u
+                            or not is_title_case_header(cand)
+                        ):
+                            break
+                        candidate_joined = " ".join([cand] + title_parts)
+                        if len(candidate_joined) > 48:
+                            break
+                        title_parts.insert(0, cand)
+                    if not title_parts:
+                        continue
+                    pname = " ".join(title_parts)
+                    start_raw_idx = line_idx + 1
+                    end_raw_idx = len(raw_lines)
+                    for fk in range(k + 1, len(non_empty)):
+                        f_raw_idx, f_line = non_empty[fk]
+                        f_u = f_line.upper()
+                        is_next_sub = (
+                            f_u in singular_subcat_map
+                            or f_u.startswith(("PODER PARANORMAL", "ITEM AMALDIÇOADO", "ITEM PARANORMAL", "HABILIDADE DE ARMA"))
+                        )
+                        is_ally = "COMO ALIAD" in f_u
+                        if stop_re.match(f_u) or is_next_sub or is_ally:
+                            if is_next_sub:
+                                cut_fk = fk - 1
+                                if (
+                                    fk - 2 > k + 1
+                                    and len(non_empty[fk - 2][1]) <= 45
+                                    and not non_empty[fk - 2][1].endswith((".", ":", ";", "!", "?"))
+                                    and is_title_case_header(non_empty[fk - 2][1])
+                                    and len(non_empty[fk - 2][1] + " " + non_empty[fk - 1][1]) <= 48
+                                ):
+                                    cut_fk = fk - 2
+                                end_raw_idx = non_empty[max(k + 1, cut_fk)][0]
+                            elif is_ally:
+                                cut_fk = fk - 1 if (f_u in ("COMO ALIADO", "COMO ALIADA") and fk - 1 > k + 1) else fk
+                                end_raw_idx = non_empty[cut_fk][0]
+                            else:
+                                end_raw_idx = f_raw_idx
+                            break
+                    pbody = "\n".join(raw_lines[start_raw_idx:end_raw_idx]).strip()
+                    pbody = re.sub(r"(?:\n+\d{1,3})+\s*$", "", pbody).strip()
+                    if book_id == "arquivos_secretos_02" and pno == 83:
+                        pbody = re.sub(
+                            r"\s*Você só pode gastar 1d6 no mesmo ritual,?\s*e apenas no momento em que conjurá-lo\.?\s*No fim da cena\s*$",
+                            "",
+                            pbody,
+                        ).strip()
+                    if smart_title(pname).lower() == "especialista em correntes" and (book_id, "especialista em correntes") in seen and "puxar o alvo" in pbody.lower():
+                        pname = "Especialista em Correntes (Puxão)"
+                    add_power(book_id, book_title, pno, pname, pbody, subcat)
+
+            # Poderes de Intenção (Arquivos Secretos #02, págs. 94-95)
+            if book_id == "arquivos_secretos_02" and "Intenção" in sec and "GATILHO" in txt:
+                for m in re.finditer(
+                    r'(?m)^([“"][^”"]+[”"])\s*\n+GATILHO\s*\n+([\s\S]+?)\n+Efeito\s*\n+([\s\S]+?)(?=\n+[“"]|\Z)',
+                    txt,
+                ):
+                    raw_name = re.sub(r"\s+", " ", m.group(1)).strip()
+                    gatilho = re.sub(r"\s+", " ", m.group(2)).strip()
+                    efeito = re.sub(r"\s+", " ", m.group(3)).strip()
+                    key = (book_id, raw_name.lower())
+                    if key not in seen:
+                        seen.add(key)
+                        full_desc = f"Gatilho: {gatilho}\n\nEfeito: {efeito}"
+                        powers.append({
+                            "id": make_id("power", book_id, raw_name),
+                            "category": "power",
+                            "subCategory": "Poder de Intenção",
+                            "name": raw_name,
+                            "bookId": book_id,
+                            "bookTitle": book_title,
+                            "pageNumber": pno,
+                            "element": "Nenhum",
+                            "prerequisite": "Contato com a Coroa de Espinhos",
+                            "diceFormulas": extract_dice_formulas(full_desc),
+                            "summary": f"Gatilho: {gatilho} — {efeito.split('.')[0].strip()}.",
+                            "description": full_desc,
+                            "tags": ["Poder de Intenção", book_title, "Poder"],
+                        })
 
             is_as_power_page = (
                 "Poderes" in sec
@@ -1237,16 +1347,128 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                 "tags": ["Arma", prof, f"Categoria {cat}", sh["title"]],
             })
 
+    cursed_weapon_overrides: Dict[Tuple[str, str], Dict[str, Any]] = {
+        ("arquivos_secretos_02", "manoplas do colosso"): {
+            "proficiency": "Tática",
+            "handedness": "Uma Mão",
+            "damage": "1d6 + 1d10 Energia",
+            "critical": "20/x2",
+            "range": "Corpo a corpo",
+            "damageType": "Impacto",
+            "itemCategory": "IV",
+            "spaces": "2",
+            "element": "Energia",
+        },
+        ("arquivos_secretos_02", "machado do mutilador"): {
+            "proficiency": "Tática",
+            "handedness": "Uma Mão",
+            "damage": "1d8 + 1d8 Sangue",
+            "critical": "20/x3",
+            "range": "Corpo a corpo",
+            "damageType": "Corte",
+            "itemCategory": "IV",
+            "spaces": "1",
+            "element": "Sangue",
+        },
+        ("arquivos_secretos_02", "punhal x"): {
+            "proficiency": "Simples",
+            "handedness": "Leve",
+            "damage": "1d4 + 1d6 Conhecimento",
+            "critical": "19/x2",
+            "range": "Curto",
+            "damageType": "Perfuração",
+            "itemCategory": "IV",
+            "spaces": "1",
+            "element": "Conhecimento",
+        },
+        ("arquivos_secretos_02", "sniper fantasma"): {
+            "proficiency": "Tática",
+            "handedness": "Duas Mãos",
+            "damage": "2d10 + 2d4 Morte",
+            "critical": "19/x3",
+            "range": "Longo",
+            "damageType": "Balístico",
+            "itemCategory": "IV",
+            "spaces": "2",
+            "element": "Morte",
+        },
+        ("arquivos_secretos_02", "a antena"): {
+            "proficiency": "Simples",
+            "handedness": "Duas Mãos",
+            "damage": "1d6",
+            "critical": "20/x2",
+            "range": "Corpo a corpo",
+            "damageType": "Impacto",
+            "itemCategory": "IV",
+            "spaces": "2",
+            "element": "Medo",
+        },
+        ("arquivos_secretos_02", "faca predadora"): {
+            "proficiency": "Simples",
+            "handedness": "Leve",
+            "damage": "1d4 + 2d10 Sangue",
+            "critical": "19/x3",
+            "range": "Curto",
+            "damageType": "Perfuração",
+            "itemCategory": "IV",
+            "spaces": "1",
+            "element": "Sangue",
+        },
+        ("livro_base", "punhos enraivecidos"): {
+            "proficiency": "Simples",
+            "handedness": "Leve",
+            "damage": "1d8 Sangue",
+            "critical": "20/x2",
+            "range": "Corpo a corpo",
+            "damageType": "Sangue",
+            "itemCategory": "II",
+            "spaces": "1",
+            "element": "Sangue",
+        },
+        ("livro_base", "arcabuz dos moretti"): {
+            "proficiency": "Simples",
+            "handedness": "Uma Mão",
+            "damage": "2d4 Energia",
+            "critical": "20/x2",
+            "range": "Curto",
+            "damageType": "Energia",
+            "itemCategory": "II",
+            "spaces": "1",
+            "element": "Energia",
+        },
+        ("sobrevivendo_ao_horror", "a primeira adaga"): {
+            "proficiency": "Simples",
+            "handedness": "Leve",
+            "damage": "1d4",
+            "critical": "19/x4",
+            "range": "Curto",
+            "damageType": "Perfuração",
+            "itemCategory": "IV",
+            "spaces": "1",
+            "element": "Medo",
+        },
+    }
+
     # 6C. Helper to add an item cleanly without newlines or sentence fragments
-    def add_item(book_id: str, book_title: str, pno: int, iname: str, idesc: str, subcat: str, el: str = "Nenhum") -> None:
-        iname_clean = smart_title(re.sub(r"\s+", " ", iname).strip("•?ŽÌ \t\n.:-"))
+    def add_item(
+        book_id: str,
+        book_title: str,
+        pno: int,
+        iname: str,
+        idesc: str,
+        subcat: str,
+        el: str = "Nenhum",
+        extra_fields: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        iname_norm = iname.replace("\xa0", " ")
+        iname_clean = smart_title(re.sub(r"\s+", " ", iname_norm).strip("•?ŽÌ \t\n.:-"))
         iname_clean = re.sub(r"^I\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ])", "Granada de ", iname_clean)
         if not iname_clean or len(iname_clean) < 3 or len(iname_clean) > 46:
             return
         if not is_title_case_header(iname_clean):
             return
         u = iname_clean.upper()
-        if u != "A PRIMEIRA ADAGA" and any(
+        if u not in ("A PRIMEIRA ADAGA", "A ANTENA") and any(
             u.startswith(bad)
             for bad in (
                 "CAPÍTULO", "TABELA", "NOTA", "EXEMPLO", "CATEGORIA", "TIPO", "ESPAÇO",
@@ -1273,11 +1495,15 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
             return
         seen_items.add(key)
 
-        idesc_clean = re.sub(r"\s+", " ", idesc).strip()
+        idesc_clean = re.sub(r"\s+", " ", idesc.replace("\xa0", " ")).strip()
         if len(idesc_clean) < 20:
             return
 
-        items.append({
+        if (book_id, iname_clean.lower()) == ("arquivos_secretos_02", "a antena"):
+            el = "Medo"
+            subcat = "Item Amaldiçoado / Maldição"
+
+        item_entry: Dict[str, Any] = {
             "id": make_id("item", book_id, iname_clean),
             "category": "item",
             "subCategory": subcat,
@@ -1290,7 +1516,31 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
             "summary": idesc_clean.split(".")[0].strip() + ".",
             "description": idesc_clean,
             "tags": [subcat, el, book_title, "Item"] if el != "Nenhum" else [subcat, book_title, "Item"],
-        })
+        }
+
+        cat_spc_m = re.search(
+            r"\bCATEGORIA\s+(0|IV|III|II|I)\s*\|\s*(\d+(?:[.,]\d+)?)\s*ESPAÇOS?\b",
+            idesc_clean,
+            flags=re.IGNORECASE,
+        )
+        if cat_spc_m:
+            item_entry["itemCategory"] = cat_spc_m.group(1).upper()
+            item_entry["spaces"] = cat_spc_m.group(2).replace(",", ".")
+        else:
+            cat_only_m = re.search(r"^(?:[A-ZÀ-Ú\s]+—\s*)?CATEGORIA\s+(0|IV|III|II|I)\b", idesc_clean, flags=re.IGNORECASE)
+            if cat_only_m:
+                item_entry["itemCategory"] = cat_only_m.group(1).upper()
+
+        if extra_fields:
+            item_entry.update(extra_fields)
+
+        cw_ov = cursed_weapon_overrides.get((book_id, iname_clean.lower()))
+        if cw_ov:
+            item_entry.update(cw_ov)
+            ov_el = cw_ov.get("element", el)
+            item_entry["tags"] = [subcat, ov_el, book_title, "Item"] if ov_el != "Nenhum" else [subcat, book_title, "Item"]
+
+        items.append(item_entry)
 
     # 6D. Parse Items, Modifications, Curses & Cursed Items across Livro Base & Sobrevivendo ao Horror
     for book in books:
@@ -1363,20 +1613,29 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
             # 6E. Arquivos Secretos Items, Weapons, Masks, Diseases, Poisons, Vehicles, Allies
             for page in book["pages"]:
                 pno = page["pageNumber"]
-                txt = page["text"]
+                txt = page["text"].replace("\xa0", " ")
                 sec = page.get("section", "")
 
-                if not any(kw in sec.lower() for kw in ("itens", "armas", "máscaras", "doenças", "venenos", "veículos", "aliados", "drone")):
+                has_item_kw = any(
+                    kw in sec.lower()
+                    for kw in ("itens", "armas", "doenças", "venenos", "veículos", "aliados", "drone")
+                ) or ("máscaras" in sec.lower() and book_id != "arquivos_secretos_02")
+                has_marker = any(
+                    mk in txt.upper()
+                    for mk in ("ITEM AMALDIÇOADO", "ITEM PARANORMAL", "HABILIDADE DE ARMA", "COMO ALIAD", "NOVOS ITENS DE RECURSOS", "RECURSOS ENCONTRADOS", "PISTOLA TASER")
+                )
+                if not has_item_kw and not has_marker:
                     continue
 
                 for m in re.finditer(
-                    r"(?m)^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 \t\+’'\-]{2,40}(?:\n[A-ZÁÉÍÓÚÂÊÔÃÕÇa-záéíóúâêôãõç][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 \t\+’'\-]{2,40})?)\n+"
-                    r"(ARMA|EQUIPAMENTO GERAL|ITEM PARANORMAL|ITEM(?:\s+|\n+)AMALDIÇOADO(?:\s+|\n+)(?:SANGUE|MORTE|CONHECIMENTO|ENERGIA|MEDO)|GRANADA|UTENSÍLIO|ITEM OPERACIONAL|PROTEÇÃO)\n+"
-                    r"(CATEGORIA\s+[0I1234V]+(?:\s*\|\s*|\n+)[^\n]+\n+[\s\S]+?)(?=\n+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 \t\+’'\-]{2,40}(?:\n[A-ZÁÉÍÓÚÂÊÔÃÕÇa-záéíóúâêôãõç][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 \t\+’'\-]{2,40})?\n+(?:ARMA|EQUIPAMENTO GERAL|ITEM|GRANADA|UTENSÍLIO|PROTEÇÃO|MODIFICAÇÕES|MALDIÇÕES)|\Z)",
+                    r"(?m)^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 \t\+’'\-]{2,40}(?:(?:[ \t]*\n)+[A-ZÁÉÍÓÚÂÊÔÃÕÇa-záéíóúâêôãõç][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 \t\+’'\-]{2,40})?)(?:[ \t]*\n)+"
+                    r"(ARMA|EQUIPAMENTO GERAL|ITEM\s+PARANORMAL|ITEM(?:\s+|\n+)AMALDIÇOADO(?:(?:\s+|\n+)(?:SANGUE|MORTE|CONHECIMENTO|ENERGIA|MEDO))?|GRANADA|UTENSÍLIO|ITEM OPERACIONAL|PROTEÇÃO)(?:[ \t]*\n)+"
+                    r"(CATEGORIA\s+[0I1234V]+(?:\s*\|\s*|\s*\n+)[^\n]+\n+[\s\S]+?)"
+                    r"(?=\n+(?:[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 \t\+’'\-]{2,40}(?:(?:[ \t]*\n)+[A-ZÁÉÍÓÚÂÊÔÃÕÇa-záéíóúâêôãõç][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 \t\+’'\-]{2,40})?(?:[ \t]*\n)+(?:ARMA|EQUIPAMENTO GERAL|ITEM|GRANADA|UTENSÍLIO|PROTEÇÃO|MODIFICAÇÕES|MALDIÇÕES|HABILIDADE DE ARMA|PODER )|(?:[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç.\-]{1,25}\s+){1,3}(?:como|COMO)\s+(?:Aliad[oa]|ALIAD[OA])\??|(?:STELLA|ARNOLD|CHLOE)\s*\n+\s*COMO ALIAD[OA]|Figura Influente\.|Dicas dos Autores|NOVA MUNIÇÃO)|\Z)",
                     txt,
                 ):
                     iname = m.group(1).replace("\n", " ").strip()
-                    itype = m.group(2).replace("\n", " ").strip().upper()
+                    itype = re.sub(r"\s+", " ", m.group(2)).strip().upper()
                     ibody = m.group(3).strip()
                     el = normalize_element(itype)
                     if itype == "ARMA":
@@ -1385,10 +1644,13 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                         dmg_m = re.search(r"causa\s+(\d+d\d+)\s+pontos\s+de\s+dano\s+de\s+([a-záéíóúâêôãõç]+)", ibody)
                         crit_m = re.search(r"crítico\s+([0-9x/]+)", ibody)
                         cat = cat_m.group(1) if cat_m else "I"
-                        spc = spc_m.group(1) if spc_m else "2"
+                        spc = spc_m.group(1).replace(",", ".") if spc_m else "2"
                         dmg = dmg_m.group(1) if dmg_m else "Variável"
                         dtype = dmg_m.group(2).capitalize() if dmg_m else "Variável"
                         crit = crit_m.group(1) if crit_m else "20/x2"
+                        low_ibody = ibody.lower()
+                        prof = "Simples" if re.search(r"\bsimples\b", low_ibody) else ("Tática" if re.search(r"\btática\b", low_ibody) else ("Pesada" if re.search(r"\bpesada\b", low_ibody) else "Armas Táticas / Pesadas"))
+                        hand = "Uma Mão" if "de uma mão" in low_ibody else ("Leve" if re.search(r"\bleve\b", low_ibody) else "Duas Mãos")
                         wname_clean = smart_title(iname)
                         if (book_id, wname_clean.lower()) not in seen_weapons:
                             seen_weapons.add((book_id, wname_clean.lower()))
@@ -1404,11 +1666,11 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                                 "itemCategory": cat,
                                 "damage": dmg,
                                 "critical": crit,
-                                "range": "Médio" if "alcance médio" in ibody.lower() else ("Longo" if "alcance longo" in ibody.lower() else "Curto"),
+                                "range": "Médio" if "alcance médio" in low_ibody else ("Longo" if "alcance longo" in low_ibody else "Curto"),
                                 "damageType": dtype,
                                 "spaces": spc,
-                                "proficiency": "Armas Táticas / Pesadas",
-                                "handedness": "Duas Mãos",
+                                "proficiency": prof,
+                                "handedness": hand,
                                 "diceFormulas": extract_dice_formulas(ibody),
                                 "summary": f"Cat {cat} | Dano: {dmg} ({dtype}) | Crítico: {crit} | Espaços: {spc}",
                                 "description": re.sub(r"\s+", " ", ibody).strip(),
@@ -1424,14 +1686,74 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                             subcat = "Proteção"
                         add_item(book_id, book_title, pno, iname, f"{itype} — {ibody}", subcat, el)
 
-                for m in re.finditer(
-                    r"(?m)^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40})[\.:]\s+([^\n]+(?:\n(?![A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40}[\.:]\s)[^\n]+)*)",
-                    txt,
-                ):
-                    iname = m.group(1).strip()
-                    idesc = m.group(2).strip()
-                    subcat = "Veículo / Regalia" if "Veículos" in sec or "REGALIAS" in txt else "Modificação"
-                    add_item(book_id, book_title, pno, iname, idesc, subcat)
+                # Habilidade de Arma (Acoplável, AS02 p. 71)
+                if "HABILIDADE DE ARMA" in txt.upper():
+                    for m in re.finditer(
+                        r"(?m)^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 \t\-]{2,40})\n+HABILIDADE DE ARMA\s*\n+([\s\S]+?)(?=\n+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][^\n]{1,40}\s+COMO ALIAD[OA]|\Z)",
+                        txt,
+                    ):
+                        add_item(
+                            book_id,
+                            book_title,
+                            pno,
+                            m.group(1),
+                            f"HABILIDADE DE ARMA — {m.group(2).strip()}",
+                            "Modificação de Arma",
+                            extra_fields={
+                                "itemCategory": "I",
+                                "spaces": "—",
+                                "allowedWeaponTypes": ["Corpo a corpo"],
+                                "appliesToDescription": "Armas Corpo a Corpo",
+                            },
+                        )
+
+                # Novos Itens de Recursos do Hexatombe (AS02 p. 20-21)
+                if book_id == "arquivos_secretos_02" and pno == 20:
+                    for res_name in ("Água", "Comida", "Sucata"):
+                        rm = re.search(
+                            rf"(?m)^{res_name}\.\s+([\s\S]+?)(?=\n+(?:Comida\.|Sucata\.|RECURSOS ENCONTRADOS)|\Z)",
+                            txt,
+                        )
+                        if rm:
+                            add_item(
+                                book_id, book_title, pno, res_name, rm.group(1),
+                                "Equipamento Geral",
+                                extra_fields={"itemCategory": "0", "spaces": "1"},
+                            )
+                if book_id == "arquivos_secretos_02" and pno == 21:
+                    hex_res_meta = {
+                        "Bandagem": ("I", "0.5"),
+                        "Bússola": ("I", "1"),
+                        "Caixa de Ferramentas": ("I", "2"),
+                        "Dose de Álcool": ("I", "0.5"),
+                        "Incenso": ("I", "0.5"),
+                        "Kit de Escalada": ("I", "2"),
+                        "Pedra de Amolar": ("I", "0.5"),
+                    }
+                    res_part = txt.split("NOVOS ITENS DE RECURSOS")[0]
+                    for m in re.finditer(
+                        r"(?m)^(Bandagem|Bússola|Caixa de Ferramentas|Dose de Álcool|Incenso|Kit de Escalada|Pedra de Amolar)\.\s+([\s\S]+?)(?=\n+(?:Bandagem|Bússola|Caixa de Ferramentas|Dose de Álcool|Incenso|Kit de Escalada|Pedra de Amolar)\.|\Z)",
+                        res_part,
+                    ):
+                        rname = m.group(1).strip()
+                        rdesc = m.group(2).strip()
+                        rcat, rspc = hex_res_meta[rname]
+                        add_item(
+                            book_id, book_title, pno, rname,
+                            f"EQUIPAMENTO GERAL — CATEGORIA {rcat} | {rspc} ESPAÇO — {rdesc}",
+                            "Equipamento Geral",
+                            extra_fields={"itemCategory": rcat, "spaces": rspc},
+                        )
+
+                if has_item_kw:
+                    for m in re.finditer(
+                        r"(?m)^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40})[\.:]\s+([^\n]+(?:\n(?![A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40}[\.:]\s)[^\n]+)*)",
+                        txt,
+                    ):
+                        iname = m.group(1).strip()
+                        idesc = m.group(2).strip()
+                        subcat = "Veículo / Regalia" if "Veículos" in sec or "REGALIAS" in txt else "Modificação"
+                        add_item(book_id, book_title, pno, iname, idesc, subcat)
 
                 if "Doenças" in sec or "Venenos" in sec or "Aliados" in sec:
                     subcat = "Doença" if "Doenças" in sec else ("Veneno" if "Venenos" in sec else "Aliado")
@@ -1440,6 +1762,49 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                         txt,
                     ):
                         add_item(book_id, book_title, pno, m.group(1), m.group(2), subcat)
+
+                # Aliados inline ("<Nome> como Aliado/Aliada") em Arquivos Secretos #02, #06 e #09
+                if "COMO ALIAD" in txt.upper():
+                    for m in re.finditer(
+                        r"(?m)^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç.\-]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç.\-]+){0,2})\s*(?:\n+|\s+)((?:como|COMO)\s+(?:Aliad[oa]|ALIAD[OA])\??)\s*\n+([\s\S]+?)(?=\n+(?:[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç \t\-]{2,40}(?:[ \t]*\n)+\s*(?:PODER\s+(?:PARANORMAL|GERAL|DE\s+\w+)|ITEM(?:\s+|\n+)(?:AMALDIÇOADO|PARANORMAL)|HABILIDADE\s+DE\s+ARMA)|[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ \.\-]{2,30}\n+PESSOA\s*•|AÇÕES\s*\n|PADRÃO\s*[▸◆]|PANACEA\s+COMO\s+ALIADA\??|MOVIMENTO\s*◆\s*INCENDIÁRIA)|\Z)",
+                        txt,
+                    ):
+                        prefix = re.sub(r"\s+", " ", m.group(1)).strip()
+                        ally_word = "Aliada" if "aliada" in m.group(2).lower() else "Aliado"
+                        ally_title = f"{smart_title(prefix)} como {ally_word}"
+                        ally_body = m.group(3).strip()
+                        # Remover blocos de ação da ficha de ameaça intercalados na extração em colunas (AS09 p. 25, 31)
+                        clean_paras = []
+                        skip_next_action_para = False
+                        for blk in re.split(r"\n\n+", ally_body):
+                            b_str = blk.strip()
+                            if not b_str or re.fullmatch(r"\d{1,3}", b_str):
+                                continue
+                            if re.match(r"^(?:REAÇÃO|LIVRE|MOVIMENTO|PADRÃO|COMPLETA)\s*[▸◆]", b_str):
+                                if b_str.startswith(("REAÇÃO ◆  REVIDAR", "LIVRE ◆  LUTA TÁTICA", "MOVIMENTO ◆  GÁS LACRIMOGÊNEO")):
+                                    # Check if the ally intro precedes/interleaves inside this block
+                                    if "REVIDAR" in b_str:
+                                        continue
+                                    skip_next_action_para = True
+                                    continue
+                            if skip_next_action_para:
+                                if b_str.startswith(("Bônus.", "Figura Influente", "Explosão", "Investida")):
+                                    skip_next_action_para = False
+                                else:
+                                    # Keep short ally flavor before action body, skip combat action rules
+                                    if "combatente" in b_str.lower() or "explosivos" in b_str.lower():
+                                        clean_paras.append(b_str)
+                                        continue
+                                    skip_next_action_para = False
+                                    continue
+                            clean_paras.append(b_str)
+                        ally_desc = "\n".join(clean_paras).strip()
+                        # AS02 p. 59: "Figura Influente." de Kemi ficou após Sniper Fantasma na extração de colunas
+                        if book_id == "arquivos_secretos_02" and pno == 59 and "Kemi" in ally_title:
+                            extra_m = re.search(r"(Figura Influente\.\s+[\s\S]+)$", txt)
+                            if extra_m:
+                                ally_desc = f"{ally_desc} {extra_m.group(1).strip()}"
+                        add_item(book_id, book_title, pno, ally_title, ally_desc, "Aliado")
 
     # 6F. Livro Base Special Cursed Items (pages 158-161 on v1.3 or 148-151 on v1.1)
     if lb:
@@ -1498,7 +1863,7 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
             key = ("livro_base", name.lower())
             if key not in seen_items:
                 seen_items.add(key)
-                items.append({
+                lb_item_entry: Dict[str, Any] = {
                     "id": make_id("item", "livro_base", name),
                     "category": "item",
                     "subCategory": "Item Amaldiçoado Especial",
@@ -1513,7 +1878,11 @@ def parse_weapons_and_items(books: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
                     "summary": desc.split(".")[0].strip() + ".",
                     "description": desc,
                     "tags": ["Item Amaldiçoado Especial", el, "Livro Base", "Item"],
-                })
+                }
+                cw_ov = cursed_weapon_overrides.get(key)
+                if cw_ov:
+                    lb_item_entry.update(cw_ov)
+                items.append(lb_item_entry)
 
     return weapons, items
 
@@ -1724,6 +2093,7 @@ def parse_creatures_from_books(books: List[Dict[str, Any]]) -> List[Dict[str, An
     page_creature_overrides = {
         ("arquivos_secretos_01", 69, 60): "Cleo",
         ("arquivos_secretos_01", 71, 180): "Cristino",
+        ("arquivos_secretos_02", 32, 120): "Felino-infernal",
         ("livro_base", 205, 240): "Zumbi de Sangue Colossal",
         ("livro_base", 240, 10): "Existido",
         ("livro_base", 254, 400): "A Máscara do Desespero",

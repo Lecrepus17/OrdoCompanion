@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import compendiumSeed from '../src/data/seed/compendium_seed.json';
 import booksPagesSeed from '../src/data/seed/books_pages_seed.json';
 import { CompendiumEntity, BookInfo } from '../src/types/compendium';
+import {
+  buildCustomWeaponFromCompendiumEntity,
+  OFFICIAL_WEAPON_MODS_MAP,
+} from '../src/utils/weapons';
 
 const REQUIRED_CATEGORIES = new Set([
   'ritual',
@@ -128,5 +132,73 @@ describe('Integridade da Base de Dados do Compêndio (databaseIntegrity.test.ts)
       assert.ok(typeof firstPage.pageNumber === 'number');
       assert.ok(typeof firstPage.text === 'string');
     }
+  });
+
+  it('deve conter todos os itens, armas, poderes, aliados e ameaças dos Mascarados e suplementos corrigidos', () => {
+    const byName = new Map<string, CompendiumEntity>();
+    for (const ent of entities) {
+      if (!byName.has(ent.name)) byName.set(ent.name, ent);
+    }
+
+    const requiredNames = [
+      'Manoplas do Colosso',
+      'Elmo do Colosso',
+      'Dalmo Magno como Aliado',
+      'Corpo Fechado',
+      'Golpes de Arena',
+      'Pressão Atmosférica',
+      'Machado do Mutilador',
+      'Punhal X',
+      'Sniper Fantasma',
+      'A Antena',
+      'Faca Predadora',
+      'Acoplável',
+      'Catalisador Sofisticado e Horrorizado',
+      'Pistola Taser',
+      'Felino-infernal',
+    ];
+
+    for (const name of requiredNames) {
+      assert.ok(byName.has(name), `Entidade obrigatória ausente no compêndio: ${name}`);
+    }
+
+    const intentionPowers = entities.filter(
+      (e) => e.category === 'power' && e.subCategory === 'Poder de Intenção'
+    );
+    assert.strictEqual(intentionPowers.length, 5, 'Devem existir exatamente 5 Poderes de Intenção');
+
+    const felino = byName.get('Felino-infernal');
+    assert.strictEqual(felino?.vd, 120, 'Felino-infernal deve ter VD 120');
+
+    const manoplas = byName.get('Manoplas do Colosso')!;
+    assert.strictEqual(manoplas.bookId, 'arquivos_secretos_02');
+    assert.strictEqual(manoplas.pageNumber, 47);
+    assert.strictEqual(manoplas.element, 'Energia');
+    assert.strictEqual(manoplas.itemCategory, 'IV');
+    assert.strictEqual(manoplas.spaces, '2');
+
+    const customManoplas = buildCustomWeaponFromCompendiumEntity(manoplas);
+    assert.strictEqual(customManoplas.weaponType, 'Corpo a corpo');
+    assert.strictEqual(customManoplas.proficiency, 'Tática');
+    assert.strictEqual(customManoplas.handedness, 'Uma Mão');
+    assert.strictEqual(customManoplas.baseDamage, '1d6 + 1d10 Energia');
+    assert.strictEqual(customManoplas.baseCritical, '20/x2');
+    assert.strictEqual(customManoplas.baseCategory, 'IV');
+    assert.strictEqual(customManoplas.baseSpaces, 2);
+
+    const sniper = byName.get('Sniper Fantasma')!;
+    const customSniper = buildCustomWeaponFromCompendiumEntity(sniper);
+    assert.strictEqual(customSniper.weaponType, 'Fogo');
+    assert.strictEqual(customSniper.proficiency, 'Tática');
+    assert.strictEqual(customSniper.handedness, 'Duas Mãos');
+    assert.strictEqual(customSniper.baseDamage, '2d10 + 2d4 Morte');
+    assert.strictEqual(customSniper.baseCritical, '19/x3');
+    assert.strictEqual(customSniper.baseRange, 'Longo');
+    assert.strictEqual(customSniper.baseDamageType, 'Balístico');
+    assert.strictEqual(customSniper.baseCategory, 'IV');
+
+    const acoplavelMod = OFFICIAL_WEAPON_MODS_MAP.get('acoplavel');
+    assert.ok(acoplavelMod, 'Modificação Acoplável deve estar registrada em OFFICIAL_WEAPON_MODS_MAP');
+    assert.strictEqual(acoplavelMod?.categoryIncrease, 1);
   });
 });

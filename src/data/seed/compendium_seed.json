@@ -2,18 +2,18 @@
   "version": "1.1.0",
   "generatedAt": "2026-10-24",
   "stats": {
-    "totalEntities": 1645,
+    "totalEntities": 1708,
     "byCategory": {
       "ritual": 107,
       "origin": 59,
       "class": 4,
       "track": 35,
-      "power": 213,
-      "weapon": 58,
-      "item": 311,
+      "power": 239,
+      "weapon": 59,
+      "item": 346,
       "skill": 28,
       "condition": 39,
-      "creature": 185,
+      "creature": 186,
       "rule": 606
     },
     "totalBooks": 10,
@@ -11458,14 +11458,52 @@
         "1d20"
       ],
       "summary": "O prazer da caçada está no seu sangue.",
-      "description": "O prazer da caçada está no seu sangue. Você pode gastar uma ação padrão e 3 PE para memorizar o odor de uma vítima, recebendo +1d20 em testes para rastreá-la, percebê-la e atacá-la. Você precisa de uma fonte do odor da vítima (como um pedaço rasgado da roupa) para usar este poder e só pode memorizar uma vítima por vez. O efeito dura até você memorizar outra vítima.\n\nAfinidade: Você pode memorizar até  três vítimas simultaneamente.  Machado do Mutilador  ITEM AMALDIÇOADO SANGUE  CATEGORIA IV | 1 ESPAÇO  Uma arma com cabo de madeira e lâmina  vermelha que já deu fim a diversas vítimas,  ela anseia por mais sangue.  É uma arma tática corpo a corpo e de uma  mão. Ela causa 1d8 pontos de dano de  corte mais 1d8 pontos de dano de Sangue,  multiplicado em caso de acerto crítico,  e tem crítico 20/x3. Além disso, quando  atinge uma vítima, você pode gastar 1  PE para deixá-la sangrando; esse efeito  é cumulativo, ou seja, ela pode ficar sangrando várias vezes simultaneamente (perdendo 1d6 PV para cada sangramento).",
+      "description": "O prazer da caçada está no seu sangue. Você pode gastar uma ação padrão e 3 PE para memorizar o odor de uma vítima, recebendo +1d20 em testes para rastreá-la, percebê-la e atacá-la. Você precisa de uma fonte do odor da vítima (como um pedaço rasgado da roupa) para usar este poder e só pode memorizar uma vítima por vez. O efeito dura até você memorizar outra vítima.\n\nAfinidade: Você pode memorizar até  três vítimas simultaneamente.",
       "tags": [
         "Poder Paranormal",
         "Sangue",
         "Arquivos Secretos #02",
         "Poder"
       ],
-      "affinity": "Você pode memorizar até  três vítimas simultaneamente.  Machado do Mutilador  ITEM AMALDIÇOADO SANGUE  CATEGORIA IV | 1 ESPAÇO  Uma arma com cabo de madeira e lâmina  vermelha que já deu fim a diversas vítimas,  ela anseia por mais sangue.  É uma arma tática corpo a corpo e de uma  mão. Ela causa 1d8 pontos de dano de  corte mais 1d8 pontos de dano de Sangue,  multiplicado em caso de acerto crítico,  e tem crítico 20/x3. Além disso, quando  atinge uma vítima, você pode gastar 1  PE para deixá-la sangrando; esse efeito  é cumulativo, ou seja, ela pode ficar sangrando várias vezes simultaneamente (perdendo 1d6 PV para cada sangramento)."
+      "affinity": "Você pode memorizar até  três vítimas simultaneamente."
+    },
+    {
+      "id": "power__arquivos_secretos_02__revidar_violento",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Revidar Violento",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 41,
+      "element": "Nenhum",
+      "prerequisite": "For 2 ou Agi 2",
+      "diceFormulas": [],
+      "summary": "Seu treinamento com contra-ataques deu resultados.",
+      "description": "Seu treinamento com contra-ataques deu resultados. Você pode fazer uma segunda reação especial de defesa na mesma rodada, desde que ela seja um contra--ataque. Pré-requisito: For 2 ou Agi 2.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__predador_perfeito",
+      "category": "power",
+      "subCategory": "Poder de Combatente",
+      "name": "Predador Perfeito",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 41,
+      "element": "Nenhum",
+      "prerequisite": "veterano em Luta ou Pontaria e Sobrevivência",
+      "diceFormulas": [],
+      "summary": "Você praticou técnicas de caça até ficar assustadoramente ágil.",
+      "description": "Você praticou técnicas de caça até ficar assustadoramente ágil. Uma vez por rodada, você pode gastar 5 PE para fazer uma ação padrão adicional. Essa ação precisa ser com intenção de causar dano (dar um soco, disparar uma arma, armar uma armadilha, conjurar um ritual que cause dano etc.). Pré-requisitos: veterano em Luta ou Pontaria e Sobrevivência.",
+      "tags": [
+        "Poder de Combatente",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
     },
     {
       "id": "power__arquivos_secretos_02__pressao_atmosferica",
@@ -11481,14 +11519,52 @@
         "1d10"
       ],
       "summary": "Você sabe transmitir a Energia através de seus punhos.",
-      "description": "Você sabe transmitir a Energia através de seus punhos. Quando acerta um ataque corpo a corpo em um alvo agarrado, você pode gastar 3 PE para gerar uma pressão destruidora. Você causa +1d10 pontos de dano de Energia e o alvo fica atordoado por uma rodada (Fort DT For evita a condição). Um mesmo ser só pode ser atordoado por esta habilidade uma vez por cena.\n\nAfinidade: O alvo também fica caído e  sangrando (o teste de resistência não evita  essas condições).  Elmo do Colosso  ITEM AMALDIÇOADO  ENERGIA  CATEGORIA III | 2 ESPAÇOS  Um elmo de escafandro trabalhado em  metal e imbuído com uma forte pressão  eletrostática criada a partir da Energia.  O Elmo é uma vestimenta que fornece  resistência a dano 5. Se usado em  conjunto com o resto do equipamento  de escafandro, conta como um traje de  mergulho (SaH, p. 44).  Manoplas do Colosso  ITEM AMALDIÇOADO  ENERGIA  CATEGORIA IV | 2 ESPAÇOS  Um par de manoplas  trabalhadas em metal e  imbuídas com uma violenta  onda de Energia.  Cada Manopla é uma arma  tática corpo a corpo e de uma mão,  mas elas só funcionam se usadas  em par. Cada uma causa 1d6 pontos  de dano de impacto mais 1d10 pontos de  dano de Energia e tem crítico 20/x2. Além  disso, todas as regras e efeitos  de ataque  desarmado se aplicam às Manoplas —,  mas efeitos que aumentam o dado de  dano desarmado como o poder Artista  Marcial não modificam o dano delas.  Dalmo Magno como Aliado  Dalmo mistura as habilidades de um  motorista com as de um lutador de arena.  Bônus. Sempre que causar dano, você  causa +1d10 pontos de dano de Energia.  Motorista Veterano. Você pode  gastar 2 PE para receber treinamento  em Pilotagem até o fim da cena. Se já  for treinado, em vez disso recebe +1d20  em testes de Pilotagem.",
+      "description": "Você sabe transmitir a Energia através de seus punhos. Quando acerta um ataque corpo a corpo em um alvo agarrado, você pode gastar 3 PE para gerar uma pressão destruidora. Você causa +1d10 pontos de dano de Energia e o alvo fica atordoado por uma rodada (Fort DT For evita a condição). Um mesmo ser só pode ser atordoado por esta habilidade uma vez por cena.\n\nAfinidade: O alvo também fica caído e  sangrando (o teste de resistência não evita  essas condições).",
       "tags": [
         "Poder Paranormal",
         "Energia",
         "Arquivos Secretos #02",
         "Poder"
       ],
-      "affinity": "O alvo também fica caído e  sangrando (o teste de resistência não evita  essas condições).  Elmo do Colosso  ITEM AMALDIÇOADO  ENERGIA  CATEGORIA III | 2 ESPAÇOS  Um elmo de escafandro trabalhado em  metal e imbuído com uma forte pressão  eletrostática criada a partir da Energia.  O Elmo é uma vestimenta que fornece  resistência a dano 5. Se usado em  conjunto com o resto do equipamento  de escafandro, conta como um traje de  mergulho (SaH, p. 44).  Manoplas do Colosso  ITEM AMALDIÇOADO  ENERGIA  CATEGORIA IV | 2 ESPAÇOS  Um par de manoplas  trabalhadas em metal e  imbuídas com uma violenta  onda de Energia.  Cada Manopla é uma arma  tática corpo a corpo e de uma mão,  mas elas só funcionam se usadas  em par. Cada uma causa 1d6 pontos  de dano de impacto mais 1d10 pontos de  dano de Energia e tem crítico 20/x2. Além  disso, todas as regras e efeitos  de ataque  desarmado se aplicam às Manoplas —,  mas efeitos que aumentam o dado de  dano desarmado como o poder Artista  Marcial não modificam o dano delas.  Dalmo Magno como Aliado  Dalmo mistura as habilidades de um  motorista com as de um lutador de arena.  Bônus. Sempre que causar dano, você  causa +1d10 pontos de dano de Energia.  Motorista Veterano. Você pode  gastar 2 PE para receber treinamento  em Pilotagem até o fim da cena. Se já  for treinado, em vez disso recebe +1d20  em testes de Pilotagem."
+      "affinity": "O alvo também fica caído e  sangrando (o teste de resistência não evita  essas condições)."
+    },
+    {
+      "id": "power__arquivos_secretos_02__corpo_fechado",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Corpo Fechado",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 47,
+      "element": "Nenhum",
+      "prerequisite": "Vig 2",
+      "diceFormulas": [],
+      "summary": "Seu treinamento com bloqueios deu resultados.",
+      "description": "Seu treinamento com bloqueios deu resultados. Você pode fazer uma segunda reação especial de defesa na mesma rodada, desde que ela seja um bloqueio. Pré-requisito: Vig 2.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__golpes_de_arena",
+      "category": "power",
+      "subCategory": "Poder de Combatente",
+      "name": "Golpes de Arena",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 47,
+      "element": "Nenhum",
+      "prerequisite": "treinado em Luta",
+      "diceFormulas": [],
+      "summary": "Você aprendeu como se briga dentro das grades.",
+      "description": "Você aprendeu como se briga dentro das grades. Quando acerta um ataque corpo a corpo, você pode gastar 2 PE para fazer um ataque corpo a corpo adicional ou uma manobra de combate contra o mesmo alvo. Pré-requisito: treinado em Luta.",
+      "tags": [
+        "Poder de Combatente",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
     },
     {
       "id": "power__arquivos_secretos_02__zona_dos_sussurros",
@@ -11502,14 +11578,54 @@
       "prerequisite": "Nenhum",
       "diceFormulas": [],
       "summary": "Você amaldiçoa uma área para que o Conhecimento influencie a percepção dos seres dentro dela.",
-      "description": "Você amaldiçoa uma área para que o Conhecimento influencie a percepção dos seres dentro dela. Com o gasto de uma ação completa e 3 PE, você marca uma área equivalente a um cômodo pequeno com vários. Para áreas maiores, podem ser necessários mais usos dessa habilidade, à critério do mestre. Nessa área, você recebe +5 em testes de ataque e não sofre penalidade por fazer testes de Furtividade após atacar ou fazer outras ações chamativas. Você pode ter no máximo três áreas criadas; se criar uma quarta, uma das anteriores desaparece.\n\nAfinidade: Se causar dano em um alvo  desprevenido com um ataque corpo a  corpo ou em alcance curto, ou um alvo  que você esteja flanqueando, você pode  rolar novamente quaisquer dados de dano  com resultado 1 ou 2 e escolher ficar com  os melhores resultados.  Punhal X  ITEM AMALDIÇOADO CONHECIMENTO  CATEGORIA IV | 1 ESPAÇO  Uma grande faca de cabo sombrio e  guarda dourada.  É uma arma simples corpo a corpo, de  uma mão e ágil, que pode ser arremessada em alcance curto. Ela causa 1d4  pontos de dano de perfuração mais 1d6  pontos de dano de Conhecimento e tem  crítico 19/x2. Além disso, quando ataca  com esta arma, você pode gastar 2 PE  para deixar o alvo desprevenido contra o ataque e, se  acertar, o alvo fica cego por 1  rodada. Um mesmo alvo só pode  ficar cego por esta arma uma vez  por cena.",
+      "description": "Você amaldiçoa uma área para que o Conhecimento influencie a percepção dos seres dentro dela. Com o gasto de uma ação completa e 3 PE, você marca uma área equivalente a um cômodo pequeno com vários. Para áreas maiores, podem ser necessários mais usos dessa habilidade, à critério do mestre. Nessa área, você recebe +5 em testes de ataque e não sofre penalidade por fazer testes de Furtividade após atacar ou fazer outras ações chamativas. Você pode ter no máximo três áreas criadas; se criar uma quarta, uma das anteriores desaparece.\n\nAfinidade: Se causar dano em um alvo  desprevenido com um ataque corpo a  corpo ou em alcance curto, ou um alvo  que você esteja flanqueando, você pode  rolar novamente quaisquer dados de dano  com resultado 1 ou 2 e escolher ficar com  os melhores resultados.",
       "tags": [
         "Poder Paranormal",
         "Conhecimento",
         "Arquivos Secretos #02",
         "Poder"
       ],
-      "affinity": "Se causar dano em um alvo  desprevenido com um ataque corpo a  corpo ou em alcance curto, ou um alvo  que você esteja flanqueando, você pode  rolar novamente quaisquer dados de dano  com resultado 1 ou 2 e escolher ficar com  os melhores resultados.  Punhal X  ITEM AMALDIÇOADO CONHECIMENTO  CATEGORIA IV | 1 ESPAÇO  Uma grande faca de cabo sombrio e  guarda dourada.  É uma arma simples corpo a corpo, de  uma mão e ágil, que pode ser arremessada em alcance curto. Ela causa 1d4  pontos de dano de perfuração mais 1d6  pontos de dano de Conhecimento e tem  crítico 19/x2. Além disso, quando ataca  com esta arma, você pode gastar 2 PE  para deixar o alvo desprevenido contra o ataque e, se  acertar, o alvo fica cego por 1  rodada. Um mesmo alvo só pode  ficar cego por esta arma uma vez  por cena."
+      "affinity": "Se causar dano em um alvo  desprevenido com um ataque corpo a  corpo ou em alcance curto, ou um alvo  que você esteja flanqueando, você pode  rolar novamente quaisquer dados de dano  com resultado 1 ou 2 e escolher ficar com  os melhores resultados."
+    },
+    {
+      "id": "power__arquivos_secretos_02__esquiva_tatica",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Esquiva Tática",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 53,
+      "element": "Nenhum",
+      "prerequisite": "Agi 2",
+      "diceFormulas": [],
+      "summary": "Seu treinamento com esquivas deu resultados.",
+      "description": "Seu treinamento com esquivas deu resultados. Você pode fazer uma segunda reação especial de defesa na mesma rodada, desde que ela seja uma esquiva. Pré-requisito: Agi 2.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__assassinato_furtivo",
+      "category": "power",
+      "subCategory": "Poder de Especialista",
+      "name": "Assassinato Furtivo",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 53,
+      "element": "Nenhum",
+      "prerequisite": "Ataque Furtivo",
+      "diceFormulas": [
+        "1d6"
+      ],
+      "summary": "Você sabe ferir os pontos vitais com ainda mais letalidade.",
+      "description": "Você sabe ferir os pontos vitais com ainda mais letalidade. O dano que você causa com a habilidade de trilha Ataque Furtivo aumenta em +1d6. Além disso, quando acerta um ataque furtivo, você pode gastar 2 PE para mudar o tipo dos dados de dano furtivo de d6 para d8. Pré-requisito: Ataque Furtivo.",
+      "tags": [
+        "Poder de Especialista",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
     },
     {
       "id": "power__arquivos_secretos_02__disparo_da_morte",
@@ -11523,14 +11639,265 @@
       "prerequisite": "Nenhum",
       "diceFormulas": [],
       "summary": "Ao fazer um ataque com uma arma de fogo ou de disparo, você pode se conectar com a Morte para fazer o tempo desacelerar momentaneamente.",
-      "description": "Ao fazer um ataque com uma arma de fogo ou de disparo, você pode se conectar com a Morte para fazer o tempo desacelerar momentaneamente. Antes de fazer o teste de ataque, você pode gastar 3 PE para receber +2 na margem de ameaça dele.\n\nAfinidade: O ataque ignora cobertura e 10  pontos de resistência a dano do alvo.  Sniper Fantasma  ITEM AMALDIÇOADO MORTE  CATEGORIA IV | 2 ESPAÇOS  Um fuzil de precisão sombrio enrolado em  bandagens que o tornaram amaldiçoado.  É uma arma de fogo tática, de duas mãos  e alcance longo. Ela causa 2d10 pontos  de dano balístico mais 2d4 pontos de  dano de Morte e tem crítico 19/x3. Se for  veterano em Pontaria e mirar com esta  arma (OPRPG, p. 87), você recebe +5 na  margem de ameaça de seu ataque. Além  disso, um ser reduzido a 0 PV por dano  desta arma morre se iniciar   2 turnos morrendo   (em vez   de 3).  Figura Influente. Uma vez por rodada,  quando você faz um ataque à distância  com uma arma de fogo ou de disparo, você  pode gastar 2 PE para fazer uma ação de  movimento adicional que deve ser para se  deslocar imediatamente após o ataque.",
+      "description": "Ao fazer um ataque com uma arma de fogo ou de disparo, você pode se conectar com a Morte para fazer o tempo desacelerar momentaneamente. Antes de fazer o teste de ataque, você pode gastar 3 PE para receber +2 na margem de ameaça dele.\n\nAfinidade: O ataque ignora cobertura e 10  pontos de resistência a dano do alvo.",
       "tags": [
         "Poder Paranormal",
         "Morte",
         "Arquivos Secretos #02",
         "Poder"
       ],
-      "affinity": "O ataque ignora cobertura e 10  pontos de resistência a dano do alvo.  Sniper Fantasma  ITEM AMALDIÇOADO MORTE  CATEGORIA IV | 2 ESPAÇOS  Um fuzil de precisão sombrio enrolado em  bandagens que o tornaram amaldiçoado.  É uma arma de fogo tática, de duas mãos  e alcance longo. Ela causa 2d10 pontos  de dano balístico mais 2d4 pontos de  dano de Morte e tem crítico 19/x3. Se for  veterano em Pontaria e mirar com esta  arma (OPRPG, p. 87), você recebe +5 na  margem de ameaça de seu ataque. Além  disso, um ser reduzido a 0 PV por dano  desta arma morre se iniciar   2 turnos morrendo   (em vez   de 3).  Figura Influente. Uma vez por rodada,  quando você faz um ataque à distância  com uma arma de fogo ou de disparo, você  pode gastar 2 PE para fazer uma ação de  movimento adicional que deve ser para se  deslocar imediatamente após o ataque."
+      "affinity": "O ataque ignora cobertura e 10  pontos de resistência a dano do alvo."
+    },
+    {
+      "id": "power__arquivos_secretos_02__palpite_confiante",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Palpite Confiante",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 59,
+      "element": "Nenhum",
+      "prerequisite": "Int 2",
+      "diceFormulas": [],
+      "summary": "Há momentos em que você tem certeza de algo mesmo não sabendo como.",
+      "description": "Há momentos em que você tem certeza de algo mesmo não sabendo como. Quando faz um teste de perícia baseado em Intelecto ou Presença, você pode gastar 1 PE para somar seu Intelecto no teste. Pré-requisito: Int 2.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__especialista_em_matar",
+      "category": "power",
+      "subCategory": "Poder de Especialista",
+      "name": "Especialista em Matar",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 59,
+      "element": "Nenhum",
+      "prerequisite": "Agi 2 ou For 2, treinado em Luta ou Pontaria",
+      "diceFormulas": [],
+      "summary": "Ferir é fácil; você sabe matar.",
+      "description": "Ferir é fácil; você sabe matar. Quando faz um ataque, você pode gastar 2 PE para receber +4 no teste de ataque ou na rolagem de dano. Conforme avança de NEX, você pode gastar +1 PE para receber mais bônus de +4 (25%: 3 PE, +8; 55%: 4PE, +12; 85%: 5 PE, +16). Você pode aplicar cada bônus de +4 em ataque ou dano. Por exemplo, em NEX 55%, você pode gastar 4 PE para receber +4 no teste de ataque e +8 na rolagem de dano. Pré-requisitos: Agi 2 ou For 2, treinado em Luta ou Pontaria.",
+      "tags": [
+        "Poder de Especialista",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__especialista_em_correntes",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Especialista em Correntes",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 70,
+      "element": "Nenhum",
+      "prerequisite": "Agi 2",
+      "diceFormulas": [],
+      "summary": "Você aprendeu a manipular correntes ou semelhantes como cordas para manter itens seguros.",
+      "description": "Você aprendeu a manipular correntes ou semelhantes como cordas para manter itens seguros. Você pode gastar uma ação completa para prender um item qualquer em uma corrente bem amarrada ao seu corpo (ou ao corpo de outra pessoa, se quiser usar essa técnica em um aliado em alcance de toque, por exemplo). O item preso não pode ser desarmado ou retirado, sendo necessário quebrar a corrente em que o objeto está preso para soltá-lo. Além disso, você recebe +2 em testes de manobras feitos com correntes, chicotes e armas presas em você por essa habilidade. Andar com vários itens presos assim é desconfortável: cada item além do primeiro causa –1 em testes de perícias afetadas por carga. Pré-requisito: Agi 2.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__pratica_com_materiais_ritualisticos",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Prática com Materiais Ritualísticos",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 74,
+      "element": "Nenhum",
+      "prerequisite": "Int 2, treinando em Ocultismo, capacidade de conjurar rituais",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "Você domina materiais usados em rituais com precisão.",
+      "description": "Você domina materiais usados em rituais com precisão. Quando executa uma conjuração complexa (SaH, p. 115), você não sofre –1d20 para empregar materiais específicos de uma Entidade durante a 1ª etapa. Pré-requisitos: Int 2, treinando em Ocultismo, capacidade de conjurar rituais.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__dominar_habilidade_ritualistica",
+      "category": "power",
+      "subCategory": "Poder de Ocultista",
+      "name": "Dominar Habilidade Ritualística",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 75,
+      "element": "Nenhum",
+      "prerequisite": "Int 3, treinado em Ocultismo, capacidade de conjurar rituais",
+      "diceFormulas": [],
+      "summary": "Seus estudos são amplos e não serão interrompidos por barreiras burocráticas.",
+      "description": "Seus estudos são amplos e não serão interrompidos por barreiras burocráticas. Quando adquire este poder, você pode escolher uma habilidade de trilha de Ocultista e aprendê-la, mas precisa ter o NEX necessário para usá-la. Por exemplo, se você tiver NEX 65%, pode escolher a habilidade Anular Ritual (OPRPG, p. 34). Habilidades que dependem de outra anterior para funcionar continuam tendo essa dependência. Este poder pode ser adquirido até três vezes. Pré-requisitos: Int 3, treinado em Ocultismo, capacidade de conjurar rituais.",
+      "tags": [
+        "Poder de Ocultista",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__estagio_terminal",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Estágio Terminal",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 78,
+      "element": "Nenhum",
+      "prerequisite": "Agi 2",
+      "diceFormulas": [],
+      "summary": "A proximidade da morte acelera seu coração e incendeia seus músculos.",
+      "description": "A proximidade da morte acelera seu coração e incendeia seus músculos. Uma vez por rodada, quando está machucado, você pode gastar 2 PE para fazer uma ação de movimento extra. Pré-requisito: Agi 2.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__kian_vai_nos_salvar",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Kian Vai Nos Salvar",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 78,
+      "element": "Nenhum",
+      "prerequisite": "Pre 2, capacidade de conjurar rituais",
+      "diceFormulas": [],
+      "summary": "Você acredita fielmente nas palavras de Kian; ele vai te salvar.",
+      "description": "Você acredita fielmente nas palavras de Kian; ele vai te salvar. A critério do mestre, se você estiver enfrentando um desafio (uma ameaça, um perigo, um enigma etc.) e sua fé em Kian estiver envolvida e motivando-o de alguma forma, você aprende a conjurar um único ritual de Conhecimento de até 3º círculo como se o conhecesse (ele não conta para o limite de rituais). Uma vez escolhido o ritual, ele permanece disponível até o fim da cena. Você não pode ter dois rituais disponíveis na mesma cena, simultaneamente ou não. Pré-requisitos: Pre 2, capacidade de conjurar rituais.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__tratamento_de_emergencia",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Tratamento de Emergência",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 79,
+      "element": "Nenhum",
+      "prerequisite": "Int 2, treinado em Medicina",
+      "diceFormulas": [
+        "2d10+10"
+      ],
+      "summary": "Existem aplicações medicinais arriscadas que você ousou aprender para manter seus aliados em ação.",
+      "description": "Existem aplicações medicinais arriscadas que você ousou aprender para manter seus aliados em ação. Você pode gastar 2 PE e uma ação padrão para fornecer 2d10+10 PV temporários a um ser em alcance de toque. Quando todos os pontos forem perdidos, o ser fica fraco até o fim da cena. O mesmo alvo não pode ser beneficiado novamente por essa habilidade na mesma cena. Pré-requisitos: Int 2, treinado em Medicina.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__arte_da_musica_macabra",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Arte da Música Macabra",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 83,
+      "element": "Nenhum",
+      "prerequisite": "Nenhum",
+      "diceFormulas": [],
+      "summary": "Você é capaz de influenciar sutilmente a Realidade permitindo que sua música suplique efeitos para o Outro Lado.",
+      "description": "Você é capaz de influenciar sutilmente a Realidade permitindo que sua música suplique efeitos para o Outro Lado. Você pode gastar uma ação padrão e 2 PE para causar um dos efeitos a seguir em 1 ser em alcance curto que possa ouvi-lo: o O próximo dano que o alvo causar aumenta em +5. o O próximo ataque do alvo recebe +2 na margem de ameaça. o O próximo teste de ataque do alvo recebe bônus de +5. o O alcance do próximo ataque ou habilidade que o alvo usar recebe +9m de alcance.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__sintonizacao_mental_com_arma",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Sintonização Mental com Arma",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 83,
+      "element": "Nenhum",
+      "prerequisite": "Int 2 ou Pre 2, treinado em Ocultismo, capacidade de conjurar rituais",
+      "diceFormulas": [],
+      "summary": "Você suplica ao Outro Lado para que o paranormal crie uma sintonização entre você e uma arma.",
+      "description": "Você suplica ao Outro Lado para que o paranormal crie uma sintonização entre você e uma arma. Em uma cena de interlúdio, você pode gastar uma ação de interlúdio de 3 PE para se sintonizar paranormalmente com uma arma que esteja empunhando. Até o início da próxima cena de interlúdio, a arma sintonizada passa a usar um atributo a sua escolha para testes de ataque e dano, em vez do padrão. Esse efeito só funciona se a arma estiver sendo empunhada por você. Pré-requisitos: Int 2 ou Pre 2, treinado em Ocultismo, capacidade de conjurar rituais.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__movimentacao_tatica",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Movimentação Tática",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 87,
+      "element": "Nenhum",
+      "prerequisite": "For 2, treinado em Atletismo e Tática",
+      "diceFormulas": [],
+      "summary": "Se mover em combate é instintivo para você.",
+      "description": "Se mover em combate é instintivo para você. Se você se mover em direção a uma cobertura ou um inimigo, pode gastar 1 PE para percorrer o dobro do seu deslocamento. Pré-requisitos: For 2, treinado em Atletismo e Tática.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__sentido_tatico",
+      "category": "power",
+      "subCategory": "Poder Geral",
+      "name": "Sentido Tático",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 87,
+      "element": "Nenhum",
+      "prerequisite": "Pre 2, treinado em Percepção e Tática",
+      "diceFormulas": [],
+      "summary": "Seu treinamento militar mantém seus sentidos alertas.",
+      "description": "Seu treinamento militar mantém seus sentidos alertas. Você fica imune a condição desprevenido e, quando causar dano em um alvo, pode gastar 2 PE para que ele falhe automaticamente em testes de Furtividade contra você por 1 rodada. Pré-requisitos: Pre 2, treinado em Percepção e Tática.",
+      "tags": [
+        "Poder Geral",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__marteladas",
+      "category": "power",
+      "subCategory": "Poder de Combatente",
+      "name": "Marteladas",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 87,
+      "element": "Nenhum",
+      "prerequisite": "For 2, treinado em Luta, Artista Marcial",
+      "diceFormulas": [],
+      "summary": "Suas pancadas são como golpes de marreta.",
+      "description": "Suas pancadas são como golpes de marreta. Você pode gastar 3 PE e uma ação completa para desferir três ataques desarmados contra o mesmo alvo. Só role o teste para determinar se acontece um acerto crítico ou não (não precisa compará-los a Defesa do alvo); depois disso, role o dano dos três ataques, some e cause tudo no alvo como se fosse uma única fonte de dano (Fortitude DT For reduz à metade). Pré-requisitos: For 2, treinado em Luta, Artista Marcial.",
+      "tags": [
+        "Poder de Combatente",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
     },
     {
       "id": "power__arquivos_secretos_02__engolir_sangue",
@@ -11547,14 +11914,131 @@
         "1d4"
       ],
       "summary": "Sua conexão com o Sangue abriu o apetite para algo macabro.",
-      "description": "Sua conexão com o Sangue abriu o apetite para algo macabro. Você pode gastar uma ação completa para consumir uma porção de carne humana e recuperar 2d8+2 PV, mas perde 1d4 SAN, pois fazer isso é monstruoso. 1 porção de carne humana equivale a 1 espaço (uma mão, uma coxa, um cérebro etc.).\n\nAfinidade: A cura muda para 4d8+4 PV.  Faca Predadora  ITEM AMALDIÇOADO SANGUE  CATEGORIA IV | 1 ESPAÇO  Uma faca de cabo escuro ornamentada  com várias ondas em sua lâmina.  É uma arma simples corpo a corpo, de  uma mão e ágil, que pode ser arremessada em alcance curto. Ela causa 1d4  pontos de dano de perfuração mais 2d10  pontos de dano de Sangue e tem crítico  19/x3. Quando ataca com esta arma,  você pode gastar 2 PE. Se fizer isso e  acertar o ataque, você recupera 2d10 PV.  Qualquer ponto de vida recuperado que  exceda seus PV máximos se torna pontos  de vida temporários.  Juan como Aliado  Juan é um aliado assustador com habilidades ocultistas temidas.  Bônus. Você recebe +1d20 em testes de  Intimidação e Ocultismo.  Ligado ao Sangue. Você pode conjurar os rituais Armadura de Sangue  e Descarnar como se os conhecesse,  mas ainda precisa atender aos pré-requisitos de círculo para as formas  avançadas. Eles não contam em seu  limite de rituais. Se já conhece algum  dos dois rituais (ou os dois), em vez  disso o custo em PE para conjurá-lo  diminui em –1 PE.",
+      "description": "Sua conexão com o Sangue abriu o apetite para algo macabro. Você pode gastar uma ação completa para consumir uma porção de carne humana e recuperar 2d8+2 PV, mas perde 1d4 SAN, pois fazer isso é monstruoso. 1 porção de carne humana equivale a 1 espaço (uma mão, uma coxa, um cérebro etc.).\n\nAfinidade: A cura muda para 4d8+4 PV.",
       "tags": [
         "Poder Paranormal",
         "Sangue",
         "Arquivos Secretos #02",
         "Poder"
       ],
-      "affinity": "A cura muda para 4d8+4 PV.  Faca Predadora  ITEM AMALDIÇOADO SANGUE  CATEGORIA IV | 1 ESPAÇO  Uma faca de cabo escuro ornamentada  com várias ondas em sua lâmina.  É uma arma simples corpo a corpo, de  uma mão e ágil, que pode ser arremessada em alcance curto. Ela causa 1d4  pontos de dano de perfuração mais 2d10  pontos de dano de Sangue e tem crítico  19/x3. Quando ataca com esta arma,  você pode gastar 2 PE. Se fizer isso e  acertar o ataque, você recupera 2d10 PV.  Qualquer ponto de vida recuperado que  exceda seus PV máximos se torna pontos  de vida temporários.  Juan como Aliado  Juan é um aliado assustador com habilidades ocultistas temidas.  Bônus. Você recebe +1d20 em testes de  Intimidação e Ocultismo.  Ligado ao Sangue. Você pode conjurar os rituais Armadura de Sangue  e Descarnar como se os conhecesse,  mas ainda precisa atender aos pré-requisitos de círculo para as formas  avançadas. Eles não contam em seu  limite de rituais. Se já conhece algum  dos dois rituais (ou os dois), em vez  disso o custo em PE para conjurá-lo  diminui em –1 PE."
+      "affinity": "A cura muda para 4d8+4 PV."
+    },
+    {
+      "id": "power__arquivos_secretos_02__liturgia_de_fortalecimento_ritualistico",
+      "category": "power",
+      "subCategory": "Poder de Ocultista",
+      "name": "Liturgia de Fortalecimento Ritualístico",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 93,
+      "element": "Nenhum",
+      "prerequisite": "Int e Pre 2",
+      "diceFormulas": [],
+      "summary": "Você conhece práticas ritualísticas longas que fortalecem seus rituais.",
+      "description": "Você conhece práticas ritualísticas longas que fortalecem seus rituais. Em uma cena de interlúdio, você pode gastar 2 PE e uma ação de interlúdio para fortalecer um ritual que conheça. A DT do ritual escolhido aumenta em +2 até o início da próxima cena de interlúdio. Pré-requisitos: Int e Pre 2.",
+      "tags": [
+        "Poder de Ocultista",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__prove_se_digno",
+      "category": "power",
+      "subCategory": "Poder de Intenção",
+      "name": "“Prove-se digno.”",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 94,
+      "element": "Nenhum",
+      "prerequisite": "Contato com a Coroa de Espinhos",
+      "diceFormulas": [],
+      "summary": "Gatilho: Obedecer à Ele. — Ao fazer um teste, em vez de rolar os dados, você pode gastar uma reação para determinar que seja um sucesso automático (como se tivesse rolado 20 natural).",
+      "description": "Gatilho: Obedecer à Ele.\n\nEfeito: Ao fazer um teste, em vez de rolar os dados, você pode gastar uma reação para determinar que seja um sucesso automático (como se tivesse rolado 20 natural). Você pode fazer isso apenas uma vez por cena e precisa fazê-lo na mesma cena em que obedeceu uma vontade d’Ele.",
+      "tags": [
+        "Poder de Intenção",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__voce_foi_torturado_mas_a_dor_nao_o_derrotou_pelo_contrario_tornou_se_sua_amiga",
+      "category": "power",
+      "subCategory": "Poder de Intenção",
+      "name": "“Você foi torturado, mas a dor não o derrotou. Pelo contrário, tornou-se sua amiga.”",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 95,
+      "element": "Nenhum",
+      "prerequisite": "Contato com a Coroa de Espinhos",
+      "diceFormulas": [],
+      "summary": "Gatilho: Ser ferido três vezes, sendo que cada ferimento precisa causar,pelo menos 5 pontos de dano. — Você pode gastar uma reação para receber resistência a dano 25.",
+      "description": "Gatilho: Ser ferido três vezes, sendo que cada ferimento precisa causar,pelo menos 5 pontos de dano.\n\nEfeito: Você pode gastar uma reação para receber resistência a dano 25. Entretanto, enquanto receber a RD, você perde 5 PV no início de seus turnos. Você pode gastar uma reação para desativar o efeito, não sendo mais afetado pelo poder.",
+      "tags": [
+        "Poder de Intenção",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__a_intencao_dos_mortos_e_a_materia_prima_do_labirinto_da_sua_propria_criacao",
+      "category": "power",
+      "subCategory": "Poder de Intenção",
+      "name": "“A Intenção dos mortos é a matéria-prima do labirinto da sua própria criação.”",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 95,
+      "element": "Nenhum",
+      "prerequisite": "Contato com a Coroa de Espinhos",
+      "diceFormulas": [],
+      "summary": "Gatilho: Testemunhar a morte de uma pessoa. — Você pode gastar uma ação padrão para absorver as intenções de uma pessoa morta em alcance curto.",
+      "description": "Gatilho: Testemunhar a morte de uma pessoa.\n\nEfeito: Você pode gastar uma ação padrão para absorver as intenções de uma pessoa morta em alcance curto. Então, recupera pontos de vida de um ser em alcance curto equivalentes à metade dos PV máximos do cadáver.",
+      "tags": [
+        "Poder de Intenção",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__o_silencio_que_te_atormentou_agora_assombra_o_pesadelo_dos_outros",
+      "category": "power",
+      "subCategory": "Poder de Intenção",
+      "name": "“O silêncio que te atormentou agora assombra o pesadelo dos outros.”",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 95,
+      "element": "Nenhum",
+      "prerequisite": "Contato com a Coroa de Espinhos",
+      "diceFormulas": [
+        "1d8",
+        "1d4"
+      ],
+      "summary": "Gatilho: Você precisa gastar uma ação padrão para provar o sangue de um ser adjacente que esteja machucado. — Seus ataques causam +1d8 pontos de dano e recebem +2 na margem de ameaça.",
+      "description": "Gatilho: Você precisa gastar uma ação padrão para provar o sangue de um ser adjacente que esteja machucado.\n\nEfeito: Seus ataques causam +1d8 pontos de dano e recebem +2 na margem de ameaça. Além disso, se fizer um acerto crítico, você corta a boca do alvo, o silenciando, impedindo de se comunicar e utilizar qualquer poder ou ritual por 1d4 rodadas. Os efeitos duram até o fim da cena.",
+      "tags": [
+        "Poder de Intenção",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
+    },
+    {
+      "id": "power__arquivos_secretos_02__uma_vez_voce_cuidou_de_alguem_mas_a_perdeu_e_hora_de_fazer_os_responsaveis_pagarem",
+      "category": "power",
+      "subCategory": "Poder de Intenção",
+      "name": "“Uma vez, você cuidou de alguém, mas a perdeu. É hora de fazer os responsáveis pagarem.”",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 95,
+      "element": "Nenhum",
+      "prerequisite": "Contato com a Coroa de Espinhos",
+      "diceFormulas": [],
+      "summary": "Gatilho: Ouvir o grito de morte de alguém que você tentou proteger. Em termos de regras, um aliado deve estar morrendo e você deve escutar o grito dele ou conseguir enxergá-lo.. — Como reação, você pode fazer um ataque contra quem deixou seu aliado morrendo.",
+      "description": "Gatilho: Ouvir o grito de morte de alguém que você tentou proteger. Em termos de regras, um aliado deve estar morrendo e você deve escutar o grito dele ou conseguir enxergá-lo..\n\nEfeito: Como reação, você pode fazer um ataque contra quem deixou seu aliado morrendo. Você também pode usar essa habilidade para fazer um ataque como reação, antes de ficar inconsciente, contra um inimigo que te deixou morrendo.",
+      "tags": [
+        "Poder de Intenção",
+        "Arquivos Secretos #02",
+        "Poder"
+      ]
     },
     {
       "id": "power__arquivos_secretos_03__o_mais_poderes",
@@ -11684,14 +12168,37 @@
       "prerequisite": "Nenhum",
       "diceFormulas": [],
       "summary": "Você possui um “sexto sentido” que aponta para onde você tem que ir, mesmo que você nem saiba onde fica.",
-      "description": "Você possui um “sexto sentido” que aponta para onde você tem que ir, mesmo que você nem saiba onde fica. Você recebe +5 em testes de Percepção ou Sobrevivência para se localizar ou se orientar até um local, mesmo nunca tendo visto ele ou sequer saber sua localização.\n\nAfinidade: O bônus aumenta para +10.  Instrumento Elétrico   de Combate  PODER PARANORMAL ENERGIA  Você transforma um instrumento musical em  uma versão elétrica de batalha. Ao adquirir  esse poder, espere até antes de começar  uma missão ou até uma cena de interlúdio  (o que acontecer primeiro). Quando o  momento chegar, escolha um instrumento  musical que você saiba tocar e esteja com  você. Ele se torna uma arma permanentemente com as seguintes características:  o Arma tática amaldiçoada de Energia que  só você recebe proficiência para usar;  o Empunhadura de duas mãos;  o Ataca à distância, atingindo 1 alvo a sua  escolha em alcance curto com ondas  sonoras;  o Em vez de Luta ou Pontaria, testes de  ataque são feitos com Artes;  o Causa 2d8 pontos de dano de Energia;  o Em vez de Força ou Agilidade, soma  Presença no dano;  o Tem crítico 20/x2;  o Categoria II;  o 2 espaços.  Se esta arma quebrar, você pode usar esse  poder novamente em um novo instrumento  musical. Se você morrer, esta arma quebra.  Para habilidades e regras que beneficiam o  uso de armas, ou o uso de Luta ou Pontaria  — aumentando dano, margem de ameaça,  bônus de ataque etc. —, converse com seu  mestre para determinar o que pode funcionar  com seu personagem, dependendo da narrativa e da permissão de combos da mesa.  Afinidade: Em vez de 1 alvo, você pode  atingir todos os alvos à sua escolha em  alcance curto.",
+      "description": "Você possui um “sexto sentido” que aponta para onde você tem que ir, mesmo que você nem saiba onde fica. Você recebe +5 em testes de Percepção ou Sobrevivência para se localizar ou se orientar até um local, mesmo nunca tendo visto ele ou sequer saber sua localização.\n\nAfinidade: O bônus aumenta para +10.",
       "tags": [
         "Poder Paranormal",
         "Conhecimento",
         "Arquivos Secretos #03",
         "Poder"
       ],
-      "affinity": "O bônus aumenta para +10.  Instrumento Elétrico   de Combate  PODER PARANORMAL ENERGIA  Você transforma um instrumento musical em  uma versão elétrica de batalha. Ao adquirir  esse poder, espere até antes de começar  uma missão ou até uma cena de interlúdio  (o que acontecer primeiro). Quando o  momento chegar, escolha um instrumento  musical que você saiba tocar e esteja com  você. Ele se torna uma arma permanentemente com as seguintes características:  o Arma tática amaldiçoada de Energia que  só você recebe proficiência para usar;  o Empunhadura de duas mãos;  o Ataca à distância, atingindo 1 alvo a sua  escolha em alcance curto com ondas  sonoras;  o Em vez de Luta ou Pontaria, testes de  ataque são feitos com Artes;  o Causa 2d8 pontos de dano de Energia;  o Em vez de Força ou Agilidade, soma  Presença no dano;  o Tem crítico 20/x2;  o Categoria II;  o 2 espaços.  Se esta arma quebrar, você pode usar esse  poder novamente em um novo instrumento  musical. Se você morrer, esta arma quebra.  Para habilidades e regras que beneficiam o  uso de armas, ou o uso de Luta ou Pontaria  — aumentando dano, margem de ameaça,  bônus de ataque etc. —, converse com seu  mestre para determinar o que pode funcionar  com seu personagem, dependendo da narrativa e da permissão de combos da mesa.  Afinidade: Em vez de 1 alvo, você pode  atingir todos os alvos à sua escolha em  alcance curto."
+      "affinity": "O bônus aumenta para +10."
+    },
+    {
+      "id": "power__arquivos_secretos_03__instrumento_eletrico_de_combate",
+      "category": "power",
+      "subCategory": "Poder Paranormal",
+      "name": "Instrumento Elétrico de Combate",
+      "bookId": "arquivos_secretos_03",
+      "bookTitle": "Arquivos Secretos #03",
+      "pageNumber": 109,
+      "element": "Energia",
+      "prerequisite": "Nenhum",
+      "diceFormulas": [
+        "2d8"
+      ],
+      "summary": "Você transforma um instrumento musical em uma versão elétrica de batalha.",
+      "description": "Você transforma um instrumento musical em uma versão elétrica de batalha. Ao adquirir esse poder, espere até antes de começar uma missão ou até uma cena de interlúdio (o que acontecer primeiro). Quando o momento chegar, escolha um instrumento musical que você saiba tocar e esteja com você. Ele se torna uma arma permanentemente com as seguintes características: o Arma tática amaldiçoada de Energia que só você recebe proficiência para usar; o Empunhadura de duas mãos; o Ataca à distância, atingindo 1 alvo a sua escolha em alcance curto com ondas sonoras; o Em vez de Luta ou Pontaria, testes de ataque são feitos com Artes; o Causa 2d8 pontos de dano de Energia; o Em vez de Força ou Agilidade, soma Presença no dano; o Tem crítico 20/x2; o Categoria II; o 2 espaços. Se esta arma quebrar, você pode usar esse poder novamente em um novo instrumento musical. Se você morrer, esta arma quebra. Para habilidades e regras que beneficiam o uso de armas, ou o uso de Luta ou Pontaria — aumentando dano, margem de ameaça, bônus de ataque etc. —, converse com seu mestre para determinar o que pode funcionar com seu personagem, dependendo da narrativa e da permissão de combos da mesa.\n\nAfinidade: Em vez de 1 alvo, você pode  atingir todos os alvos à sua escolha em  alcance curto.",
+      "tags": [
+        "Poder Paranormal",
+        "Energia",
+        "Arquivos Secretos #03",
+        "Poder"
+      ],
+      "affinity": "Em vez de 1 alvo, você pode  atingir todos os alvos à sua escolha em  alcance curto."
     },
     {
       "id": "power__arquivos_secretos_03__arrogancia_diabolica",
@@ -14200,10 +14707,10 @@
       ]
     },
     {
-      "id": "weapon__arquivos_secretos_03__garra_do_harpia",
+      "id": "weapon__arquivos_secretos_03__arma_garra_do_harpia",
       "category": "weapon",
       "subCategory": "Arma (Arquivos Secretos #03)",
-      "name": "Garra do Harpia",
+      "name": "ARMA Garra do Harpia",
       "bookId": "arquivos_secretos_03",
       "bookTitle": "Arquivos Secretos #03",
       "pageNumber": 112,
@@ -14214,13 +14721,13 @@
       "range": "Curto",
       "damageType": "Corte",
       "spaces": "2",
-      "proficiency": "Armas Táticas / Pesadas",
-      "handedness": "Duas Mãos",
+      "proficiency": "Tática",
+      "handedness": "Uma Mão",
       "diceFormulas": [
         "2d8"
       ],
       "summary": "Cat I | Dano: 2d8 (Corte) | Crítico: 19/x2 | Espaços: 2",
-      "description": "CATEGORIA I | 2 ESPAÇOS Um rastelo transformado em uma arma estratégica, decorado com penas escuras e badulaques coloridos. A garra do harpia é uma arma tática ágil corpo a corpo e de duas mãos. Ela causa 2d8 pontos de dano de corte, pode ser arremessada em alcance curto e tem crítico 19/x2. O formato estranho permite que, ao causar dano em um alvo, você possa gastar 2 PE para fazer uma manobra de agarrar contra ele como ação livre. Além disso, pode ser usada com Combater com Duas Armas (e poderes similares) para fazer ataques adicionais, como se fosse uma arma de uma mão e uma arma leve. Este é um item único (apenas um agente pode escolhê-lo). EQUIPAMENTOS GERAIS",
+      "description": "CATEGORIA I | 2 ESPAÇOS Um rastelo transformado em uma arma estratégica, decorado com penas escuras e badulaques coloridos. A garra do harpia é uma arma tática ágil corpo a corpo e de duas mãos. Ela causa 2d8 pontos de dano de corte, pode ser arremessada em alcance curto e tem crítico 19/x2. O formato estranho permite que, ao causar dano em um alvo, você possa gastar 2 PE para fazer uma manobra de agarrar contra ele como ação livre. Além disso, pode ser usada com Combater com Duas Armas (e poderes similares) para fazer ataques adicionais, como se fosse uma arma de uma mão e uma arma leve. Este é um item único (apenas um agente pode escolhê-lo).",
       "tags": [
         "Arma",
         "Categoria I",
@@ -14242,11 +14749,11 @@
       "range": "Longo",
       "damageType": "Variável",
       "spaces": "2",
-      "proficiency": "Armas Táticas / Pesadas",
+      "proficiency": "Pesada",
       "handedness": "Duas Mãos",
       "diceFormulas": [],
       "summary": "Cat II | Dano: Variável (Variável) | Crítico: 20/x2 | Espaços: 2",
-      "description": "CATEGORIA II | 2 ESPAÇOS MODIFICAÇÕES PARA GRANADAS Essa arma é projetada para lançar granadas à longas distâncias, atingindo alvos com maior precisão e velocidade. Cada modificação a seguir aumenta a categoria da granada em I e fornece certos benefícios. Modificações iguais não se acumulam. Um lançador de granadas é uma arma de fogo pesada de duas mãos com alcance longo (ela não tem valor de dano, tipo de dano ou crítico, variando seus efeitos conforme a munição). Ele comporta até 6 granadas de modelo 40mm. Recarregá-lo com 1 granada gasta uma ação de movimento. O lançador de granadas não dispara granadas de modelo arremessável. Adesiva. A granada gruda no alvo. Se o alvo for um ser, você precisa fazer um teste de ataque à distância contra a Defesa dele. Se errar, a granada gruda no espaço onde o ser está. Se acertar, ela gruda no ser (ele falha automaticamente em qualquer teste de resistência contra a granada). Caso o seu efeito não seja instantâneo, a granada se move junto com o alvo até que ele gaste uma ação padrão para removê-la do seu corpo. Dupla. A granada tem um efeito adicional. Ao aplicar essa modificação, você escolhe um efeito de outra granada de categoria igual ou menor que a desta granada (exceto itens amaldiçoados) que se ativará junto com o efeito principal. O efeito adicional deve ser diferente do efeito principal. O lançador de granadas causa o efeito da granada no alvo atingido (teste de ataque à distância contra Defesa resolvido normalmente) e em todos os seres num raio descrito pela granada usada. Todos os seres têm direito a fazer o teste de resistência oferecido pela granada, mas o alvo atingido diretamente só pode fazer o teste de resistência contra efeitos que não sejam dano. Você pode disparar a granada num ponto qualquer em alcance longo, em vez de num ser específico; nesse caso, não precisa rolar ataque e não tem chance de errar (mas também não acerta nenhum ser diretamente, todos na área podem fazer o teste de resistência). Programada. A granada tem um temporizador programado por você. Após arremessá-la, ou posicioná-la onde desejar, você define em quantos turnos ela deverá se ativar. É impossível tornar um lançador de granadas uma arma automática. NOVA MUNIÇÃO Granada 40mm. Disparada por lançador de granadas. Ao contrário de outras munições, cada granada 40mm dura um único disparo, não uma cena. Para fazer vários ataques, você precisará carregar várias granadas. As granadas 40mm são modelos específicos de granada que funcionam com as regras descritas em OPRPG (pp. 63-64), com a exceção de que elas não funcionam se arremessadas, apenas se atiradas por um lançador de granadas.",
+      "description": "CATEGORIA II | 2 ESPAÇOS MODIFICAÇÕES PARA GRANADAS Essa arma é projetada para lançar granadas à longas distâncias, atingindo alvos com maior precisão e velocidade. Cada modificação a seguir aumenta a categoria da granada em I e fornece certos benefícios. Modificações iguais não se acumulam. Um lançador de granadas é uma arma de fogo pesada de duas mãos com alcance longo (ela não tem valor de dano, tipo de dano ou crítico, variando seus efeitos conforme a munição). Ele comporta até 6 granadas de modelo 40mm. Recarregá-lo com 1 granada gasta uma ação de movimento. O lançador de granadas não dispara granadas de modelo arremessável. Adesiva. A granada gruda no alvo. Se o alvo for um ser, você precisa fazer um teste de ataque à distância contra a Defesa dele. Se errar, a granada gruda no espaço onde o ser está. Se acertar, ela gruda no ser (ele falha automaticamente em qualquer teste de resistência contra a granada). Caso o seu efeito não seja instantâneo, a granada se move junto com o alvo até que ele gaste uma ação padrão para removê-la do seu corpo. Dupla. A granada tem um efeito adicional. Ao aplicar essa modificação, você escolhe um efeito de outra granada de categoria igual ou menor que a desta granada (exceto itens amaldiçoados) que se ativará junto com o efeito principal. O efeito adicional deve ser diferente do efeito principal. O lançador de granadas causa o efeito da granada no alvo atingido (teste de ataque à distância contra Defesa resolvido normalmente) e em todos os seres num raio descrito pela granada usada. Todos os seres têm direito a fazer o teste de resistência oferecido pela granada, mas o alvo atingido diretamente só pode fazer o teste de resistência contra efeitos que não sejam dano. Você pode disparar a granada num ponto qualquer em alcance longo, em vez de num ser específico; nesse caso, não precisa rolar ataque e não tem chance de errar (mas também não acerta nenhum ser diretamente, todos na área podem fazer o teste de resistência). Programada. A granada tem um temporizador programado por você. Após arremessá-la, ou posicioná-la onde desejar, você define em quantos turnos ela deverá se ativar. É impossível tornar um lançador de granadas uma arma automática.",
       "tags": [
         "Arma",
         "Categoria II",
@@ -14268,7 +14775,7 @@
       "range": "Curto",
       "damageType": "Frio",
       "spaces": "2",
-      "proficiency": "Armas Táticas / Pesadas",
+      "proficiency": "Pesada",
       "handedness": "Duas Mãos",
       "diceFormulas": [
         "6d6"
@@ -14296,8 +14803,8 @@
       "range": "Médio",
       "damageType": "Variável",
       "spaces": "1",
-      "proficiency": "Armas Táticas / Pesadas",
-      "handedness": "Duas Mãos",
+      "proficiency": "Tática",
+      "handedness": "Uma Mão",
       "diceFormulas": [
         "3d6"
       ],
@@ -14324,7 +14831,7 @@
       "range": "Curto",
       "damageType": "Variável",
       "spaces": "1",
-      "proficiency": "Armas Táticas / Pesadas",
+      "proficiency": "Tática",
       "handedness": "Duas Mãos",
       "diceFormulas": [],
       "summary": "Cat II | Dano: Variável (Variável) | Crítico: 20/x2 | Espaços: 1",
@@ -14350,13 +14857,41 @@
       "range": "Curto",
       "damageType": "Corte",
       "spaces": "1",
-      "proficiency": "Armas Táticas / Pesadas",
-      "handedness": "Duas Mãos",
+      "proficiency": "Tática",
+      "handedness": "Uma Mão",
       "diceFormulas": [
         "1d8"
       ],
       "summary": "Cat II | Dano: 1d8 (Corte) | Crítico: 20/x3 | Espaços: 1",
       "description": "CATEGORIA II | 1 ESPAÇO Essa arma, além de ferramenta, é feita para combate. Sua estrutura interna é feita completamente de aço, o que o torna mais resistente e pesado. O machado tático é uma arma corpo a corpo tática, de uma mão, que causa 1d8 pontos de dano de corte e tem crítico 20/x3. É balanceado para contra-ataques rápidos e bloqueios. Se usado na ação especial contra-ataque, fornece +2 no teste de ataque para contra-atacar. Se usado na ação especial bloqueio, você pode gastar 2 PE e sacrificar o machado tático para aumentar a RD do bloqueio em +20. O machado tático é uma arma ágil e pode ser arremessado em alcance curto.",
+      "tags": [
+        "Arma",
+        "Categoria II",
+        "Arquivos Secretos #09"
+      ]
+    },
+    {
+      "id": "weapon__arquivos_secretos_09__pistola_taser",
+      "category": "weapon",
+      "subCategory": "Arma (Arquivos Secretos #09)",
+      "name": "Pistola Taser",
+      "bookId": "arquivos_secretos_09",
+      "bookTitle": "Arquivos Secretos #09",
+      "pageNumber": 52,
+      "element": "Nenhum",
+      "itemCategory": "II",
+      "damage": "2d6",
+      "critical": "20/x3",
+      "range": "Curto",
+      "damageType": "Eletricidade",
+      "spaces": "1",
+      "proficiency": "Simples",
+      "handedness": "Uma Mão",
+      "diceFormulas": [
+        "2d6"
+      ],
+      "summary": "Cat II | Dano: 2d6 (Eletricidade) | Crítico: 20/x3 | Espaços: 1",
+      "description": "CATEGORIA II | 1 ESPAÇO Também conhecida como pistola atordoante, esse dispositivo dispara dardos ligados por fios de cobre que descarregam uma alta tensão elétrica, sendo mais letal do que sua versão como item operacional. A pistola taser é uma arma de disparo simples, de uma mão, com alcance curto, que causa 2d6 pontos de dano de eletricidade e tem crítico 20/x3. Um ser atingido fica atordoado por uma rodada (Fortitude DT Agi evita). Um mesmo alvo só pode ficar atordoado por este item uma vez por cena (sim, isso é uma questão de balanceamento, mas sabemos que o taser não tem essa regra, então seu grupo pode decidir aplicar essa limitação ao taser ou remover essa limitação da pistola taser). A pistola taser usa dardos condutores como munição.",
       "tags": [
         "Arma",
         "Categoria II",
@@ -17437,16 +17972,24 @@
       "bookId": "sobrevivendo_ao_horror",
       "bookTitle": "Sobrevivendo ao Horror",
       "pageNumber": 62,
-      "element": "Energia",
+      "element": "Medo",
       "diceFormulas": [],
       "summary": "Por milênios, adagas se tornaram um símbolo ritualístico poderoso, sendo associadas à conjuração de rituais e armas de ocultistas.",
       "description": "Por milênios, adagas se tornaram um símbolo ritualístico poderoso, sendo associadas à conjuração de rituais e armas de ocultistas. Contudo, todo mito tem uma origem. Este item amaldiçoado é a primeira adaga que já foi usada em um ritual. Apesar de ser a origem de uma das idealizações mais profundas do ocultismo humano, esta arma não impressiona à primeira vista. É uma lâmina de pedra polida e cabo de madeira tão primitiva quanto os primeiros sacrifícios humanos para entidades sobrenaturais. Entretanto, qualquer um treinado em Ocultismo reconhece o horror que ela representa. Se for empregada como um componente ritualístico, ela concede ao ritual os efeitos dos catalisadores ampliador, perturbador, potencializador e prolongador (p. 44). Além disso, o tempo de conjuração do ritual se torna 1 rodada (isso se aplica mesmo com as regras opcionais Conjuração Complexa e Combate Narrativo). Contudo, o poder fornecido pela adaga tem um preço; o conjurador perde uma quantidade de pontos de vida igual à metade de seus PV totais (esta perda conta como dano para efeitos de calcular dano massivo; veja OPRPG, p. 88). É possível usar uma vítima de sacrifício para pagar esse preço em vida, mas isso é um ato de extrema crueldade ou desespero.",
       "tags": [
         "Item Amaldiçoado / Maldição",
-        "Energia",
+        "Medo",
         "Sobrevivendo ao Horror",
         "Item"
-      ]
+      ],
+      "proficiency": "Simples",
+      "handedness": "Leve",
+      "damage": "1d4",
+      "critical": "19/x4",
+      "range": "Curto",
+      "damageType": "Perfuração",
+      "itemCategory": "IV",
+      "spaces": "1"
     },
     {
       "id": "item__arquivos_secretos_01__agrupador_ritualistico",
@@ -17548,40 +18091,683 @@
       ]
     },
     {
-      "id": "item__arquivos_secretos_02__hexatombe",
+      "id": "item__arquivos_secretos_02__agua",
       "category": "item",
-      "subCategory": "Modificação",
-      "name": "Hexatombe",
+      "subCategory": "Equipamento Geral",
+      "name": "Água",
       "bookId": "arquivos_secretos_02",
       "bookTitle": "Arquivos Secretos #02",
-      "pageNumber": 96,
+      "pageNumber": 20,
       "element": "Nenhum",
       "diceFormulas": [],
-      "summary": "Entretanto, devido a influência da Intenção presente no jogo, o que era um comportamento psicopático de desprendimento social (afinal estamos falando de serial killers), se tornou a.",
-      "description": "Entretanto, devido a influência da Intenção presente no jogo, o que era um comportamento psicopático de desprendimento social (afinal estamos falando de serial killers), se tornou a",
+      "summary": "Até a conclusão de cada dia, cada participante precisa consumir ao menos 1 unidade de água.",
+      "description": "Até a conclusão de cada dia, cada participante precisa consumir ao menos 1 unidade de água. Se não fizer isso, seus PV máximos são reduzidos em 10 pelo dia seguinte. Recuperar esses PV máximos exige consumir 1 unidade de água além do necessário ao final do dia seguinte. 1 unidade de água ocupa 1 espaço e é um item de categoria 0.",
       "tags": [
-        "Modificação",
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "0",
+      "spaces": "1"
+    },
+    {
+      "id": "item__arquivos_secretos_02__comida",
+      "category": "item",
+      "subCategory": "Equipamento Geral",
+      "name": "Comida",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 20,
+      "element": "Nenhum",
+      "diceFormulas": [],
+      "summary": "Como água, mas se não for consumida diminui os PE máximos em 10.",
+      "description": "Como água, mas se não for consumida diminui os PE máximos em 10. 1 unidade de comida ocupa 1 espaço e é um item de categoria 0.",
+      "tags": [
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "0",
+      "spaces": "1"
+    },
+    {
+      "id": "item__arquivos_secretos_02__sucata",
+      "category": "item",
+      "subCategory": "Equipamento Geral",
+      "name": "Sucata",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 20,
+      "element": "Nenhum",
+      "diceFormulas": [],
+      "summary": "Um termo genérico para tábuas de madeira, chapas de metal, pregos, arames, motores, galões de gasolina, baterias e outros objetos que podem ser usados para melhorias na base.",
+      "description": "Um termo genérico para tábuas de madeira, chapas de metal, pregos, arames, motores, galões de gasolina, baterias e outros objetos que podem ser usados para melhorias na base. 1 unidade de sucata ocupa 1 espaço e é um item de categoria 0.",
+      "tags": [
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "0",
+      "spaces": "1"
+    },
+    {
+      "id": "item__arquivos_secretos_02__bandagem",
+      "category": "item",
+      "subCategory": "Equipamento Geral",
+      "name": "Bandagem",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 21,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "2d4+2"
+      ],
+      "summary": "EQUIPAMENTO GERAL — CATEGORIA I | 0.",
+      "description": "EQUIPAMENTO GERAL — CATEGORIA I | 0.5 ESPAÇO — Tecido eficiente para estancar sangramentos. Você pode gastar uma ação padrão e este item para curar 2d4+2 PV e remover a condição sangrando em você ou em um ser adjacente.",
+      "tags": [
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "I",
+      "spaces": "0.5"
+    },
+    {
+      "id": "item__arquivos_secretos_02__bussola",
+      "category": "item",
+      "subCategory": "Equipamento Geral",
+      "name": "Bússola",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 21,
+      "element": "Nenhum",
+      "diceFormulas": [],
+      "summary": "EQUIPAMENTO GERAL — CATEGORIA I | 1 ESPAÇO — Instrumento de navegação e orientação baseado em propriedades magnéticas.",
+      "description": "EQUIPAMENTO GERAL — CATEGORIA I | 1 ESPAÇO — Instrumento de navegação e orientação baseado em propriedades magnéticas. Este item é um utensílio que fornece +2 em Sobrevivência para se guiar e não se perder.",
+      "tags": [
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "I",
+      "spaces": "1"
+    },
+    {
+      "id": "item__arquivos_secretos_02__caixa_de_ferramentas",
+      "category": "item",
+      "subCategory": "Equipamento Geral",
+      "name": "Caixa de Ferramentas",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 21,
+      "element": "Nenhum",
+      "diceFormulas": [],
+      "summary": "EQUIPAMENTO GERAL — CATEGORIA I | 2 ESPAÇO — Caixa metálica com ferramentas mecânicas diversas.",
+      "description": "EQUIPAMENTO GERAL — CATEGORIA I | 2 ESPAÇO — Caixa metálica com ferramentas mecânicas diversas. Este item é um utensílio que fornece +2 em Profissão, desde que faça sentido o teste ser auxiliado por essas ferramentas.",
+      "tags": [
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "I",
+      "spaces": "2"
+    },
+    {
+      "id": "item__arquivos_secretos_02__dose_de_alcool",
+      "category": "item",
+      "subCategory": "Equipamento Geral",
+      "name": "Dose de Álcool",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 21,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "2d8+2"
+      ],
+      "summary": "EQUIPAMENTO GERAL — CATEGORIA I | 0.",
+      "description": "EQUIPAMENTO GERAL — CATEGORIA I | 0.5 ESPAÇO — Substância antisséptica útil para limpar feridas ou causar incêndios. Você pode gastar uma ação padrão e este item para receber +2 em testes contra infecções e doenças transmitidas por contato. Se aplicado junto com uma bandagem, aumenta a cura da bandagem para 2d8+2 PV. Além disso, pega fogo facilmente, mas não o suficiente para causar explosões.",
+      "tags": [
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "I",
+      "spaces": "0.5"
+    },
+    {
+      "id": "item__arquivos_secretos_02__incenso",
+      "category": "item",
+      "subCategory": "Equipamento Geral",
+      "name": "Incenso",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 21,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d4"
+      ],
+      "summary": "EQUIPAMENTO GERAL — CATEGORIA I | 0.",
+      "description": "EQUIPAMENTO GERAL — CATEGORIA I | 0.5 ESPAÇO — Substância aromática de origem vegetal, queimada para liberar fumaça perfumada em rituais religiosos, meditação, aromaterapia ou purificação. Você pode gastar uma ação de interlúdio para queimar o incenso. Todos os personagens na mesma cena de interlúdio recuperam 1d4 PE. Só é possível se beneficiar desse efeito uma vez por dia.",
+      "tags": [
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "I",
+      "spaces": "0.5"
+    },
+    {
+      "id": "item__arquivos_secretos_02__kit_de_escalada",
+      "category": "item",
+      "subCategory": "Equipamento Geral",
+      "name": "Kit de Escalada",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 21,
+      "element": "Nenhum",
+      "diceFormulas": [],
+      "summary": "EQUIPAMENTO GERAL — CATEGORIA I | 2 ESPAÇO — Corda dinâmica e equipamentos de segurança essenciais como sapatilhas, cadeirinha, capacete, freio, mosquetões, fitas e saco de magnésio para melhorar a aderência.",
+      "description": "EQUIPAMENTO GERAL — CATEGORIA I | 2 ESPAÇO — Corda dinâmica e equipamentos de segurança essenciais como sapatilhas, cadeirinha, capacete, freio, mosquetões, fitas e saco de magnésio para melhorar a aderência. Este item é um utensílio que fornece +2 em Atletismo para escalar.",
+      "tags": [
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "I",
+      "spaces": "2"
+    },
+    {
+      "id": "item__arquivos_secretos_02__pedra_de_amolar",
+      "category": "item",
+      "subCategory": "Equipamento Geral",
+      "name": "Pedra de Amolar",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 21,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d4"
+      ],
+      "summary": "EQUIPAMENTO GERAL — CATEGORIA I | 0.",
+      "description": "EQUIPAMENTO GERAL — CATEGORIA I | 0.5 ESPAÇO — Ferramenta abrasiva, natural ou sintética, usada para restaurar o fio de lâminas. Você pode gastar uma ação de interlúdio para amolar uma arma corpo a corpo de corte ou perfuração. O item causa +1d4 pontos de dano do mesmo tipo na primeira cena, após ser amolado, em que for usado.",
+      "tags": [
+        "Equipamento Geral",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "I",
+      "spaces": "0.5"
+    },
+    {
+      "id": "item__arquivos_secretos_02__machado_do_mutilador",
+      "category": "item",
+      "subCategory": "Item Amaldiçoado / Maldição",
+      "name": "Machado do Mutilador",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 41,
+      "element": "Sangue",
+      "diceFormulas": [
+        "1d8",
+        "1d6"
+      ],
+      "summary": "ITEM AMALDIÇOADO SANGUE — CATEGORIA IV | 1 ESPAÇO Uma arma com cabo de madeira e lâmina vermelha que já deu fim a diversas vítimas, ela anseia por mais sangue.",
+      "description": "ITEM AMALDIÇOADO SANGUE — CATEGORIA IV | 1 ESPAÇO Uma arma com cabo de madeira e lâmina vermelha que já deu fim a diversas vítimas, ela anseia por mais sangue. É uma arma tática corpo a corpo e de uma mão. Ela causa 1d8 pontos de dano de corte mais 1d8 pontos de dano de Sangue, multiplicado em caso de acerto crítico, e tem crítico 20/x3. Além disso, quando atinge uma vítima, você pode gastar 1 PE para deixá-la sangrando; esse efeito é cumulativo, ou seja, ela pode ficar sangrando várias vezes simultaneamente (perdendo 1d6 PV para cada sangramento).",
+      "tags": [
+        "Item Amaldiçoado / Maldição",
+        "Sangue",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "IV",
+      "spaces": "1",
+      "proficiency": "Tática",
+      "handedness": "Uma Mão",
+      "damage": "1d8 + 1d8 Sangue",
+      "critical": "20/x3",
+      "range": "Corpo a corpo",
+      "damageType": "Corte"
+    },
+    {
+      "id": "item__arquivos_secretos_02__jonas_aguiar_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Jonas Aguiar como Aliado",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 41,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20",
+        "1d8"
+      ],
+      "summary": "Aguiar mistura as habilidades de um policial com as de um serial killer.",
+      "description": "Aguiar mistura as habilidades de um policial com as de um serial killer. Bônus. Você recebe +1d20 em testes de ataque. Investigador e Caçador. Quando faz um teste de Investigação ou Sobrevivência para encontrar pistas ou rastros, você pode gastar 1 PE para receber +1d8 no teste.",
+      "tags": [
+        "Aliado",
         "Arquivos Secretos #02",
         "Item"
       ]
     },
     {
-      "id": "item__arquivos_secretos_03__bloody_mary_batizada",
+      "id": "item__arquivos_secretos_02__elmo_do_colosso",
       "category": "item",
-      "subCategory": "Equipamento Geral",
-      "name": "Bloody Mary Batizada",
-      "bookId": "arquivos_secretos_03",
-      "bookTitle": "Arquivos Secretos #03",
-      "pageNumber": 112,
+      "subCategory": "Item Amaldiçoado / Maldição",
+      "name": "Elmo do Colosso",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 47,
+      "element": "Energia",
+      "diceFormulas": [],
+      "summary": "ITEM AMALDIÇOADO ENERGIA — CATEGORIA III | 2 ESPAÇOS Um elmo de escafandro trabalhado em metal e imbuído com uma forte pressão eletrostática criada a partir da Energia.",
+      "description": "ITEM AMALDIÇOADO ENERGIA — CATEGORIA III | 2 ESPAÇOS Um elmo de escafandro trabalhado em metal e imbuído com uma forte pressão eletrostática criada a partir da Energia. O Elmo é uma vestimenta que fornece resistência a dano 5. Se usado em conjunto com o resto do equipamento de escafandro, conta como um traje de mergulho (SaH, p. 44).",
+      "tags": [
+        "Item Amaldiçoado / Maldição",
+        "Energia",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "III",
+      "spaces": "2"
+    },
+    {
+      "id": "item__arquivos_secretos_02__manoplas_do_colosso",
+      "category": "item",
+      "subCategory": "Item Amaldiçoado / Maldição",
+      "name": "Manoplas do Colosso",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 47,
+      "element": "Energia",
+      "diceFormulas": [
+        "1d6",
+        "1d10"
+      ],
+      "summary": "ITEM AMALDIÇOADO ENERGIA — CATEGORIA IV | 2 ESPAÇOS Um par de manoplas trabalhadas em metal e imbuídas com uma violenta onda de Energia.",
+      "description": "ITEM AMALDIÇOADO ENERGIA — CATEGORIA IV | 2 ESPAÇOS Um par de manoplas trabalhadas em metal e imbuídas com uma violenta onda de Energia. Cada Manopla é uma arma tática corpo a corpo e de uma mão, mas elas só funcionam se usadas em par. Cada uma causa 1d6 pontos de dano de impacto mais 1d10 pontos de dano de Energia e tem crítico 20/x2. Além disso, todas as regras e efeitos de ataque desarmado se aplicam às Manoplas —, mas efeitos que aumentam o dado de dano desarmado como o poder Artista Marcial não modificam o dano delas.",
+      "tags": [
+        "Item Amaldiçoado / Maldição",
+        "Energia",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "IV",
+      "spaces": "2",
+      "proficiency": "Tática",
+      "handedness": "Uma Mão",
+      "damage": "1d6 + 1d10 Energia",
+      "critical": "20/x2",
+      "range": "Corpo a corpo",
+      "damageType": "Impacto"
+    },
+    {
+      "id": "item__arquivos_secretos_02__dalmo_magno_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Dalmo Magno como Aliado",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 47,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d10",
+        "1d20"
+      ],
+      "summary": "Dalmo mistura as habilidades de um motorista com as de um lutador de arena.",
+      "description": "Dalmo mistura as habilidades de um motorista com as de um lutador de arena. Bônus. Sempre que causar dano, você causa +1d10 pontos de dano de Energia. Motorista Veterano. Você pode gastar 2 PE para receber treinamento em Pilotagem até o fim da cena. Se já for treinado, em vez disso recebe +1d20 em testes de Pilotagem.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #02",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_02__punhal_x",
+      "category": "item",
+      "subCategory": "Item Amaldiçoado / Maldição",
+      "name": "Punhal X",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 53,
+      "element": "Conhecimento",
+      "diceFormulas": [
+        "1d4",
+        "1d6"
+      ],
+      "summary": "ITEM AMALDIÇOADO CONHECIMENTO — CATEGORIA IV | 1 ESPAÇO Uma grande faca de cabo sombrio e guarda dourada.",
+      "description": "ITEM AMALDIÇOADO CONHECIMENTO — CATEGORIA IV | 1 ESPAÇO Uma grande faca de cabo sombrio e guarda dourada. É uma arma simples corpo a corpo, de uma mão e ágil, que pode ser arremessada em alcance curto. Ela causa 1d4 pontos de dano de perfuração mais 1d6 pontos de dano de Conhecimento e tem crítico 19/x2. Além disso, quando ataca com esta arma, você pode gastar 2 PE para deixar o alvo desprevenido contra o ataque e, se acertar, o alvo fica cego por 1 rodada. Um mesmo alvo só pode ficar cego por esta arma uma vez por cena.",
+      "tags": [
+        "Item Amaldiçoado / Maldição",
+        "Conhecimento",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "IV",
+      "spaces": "1",
+      "proficiency": "Simples",
+      "handedness": "Leve",
+      "damage": "1d4 + 1d6 Conhecimento",
+      "critical": "19/x2",
+      "range": "Curto",
+      "damageType": "Perfuração"
+    },
+    {
+      "id": "item__arquivos_secretos_02__jae_yoon_como_aliada",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Jae-Yoon como Aliada",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 53,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d6"
+      ],
+      "summary": "Jae-Yoon mistura as habilidades de influencer com as de serial killer.",
+      "description": "Jae-Yoon mistura as habilidades de influencer com as de serial killer. Bônus. Você pode fazer uso da habilidade de trilha Ataque Furtivo. Se já a tiver, em vez disso seu dano furtivo causa +1d6. Figura Influente. Quando faz um teste de Diplomacia, Enganação ou Intimidação, você pode gastar 3 PE para rolar o teste novamente e ficar com o melhor resultado.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #02",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_02__sniper_fantasma",
+      "category": "item",
+      "subCategory": "Item Amaldiçoado / Maldição",
+      "name": "Sniper Fantasma",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 59,
+      "element": "Morte",
+      "diceFormulas": [
+        "2d10",
+        "2d4"
+      ],
+      "summary": "ITEM AMALDIÇOADO MORTE — CATEGORIA IV | 2 ESPAÇOS Um fuzil de precisão sombrio enrolado em bandagens que o tornaram amaldiçoado.",
+      "description": "ITEM AMALDIÇOADO MORTE — CATEGORIA IV | 2 ESPAÇOS Um fuzil de precisão sombrio enrolado em bandagens que o tornaram amaldiçoado. É uma arma de fogo tática, de duas mãos e alcance longo. Ela causa 2d10 pontos de dano balístico mais 2d4 pontos de dano de Morte e tem crítico 19/x3. Se for veterano em Pontaria e mirar com esta arma (OPRPG, p. 87), você recebe +5 na margem de ameaça de seu ataque. Além disso, um ser reduzido a 0 PV por dano desta arma morre se iniciar 2 turnos morrendo (em vez de 3).",
+      "tags": [
+        "Item Amaldiçoado / Maldição",
+        "Morte",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "IV",
+      "spaces": "2",
+      "proficiency": "Tática",
+      "handedness": "Duas Mãos",
+      "damage": "2d10 + 2d4 Morte",
+      "critical": "19/x3",
+      "range": "Longo",
+      "damageType": "Balístico"
+    },
+    {
+      "id": "item__arquivos_secretos_02__kemi_como_aliada",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Kemi como Aliada",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 59,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "3d4"
+      ],
+      "summary": "Kemi é uma atiradora de elite com habilidades inquestionáveis.",
+      "description": "Kemi é uma atiradora de elite com habilidades inquestionáveis. Bônus. Sempre que causar dano, você causa +3d4 pontos de dano de Morte. Esse dano ignora 10 pontos de resistência a dano do alvo. Figura Influente. Uma vez por rodada, quando você faz um ataque à distância com uma arma de fogo ou de disparo, você pode gastar 2 PE para fazer uma ação de movimento adicional que deve ser para se deslocar imediatamente após o ataque.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #02",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_02__a_antena",
+      "category": "item",
+      "subCategory": "Item Amaldiçoado / Maldição",
+      "name": "A Antena",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 67,
+      "element": "Medo",
+      "diceFormulas": [
+        "1d20",
+        "1d6"
+      ],
+      "summary": "ITEM AMALDIÇOADO — CATEGORIA IV | 2 ESPAÇOS Uma antena parabólica encaixada em uma das extremidades de um bastão de ferro.",
+      "description": "ITEM AMALDIÇOADO — CATEGORIA IV | 2 ESPAÇOS Uma antena parabólica encaixada em uma das extremidades de um bastão de ferro. Apesar da aparência estranha, este item maldito transmite medo primal. É uma arma simples corpo a corpo, de duas mãos, que conta como uma arma improvisada (–1d20 em testes de ataque). Ela causa 1d6 pontos de dano de impacto e tem crítico 20/x2. Seu verdadeiro potencial só se revela nas mãos de um conjurador de rituais. A DT de seus rituais aumenta em +3. Além disso, você pode conjurar um ritual n’A Antena. O ritual não faz efeito na hora; em vez disso, fica contido nela. Você pode gastar uma ação padrão para libertar o ritual e gerar o efeito dele (sem precisar gastar ações de conjuração ou PE). A Antena só pode conter um ritual por vez.",
+      "tags": [
+        "Item Amaldiçoado / Maldição",
+        "Medo",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "IV",
+      "spaces": "2",
+      "proficiency": "Simples",
+      "handedness": "Duas Mãos",
+      "damage": "1d6",
+      "critical": "20/x2",
+      "range": "Corpo a corpo",
+      "damageType": "Impacto"
+    },
+    {
+      "id": "item__arquivos_secretos_02__labirinto_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Labirinto como Aliado",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 67,
       "element": "Nenhum",
       "diceFormulas": [
         "2d4"
       ],
-      "summary": "EQUIPAMENTO GERAL — CATEGORIA II | 1 ESPAÇO Uma versão especial da bebida Bloody Mary, preparada com “carinho” para expurgar todas as mazelas de um corpo.",
-      "description": "EQUIPAMENTO GERAL — CATEGORIA II | 1 ESPAÇO Uma versão especial da bebida Bloody Mary, preparada com “carinho” para expurgar todas as mazelas de um corpo. Se beber, você se livra de uma condição mental e/ou de medo que o esteja afetando. Porém, sofre 2d4 pontos de dano mental.",
+      "summary": "Labirinto é um ocultista com capacidades que nem ele mesmo compreende.",
+      "description": "Labirinto é um ocultista com capacidades que nem ele mesmo compreende. Bônus. Uma vez por dia, você recebe +2d4 PE atuais e máximos. Esse bônus dura até o fim do dia e uma nova rolagem deve ser feita no dia seguinte. Labirinto para o Outro Lado. Você pode gastar 2 PE para a DT de suas habilidades (poderes, rituais etc.) aumentarem em +3 até o fim da cena (sim, combeiro, é cumulativo com A Antena e outras fontes).",
       "tags": [
-        "Equipamento Geral",
-        "Arquivos Secretos #03",
+        "Aliado",
+        "Arquivos Secretos #02",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_02__acoplavel",
+      "category": "item",
+      "subCategory": "Modificação de Arma",
+      "name": "Acoplável",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 71,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d8",
+        "1d10",
+        "2d10"
+      ],
+      "summary": "HABILIDADE DE ARMA — Uma arma acoplável é a fusão de duas armas de uma mão que, quando unidas através do gasto de uma ação de movimento, se tornam uma arma de duas mãos.",
+      "description": "HABILIDADE DE ARMA — Uma arma acoplável é a fusão de duas armas de uma mão que, quando unidas através do gasto de uma ação de movimento, se tornam uma arma de duas mãos. Apenas armas corpo a corpo podem ser acopláveis. Toda arma acoplável é considerada uma arma tática, mesmo que suas formas separadas não sejam. Quando as formas separadas são acopláveis, a arma sobre as seguintes modificações: o Muda para duas mãos. o Aumenta a categoria em +1. o O dano da forma separada aumenta em +1 dado do mesmo tipo. o A margem de crítico ou o multiplicador de crítico aumenta em +1 (escolha no momento da criação da arma). o Os espaços dobram. o Pode ser usada com Combater com Duas Armas (e habilidades similares) para fazer ataques adicionais, como se fosse uma arma de uma mão e uma arma leve. Por exemplo, um personagem pode ter duas espadas (arma tática corpo a corpo de uma mão; categoria I; dano 1d8/1d10; crítico 19; tipo corte; 1 espaço) com a habilidade acoplável. Quando ele gastar uma ação de movimento para acoplar as duas espadas, obtém uma espada de lâmina dupla (arma tática corpo a corpo de duas mãos; categoria II; dano 2d10; crítico 19/ x3; tipo corte; 2 espaços).",
+      "tags": [
+        "Modificação de Arma",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "I",
+      "spaces": "—",
+      "allowedWeaponTypes": [
+        "Corpo a corpo"
+      ],
+      "appliesToDescription": "Armas Corpo a Corpo"
+    },
+    {
+      "id": "item__arquivos_secretos_02__jasper_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Jasper como Aliado",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 71,
+      "element": "Nenhum",
+      "diceFormulas": [],
+      "summary": "Jasper é tanto um defensor contra o paranormal quanto um combatente letal.",
+      "description": "Jasper é tanto um defensor contra o paranormal quanto um combatente letal. Bônus. Você recebe resistência a dano paranormal 5. Letalidade do Ceifador. Quando faz um ataque, você pode gastar 2 PE para aumentar a margem de ameaça desse ataque em +2.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #02",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_02__catalisador_sofisticado_e_horrorizado",
+      "category": "item",
+      "subCategory": "Item Paranormal",
+      "name": "Catalisador Sofisticado e Horrorizado",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 75,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "3d6",
+        "1d6"
+      ],
+      "summary": "ITEM PARANORMAL — CATEGORIA III | 1 ESPAÇO Este tipo de catalisador ritualístico (SaH, p.",
+      "description": "ITEM PARANORMAL — CATEGORIA III | 1 ESPAÇO Este tipo de catalisador ritualístico (SaH, p. 44) foi intensamente horrorizado pelo Outro Lado e pode ser usado como uma vestimenta semelhante a uma bijuteria ou acessório, não sendo necessário empunhá-lo. Além disso, ele não é consumido quando usado. Uma vez por cena, você recebe 3d6. Você pode gastar 1d6, como ação livre, para: o Aumentar o dano de um ritual em +1d6. o Aumentar a recuperação de PV de um ritual em +1d6. o Aumentar a DT de um ritual em +1d6. Você só pode gastar 1d6 no mesmo ritual, e apenas no momento em que conjurá-lo. No fim da cena, d6 não gastos são perdidos. Este é um item paranormal de categoria III que ocupa 1 espaço.",
+      "tags": [
+        "Item Paranormal",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "III",
+      "spaces": "1"
+    },
+    {
+      "id": "item__arquivos_secretos_02__lena_viegas_como_aliada",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Lena Viegas como Aliada",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 75,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "Lena é uma ocultista com amplos conhecimentos e técnicas versáteis.",
+      "description": "Lena é uma ocultista com amplos conhecimentos e técnicas versáteis. Bônus. Você recebe +1d20 em Ocultismo e Vontade. Versatilidade Mística. Você pode gastar 3 PE para ter acesso aos efeitos de um Catalisador Sofisticado e Horrorizado até o fim da cena, como se estivesse vestindo o item.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #02",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_02__maria_como_aliada",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Maria como Aliada",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 79,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "Maria é uma profissional de saúde com habilidades duvidosas, mas que surpreende.",
+      "description": "Maria é uma profissional de saúde com habilidades duvidosas, mas que surpreende. Bônus. Você recebe +1d20 em Medicina. De Onde Veio Isso? Você pode fazer uso da habilidade Kian Vai Nos Salvar, mesmo sem saber da relação de Maria com sua fé sombria. Ainda que na sua mesa, a própria não esconda sua fé, ela não sabe como isso funciona. 79 79",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #02",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_02__remi_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Remi como Aliado",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 83,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "Remi é um musicista e conjurador extremamente perturbado.",
+      "description": "Remi é um musicista e conjurador extremamente perturbado. Bônus. Você recebe +1d20 em Artes e Ocultismo. Sintonização e Sincronia. Você pode fazer uso dos poderes Sintonia Mental com Arma e Sintonia Mental com Proteção como se os tivesse.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #02",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_02__tuco_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Tuco como Aliado",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 87,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20",
+        "1d6"
+      ],
+      "summary": "Tuco é uma máquina militar de tática e pancadaria.",
+      "description": "Tuco é uma máquina militar de tática e pancadaria. Bônus. Você recebe +1d20 em testes de Luta e +1d6 nas rolagens de dano corpo a corpo. Instintos Militares de Combate. Você pode fazer uso da habilidade Sentido Tático como se a tivesse.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #02",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_02__faca_predadora",
+      "category": "item",
+      "subCategory": "Item Amaldiçoado / Maldição",
+      "name": "Faca Predadora",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 93,
+      "element": "Sangue",
+      "diceFormulas": [
+        "1d4",
+        "2d10"
+      ],
+      "summary": "ITEM AMALDIÇOADO SANGUE — CATEGORIA IV | 1 ESPAÇO Uma faca de cabo escuro ornamentada com várias ondas em sua lâmina.",
+      "description": "ITEM AMALDIÇOADO SANGUE — CATEGORIA IV | 1 ESPAÇO Uma faca de cabo escuro ornamentada com várias ondas em sua lâmina. É uma arma simples corpo a corpo, de uma mão e ágil, que pode ser arremessada em alcance curto. Ela causa 1d4 pontos de dano de perfuração mais 2d10 pontos de dano de Sangue e tem crítico 19/x3. Quando ataca com esta arma, você pode gastar 2 PE. Se fizer isso e acertar o ataque, você recupera 2d10 PV. Qualquer ponto de vida recuperado que exceda seus PV máximos se torna pontos de vida temporários.",
+      "tags": [
+        "Item Amaldiçoado / Maldição",
+        "Sangue",
+        "Arquivos Secretos #02",
+        "Item"
+      ],
+      "itemCategory": "IV",
+      "spaces": "1",
+      "proficiency": "Simples",
+      "handedness": "Leve",
+      "damage": "1d4 + 2d10 Sangue",
+      "critical": "19/x3",
+      "range": "Curto",
+      "damageType": "Perfuração"
+    },
+    {
+      "id": "item__arquivos_secretos_02__juan_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Juan como Aliado",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 93,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "Juan é um aliado assustador com habilidades ocultistas temidas.",
+      "description": "Juan é um aliado assustador com habilidades ocultistas temidas. Bônus. Você recebe +1d20 em testes de Intimidação e Ocultismo. Ligado ao Sangue. Você pode conjurar os rituais Armadura de Sangue e Descarnar como se os conhecesse, mas ainda precisa atender aos pré-requisitos de círculo para as formas avançadas. Eles não contam em seu limite de rituais. Se já conhece algum dos dois rituais (ou os dois), em vez disso o custo em PE para conjurá-lo diminui em –1 PE.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #02",
         "Item"
       ]
     },
@@ -17603,25 +18789,9 @@
         "Equipamento Geral",
         "Arquivos Secretos #03",
         "Item"
-      ]
-    },
-    {
-      "id": "item__arquivos_secretos_03__cranio_dominador",
-      "category": "item",
-      "subCategory": "Item Paranormal",
-      "name": "Crânio Dominador",
-      "bookId": "arquivos_secretos_03",
-      "bookTitle": "Arquivos Secretos #03",
-      "pageNumber": 113,
-      "element": "Nenhum",
-      "diceFormulas": [],
-      "summary": "ITEM PARANORMAL — CATEGORIA III | 1 ESPAÇO O crânio nefasto de quem outrora conheceu a submissão, agora tomado pela podridão e pelas correntes que o aprisionavam em vida, transbordando o desejo de retribuir cada gota de sofrimento.",
-      "description": "ITEM PARANORMAL — CATEGORIA III | 1 ESPAÇO O crânio nefasto de quem outrora conheceu a submissão, agora tomado pela podridão e pelas correntes que o aprisionavam em vida, transbordando o desejo de retribuir cada gota de sofrimento. Se estiver empunhando este item, você pode gastar uma ação padrão e 2 PE para invocar correntes que envolvem até dois alvos em alcance curto. Eles ficam paralisados (Reflexos DT Pre evita). A única forma de se libertar é com o rompimento da corrente (Defesa 10, RD 10, 20 PV). O crânio não pode ser usado novamente por 24 horas e quando voltar a ser útil, as correntes já existentes desaparecem.",
-      "tags": [
-        "Item Paranormal",
-        "Arquivos Secretos #03",
-        "Item"
-      ]
+      ],
+      "itemCategory": "0",
+      "spaces": "0.5"
     },
     {
       "id": "item__arquivos_secretos_03__gaiola_do_corvo",
@@ -17641,28 +18811,9 @@
         "Item Paranormal",
         "Arquivos Secretos #03",
         "Item"
-      ]
-    },
-    {
-      "id": "item__arquivos_secretos_03__camiseta_psikolera",
-      "category": "item",
-      "subCategory": "Item Amaldiçoado / Maldição",
-      "name": "Camiseta Psikolera",
-      "bookId": "arquivos_secretos_03",
-      "bookTitle": "Arquivos Secretos #03",
-      "pageNumber": 114,
-      "element": "Sangue",
-      "diceFormulas": [
-        "2d8"
       ],
-      "summary": "ITEM AMALDIÇOADO SANGUE — CATEGORIA II | 1 ESPAÇO Manchada de sangue dos vários mosh pits na qual já esteve presente, uma simples merch de uma banda se torna um símbolo de resistência e adrenalina.",
-      "description": "ITEM AMALDIÇOADO SANGUE — CATEGORIA II | 1 ESPAÇO Manchada de sangue dos vários mosh pits na qual já esteve presente, uma simples merch de uma banda se torna um símbolo de resistência e adrenalina. Quanto mais ela se suja, mais você se deleita. Se estiver machucado enquanto usa esta vestimenta, todas as suas rolagens de dano causam +2d8 pontos de dano de Sangue.",
-      "tags": [
-        "Item Amaldiçoado / Maldição",
-        "Sangue",
-        "Arquivos Secretos #03",
-        "Item"
-      ]
+      "itemCategory": "IV",
+      "spaces": "2"
     },
     {
       "id": "item__arquivos_secretos_03__dupla_obsessiva",
@@ -17684,7 +18835,9 @@
         "Sangue",
         "Arquivos Secretos #03",
         "Item"
-      ]
+      ],
+      "itemCategory": "III",
+      "spaces": "2"
     },
     {
       "id": "item__arquivos_secretos_03__dupla_empunhadura",
@@ -18667,7 +19820,8 @@
         "Veículo / Regalia",
         "Arquivos Secretos #03",
         "Item"
-      ]
+      ],
+      "itemCategory": "III"
     },
     {
       "id": "item__arquivos_secretos_04__adesiva",
@@ -18888,24 +20042,6 @@
       ]
     },
     {
-      "id": "item__arquivos_secretos_05__camera_filmadora",
-      "category": "item",
-      "subCategory": "Equipamento Geral",
-      "name": "Câmera Filmadora",
-      "bookId": "arquivos_secretos_05",
-      "bookTitle": "Arquivos Secretos #05",
-      "pageNumber": 60,
-      "element": "Nenhum",
-      "diceFormulas": [],
-      "summary": "UTENSÍLIO — CATEGORIA 0 | 1 ESPAÇO Uma filmadora antiga que pode capturar aquilo que os nossos olhos, muitas vezes, acabam deixando passar.",
-      "description": "UTENSÍLIO — CATEGORIA 0 | 1 ESPAÇO Uma filmadora antiga que pode capturar aquilo que os nossos olhos, muitas vezes, acabam deixando passar. Este utensílio fornece +2 em testes de Investigação e Percepção, além de poder ser usado como lanterna (ilumina um cone de 9m) ou na função de visão noturna de fósforo verde (funciona como Visão no Escuro, OPRPG, p. 180). Esta vestimenta distorce a percepção do tempo ao redor do usuário, deixando ele mais atento a coisas próximas, mas alheio à coisas distantes. Você recebe +5 na Defesa e em testes de resistência contra ataques e habilidades que tenham origem em alcance curto de você, mas sofre –5 na Defesa e em testes de resistência contra ataques e habilidades que tenham origem além de 9m de você. Além disso, recebe",
-      "tags": [
-        "Equipamento Geral",
-        "Arquivos Secretos #05",
-        "Item"
-      ]
-    },
-    {
       "id": "item__arquivos_secretos_05__joias_da_mente",
       "category": "item",
       "subCategory": "Item Amaldiçoado / Maldição",
@@ -18922,7 +20058,9 @@
         "Conhecimento",
         "Arquivos Secretos #05",
         "Item"
-      ]
+      ],
+      "itemCategory": "III",
+      "spaces": "1"
     },
     {
       "id": "item__arquivos_secretos_05__faixas_da_videncia",
@@ -18941,7 +20079,9 @@
         "Morte",
         "Arquivos Secretos #05",
         "Item"
-      ]
+      ],
+      "itemCategory": "III",
+      "spaces": "1"
     },
     {
       "id": "item__arquivos_secretos_05__skate_caotico",
@@ -18960,7 +20100,9 @@
         "Energia",
         "Arquivos Secretos #05",
         "Item"
-      ]
+      ],
+      "itemCategory": "II",
+      "spaces": "2"
     },
     {
       "id": "item__arquivos_secretos_05__tenis_lepidos",
@@ -18981,6 +20123,88 @@
         "Energia",
         "Arquivos Secretos #05",
         "Item"
+      ],
+      "itemCategory": "III",
+      "spaces": "1"
+    },
+    {
+      "id": "item__arquivos_secretos_06__alice_como_aliada",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Alice como Aliada",
+      "bookId": "arquivos_secretos_06",
+      "bookTitle": "Arquivos Secretos #06",
+      "pageNumber": 28,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "A diretora de algumas instalações da Panacea é uma mestra estrategista, capaz de analisar cenários complexos em questão de segundos e coordenar seus aliados com precisão cirúrgica.",
+      "description": "A diretora de algumas instalações da Panacea é uma mestra estrategista, capaz de analisar cenários complexos em questão de segundos e coordenar seus aliados com precisão cirúrgica. Bônus. Você recebe +1d20 em Diplomacia e Tática. Ainda é Útil. Uma vez por cena, quando está morrendo, você pode gastar 3 PE para ser estabilizado.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #06",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_06__ketan_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Ketan como Aliado",
+      "bookId": "arquivos_secretos_06",
+      "bookTitle": "Arquivos Secretos #06",
+      "pageNumber": 33,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "2d4"
+      ],
+      "summary": "Sendo o Chefe de Segurança da Panacea, Ketan é apto para qualquer tipo de combate, seja corpo a corpo ou à distância.",
+      "description": "Sendo o Chefe de Segurança da Panacea, Ketan é apto para qualquer tipo de combate, seja corpo a corpo ou à distância. Bônus. Sempre que causar dano, você causa +2d4 pontos de dano extra de um tipo a sua escolha (entre balístico, corte, impacto e perfuração). Fornecimento Secreto. Uma vez por missão, como uma ação de interlúdio, você pode gastar 3 PE para receber uma arma, que não seja amaldiçoada, de até categoria II. Se precisar, também recebe 2 pacotes de munição.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #06",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_06__laila_como_aliada",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Laila como Aliada",
+      "bookId": "arquivos_secretos_06",
+      "bookTitle": "Arquivos Secretos #06",
+      "pageNumber": 37,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "4d20+10"
+      ],
+      "summary": "Laila possui um vasto conhecimento acerca da psique humana e de como o paranormal a afeta.",
+      "description": "Laila possui um vasto conhecimento acerca da psique humana e de como o paranormal a afeta. Bônus. Você recebe resistência a dano mental 2. Ajuda Especializada. Uma vez por dia, você pode gastar 3 PE para fazer um teste de Vontade usando o Ocultismo (4d20+10) de Laila, em vez de sua própria perícia.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #06",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_06__dr_neruda_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Dr. Neruda como Aliado",
+      "bookId": "arquivos_secretos_06",
+      "bookTitle": "Arquivos Secretos #06",
+      "pageNumber": 41,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d4"
+      ],
+      "summary": "Dr.",
+      "description": "Dr. Neruda é um entre vários pesquisadores da Panacea, diferente da maioria, ele sabe muito bem o que faz lá. E adora o seu trabalho. Bônus. Sempre que causar dano com um ataque, o alvo também perde 1d4 PV. Imunologista. Como uma ação de interlúdio, você pode gastar 3 PE para reduzir o estágio de uma doença que esteja o afetando em 1.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #06",
+        "Item"
       ]
     },
     {
@@ -18996,19 +20220,20 @@
         "4d10"
       ],
       "summary": "ITEM AMALDIÇOADO MORTE — CATEGORIA II 0,5 ESPAÇO Um anel de aparência sinistra.",
-      "description": "ITEM AMALDIÇOADO MORTE — CATEGORIA II 0,5 ESPAÇO Um anel de aparência sinistra. Parece querer se prender ao seu dedo e torná-lo mais forte para que possa observá-lo sofrer por períodos mais longos. Se estiver usando o anel, quando sofrer dano causado por um nidere, você pode gastar uma reação e 2 PE para receber RD 4d10 contra esse dano. Aplicador de",
+      "description": "ITEM AMALDIÇOADO MORTE — CATEGORIA II 0,5 ESPAÇO Um anel de aparência sinistra. Parece querer se prender ao seu dedo e torná-lo mais forte para que possa observá-lo sofrer por períodos mais longos. Se estiver usando o anel, quando sofrer dano causado por um nidere, você pode gastar uma reação e 2 PE para receber RD 4d10 contra esse dano.",
       "tags": [
         "Item Amaldiçoado / Maldição",
         "Morte",
         "Arquivos Secretos #06",
         "Item"
-      ]
+      ],
+      "itemCategory": "II"
     },
     {
-      "id": "item__arquivos_secretos_06__adrenalina",
+      "id": "item__arquivos_secretos_06__aplicador_de_adrenalina",
       "category": "item",
       "subCategory": "Equipamento Geral",
-      "name": "Adrenalina",
+      "name": "Aplicador de Adrenalina",
       "bookId": "arquivos_secretos_06",
       "bookTitle": "Arquivos Secretos #06",
       "pageNumber": 73,
@@ -19022,7 +20247,9 @@
         "Equipamento Geral",
         "Arquivos Secretos #06",
         "Item"
-      ]
+      ],
+      "itemCategory": "I",
+      "spaces": "1"
     },
     {
       "id": "item__arquivos_secretos_06__emulsificante_quimico",
@@ -19251,24 +20478,6 @@
       ]
     },
     {
-      "id": "item__arquivos_secretos_07__carranca_cacadora",
-      "category": "item",
-      "subCategory": "Item Paranormal",
-      "name": "Carranca Caçadora",
-      "bookId": "arquivos_secretos_07",
-      "bookTitle": "Arquivos Secretos #07",
-      "pageNumber": 78,
-      "element": "Nenhum",
-      "diceFormulas": [],
-      "summary": "ITEM PARANORMAL — CATEGORIA II | 2 ESPAÇOS Uma cabeça raivosa de proporções animalescas esculpida de um tronco de madeira.",
-      "description": "ITEM PARANORMAL — CATEGORIA II | 2 ESPAÇOS Uma cabeça raivosa de proporções animalescas esculpida de um tronco de madeira. Seus olhos são penetrantes e parecem se mover quando se olha pela visão periférica. Quando você coloca algum material relacionado à uma criatura paranormal (roupa rasgada por um zumbi de sangue, cabelo sujo pelo Lodo de um esqueleto de Lodo etc.) na boca da carranca, os olhos dela passam a apontar para um caminho que leva até a criatura relacionada ao material ou ao último lugar em que ela esteve antes de sumir da Realidade (morrer, inexistir etc.). Infelizmente para você, o caminho guiado pela carrança é sempre o mais perigoso. Além disso, o efeito só dura por 10 minutos. Passado esse tempo, a carrança consome o material e para de guiar, nunca mais sendo útil para localizar a mesma criatura (mas ainda pode ser usada para outras criaturas).",
-      "tags": [
-        "Item Paranormal",
-        "Arquivos Secretos #07",
-        "Item"
-      ]
-    },
-    {
       "id": "item__arquivos_secretos_07__cajado_da_cruz_de_sangue",
       "category": "item",
       "subCategory": "Item Amaldiçoado / Maldição",
@@ -19287,7 +20496,9 @@
         "Sangue",
         "Arquivos Secretos #07",
         "Item"
-      ]
+      ],
+      "itemCategory": "III",
+      "spaces": "2"
     },
     {
       "id": "item__arquivos_secretos_07__sal_dourado",
@@ -19307,7 +20518,9 @@
         "Item Paranormal",
         "Arquivos Secretos #07",
         "Item"
-      ]
+      ],
+      "itemCategory": "I",
+      "spaces": "1"
     },
     {
       "id": "item__arquivos_secretos_07__terco_maculado",
@@ -19328,22 +20541,174 @@
         "Sangue",
         "Arquivos Secretos #07",
         "Item"
+      ],
+      "itemCategory": "II",
+      "spaces": "1"
+    },
+    {
+      "id": "item__arquivos_secretos_09__jason_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Jason como Aliado",
+      "bookId": "arquivos_secretos_09",
+      "bookTitle": "Arquivos Secretos #09",
+      "pageNumber": 21,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "Jason é um protetor confiável.",
+      "description": "Jason é um protetor confiável. Bônus. Você recebe +1d20 em Fortitude. Proteção de Jason. Quando sofre dano, você pode gastar 2 PE como reação para reduzir o dano em 10 pontos.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #09",
+        "Item"
       ]
     },
     {
-      "id": "item__arquivos_secretos_09__ariete_portatil",
+      "id": "item__arquivos_secretos_09__karen_como_aliada",
       "category": "item",
-      "subCategory": "Equipamento Geral",
-      "name": "Aríete Portátil",
+      "subCategory": "Aliado",
+      "name": "Karen como Aliada",
       "bookId": "arquivos_secretos_09",
       "bookTitle": "Arquivos Secretos #09",
-      "pageNumber": 42,
+      "pageNumber": 23,
       "element": "Nenhum",
-      "diceFormulas": [],
-      "summary": "ITEM OPERACIONAL — CATEGORIA 0 | 5 ESPAÇOS Um cilindro pesado de aço, dotado de empunhaduras laterais, usado para romper portas, fechaduras e barricadas pela força bruta.",
-      "description": "ITEM OPERACIONAL — CATEGORIA 0 | 5 ESPAÇOS Um cilindro pesado de aço, dotado de empunhaduras laterais, usado para romper portas, fechaduras e barricadas pela força bruta. Empunhar esse item operacional exige as duas mãos. Quando fizer um teste para arrombar um objeto usando o aríete portátil, você recebe +10 nesse teste.",
+      "diceFormulas": [
+        "1d20",
+        "2d12"
+      ],
+      "summary": "Karen é uma atiradora infalível.",
+      "description": "Karen é uma atiradora infalível. Bônus. Você recebe +1d20 em Pontaria. Disparo de Karen. Quando causa dano, você pode gastar 2 PE para causar +2d12 pontos de dano extra.",
       "tags": [
-        "Equipamento Geral",
+        "Aliado",
+        "Arquivos Secretos #09",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_09__troy_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Troy como Aliado",
+      "bookId": "arquivos_secretos_09",
+      "bookTitle": "Arquivos Secretos #09",
+      "pageNumber": 25,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "Troy é um combatente pronto para fazer estrago.",
+      "description": "Troy é um combatente pronto para fazer estrago. Uma vez por rodada, quando é alvo de um ataque corpo a corpo, Troy faz um teste de ataque corpo a corpo para se defender. Se ele vencer o teste oposto, evita o ataque sofrido e causa seu dano corpo a corpo ao oponente. Se perder, é atingido normalmente. Bônus. Você recebe +1d20 em Luta. Investida do Troy. Quando faz um ataque, você pode gastar 3 PE como reação para fazer um ataque adicional.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #09",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_09__roy_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Roy como Aliado",
+      "bookId": "arquivos_secretos_09",
+      "bookTitle": "Arquivos Secretos #09",
+      "pageNumber": 27,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20",
+        "3d10"
+      ],
+      "summary": "Roy é um médico de campo capaz de operar milagres.",
+      "description": "Roy é um médico de campo capaz de operar milagres. Bônus. Você é considerado treinado em Medicina. Se já for treinado, em vez disso, recebe +1d20 em testes de Medicina. Medicina do Roy. Você pode gastar 2 PE para recuperar 3d10 PV ou remover uma condição negativa (exceto morrendo) de si mesmo ou de um aliado adjacente.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #09",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_09__stella_como_aliada",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Stella como Aliada",
+      "bookId": "arquivos_secretos_09",
+      "bookTitle": "Arquivos Secretos #09",
+      "pageNumber": 29,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "Stella é uma motorista com habilidades inquestionáveis.",
+      "description": "Stella é uma motorista com habilidades inquestionáveis. Bônus. Você recebe +1d20 em Pilotagem. Direção da Stella. Quando falha em um teste de Pilotagem, você pode gastar 2 PE para rolá-lo novamente. Além disso, você pode gastar 1 PE para ignorar terreno difícil por uma rodada (seja dirigindo ou a pé).",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #09",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_09__arnold_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Arnold como Aliado",
+      "bookId": "arquivos_secretos_09",
+      "bookTitle": "Arquivos Secretos #09",
+      "pageNumber": 31,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "8d6",
+        "1d20"
+      ],
+      "summary": "Uma vez por cena, Arnold arremessa uma granada de fragmentação em alcance curto.",
+      "description": "Uma vez por cena, Arnold arremessa uma granada de fragmentação em alcance curto. Seres em um raio de 6m a partir do ponto de impacto sofrem 8d6 pontos de dano de perfuração (Reflexos DT 23 reduz o dano à metade). Arnold é um especialista em explosivos cruel. Bônus. Você recebe +1d20 em testes envolvendo explosivos (como Pontaria para arremessar uma granada ou Reflexos para evitar uma explosão).",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #09",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_09__chloe_como_aliada",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Chloe como Aliada",
+      "bookId": "arquivos_secretos_09",
+      "bookTitle": "Arquivos Secretos #09",
+      "pageNumber": 33,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20"
+      ],
+      "summary": "Chloe domina documentação como ninguém e foi tocada pela Morte.",
+      "description": "Chloe domina documentação como ninguém e foi tocada pela Morte. Bônus. Você recebe +1d20 em Investigação. Morte em Chloe. Você pode conjurar o ritual Nuvem de Cinzas como se o conhecesse. Se já o conhece, em vez disso, o custo para lançá-lo diminui em –1 PE.",
+      "tags": [
+        "Aliado",
+        "Arquivos Secretos #09",
+        "Item"
+      ]
+    },
+    {
+      "id": "item__arquivos_secretos_09__ryder_como_aliado",
+      "category": "item",
+      "subCategory": "Aliado",
+      "name": "Ryder como Aliado",
+      "bookId": "arquivos_secretos_09",
+      "bookTitle": "Arquivos Secretos #09",
+      "pageNumber": 34,
+      "element": "Nenhum",
+      "diceFormulas": [
+        "1d20",
+        "2d20+10",
+        "4d20+10",
+        "3d20+15",
+        "4d20+15",
+        "2d20+15"
+      ],
+      "summary": "Ryder é um comandante de campo extremamente eficiente que extrai o melhor de quem acompanha.",
+      "description": "Ryder é um comandante de campo extremamente eficiente que extrai o melhor de quem acompanha. Bônus. Você recebe +1d20 em 2 perícias à sua escolha. Uma vez escolhidas, não podem ser trocadas até o final da missão. Comando de Ryder. Você pode gastar uma ação de movimento e 2 PE para usar a habilidade Formação! de Ryder como se fosse sua. PESSOA • MÉDIA • VD 200 SENTIDOS Percepção 2d20+10 | Iniciativa 4d20+10 DEFESA 34 Fortitude 3d20+15 | Reflexos 4d20+15 | Vontade 2d20+10 PV 320 | Machucado 160 DESLOCAMENTO 9m | 6□ AGI 4 INT 2 VIG 3 FOR 3 PRE 2 PERÍCIAS Atletismo 3d20+15, Furtividade 4d20+10, Intimidação 2d20+15, Intuição 2d20+10, Pilotagem 4d20+10, Tática 2d20+15 TREINAMENTO TÁTICO Como consequência do treinamento que recebeu, Ryder recebe +5 em testes de ataque, testes de resistência, rolagens de dano e na Defesa (já contabilizado). Além disso, Ryder pode fazer três ações agredir pelo custo de uma única ação padrão.",
+      "tags": [
+        "Aliado",
         "Arquivos Secretos #09",
         "Item"
       ]
@@ -19421,7 +20786,9 @@
         "Equipamento Geral",
         "Arquivos Secretos #09",
         "Item"
-      ]
+      ],
+      "itemCategory": "I",
+      "spaces": "1"
     },
     {
       "id": "item__arquivos_secretos_09__capacete_tatico",
@@ -19441,7 +20808,9 @@
         "Proteção",
         "Arquivos Secretos #09",
         "Item"
-      ]
+      ],
+      "itemCategory": "II",
+      "spaces": "1"
     },
     {
       "id": "item__arquivos_secretos_09__drone_de_combate_tatico",
@@ -19459,7 +20828,9 @@
         "Equipamento Geral",
         "Arquivos Secretos #09",
         "Item"
-      ]
+      ],
+      "itemCategory": "III",
+      "spaces": "2"
     },
     {
       "id": "item__arquivos_secretos_09__comando",
@@ -19681,7 +21052,9 @@
         "Proteção",
         "Arquivos Secretos #09",
         "Item"
-      ]
+      ],
+      "itemCategory": "II",
+      "spaces": "2"
     },
     {
       "id": "item__livro_base__coracao_pulsante",
@@ -19788,7 +21161,13 @@
         "Sangue",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "proficiency": "Simples",
+      "handedness": "Leve",
+      "damage": "1d8 Sangue",
+      "critical": "20/x2",
+      "range": "Corpo a corpo",
+      "damageType": "Sangue"
     },
     {
       "id": "item__livro_base__seringa_de_transfiguracao",
@@ -20080,7 +21459,13 @@
         "Energia",
         "Livro Base",
         "Item"
-      ]
+      ],
+      "proficiency": "Simples",
+      "handedness": "Uma Mão",
+      "damage": "2d4 Energia",
+      "critical": "20/x2",
+      "range": "Curto",
+      "damageType": "Energia"
     },
     {
       "id": "item__livro_base__bateria_reversa",
@@ -25707,6 +27092,45 @@
         "Criatura / Ameaça",
         "Sangue",
         "VD 80",
+        "Arquivos Secretos #02"
+      ]
+    },
+    {
+      "id": "creature__arquivos_secretos_02__felino_infernal_vd120",
+      "category": "creature",
+      "subCategory": "Ameaça (VD 120)",
+      "name": "Felino-infernal",
+      "bookId": "arquivos_secretos_02",
+      "bookTitle": "Arquivos Secretos #02",
+      "pageNumber": 32,
+      "element": "Sangue",
+      "vd": 120,
+      "defense": 28,
+      "pv": 230,
+      "attributes": {
+        "AGI": "4",
+        "FOR": "2",
+        "INT": "0",
+        "PRE": "2",
+        "VIG": "3"
+      },
+      "disturbingPresence": "DT 23 •  4d6 mental •  NEX 50% é imune",
+      "diceFormulas": [
+        "4d6",
+        "2d20+10",
+        "4d20+10",
+        "3d20+10",
+        "2d20+5",
+        "2d20",
+        "2d8+5",
+        "2d8"
+      ],
+      "summary": "VD 120 | Elemento: Sangue | PV: 230 | Defesa: 28",
+      "description": "e abrem \ncomo uma flor diabólica com ossos \npontiagudos para todos os lados.\n\nArara-infernal\n\nSANGUE\nCRIATURA •  GRANDE\nVD 120\n\nPRESENÇA PERTURBADORA  \nDT 23 •  4d6 mental •  NEX 50% é imune\n\nSENTIDOS Percepção 2d20+10 | Iniciativa 4d20+10\n\nDEFESA 28\n\nFortitude 3d20+10 | Reflexos 4d20+10  \nVontade 2d20+5\n\nPV 230 | Machucado 125\n\nRESISTÊNCIAS Balístico, impacto e perfuração 10,\n\nSangue 20\n\nVULNERABILIDADES Morte\n\nDESLOCAMENTO 12m | 8□\n\nAGI 4 FOR 2 INT 0 PRE 2 VIG 3\n\nAGI \n4 \nINT \n0\nVIG\n3\n\nFOR \n2\nPRE\n2\n \nCAMUFLAGEM PERVERSA Assim como outros \npredadores da natureza, o felino-infernal molda \nseu corpo com características que dificultam \nsua caça e compreensão, como olhos falsos, \ncrânios expostos em locais impossíveis e patas \ninvertidas. Em termos de regras, o felinoinfernal está sempre sob efeito de camuflagem \nleve. Além disso, uma vez por cena, quando \nfor alvo de um acerto crítico, pode ignorar \nos efeitos críticos e considerá-lo um ataque \ncomum. Finalmente, testes para percebê-lo ou \nseguir seus rastros recebem penalidade de –2d20.\n\nAÇÕES\n\nPADRÃO ▸  AGREDIR\n\nMORDIDAS Corpo a corpo x2\n\nTeste 4d20+10 | Dano 2d8+5 corte + 2d8 Sangue\n\nGARRAS Corpo a corpo x2\n\nTeste 4d20+10 | Dano 2d6+5 corte\n\nMOVIMENTO ◆  PULO DO FELINO\n\nO felino-infernal pula na direção de um alvo em \nalcance curto. Caso faça uma ação de agredir \ncom mordidas ou garras no mesmo turno, causa \n+2d8 pontos de dano adicional. Se o alvo estiver \ndesprevenido, esta habilidade pode ser usada \ncomo ação livre uma vez por rodada.\n\nPADRÃO ◆  BOCA DA LOUCURA\n\nO felino-infernal tenta envolver a cabeça de um \nser adjacente com sua própria cabeça dentada.  \nO alvo faz um teste de Reflexos (DT 23). Se \nfalhar, fica agarrado e sofre 4d6 pontos de \ndano de Sangue e 4d6 pontos de dano mental. \nEnquanto permanecer agarrado, o alvo sofre o \ndano novamente no início dos turnos do felinoinfernal supremo. Para se soltar, precisa gastar \numa ação e passar em um teste de Acrobacia, \nAtletismo ou Luta (DT 23). Enquanto estiver \nagarrando um ser, o felino-infernal não pode \nusar suas mordidas.\n\nPADRÃO ◆  CHICOTADA PERFURANTE\n\nO felino-infernal usa sua cauda afiada para \nperfurar e puxar um ser em alcance curto.  \nO alvo sofre 6d8 pontos de dano de Sangue,  \nfica caído, sangrando e é movido para um espaço \ndesocupado dentro de alcance curto a escolha  \ndo felino-infernal (Reflexos DT 23 reduz o dano  \nà metade e evita condições e movimento).",
+      "tags": [
+        "Criatura / Ameaça",
+        "Sangue",
+        "VD 120",
         "Arquivos Secretos #02"
       ]
     },
