@@ -6,20 +6,6 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### 8. Motor de Modificadores Dinâmicos de Dano por Agente, Preparação de Golpe Tático e Conjuração de Rituais:
-**Título**: `feat(rules,characters): implementa modificadores dinamicos de dano por agente, preparacao de golpe e rituais`
-
-**Descrição**:
-- Cria o motor puro compatível com Hermes `src/utils/damageModifiers.ts` e os contratos em `src/types/compendium.ts` / `src/types/recordPreview.ts` para resolver dinamicamente dano, crítico, atributos, origens, poderes, trilhas, buffs e DT/dano de rituais por agente sem mutar armas compartilhadas da Armaria (`linkMode: 'shared'`)
-- Estende `src/utils/dice.ts`, `src/components/DiceToast.tsx` e `src/components/RecordPreviewModal.tsx` para propagar e rolar `normalFormula` e `criticalFormula` preservando bônus não multiplicáveis e `Lancinante` conforme Ordem Paranormal v1.1
-- Implementa `src/components/AttackPreparationModal.tsx` (com `BackHandler`, `onRequestClose`, gasto de PE em `Ataque Especial` / `Ataque Furtivo` / `Assassinar` / `Destruidor`, `Rajada` e buffs de rituais) e integra badges, **Preparar Golpe Tático**, dedução de PE e conjuração dinâmica de rituais (`Padrão`/`Discente`/`Verdadeiro`) em `src/app/(tabs)/characters.tsx`
-- Adiciona 16 testes unitários em `tests/damageModifiers.test.ts` (registrado em `test:rules` no `package.json`) e 6 testes de interface/integração em `tests/frontendDynamicDamageRolls.test.tsx`, atualizando `docs/PENDENCIAS.md` e `docs/ATUALIZACOES_PENDENTES.md`
-
-```bash
-git add docs/PLANO_MODIFICADORES_DANO.md docs/PENDENCIAS.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md package.json src/types/compendium.ts src/types/recordPreview.ts src/utils/damageModifiers.ts src/utils/dice.ts src/components/AttackPreparationModal.tsx src/components/DiceToast.tsx src/components/RecordPreviewModal.tsx "src/app/(tabs)/characters.tsx" tests/damageModifiers.test.ts tests/frontendDynamicDamageRolls.test.tsx
-git commit -m "feat(rules,characters): implementa modificadores dinamicos de dano por agente, preparacao de golpe e rituais" -m "- Cria motor Hermes-safe em src/utils/damageModifiers.ts e tipos dinamicos em compendium.ts/recordPreview.ts sem mutar CustomWeapon compartilhada" -m "- Integra normalFormula e criticalFormula em dice.ts, DiceToast.tsx e RecordPreviewModal.tsx respeitando criticos canonicos v1.1" -m "- Implementa AttackPreparationModal com BackHandler e integra cards de ataque e conjuracao de rituais em characters.tsx" -m "- Adiciona suites tests/damageModifiers.test.ts (16 testes) e tests/frontendDynamicDamageRolls.test.tsx (6 testes)"
-```
-
 ### 9. Layout Responsivo e Altura Automática na Geração de Imagem dos Cards:
 **Título**: `fix(cards): corrige overflow da moldura e ajusta altura da imagem ao conteudo`
 
@@ -39,6 +25,9 @@ git commit -m "fix(cards): corrige overflow da moldura e ajusta altura da imagem
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 8. Motor de Modificadores Dinâmicos de Dano por Agente, Preparação de Golpe Tático e Conjuração de Rituais:
+- **Título**: `feat(rules,characters): implementa modificadores dinamicos de dano por agente, preparacao de golpe e rituais`
 
 ### ✅ 7. Extração Completa dos Mascarados (Arquivos Secretos #02), Armas Amaldiçoadas e Botão Do Compêndio no Inventário:
 - **Título**: `fix(compendium,weapons): restaura itens, armas, poderes e aliados dos Mascarados e integra ao inventario`

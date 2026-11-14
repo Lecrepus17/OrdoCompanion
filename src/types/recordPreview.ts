@@ -7,6 +7,7 @@ import {
   CharacterSheet,
   CompendiumEntity,
   CustomWeapon,
+  ResolvedAttackDamage,
   WeaponModificationDef,
 } from './compendium';
 import { SkillDefinition } from '../utils/progression';
@@ -25,6 +26,8 @@ export type RecordPreviewTarget =
       attack: CharacterAttack;
       customWeapon?: CustomWeapon;
       entity?: CompendiumEntity;
+      character?: CharacterSheet;
+      resolvedDamage?: ResolvedAttackDamage;
     }
   | {
       kind: 'character_inventory';
