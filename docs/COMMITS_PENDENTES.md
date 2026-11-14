@@ -6,11 +6,129 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente na fila no momento)*
+### 2. Correção de Exportação PNG dos Cards no Android APK (Erro `Buffer`) e Remoção do Botão SVG:
+**Título**: `fix(cards,android): corrige exportacao png sem Buffer e remove botao svg do modal`
+
+**Descrição**:
+- Substitui `Buffer.from` por `utf8ToBase64` em `src/services/cardImage/cardExportService.ts`, eliminando o erro `Property 'Buffer' doesn't exist` no runtime Hermes do Android
+- Integra `react-native-view-shot` (`captureCardViewToPng`) para capturar o card nativamente em `.png` real no Android/iOS, com salvamento direto via `StorageAccessFramework` no botão **Baixar** e compartilhamento via `expo-sharing` no botão **Compartilhar** (mantendo fallback resiliente para `Print.printToFileAsync` caso o módulo nativo não esteja no binário)
+- Remove o seletor de formato `SVG` do rodapé de `src/components/cardImage/RecordImageExportModal.tsx`, simplificando as ações para **Copiar**, **Compartilhar** e **Baixar** (PNG direto)
+- Adiciona testes de regressão para Hermes (`Buffer === undefined`) e remoção do botão SVG em `tests/cardImage.test.ts`, `tests/recordImageModal.test.tsx`, `tests/e2e_issues_suite.test.ts` e `tests/setup.ts`
+
+```bash
+git add package.json package-lock.json src/components/cardImage/RecordImageExportModal.tsx src/services/cardImage/cardExportService.ts src/services/cardImage/types.ts tests/cardImage.test.ts tests/e2e_issues_suite.test.ts tests/recordImageModal.test.tsx tests/setup.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "fix(cards,android): corrige exportacao png sem Buffer e remove botao svg do modal" -m "- Remove dependencia de Buffer no Hermes usando utf8ToBase64 e captura nativa via react-native-view-shot" -m "- Adiciona salvamento direto em pasta (SAF Android) no botao Baixar e compartilhamento PNG via expo-sharing" -m "- Remove seletor SVG do RecordImageExportModal mantendo Copiar, Compartilhar e Baixar" -m "- Atualiza testes em cardImage.test.ts, recordImageModal.test.tsx e e2e_issues_suite.test.ts"
+```
+
+### 3. Reconhecimento de Voz Nativo (Microfone STT) no G.L.I.T.C.H. para Android/iOS:
+**Título**: `feat(ai,android): implementa reconhecimento de voz nativo no microfone do glitch`
+
+**Descrição**:
+- Instala `expo-speech-recognition` (~58.0.1) e configura o plugin em `app.json` junto com `android.permission.RECORD_AUDIO`
+- Adiciona `android.permission.RECORD_AUDIO` e `<queries>` (`android.speech.RecognitionService` e pacotes Google de voz) em `android/app/src/main/AndroidManifest.xml`
+- Integra STT nativo em `src/services/ai/GlitchVoiceService.ts` (`startListeningAsync`, solicitação de permissão, listeners nativos e mapeamento de erros em português) mantendo compatibilidade com Web Speech API
+- Atualiza `handleToggleVoiceInput` em `src/app/(tabs)/oracle.tsx` para usar `startListeningAsync`, evitar cliques duplicados e preservar texto pré-digitado
+- Adiciona testes de regressão em `tests/glitchVoice.test.ts` e `tests/frontendOracle.test.tsx`
+
+```bash
+git add app.json package.json package-lock.json android/app/src/main/AndroidManifest.xml src/services/ai/GlitchVoiceService.ts "src/app/(tabs)/oracle.tsx" tests/glitchVoice.test.ts tests/frontendOracle.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "feat(ai,android): implementa reconhecimento de voz nativo no microfone do glitch" -m "- Instala expo-speech-recognition e configura RECORD_AUDIO e queries no AndroidManifest" -m "- Implementa startListeningAsync com permissoes e listeners nativos em GlitchVoiceService.ts" -m "- Atualiza handleToggleVoiceInput em oracle.tsx preservando texto previo" -m "- Adiciona testes de STT nativo em tests/glitchVoice.test.ts e tests/frontendOracle.test.tsx"
+```
+
+### 4. Auditoria Hermes APK: Substituição de `TextEncoder`/`TextDecoder` por Codecs Puros em Segredos e PDFs:
+**Título**: `fix(android,hermes): substitui TextEncoder e TextDecoder por codecs puros em segredos e pdfs`
+
+**Descrição**:
+- Exporta `stringToUtf8ByteArray` e `utf8ByteArrayToString` e adiciona `latin1BytesToString` e `utf8ByteArrayToStringLossy` em `src/utils/agentSharing.ts` sem dependência de globais Web/Node
+- Remove `new TextEncoder()` e `new TextDecoder()` de `src/utils/secretObfuscator.ts` (`obfuscateSecret` e `deobfuscateSecret`), evitando retorno vazio silencioso no runtime Hermes do Android
+- Substitui `TextDecoder('latin1')`, `TextEncoder` e `TextDecoder('utf-8', { fatal: false })` em `src/services/pdf/PdfAccessService.ts` (`estimatePdfPageCountFromBytes`, `computeMasterPasswordHash` e `extractPagesFromPdfBytesFallback`)
+- Adiciona testes de regressão simulando `TextEncoder = undefined` e `TextDecoder = undefined` em `tests/supportService.test.ts` e `tests/pdfAccessAndUnlock.test.tsx`
+
+```bash
+git add src/utils/agentSharing.ts src/utils/secretObfuscator.ts src/services/pdf/PdfAccessService.ts tests/supportService.test.ts tests/pdfAccessAndUnlock.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "fix(android,hermes): substitui TextEncoder e TextDecoder por codecs puros em segredos e pdfs" -m "- Exporta codecs UTF-8 e adiciona latin1BytesToString/utf8ByteArrayToStringLossy em agentSharing.ts" -m "- Remove TextEncoder/TextDecoder de secretObfuscator.ts para evitar falha silenciosa no Hermes" -m "- Substitui TextDecoder/TextEncoder em estimatePdfPageCountFromBytes, computeMasterPasswordHash e fallback PDF" -m "- Adiciona testes simulando Hermes (sem TextEncoder/TextDecoder) em supportService.test.ts e pdfAccessAndUnlock.test.tsx"
+```
+
+### 5. Unificação de Armas (Agentes <-> Armaria), Cálculo de Crítico e Botão Crítico Máx Sempre Visível:
+**Título**: `feat(weapons,combat): unifica armas entre agentes e armaria e corrige calculo de critico`
+
+**Descrição**:
+- Extrai `WeaponEditorModal.tsx` da Armaria para uso bidirecional idêntico em `weapons.tsx` e `characters.tsx`, permitindo criar e editar armas completas de ambos os lados com sincronização automática
+- Implementa importação com escolha entre **Usar a Mesma (Vinculada)** e **Duplicar** com sufixo do nome atual do agente (`cloneCustomWeaponForAgent`), além de migração idempotente de ataques legados (`migrateCharacterLegacyAttacksToArmory`) e tombstones `deletedCustomWeaponIds` no `SmartMergeEngine` e `OfflineDataRepository`
+- Adiciona diálogos de remoção seguros: pergunta no Agente ("Remover só do Agente" vs "Remover do Agente e da Armaria") e alerta na Armaria quando há agentes vinculados
+- Remove `max_damage` ("Crítico Cheio") da preferência em `UserProfileModal.tsx`, normaliza perfis legados e torna o botão **Crítico Máx** sempre visível na Ficha, Armaria, `RecordPreviewModal` e `DiceToast` (com `CriticalModePromptModal.tsx` para o modo `ask_user`)
+- Corrige `rollWeaponDamage` (`multiply_damage`) em `dice.ts` para multiplicar somente os dados base da arma sem multiplicar bônus fixos (`(1d4 × 2) + 2`)
+- Atualiza e amplia testes em `criticalDamageRules.test.ts`, `dice.test.ts`, `weapons.test.ts`, `smartMerge.test.ts`, `frontendWeapons.test.tsx` e `frontendCharacters.test.tsx` (895/895 passando)
+
+```bash
+git add src/types/compendium.ts src/services/sync/types.ts src/repositories/IDataRepository.ts src/repositories/OfflineDataRepository.ts src/services/sync/SmartMergeEngine.ts src/utils/dice.ts src/utils/weapons.ts src/context/AppContext.tsx src/components/WeaponEditorModal.tsx src/components/CriticalModePromptModal.tsx src/components/UserProfileModal.tsx src/components/DiceToast.tsx src/components/RecordPreviewModal.tsx "src/app/(tabs)/weapons.tsx" "src/app/(tabs)/characters.tsx" tests/criticalDamageRules.test.ts tests/dice.test.ts tests/weapons.test.ts tests/smartMerge.test.ts tests/frontendWeapons.test.tsx tests/frontendCharacters.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "feat(weapons,combat): unifica armas entre agentes e armaria e corrige calculo de critico" -m "- Extrai WeaponEditorModal reutilizavel para criar e editar armas completas tanto na Armaria quanto nos Agentes" -m "- Adiciona vinculo espelhado ou duplicacao com sufixo do nome do agente e sincronizacao bidirecional com tombstones" -m "- Adiciona confirmacoes dedicadas ao remover armas no Agente e na Armaria" -m "- Remove Critico Cheio das opcoes do usuario, mantem os 3 modos validos e exibe Critico Max sempre disponivel" -m "- Corrige modo multiply_damage em dice.ts para multiplicar apenas os dados base sem bonus fixos" -m "- Atualiza e adiciona testes cobrindo todo o fluxo (895/895 passando)"
+```
+
+### 6. Registro de Pendência Técnica (Modificadores Dinâmicos de Dano por Agente):
+**Título**: `docs(roadmap): registra pendencia de modificadores dinamicos de dano por agente`
+
+**Descrição**:
+- Cria `docs/PENDENCIAS.md` detalhando a pendência de soma de FOR em armas corpo a corpo, bônus de habilidades/poderes/trilhas/rituais por agente, separação de armas compartilhadas e regras de crítico
+- Define pré-requisito explícito de varredura geral no compêndio/código e `/plan` antes de executar
+- Atualiza o índice em `docs/README.md`
+
+```bash
+git add docs/PENDENCIAS.md docs/README.md docs/COMMITS_PENDENTES.md
+git commit -m "docs(roadmap): registra pendencia de modificadores dinamicos de dano por agente" -m "- Documenta pendencia para soma de FOR corpo a corpo e bonus de habilidades/rituais por agente em docs/PENDENCIAS.md" -m "- Estabelece obrigatoriedade de varredura geral no compendio e /plan antes da implementacao" -m "- Atualiza indice da central de documentacao em docs/README.md"
+```
+
+### 7. Extração Completa dos Mascarados (Arquivos Secretos #02), Armas Amaldiçoadas e Botão Do Compêndio no Inventário:
+**Título**: `fix(compendium,weapons): restaura itens, armas, poderes e aliados dos Mascarados e integra ao inventario`
+
+**Descrição**:
+- Corrige `scripts/parse_entities.py` para interromper corretamente blocos de `PODER PARANORMAL` (impedindo `Pressão Atmosférica` de engolir o restante da p. 47 de *Arquivos Secretos #02*), capturar poderes singulares (`PODER GERAL`, `PODER DE COMBATENTE/ESPECIALISTA/OCULTISTA`) e `Poderes de Intenção`, extrair os itens amaldiçoados dos Mascarados (`Manoplas do Colosso`, `Elmo do Colosso`, `Machado do Mutilador`, `Punhal X`, `Sniper Fantasma`, `A Antena`, `Faca Predadora`), `Catalisador Sofisticado e Horrorizado`, `Acoplável`, recursos do Hexatombe, aliados de `#02`/`#06`/`#09`, `Pistola Taser` e VD 120 do `Felino-infernal` (`1.708` entidades no seed)
+- Inclui itens com estatísticas de arma (`Boolean(damage)`) no filtro `category: 'weapon'` de `OfflineDataRepository.ts`, em `WeaponEditorModal.tsx` e em `compendiumWeapons` de `characters.tsx`, permitindo equipar armas amaldiçoadas diretamente na Armaria e na aba Ataques
+- Adiciona a habilidade oficial `Acoplável` e aprimora `resolveWeaponTypeFromEntity` em `src/utils/weapons.ts` para tipagem precisa de armas balísticas e corpo a corpo amaldiçoadas
+- Adiciona o botão **Do Compêndio** (`add_item_compendium`) na aba Inventário de `src/app/(tabs)/characters.tsx` e inclui `Poder Geral` e `Poder de Intenção` na filtragem de poderes
+- Adiciona cobertura automatizada em `tests/databaseIntegrity.test.ts` e `tests/repository.test.ts`
+
+```bash
+git add scripts/parse_entities.py data/compendium_seed.json data/books_pages_seed.json src/data/seed/compendium_seed.json src/data/seed/books_pages_seed.json src/repositories/OfflineDataRepository.ts src/utils/weapons.ts src/components/WeaponEditorModal.tsx "src/app/(tabs)/characters.tsx" tests/databaseIntegrity.test.ts tests/repository.test.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "fix(compendium,weapons): restaura itens, armas, poderes e aliados dos Mascarados e integra ao inventario" -m "- Corrige parse_entities.py para extrair todos os itens amaldiçoados, armas, poderes, aliados e recursos dos Mascarados (AS02 p. 47 e demais paginas)" -m "- Inclui armas amaldiçoadas com dano no filtro weapon do repositorio, WeaponEditorModal e Ficha" -m "- Adiciona modificacao Acoplavel e corrige resolveWeaponTypeFromEntity em src/utils/weapons.ts" -m "- Adiciona botao Do Compendio na aba Inventario e amplia filtro de poderes em characters.tsx" -m "- Adiciona testes em tests/databaseIntegrity.test.ts e tests/repository.test.ts"
+```
+
+### 8. Motor de Modificadores Dinâmicos de Dano por Agente, Preparação de Golpe Tático e Conjuração de Rituais:
+**Título**: `feat(rules,characters): implementa modificadores dinamicos de dano por agente, preparacao de golpe e rituais`
+
+**Descrição**:
+- Cria o motor puro compatível com Hermes `src/utils/damageModifiers.ts` e os contratos em `src/types/compendium.ts` / `src/types/recordPreview.ts` para resolver dinamicamente dano, crítico, atributos, origens, poderes, trilhas, buffs e DT/dano de rituais por agente sem mutar armas compartilhadas da Armaria (`linkMode: 'shared'`)
+- Estende `src/utils/dice.ts`, `src/components/DiceToast.tsx` e `src/components/RecordPreviewModal.tsx` para propagar e rolar `normalFormula` e `criticalFormula` preservando bônus não multiplicáveis e `Lancinante` conforme Ordem Paranormal v1.1
+- Implementa `src/components/AttackPreparationModal.tsx` (com `BackHandler`, `onRequestClose`, gasto de PE em `Ataque Especial` / `Ataque Furtivo` / `Assassinar` / `Destruidor`, `Rajada` e buffs de rituais) e integra badges, **Preparar Golpe Tático**, dedução de PE e conjuração dinâmica de rituais (`Padrão`/`Discente`/`Verdadeiro`) em `src/app/(tabs)/characters.tsx`
+- Adiciona 16 testes unitários em `tests/damageModifiers.test.ts` (registrado em `test:rules` no `package.json`) e 6 testes de interface/integração em `tests/frontendDynamicDamageRolls.test.tsx`, atualizando `docs/PENDENCIAS.md` e `docs/ATUALIZACOES_PENDENTES.md`
+
+```bash
+git add docs/PLANO_MODIFICADORES_DANO.md docs/PENDENCIAS.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md package.json src/types/compendium.ts src/types/recordPreview.ts src/utils/damageModifiers.ts src/utils/dice.ts src/components/AttackPreparationModal.tsx src/components/DiceToast.tsx src/components/RecordPreviewModal.tsx "src/app/(tabs)/characters.tsx" tests/damageModifiers.test.ts tests/frontendDynamicDamageRolls.test.tsx
+git commit -m "feat(rules,characters): implementa modificadores dinamicos de dano por agente, preparacao de golpe e rituais" -m "- Cria motor Hermes-safe em src/utils/damageModifiers.ts e tipos dinamicos em compendium.ts/recordPreview.ts sem mutar CustomWeapon compartilhada" -m "- Integra normalFormula e criticalFormula em dice.ts, DiceToast.tsx e RecordPreviewModal.tsx respeitando criticos canonicos v1.1" -m "- Implementa AttackPreparationModal com BackHandler e integra cards de ataque e conjuracao de rituais em characters.tsx" -m "- Adiciona suites tests/damageModifiers.test.ts (16 testes) e tests/frontendDynamicDamageRolls.test.tsx (6 testes)"
+```
+
+### 9. Layout Responsivo e Altura Automática na Geração de Imagem dos Cards:
+**Título**: `fix(cards): corrige overflow da moldura e ajusta altura da imagem ao conteudo`
+
+**Descrição**:
+- Corrige o grid de estatísticas de `svgCardRenderer.ts` que ultrapassava a moldura interna à direita (largura calculada sem o recuo de 10px)
+- Quebra de texto passa a ser calculada pela largura útil real e tamanho da fonte (título, descrição, resumo, seções extras), respeitando quebras de linha e palavras longas
+- Valores, badges e fonte do livro longos são truncados com reticências em vez de vazar das caixas
+- Altura da imagem é automática conforme o conteúdo e a largura padrão cai de 1080 para 800px (ex.: card de ritual de 1080×1350 para 800×659), reduzindo o tamanho do arquivo; larguras maiores apenas escalam o desenho
+- `cardExportService.ts` usa as dimensões reais do SVG (`getSvgDimensions`) no Canvas/Print
+- Adiciona testes de regressão (Tier 6) em `tests/cardLayoutAlignment.test.ts`
+
+```bash
+git add src/services/cardImage/svgCardRenderer.ts src/services/cardImage/cardExportService.ts tests/cardLayoutAlignment.test.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "fix(cards): corrige overflow da moldura e ajusta altura da imagem ao conteudo" -m "- Corrige grid de estatisticas ultrapassando a moldura interna" -m "- Quebra de texto por largura util real e truncamento de valores longos" -m "- Altura automatica e largura padrao de 800px reduzindo o tamanho das imagens" -m "- Adiciona testes de regressao em tests/cardLayoutAlignment.test.ts"
+```
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 1. Blindagem contra OutOfMemoryError na Importação em Lote de PDFs no Android:
+- **Título**: `fix(pdf,android): otimiza importacao em lote de pdfs e bloqueia arrayBuffer no mobile`
 
 ### ✅ 1. Correção do Pacote Inválido e Sincronização do Build Gradle Nativo no APK v1.5.0-beta.2:
 ```bash

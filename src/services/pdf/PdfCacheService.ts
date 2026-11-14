@@ -216,7 +216,7 @@ export async function ensurePdfDirectoryExists(): Promise<string | null> {
 }
 
 /**
- * Copia um arquivo PDF selecionado (ex: pelo DocumentPicker) para o armazenamento persistente do app.
+ * Move ou copia um arquivo PDF selecionado (ex: pelo DocumentPicker) para o armazenamento persistente do app.
  * NÃO carrega o binário em memória RAM (0 bytes na JVM/Hermes), evitando OutOfMemoryError em PDFs de até centenas de MBs.
  */
 export async function savePdfFromUri(
@@ -232,6 +232,22 @@ export async function savePdfFromUri(
   const cleanName = normalizePdfSlug((fileName || '').replace(/\.pdf$/i, ''));
   const targetFileName = cleanName && cleanName !== safeBookSlug ? `${safeBookSlug}__${cleanName}.pdf` : `${safeBookSlug}.pdf`;
   const targetUri = `${dir}${targetFileName}`;
+
+  if (sourceUri === targetUri) {
+    return targetUri;
+  }
+
+  // Arquivos temporários gerados pelo DocumentPicker podem ser movidos diretamente no disco (O(1) sem duplicar 85MB+)
+  const isTempPickerFile = sourceUri.includes('/DocumentPicker/');
+  if (isTempPickerFile && typeof fs.moveAsync === 'function') {
+    try {
+      await deleteCachedFile(targetUri);
+      await fs.moveAsync({ from: sourceUri, to: targetUri });
+      return targetUri;
+    } catch {
+      // Prossegue para cópia segura caso moveAsync falhe entre volumes diferentes
+    }
+  }
 
   try {
     if (typeof fs.copyAsync === 'function') {

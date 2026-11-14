@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
-import { deleteCachedFile } from '../services/pdf/PdfCacheService';
+import { cleanOrphanDocumentPickerPdfs, deleteCachedFile } from '../services/pdf/PdfCacheService';
 import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { getMasterGoogleDriveFolderUrl } from '../utils/pdfUrl';
@@ -162,10 +162,22 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
 
         const messages: string[] = [];
         let anyError = false;
+        const totalAssets = result.assets.length;
 
-        for (const asset of result.assets) {
+        for (let i = 0; i < totalAssets; i++) {
+          const asset = result.assets[i];
           try {
-            const effectiveName = targetBookFileNameRef.current || asset.name;
+            if (totalAssets > 1) {
+              setStatusBanner({
+                type: 'info',
+                text: `Processando ${i + 1} de ${totalAssets}: ${asset.name}...`,
+              });
+            }
+
+            // Só aplica o nome sugerido do botão da linha se o usuário selecionou um único arquivo;
+            // em importação múltipla, preserva o nome real de cada asset.
+            const effectiveName =
+              (totalAssets === 1 ? targetBookFileNameRef.current : null) || asset.name;
 
             // NO CELULAR (Android/iOS): NUNCA carregar o arquivo na RAM via fetch(asset.uri)!
             // O DocumentPicker já fornece o arquivo em disco no asset.uri e o asset.size.
@@ -176,19 +188,20 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
               fileUri: asset.uri,
             });
 
-            await deleteCachedFile(asset.uri);
             messages.push(res.message);
             if (!res.ok) anyError = true;
           } catch (fileErr: any) {
-            await deleteCachedFile(asset.uri);
             anyError = true;
             messages.push(
               `Erro ao ler ${asset.name}: ${fileErr?.message || 'Falha ao processar arquivo'}`
             );
+          } finally {
+            await deleteCachedFile(asset.uri);
           }
         }
 
         targetBookFileNameRef.current = null;
+        await cleanOrphanDocumentPickerPdfs().catch(() => {});
         setUploading(false);
         setStatusBanner({
           type: anyError && messages.length === 1 ? 'error' : 'success',

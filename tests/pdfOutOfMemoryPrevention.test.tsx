@@ -161,4 +161,81 @@ describe('Prevenção de OutOfMemoryError no Android ao manipular PDFs grandes',
       setMobilePlatform('web');
     }
   });
+
+  test('9. GoogleDriveService.downloadPdfFromDrive deve bloquear alocação em RAM no Android', async () => {
+    setMobilePlatform('android');
+    try {
+      const drive = GoogleDriveService.getInstance();
+      await assert.rejects(
+        () => drive.downloadPdfFromDrive('drive_file_id_84mb'),
+        /downloadPdfFromDriveToFile/i
+      );
+    } finally {
+      setMobilePlatform('web');
+    }
+  });
+
+  test('10. Importação em lote no Android de múltiplos PDFs grandes (incluindo 84MB) move do cache sem chamar fetch()', async () => {
+    setMobilePlatform('android');
+    const originalFetch = globalThis.fetch;
+    let fetchCalls = 0;
+    (globalThis as any).fetch = async () => {
+      fetchCalls++;
+      throw new Error('fetch() não deve ser chamado ao importar PDFs no Android');
+    };
+
+    try {
+      const batch = [
+        {
+          id: 'livro_base',
+          fileName: 'Livro base.pdf',
+          fileSize: 62824575,
+          uri: 'file:///mock-cache/DocumentPicker/livro_base_tmp.pdf',
+        },
+        {
+          id: 'sobrevivendo_ao_horror',
+          fileName: 'Sobrevivendo-Ao-Horror-v1.pdf',
+          fileSize: 84030125,
+          uri: 'file:///mock-cache/DocumentPicker/sobrevivendo_tmp.pdf',
+        },
+        {
+          id: 'arquivos_secretos_02',
+          fileName: 'Arquivos-Secretos-02.pdf',
+          fileSize: 84507471,
+          uri: 'file:///mock-cache/DocumentPicker/as02_tmp.pdf',
+        },
+      ];
+
+      for (const item of batch) {
+        addMockFileSystemFile(item.uri);
+        const check = await identifyUploadedPdf({
+          fileName: item.fileName,
+          fileSize: item.fileSize,
+        });
+        assert.strictEqual(check.isValidPdf, true);
+        assert.strictEqual(check.matchedSignature?.id, item.id);
+
+        const savedUri = await localPdfStorage.savePdfOfflineFromUri(
+          check.matchedSignature!.id,
+          check.matchedSignature!.fileName,
+          item.uri,
+          item.fileSize,
+          check.sha256
+        );
+
+        assert.ok(savedUri);
+        assert.ok(hasMockFileSystemFile(savedUri));
+        assert.strictEqual(
+          hasMockFileSystemFile(item.uri),
+          false,
+          'Arquivo temporário do DocumentPicker deve ser movido sem duplicação em disco'
+        );
+      }
+
+      assert.strictEqual(fetchCalls, 0, 'Nenhuma chamada a fetch() pode ocorrer na importação em lote no Android');
+    } finally {
+      (globalThis as any).fetch = originalFetch;
+      setMobilePlatform('web');
+    }
+  });
 });

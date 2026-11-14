@@ -21,6 +21,11 @@ import {
   savePdfFromUri,
 } from './PdfCacheService';
 import { resolveEnvSecret } from '../../utils/secretObfuscator';
+import {
+  latin1BytesToString,
+  stringToUtf8ByteArray,
+  utf8ByteArrayToStringLossy,
+} from '../../utils/agentSharing';
 
 const STORAGE_KEYS = {
   LOCAL_PDFS_META: '@ordem_paranormal:local_pdfs_meta_v1',
@@ -145,23 +150,13 @@ export const KNOWN_SIGNATURES_BY_ID = new Map<string, KnownPdfSignature>(
  * Implementação SHA-256 compatível com Web, Node e React Native sem dependências nativas externas.
  */
 export async function computeSha256Hex(bytes: Uint8Array): Promise<string> {
-  if (bytes.length <= 15_000_000) {
-    try {
-      if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle) {
-        const hashBuffer = await (globalThis as any).crypto.subtle.digest('SHA-256', bytes);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-      }
-    } catch {}
-  } else {
-    try {
-      if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle) {
-        const hashBuffer = await (globalThis as any).crypto.subtle.digest('SHA-256', bytes);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-      }
-    } catch {}
-  }
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle) {
+      const hashBuffer = await (globalThis as any).crypto.subtle.digest('SHA-256', bytes);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch {}
   return computeSha256Sync(bytes);
 }
 
@@ -284,11 +279,10 @@ export function estimatePdfPageCountFromBytes(bytes?: Uint8Array): number | unde
     // Lê cabeçalho e rodapé (xref/Pages) onde o /Count costuma ficar
     const headLen = Math.min(bytes.length, 250000);
     const tailStart = Math.max(0, bytes.length - 250000);
-    const decoder = new TextDecoder('latin1');
     const sample =
-      decoder.decode(bytes.subarray(0, headLen)) +
+      latin1BytesToString(bytes.subarray(0, headLen)) +
       '\n' +
-      (tailStart > 0 ? decoder.decode(bytes.subarray(tailStart)) : '');
+      (tailStart > 0 ? latin1BytesToString(bytes.subarray(tailStart)) : '');
 
     const counts: number[] = [];
     const regex = /\/Type\s*\/Pages\b[^>]*?\/Count\s+(\d+)|\/Count\s+(\d+)\s+[^>]*?\/Type\s*\/Pages\b/g;
@@ -924,7 +918,7 @@ export const AUTHORIZED_MASTER_HASHES = new Set([
  */
 export async function computeMasterPasswordHash(password: string): Promise<string> {
   const clean = (password || '').trim().toUpperCase().replace(/[\s-]/g, '');
-  const bytes = new TextEncoder().encode(MASTER_PASSWORD_SALT + clean);
+  const bytes = new Uint8Array(stringToUtf8ByteArray(MASTER_PASSWORD_SALT + clean));
   return await computeSha256Hex(bytes);
 }
 
@@ -1306,8 +1300,7 @@ export async function processUnregisteredPdfWithPythonPipeline(input: {
 
 function extractPagesFromPdfBytesFallback(bytes: Uint8Array, defaultSection: string): BookPage[] {
   const estCount = estimatePdfPageCountFromBytes(bytes) || 1;
-  const decoder = new TextDecoder('utf-8', { fatal: false });
-  const rawStr = decoder.decode(bytes.subarray(0, Math.min(bytes.length, 500000)));
+  const rawStr = utf8ByteArrayToStringLossy(bytes.subarray(0, Math.min(bytes.length, 500000)));
 
   // Extrai strings legíveis entre parênteses de streams PDF simples quando não comprimidos
   const textChunks: string[] = [];

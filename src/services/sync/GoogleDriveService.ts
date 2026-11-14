@@ -642,9 +642,16 @@ export class GoogleDriveService {
   }
 
   /**
-   * Baixa os bytes de um PDF salvo no Google Drive do usuário para disponibilizar offline no aparelho
+   * Baixa os bytes de um PDF salvo no Google Drive do usuário para disponibilizar offline no aparelho (apenas Web).
+   * No Android/iOS, bloqueia a alocação em RAM via res.arrayBuffer() para evitar OutOfMemoryError.
    */
   public async downloadPdfFromDrive(fileId: string): Promise<Uint8Array> {
+    if (Platform.OS !== 'web') {
+      throw new Error(
+        'downloadPdfFromDrive em memória não é permitido no celular; utilize downloadPdfFromDriveToFile para streaming direto em disco.'
+      );
+    }
+
     const token = await this.ensureValidToken();
     const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
 
