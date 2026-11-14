@@ -281,8 +281,8 @@ describe('Comprehensive E2E Issues Suite (22 Issues across 4 Tiers)', () => {
       assert.strictEqual(offlineMsg.role, 'assistant');
     });
 
-    test('Issue 6: PNG & Action Button Overlap — renders distinct format selector and non-overlapping action buttons in RecordImageExportModal', async () => {
-      const { getByTestId, unmount } = await renderWithProviders(
+    test('Issue 6: PNG & Action Button Overlap — removes inert SVG toggle and renders non-overlapping action buttons in RecordImageExportModal', async () => {
+      const { getByTestId, queryByTestId, unmount } = await renderWithProviders(
         React.createElement(RecordImageExportModal, {
           visible: true,
           target: SAMPLE_ENTITY,
@@ -290,16 +290,16 @@ describe('Comprehensive E2E Issues Suite (22 Issues across 4 Tiers)', () => {
         })
       );
 
-      const formatPng = getByTestId('format-btn-png');
-      const formatSvg = getByTestId('format-btn-svg');
+      const formatSvg = queryByTestId('format-btn-svg');
+      const btnCopy = getByTestId('btn-copy-card-text');
       const btnShare = getByTestId('btn-share-card-image');
       const btnDownload = getByTestId('btn-download-card-image');
 
-      assert.ok(formatPng, 'PNG format toggle must exist');
-      assert.ok(formatSvg, 'SVG format toggle must exist');
+      assert.strictEqual(formatSvg, null, 'Inert SVG button must be removed from the modal footer');
+      assert.ok(btnCopy, 'Copy action button must exist');
       assert.ok(btnShare, 'Share action button must exist');
       assert.ok(btnDownload, 'Download action button must exist');
-      assert.notStrictEqual(formatPng, btnDownload, 'Format selector must not be conflated with action buttons');
+      assert.notStrictEqual(btnShare, btnDownload, 'Share and Download buttons must be distinct');
       unmount();
     });
 

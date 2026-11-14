@@ -309,4 +309,63 @@ test('Sistema de Geração de Imagem Estilizada do Compêndio', async (t) => {
     assert.ok(html.includes(generalItem.name));
     assert.ok(html.includes('<svg'));
   });
+
+  await t.test('8. Compatibilidade Hermes APK sem Buffer e com captura PNG nativa', async () => {
+    const { generateLocalCardFile } = await import('../src/services/cardImage/cardExportService');
+    const { setMobilePlatform, mockShareCalls, clearMockShareCalls } = await import('./setup');
+
+    const originalBuffer = (globalThis as any).Buffer;
+    (globalThis as any).Buffer = undefined;
+    clearMockShareCalls();
+
+    try {
+      const ritual: Partial<CompendiumEntity> = {
+        id: 'rit_alterar_destino',
+        name: 'Alterar Destino',
+        category: 'ritual',
+        element: 'Energia',
+        circle: 4,
+      };
+      const data = extractRecordCardData(ritual as CompendiumEntity);
+      const theme = resolveRecordTheme(ritual as CompendiumEntity);
+      const rawSvg = generateCardSvg(data, theme, { width: 1080, height: 1350 });
+
+      // Sem Buffer no ambiente Web/JS puro
+      const webFile = await generateLocalCardFile(data, theme, rawSvg, 'png', 1080, 1350);
+      assert.equal(webFile.mimeType, 'image/png');
+      assert.ok(webFile.fileName.endsWith('.png'));
+
+      // No Android com PNG capturado via react-native-view-shot
+      setMobilePlatform('android');
+      const nativeFile = await generateLocalCardFile(
+        data,
+        theme,
+        rawSvg,
+        'png',
+        1080,
+        1350,
+        'file:///mock-cache/captured_card.png'
+      );
+      assert.equal(nativeFile.mimeType, 'image/png');
+      assert.ok(nativeFile.fileName.endsWith('.png'));
+
+      const dlRes = await downloadCardImage(data, theme, {
+        format: 'png',
+        capturedPngUri: 'file:///mock-cache/captured_card.png',
+      });
+      assert.equal(dlRes.success, true);
+
+      const shareRes = await shareCardImage(data, theme, {
+        format: 'png',
+        capturedPngUri: 'file:///mock-cache/captured_card.png',
+      });
+      assert.equal(shareRes.success, true);
+      assert.equal(shareRes.sharedAsFile, true);
+      assert.ok(mockShareCalls.some((c) => c.options?.mimeType === 'image/png'));
+    } finally {
+      (globalThis as any).Buffer = originalBuffer;
+      setMobilePlatform('web');
+      clearMockShareCalls();
+    }
+  });
 });

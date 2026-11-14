@@ -97,4 +97,6 @@ export interface ExportCardOptions {
   height?: number;
   format?: 'png' | 'svg';
   quality?: number;
+  cardViewRef?: unknown;
+  capturedPngUri?: string | null;
 }

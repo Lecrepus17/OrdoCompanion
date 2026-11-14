@@ -377,6 +377,15 @@ Module.prototype.require = function (id: string) {
       printToFileAsync: async () => ({ uri: 'test.pdf' }),
     };
   }
+  if (id === 'react-native-view-shot') {
+    const captureRef = async () => 'file:///mock-cache/viewshot_card.png';
+    return {
+      __esModule: true,
+      default: { captureRef },
+      captureRef,
+      releaseCapture: () => {},
+    };
+  }
   if (id === 'expo-web-browser') {
     return {
       openBrowserAsync: async () => ({ type: 'opened' }),

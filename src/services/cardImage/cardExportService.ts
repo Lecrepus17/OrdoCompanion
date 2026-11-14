@@ -2,18 +2,35 @@ import { Platform, Share } from 'react-native';
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { generateCardSvg } from './svgCardRenderer';
+import { generateCardSvg, getSvgDimensions } from './svgCardRenderer';
 import { CardThemeDefinition, ExportCardOptions, RecordCardData } from './types';
 import { getCardThemeById } from './themeRegistry';
+import { utf8ToBase64 } from '../../utils/agentSharing';
 
 interface FileSystemCompat {
   cacheDirectory?: string | null;
   documentDirectory?: string | null;
+  copyAsync?: (options: { from: string; to: string }) => Promise<void>;
+  readAsStringAsync?: (
+    uri: string,
+    options?: { encoding?: 'utf8' | 'base64' | string }
+  ) => Promise<string>;
   writeAsStringAsync?: (
     uri: string,
     contents: string,
     options?: { encoding?: 'utf8' | 'base64' | string }
   ) => Promise<void>;
+  StorageAccessFramework?: {
+    requestDirectoryPermissionsAsync?: () => Promise<{
+      granted: boolean;
+      directoryUri: string;
+    }>;
+    createFileAsync?: (
+      parentUri: string,
+      fileName: string,
+      mimeType: string
+    ) => Promise<string>;
+  };
 }
 
 const fs = FileSystem as unknown as FileSystemCompat;
@@ -313,12 +330,38 @@ export function wrapCardSvgExactDimensions(
 }
 
 /**
- * Gera um arquivo físico do cartão no armazenamento seguro local (cache).
- * Suporta SVG vetorial direto e renderização com dimensões exatas do card (1080x1350).
+ * Captura a View nativa do card (RecordImageCard) como arquivo PNG real usando react-native-view-shot.
+ * Retorna null com segurança caso o módulo nativo não esteja disponível (ex.: Web, testes ou APK antigo).
  */
+export async function captureCardViewToPng(viewRef: unknown): Promise<string | null> {
+  if (!viewRef || Platform.OS === 'web') return null;
+  try {
+    const RN = require('react-native');
+    const hasNativeModule = Boolean(
+      RN?.TurboModuleRegistry?.get?.('RNViewShot') || RN?.NativeModules?.RNViewShot
+    );
+    if (!hasNativeModule) return null;
+
+    const viewShot = require('react-native-view-shot');
+    const captureFn = viewShot?.captureRef || viewShot?.default?.captureRef;
+    if (typeof captureFn !== 'function') return null;
+
+    const uri = await captureFn(viewRef, {
+      format: 'png',
+      quality: 1,
+      result: 'tmpfile',
+    });
+    return typeof uri === 'string' && uri.length > 0 ? uri : null;
+  } catch (err) {
+    console.warn('[cardExportService] Falha ao capturar view do card em PNG:', err);
+    return null;
+  }
+}
+
 /**
  * Gera um arquivo físico do cartão no armazenamento seguro local (cache).
- * Suporta SVG vetorial direto e renderização com dimensões exatas do card (1080x1350).
+ * Prioriza PNG real capturado da View nativa no Mobile ou Canvas no Web,
+ * sem dependência de Node Buffer (inexistente no motor Hermes do Android).
  */
 export async function generateLocalCardFile(
   rawInput: RecordCardData | Partial<RecordCardData>,
@@ -326,7 +369,8 @@ export async function generateLocalCardFile(
   rawSvg: string,
   format: 'png' | 'svg',
   width: number,
-  height: number
+  height: number,
+  capturedPngUri?: string | null
 ): Promise<{ uri: string; fileName: string; mimeType: string }> {
   const data = normalizeRecordCardData(rawInput);
   const baseName = sanitizeFileName(data.name);
@@ -347,6 +391,16 @@ export async function generateLocalCardFile(
   const fileName = `Ordo_${baseName}_${theme.id}.png`;
   const fileUri = `${cacheDir}${fileName}`;
 
+  if (capturedPngUri) {
+    if (fs.copyAsync && capturedPngUri !== fileUri) {
+      try {
+        await fs.copyAsync({ from: capturedPngUri, to: fileUri });
+        return { uri: fileUri, fileName, mimeType: 'image/png' };
+      } catch {}
+    }
+    return { uri: capturedPngUri, fileName, mimeType: 'image/png' };
+  }
+
   let pngDataUrl = '';
   try {
     pngDataUrl = await svgToPngDataUrl(rawSvg, width, height);
@@ -357,8 +411,31 @@ export async function generateLocalCardFile(
     base64 = pngDataUrl.replace(/^data:image\/png;base64,/, '');
   } else if (pngDataUrl && pngDataUrl.includes('base64,')) {
     base64 = pngDataUrl.split('base64,')[1];
+  } else if (Platform.OS !== 'web' && typeof Print?.printToFileAsync === 'function') {
+    // Fallback em APK caso o módulo nativo react-native-view-shot não esteja presente no binário:
+    // gera documento PDF com dimensões exatas do card em vez de gravar SVG inválido em .png.
+    try {
+      const html = wrapCardSvgExactDimensions(rawSvg, data.name, theme, width, height);
+      const printRes = await Print.printToFileAsync({
+        html,
+        width,
+        height,
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      });
+      if (printRes?.uri) {
+        return {
+          uri: printRes.uri,
+          fileName: `Ordo_${baseName}_${theme.id}_card.pdf`,
+          mimeType: 'application/pdf',
+        };
+      }
+    } catch (printErr) {
+      console.warn('[cardExportService] Fallback Print.printToFileAsync falhou:', printErr);
+    }
+    base64 = utf8ToBase64(rawSvg);
   } else {
-    base64 = Buffer.from(rawSvg).toString('base64');
+    // Fallback 100% JS compatível com Hermes/Web (sem Node Buffer)
+    base64 = utf8ToBase64(rawSvg);
   }
 
   if (fs.writeAsStringAsync) {
@@ -374,11 +451,45 @@ export interface DownloadResult {
   success: boolean;
   fileName: string;
   format: 'png' | 'svg';
+  cancelled?: boolean;
   error?: string;
 }
 
 /**
- * Realiza o download/salvamento da imagem estilizada (PNG/SVG no Web, ou compartilhamento/salvamento via expo-sharing no APK nativo)
+ * Despacha o arquivo gerado no Mobile via expo-sharing com fallback para Share nativo.
+ */
+async function dispatchMobileFileShare(
+  file: { uri: string; fileName: string; mimeType: string },
+  dialogTitle: string,
+  shareTitle: string,
+  fallbackText: string
+): Promise<void> {
+  const uti =
+    file.mimeType === 'image/png'
+      ? 'public.png'
+      : file.mimeType === 'image/svg+xml'
+        ? 'public.svg-image'
+        : 'com.adobe.pdf';
+
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (isAvailable) {
+    await Sharing.shareAsync(file.uri, {
+      mimeType: file.mimeType,
+      dialogTitle,
+      UTI: uti,
+    });
+    return;
+  }
+
+  await Share.share({
+    title: shareTitle,
+    url: file.uri,
+    message: fallbackText,
+  });
+}
+
+/**
+ * Realiza o download/salvamento da imagem estilizada (PNG no Web, ou salvamento direto / expo-sharing no APK nativo)
  */
 export async function downloadCardImage(
   rawInput: RecordCardData | Partial<RecordCardData>,
@@ -387,10 +498,10 @@ export async function downloadCardImage(
 ): Promise<DownloadResult> {
   const data = normalizeRecordCardData(rawInput);
   const format = options.format || 'png';
-  const width = options.width || 1080;
-  const height = options.height || 1350;
 
-  const rawSvg = generateCardSvg(data, theme, { width, height });
+  // Altura automática ajustada ao conteúdo (evita imagens enormes com espaço vazio)
+  const rawSvg = generateCardSvg(data, theme, { width: options.width, height: options.height });
+  const { width, height } = getSvgDimensions(rawSvg);
   const baseName = sanitizeFileName(data.name);
   const fileName = `Ordo_${baseName}_${theme.id}.${format}`;
 
@@ -424,39 +535,68 @@ export async function downloadCardImage(
   }
 
   // Mobile / APK Nativo:
-  // NUNCA aciona o spooler de impressão de folha A4 (Print.printAsync).
-  // Gera o arquivo do cartão com dimensões exatas e despacha via expo-sharing
+  // Captura a imagem PNG real do cartão e salva na pasta escolhida (SAF Android) ou via expo-sharing
   try {
-    const file = await generateLocalCardFile(data, theme, rawSvg, format, width, height);
+    const capturedPngUri =
+      options.capturedPngUri ||
+      (format === 'png' && options.cardViewRef
+        ? await captureCardViewToPng(options.cardViewRef)
+        : null);
 
-    const isAvailable = await Sharing.isAvailableAsync();
-    if (isAvailable) {
-      await Sharing.shareAsync(file.uri, {
-        mimeType: file.mimeType,
-        dialogTitle: `Salvar Card ${data.name}`,
-        UTI: format === 'svg' ? 'public.svg-image' : file.mimeType === 'image/png' ? 'public.png' : 'com.adobe.pdf',
-      });
-      return { success: true, fileName: file.fileName, format };
+    const file = await generateLocalCardFile(
+      data,
+      theme,
+      rawSvg,
+      format,
+      width,
+      height,
+      capturedPngUri
+    );
+
+    if (
+      Platform.OS === 'android' &&
+      fs.StorageAccessFramework?.requestDirectoryPermissionsAsync &&
+      fs.StorageAccessFramework?.createFileAsync &&
+      fs.readAsStringAsync &&
+      fs.writeAsStringAsync
+    ) {
+      try {
+        const permissions = await fs.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!permissions?.granted) {
+          return { success: false, fileName: file.fileName, format, cancelled: true };
+        }
+        const cleanNameNoExt = file.fileName.replace(/\.[^.]+$/, '');
+        const destUri = await fs.StorageAccessFramework.createFileAsync(
+          permissions.directoryUri,
+          cleanNameNoExt,
+          file.mimeType
+        );
+        const base64Content = await fs.readAsStringAsync(file.uri, { encoding: 'base64' });
+        await fs.writeAsStringAsync(destUri, base64Content, { encoding: 'base64' });
+        return { success: true, fileName: file.fileName, format };
+      } catch (safErr) {
+        console.warn('[cardExportService] SAF indisponível, usando Sharing:', safErr);
+      }
     }
 
-    // Fallback se expo-sharing não estiver disponível:
-    await Share.share({
-      title: data.name,
-      url: file.uri,
-      message: formatRecordTextForSharing(data, theme),
-    });
+    await dispatchMobileFileShare(
+      file,
+      `Salvar Card ${data.name}`,
+      data.name,
+      formatRecordTextForSharing(data, theme)
+    );
     return { success: true, fileName: file.fileName, format };
   } catch (err: any) {
     const msg = String(err?.message || '').toLowerCase();
     if (msg.includes('cancel') || msg.includes('dismiss')) {
-      return { success: true, fileName, format };
+      return { success: true, fileName, format, cancelled: true };
     }
     return { success: false, fileName, format, error: err?.message || 'Erro ao exportar card' };
   }
 }
 
 /**
- * Compartilha o registro com o arquivo anexado via Web Share API ou expo-sharing em dispositivos móveis.
+ * Compartilha o registro com o arquivo PNG anexado via Web Share API ou expo-sharing em dispositivos móveis.
  */
 export async function shareCardImage(
   rawInput: RecordCardData | Partial<RecordCardData>,
@@ -465,13 +605,12 @@ export async function shareCardImage(
 ): Promise<{ success: boolean; sharedAsFile: boolean }> {
   const data = normalizeRecordCardData(rawInput);
   const text = formatRecordTextForSharing(data, theme);
-  const width = options.width || 1080;
-  const height = options.height || 1350;
   const format = options.format || 'png';
+  const rawSvg = generateCardSvg(data, theme, { width: options.width, height: options.height });
+  const { width, height } = getSvgDimensions(rawSvg);
 
   if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
     try {
-      const rawSvg = generateCardSvg(data, theme, { width, height });
       const pngUrl = await svgToPngDataUrl(rawSvg, width, height);
       const blob = dataUrlToBlob(pngUrl);
 
@@ -507,27 +646,30 @@ export async function shareCardImage(
   }
 
   // Mobile / APK Nativo:
-  // Gera o arquivo físico do card e compartilha via expo-sharing
+  // Captura o arquivo PNG físico do card e compartilha via expo-sharing
   try {
-    const rawSvg = generateCardSvg(data, theme, { width, height });
-    const file = await generateLocalCardFile(data, theme, rawSvg, format, width, height);
+    const capturedPngUri =
+      options.capturedPngUri ||
+      (format === 'png' && options.cardViewRef
+        ? await captureCardViewToPng(options.cardViewRef)
+        : null);
 
-    const isAvailable = await Sharing.isAvailableAsync();
-    if (isAvailable) {
-      await Sharing.shareAsync(file.uri, {
-        mimeType: file.mimeType,
-        dialogTitle: `Compartilhar Card ${data.name}`,
-        UTI: format === 'svg' ? 'public.svg-image' : file.mimeType === 'image/png' ? 'public.png' : 'com.adobe.pdf',
-      });
-      return { success: true, sharedAsFile: true };
-    }
+    const file = await generateLocalCardFile(
+      data,
+      theme,
+      rawSvg,
+      format,
+      width,
+      height,
+      capturedPngUri
+    );
 
-    // Fallback se expo-sharing não estiver disponível:
-    await Share.share({
-      title: data.name,
-      url: file.uri,
-      message: text,
-    });
+    await dispatchMobileFileShare(
+      file,
+      `Compartilhar Card ${data.name}`,
+      data.name,
+      text
+    );
     return { success: true, sharedAsFile: true };
   } catch (err: any) {
     const msg = String(err?.message || '').toLowerCase();

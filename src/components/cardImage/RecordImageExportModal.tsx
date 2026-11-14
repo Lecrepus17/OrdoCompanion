@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -47,7 +47,9 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const isLandscape = windowWidth > windowHeight || windowHeight < 520;
-  const isNarrowScreen = windowWidth < 460;
+
+  const cardViewRef = useRef<React.ComponentRef<typeof View> | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 1. Extração dos dados do card
   const cardData = useMemo(() => {
@@ -63,9 +65,17 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
 
   // 3. Tema selecionado atualmente (permite o usuário testar outros estilos)
   const [selectedThemeId, setSelectedThemeId] = useState<string>(recommendedTheme.id);
-  const [exportFormat, setExportFormat] = useState<'png' | 'svg'>('png');
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+
+  // Limpa timer de feedback ao desmontar
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current) {
+        clearTimeout(feedbackTimerRef.current);
+      }
+    };
+  }, []);
 
   // Sincroniza tema recomendado quando o target mudar
   useEffect(() => {
@@ -95,21 +105,30 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
 
   const showFeedback = (msg: string) => {
     setFeedbackMsg(msg);
-    setTimeout(() => {
+    if (feedbackTimerRef.current) {
+      clearTimeout(feedbackTimerRef.current);
+    }
+    feedbackTimerRef.current = setTimeout(() => {
       setFeedbackMsg(null);
     }, 3200);
   };
 
-  // Handler de Download
+  // Handler de Download (PNG direto)
   const handleDownload = async () => {
     try {
       setIsExporting(true);
-      const res = await downloadCardImage(cardData, activeTheme, { format: exportFormat });
+      const res = await downloadCardImage(cardData, activeTheme, {
+        format: 'png',
+        cardViewRef,
+      });
+      if (res.cancelled) {
+        return;
+      }
       if (res.success) {
         if (Platform.OS === 'web') {
           showFeedback(`Download concluído: ${res.fileName}`);
         } else {
-          showFeedback(`Card ${exportFormat.toUpperCase()} salvo com sucesso!`);
+          showFeedback('Card PNG salvo com sucesso!');
         }
       } else {
         showFeedback(`Aviso: ${res.error || 'Não foi possível exportar'}`);
@@ -121,11 +140,14 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
     }
   };
 
-  // Handler de Compartilhamento
+  // Handler de Compartilhamento (PNG direto)
   const handleShare = async () => {
     try {
       setIsExporting(true);
-      const res = await shareCardImage(cardData, activeTheme, { format: exportFormat });
+      const res = await shareCardImage(cardData, activeTheme, {
+        format: 'png',
+        cardViewRef,
+      });
       if (res.success) {
         showFeedback(res.sharedAsFile ? 'Imagem compartilhada!' : 'Registro compartilhado!');
       }
@@ -306,93 +328,52 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
             nestedScrollEnabled={true}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.cardWrapper}>
+            <View
+              ref={cardViewRef}
+              collapsable={false}
+              style={[
+                styles.cardWrapper,
+                { backgroundColor: '#05070B', borderRadius: 16 },
+              ]}
+            >
               <RecordImageCard data={cardData} theme={activeTheme} />
             </View>
           </ScrollView>
 
-          {/* 4. Barra de Ações Inferior (Responsiva contra sobreposição e corte em landscape) */}
+          {/* 4. Barra de Ações Inferior (PNG direto sem formato SVG inerte no mobile) */}
           <View
             style={[
               styles.footerBar,
-              isNarrowScreen && !isLandscape ? styles.footerBarNarrow : styles.footerBarWide,
               {
                 borderTopColor: colors.border,
                 backgroundColor: colors.surfaceElevated,
-                paddingVertical: isLandscape ? 6 : 10,
+                paddingVertical: isLandscape ? 8 : 12,
               },
             ]}
           >
-            {/* Seletor de formato (PNG ou SVG) */}
-            <View style={isNarrowScreen && !isLandscape ? styles.formatRowNarrow : styles.formatRowWide}>
-              <Text style={[styles.formatLabel, { color: colors.textMuted }]}>FORMATO:</Text>
-              <View style={styles.formatToggle}>
-                <TouchableOpacity
-                  style={[
-                    styles.formatBtn,
-                    exportFormat === 'png' && [styles.formatBtnActive, { backgroundColor: colors.primary }],
-                  ]}
-                  onPress={() => setExportFormat('png')}
-                  testID="format-btn-png"
-                >
-                  <Text
-                    style={[
-                      styles.formatBtnText,
-                      { color: exportFormat === 'png' ? '#FFFFFF' : colors.textMuted },
-                    ]}
-                  >
-                    PNG
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.formatBtn,
-                    exportFormat === 'svg' && [styles.formatBtnActive, { backgroundColor: colors.primary }],
-                  ]}
-                  onPress={() => setExportFormat('svg')}
-                  testID="format-btn-svg"
-                >
-                  <Text
-                    style={[
-                      styles.formatBtnText,
-                      { color: exportFormat === 'svg' ? '#FFFFFF' : colors.textMuted },
-                    ]}
-                  >
-                    SVG
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
             {/* Ações Principais */}
-            <View
-              style={[
-                styles.mainActionsRow,
-                isNarrowScreen && !isLandscape && styles.mainActionsRowNarrow,
-              ]}
-            >
+            <View style={styles.mainActionsRow}>
               {/* Copiar Texto */}
               <TouchableOpacity
                 style={[
                   styles.secondaryActionBtn,
-                  { borderColor: colors.border },
-                  isNarrowScreen && !isLandscape && { flex: 1 },
+                  { borderColor: colors.border, flex: 1 },
                 ]}
                 onPress={handleCopyText}
                 accessibilityLabel="Copiar texto formatado"
                 testID="btn-copy-card-text"
               >
                 <Ionicons name="copy-outline" size={16} color={colors.text} />
-                <Text style={[styles.secondaryActionBtnText, { color: colors.text }]}>Copiar</Text>
+                <Text style={[styles.secondaryActionBtnText, { color: colors.text }]} numberOfLines={1}>
+                  Copiar
+                </Text>
               </TouchableOpacity>
 
-              {/* Compartilhar */}
+              {/* Compartilhar PNG */}
               <TouchableOpacity
                 style={[
                   styles.primaryActionBtn,
-                  { backgroundColor: colors.surfaceHighlight, borderColor: colors.accent },
-                  isNarrowScreen && !isLandscape && { flex: 1.4 },
+                  { backgroundColor: colors.surfaceHighlight, borderColor: colors.accent, flex: 1.35 },
                 ]}
                 onPress={handleShare}
                 disabled={isExporting}
@@ -408,12 +389,11 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
                 </Text>
               </TouchableOpacity>
 
-              {/* Baixar Imagem */}
+              {/* Baixar PNG */}
               <TouchableOpacity
                 style={[
                   styles.downloadBtn,
-                  { backgroundColor: colors.primary },
-                  isNarrowScreen && !isLandscape && { flex: 1.2 },
+                  { backgroundColor: colors.primary, flex: 1.15 },
                 ]}
                 onPress={handleDownload}
                 disabled={isExporting}
@@ -552,66 +532,12 @@ const styles = StyleSheet.create({
   footerBar: {
     borderTopWidth: 1,
     paddingHorizontal: 14,
-    gap: 8,
-  },
-  footerBarWide: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-  },
-  footerBarNarrow: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-  },
-  formatRowWide: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  formatRowNarrow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 2,
-  },
-  formatLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  formatToggle: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 8,
-    padding: 2,
-  },
-  formatBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  formatBtnActive: {
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  formatBtnText: {
-    fontSize: 11.5,
-    fontWeight: '800',
   },
   mainActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
-  },
-  mainActionsRowNarrow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 8,
     width: '100%',
   },
   secondaryActionBtn: {

@@ -6,20 +6,6 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### 2. Correção de Exportação PNG dos Cards no Android APK (Erro `Buffer`) e Remoção do Botão SVG:
-**Título**: `fix(cards,android): corrige exportacao png sem Buffer e remove botao svg do modal`
-
-**Descrição**:
-- Substitui `Buffer.from` por `utf8ToBase64` em `src/services/cardImage/cardExportService.ts`, eliminando o erro `Property 'Buffer' doesn't exist` no runtime Hermes do Android
-- Integra `react-native-view-shot` (`captureCardViewToPng`) para capturar o card nativamente em `.png` real no Android/iOS, com salvamento direto via `StorageAccessFramework` no botão **Baixar** e compartilhamento via `expo-sharing` no botão **Compartilhar** (mantendo fallback resiliente para `Print.printToFileAsync` caso o módulo nativo não esteja no binário)
-- Remove o seletor de formato `SVG` do rodapé de `src/components/cardImage/RecordImageExportModal.tsx`, simplificando as ações para **Copiar**, **Compartilhar** e **Baixar** (PNG direto)
-- Adiciona testes de regressão para Hermes (`Buffer === undefined`) e remoção do botão SVG em `tests/cardImage.test.ts`, `tests/recordImageModal.test.tsx`, `tests/e2e_issues_suite.test.ts` e `tests/setup.ts`
-
-```bash
-git add package.json package-lock.json src/components/cardImage/RecordImageExportModal.tsx src/services/cardImage/cardExportService.ts src/services/cardImage/types.ts tests/cardImage.test.ts tests/e2e_issues_suite.test.ts tests/recordImageModal.test.tsx tests/setup.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
-git commit -m "fix(cards,android): corrige exportacao png sem Buffer e remove botao svg do modal" -m "- Remove dependencia de Buffer no Hermes usando utf8ToBase64 e captura nativa via react-native-view-shot" -m "- Adiciona salvamento direto em pasta (SAF Android) no botao Baixar e compartilhamento PNG via expo-sharing" -m "- Remove seletor SVG do RecordImageExportModal mantendo Copiar, Compartilhar e Baixar" -m "- Atualiza testes em cardImage.test.ts, recordImageModal.test.tsx e e2e_issues_suite.test.ts"
-```
-
 ### 3. Reconhecimento de Voz Nativo (Microfone STT) no G.L.I.T.C.H. para Android/iOS:
 **Título**: `feat(ai,android): implementa reconhecimento de voz nativo no microfone do glitch`
 
@@ -126,6 +112,9 @@ git commit -m "fix(cards): corrige overflow da moldura e ajusta altura da imagem
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 2. Correção de Exportação PNG dos Cards no Android APK (Erro `Buffer`) e Remoção do Botão SVG:
+- **Título**: `fix(cards,android): corrige exportacao png sem Buffer e remove botao svg do modal`
 
 ### ✅ 1. Blindagem contra OutOfMemoryError na Importação em Lote de PDFs no Android:
 - **Título**: `fix(pdf,android): otimiza importacao em lote de pdfs e bloqueia arrayBuffer no mobile`

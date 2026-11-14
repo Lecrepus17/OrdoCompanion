@@ -9,6 +9,7 @@ import { resolveRecordTheme } from '../src/services/cardImage/themeRegistry';
 import { extractRecordCardData } from '../src/services/cardImage/cardDataExtractor';
 import { CompendiumEntity } from '../src/types/compendium';
 import { renderWithProviders, cleanup, fireClick } from './frontendTestUtils';
+import { setMobilePlatform } from './setup';
 
 describe('Componentes Visuais de Geração de Imagem do Compêndio', () => {
   beforeEach(async () => {
@@ -114,5 +115,38 @@ describe('Componentes Visuais de Geração de Imagem do Compêndio', () => {
     // Clicar no botão deve acionar a abertura do modal de imagem
     await fireClick(btnGenerateImage);
     assert.ok(getByText('Gerar Imagem do Registro'));
+  });
+
+  test('RecordImageExportModal não exibe botão SVG e realiza download/compartilhamento no Android sem Buffer', async () => {
+    const originalBuffer = (globalThis as any).Buffer;
+    setMobilePlatform('android');
+    (globalThis as any).Buffer = undefined;
+
+    try {
+      const { queryByTestId, queryByText, getByTestId } = await renderWithProviders(
+        <RecordImageExportModal
+          visible={true}
+          target={sampleRitual}
+          onClose={() => {}}
+        />
+      );
+
+      // Botão SVG deve ter sido removido
+      assert.equal(queryByTestId('format-btn-svg'), null);
+      assert.equal(queryByText('SVG'), null);
+
+      // Tocar em Baixar e Compartilhar sem Buffer global (simulando Hermes APK) não deve gerar erro de Buffer
+      const btnDownload = getByTestId('btn-download-card-image');
+      await fireClick(btnDownload);
+      assert.equal(queryByText(/Property 'Buffer' doesn't exist/i), null);
+      assert.equal(queryByText(/Buffer is not defined/i), null);
+
+      const btnShare = getByTestId('btn-share-card-image');
+      await fireClick(btnShare);
+      assert.equal(queryByText(/Property 'Buffer' doesn't exist/i), null);
+    } finally {
+      (globalThis as any).Buffer = originalBuffer;
+      setMobilePlatform('web');
+    }
   });
 });
