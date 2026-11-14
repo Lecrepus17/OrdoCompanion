@@ -21,6 +21,7 @@ import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { useApp } from '../context/AppContext';
 import { showAlert } from '../utils/alert';
 import { copyToClipboard, readFromClipboard } from '../utils/clipboard';
+import { normalizeCriticalDamageMode } from '../utils/dice';
 import { GoogleDriveService } from '../services/sync/GoogleDriveService';
 
 import {
@@ -137,7 +138,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       setCloudSyncUrl(userProfile.cloudSyncUrl || '');
       setListingColumnsChoice(userProfile.listingColumns === 2 ? 2 : 1);
       setTranscendEvery5Nex(!!userProfile.transcendEvery5Nex);
-      setCriticalDamageModeChoice(userProfile.criticalDamageMode || 'multiply_dice');
+      setCriticalDamageModeChoice(normalizeCriticalDamageMode(userProfile.criticalDamageMode));
 
 
       const navConfig = userProfile.navigationConfig;
@@ -774,7 +775,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                       <View style={[styles.inputGroup, { marginTop: 14 }]}>
                         <Text style={styles.fieldLabel}>Regra Padrão de Dano Crítico</Text>
                         <Text style={styles.fieldHint}>
-                          Define como as rolagens de acerto crítico das armas são calculadas por padrão na ficha do agente.
+                          Define como os críticos multiplicam os dados da arma. O botão "Crítico Máx" fica sempre disponível em todas as armas.
                         </Text>
 
                         <View style={{ gap: 8, marginTop: 8 }}>
@@ -786,6 +787,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                               ]}
                               onPress={() => setCriticalDamageModeChoice('multiply_dice')}
                               activeOpacity={0.8}
+                              testID="crit-mode-multiply_dice"
                             >
                               <Ionicons
                                 name="dice-outline"
@@ -800,7 +802,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                               >
                                 Multiplica Dados
                               </Text>
-                              <Text style={styles.columnOptionSub}>Regra Oficial v1.1 (Ex: 2d6 vira 4d6)</Text>
+                              <Text style={styles.columnOptionSub}>Padrão v1.1 (Ex: 1d4 x2 → 2d4)</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -810,6 +812,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                               ]}
                               onPress={() => setCriticalDamageModeChoice('multiply_damage')}
                               activeOpacity={0.8}
+                              testID="crit-mode-multiply_damage"
                             >
                               <Ionicons
                                 name="calculator-outline"
@@ -822,9 +825,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                                   criticalDamageModeChoice === 'multiply_damage' && { color: colors.primary, fontWeight: '800' },
                                 ]}
                               >
-                                Multiplica Total
+                                Multiplica Resultado
                               </Text>
-                              <Text style={styles.columnOptionSub}>Menos dados (Ex: [2d6] * 2)</Text>
+                              <Text style={styles.columnOptionSub}>Menos dados (Ex: 1d4 x2 → 1d4 × 2)</Text>
                             </TouchableOpacity>
                           </View>
 
@@ -832,34 +835,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                             <TouchableOpacity
                               style={[
                                 styles.columnOptionCard,
-                                criticalDamageModeChoice === 'max_damage' && styles.columnOptionCardActive,
-                              ]}
-                              onPress={() => setCriticalDamageModeChoice('max_damage')}
-                              activeOpacity={0.8}
-                            >
-                              <Ionicons
-                                name="flash-outline"
-                                size={22}
-                                color={criticalDamageModeChoice === 'max_damage' ? colors.primary : colors.textMuted}
-                              />
-                              <Text
-                                style={[
-                                  styles.columnOptionTitle,
-                                  criticalDamageModeChoice === 'max_damage' && { color: colors.primary, fontWeight: '800' },
-                                ]}
-                              >
-                                Crítico Cheio
-                              </Text>
-                              <Text style={styles.columnOptionSub}>Dano máximo garantido sem rolar</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={[
-                                styles.columnOptionCard,
                                 criticalDamageModeChoice === 'ask_user' && styles.columnOptionCardActive,
                               ]}
                               onPress={() => setCriticalDamageModeChoice('ask_user')}
                               activeOpacity={0.8}
+                              testID="crit-mode-ask_user"
                             >
                               <Ionicons
                                 name="help-circle-outline"
@@ -874,7 +854,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                               >
                                 Perguntar Sempre
                               </Text>
-                              <Text style={styles.columnOptionSub}>Escolhe o formato a cada golpe</Text>
+                              <Text style={styles.columnOptionSub}>Escolhe entre multiplicar dados ou resultado a cada crítico</Text>
                             </TouchableOpacity>
                           </View>
                         </View>

@@ -116,4 +116,52 @@ describe('Frontend - Tela de Armaria e Arsenal (weapons.tsx)', () => {
     await fireClick(helpBtn);
     assert.ok(helpBtn);
   });
+
+  test('deve exibir sempre o botão Crítico Máx e opções Usar a Mesma / Duplicar ao equipar no agente', async () => {
+    await defaultRepository.saveCharacters([
+      {
+        id: 'char_equip_1',
+        name: 'Jouki',
+        player: 'Player',
+        rank: 'Recruta',
+        affinity: 'Nenhum',
+        trackId: '',
+        classId: 'Combatente',
+        originId: 'Policial',
+        nex: 15,
+        pvCurrent: 20,
+        pvMax: 20,
+        peCurrent: 4,
+        peMax: 4,
+        sanCurrent: 12,
+        sanMax: 12,
+        defenseBonus: 0,
+        attributes: { AGI: 2, FOR: 2, INT: 1, PRE: 1, VIG: 2 },
+        skills: {},
+        attacks: [],
+        inventory: [],
+        entityIds: [],
+        notes: '',
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+
+    const { getByTestId, queryByTestId } = await renderWithProviders(<WeaponsScreen />);
+
+    // Botão Crítico Máx sempre visível
+    assert.ok(getByTestId(`btn-weapon-roll-crit-max-${sampleWeapon.id}`));
+
+    // Abre modal de equipar
+    await fireClick(getByTestId(`btn-weapon-equip-${sampleWeapon.id}`));
+    assert.ok(queryByTestId('btn-equip-mode-shared'));
+    assert.ok(queryByTestId('btn-equip-mode-duplicate'));
+
+    // Escolhe duplicar e seleciona o agente Jouki
+    await fireClick(getByTestId('btn-equip-mode-duplicate'));
+    await fireClick(getByTestId('btn-equip-agent-char_equip_1'));
+
+    const savedWeapons = await defaultRepository.getCustomWeapons();
+    const cloned = savedWeapons.find((w) => w.name === 'Fuzil de Caça Sombrio (Jouki)');
+    assert.ok(cloned, 'Deveria ter criado cópia da arma com o nome do agente');
+  });
 });

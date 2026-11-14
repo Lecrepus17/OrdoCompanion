@@ -209,7 +209,7 @@ describe('Sistema de Rolagem de Dados (dice.ts)', () => {
       assert.strictEqual(res.total, res.diceResults[0] + res.diceResults[1] + 2);
     });
 
-    it('deve rolar crítico no modo multiply_damage (Modo Alternativo: menos dados, multiplica total)', () => {
+    it('deve rolar crítico no modo multiply_damage (Modo Alternativo: multiplica apenas os dados rolados, sem multiplicar o bônus)', () => {
       const res = rollWeaponDamage({
         ...weapon,
         isCrit: true,
@@ -219,9 +219,8 @@ describe('Sistema de Rolagem de Dados (dice.ts)', () => {
       assert.strictEqual(res.diceResults.length, 1); // Rola apenas 1d8
       assert.strictEqual(res.bonus, 2);
       assert.strictEqual(res.isCritical, true);
-      // Total = (dado + bonus) * mult
-      const baseTotal = res.diceResults[0] + 2;
-      assert.strictEqual(res.total, baseTotal * 2);
+      // Total = (dado * mult) + bonus
+      assert.strictEqual(res.total, res.diceResults[0] * 2 + 2);
     });
 
     it('deve calcular Crítico Máximo no modo multiply_dice com todas as faces máximas', () => {
@@ -239,7 +238,7 @@ describe('Sistema de Rolagem de Dados (dice.ts)', () => {
       assert.strictEqual(res.total, 18); // 8 + 8 + 2
     });
 
-    it('deve calcular Crítico Máximo no modo multiply_damage com dano base máximo multiplicado', () => {
+    it('deve calcular Crítico Máximo no modo multiply_damage multiplicando apenas os dados base máximos', () => {
       const res = rollWeaponDamage({
         ...weapon,
         isCrit: true,
@@ -251,7 +250,7 @@ describe('Sistema de Rolagem de Dados (dice.ts)', () => {
       assert.strictEqual(res.isMaxDamage, true);
       assert.deepStrictEqual(res.diceResults, [8]); // 1d8 no máximo
       assert.strictEqual(res.bonus, 2);
-      assert.strictEqual(res.total, 20); // (8 + 2) * 2 = 20
+      assert.strictEqual(res.total, 18); // (8 * 2) + 2 = 18
     });
 
     it('deve calcular Crítico Máximo para armas com crítico x3 (ex: Revólver 2d6)', () => {

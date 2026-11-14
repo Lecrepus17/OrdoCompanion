@@ -35,6 +35,7 @@ export interface UserDataBackupPayload {
   drivePdfFiles?: Record<string, DriveStoredPdfRef>;
   deletedCharacterIds?: string[];
   deletedCampaignIds?: string[];
+  deletedCustomWeaponIds?: string[];
 }
 
 export type SyncStatus = 'idle' | 'checking' | 'syncing' | 'synced' | 'error';

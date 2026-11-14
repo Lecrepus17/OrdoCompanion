@@ -226,7 +226,7 @@ export interface CharacterAttributes {
   VIG: number;
 }
 
-export type CriticalDamageMode = 'multiply_dice' | 'multiply_damage' | 'max_damage' | 'ask_user';
+export type CriticalDamageMode = 'multiply_dice' | 'multiply_damage' | 'ask_user';
 
 export interface WeaponAttackContext {
   weaponName: string;
@@ -235,6 +235,8 @@ export interface WeaponAttackContext {
   damageType?: string;
   attackId?: string;
   specialRules?: string;
+  normalFormula?: string;
+  criticalFormula?: string;
 }
 
 export interface CharacterAttack {
@@ -248,6 +250,8 @@ export interface CharacterAttack {
   range: string; // e.g., "Médio", "Curto", "Corpo a corpo"
   special: string; // e.g., "Balístico • Mira Laser • Perigosa"
   customWeaponId?: string;
+  linkMode?: 'shared' | 'copied';
+  sourceWeaponId?: string;
   proficiency?: WeaponProficiency;
   criticalDamageMode?: 'default' | CriticalDamageMode;
 }
@@ -276,6 +280,9 @@ export interface CharacterInventoryItem {
   secondarySkill?: string;
   secondaryBonus?: number;
   justification?: string;
+  customWeaponId?: string;
+  linkedAttackId?: string;
+  isAmmoForWeaponId?: string;
 }
 
 export interface CharacterProficiencies {
@@ -683,4 +690,124 @@ export interface Campaign {
   currentTurnIndex?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+// ==========================================
+// MODIFICADORES DINÂMICOS DE DANO POR AGENTE
+// ==========================================
+
+/**
+ * Perfil consolidado de modificadores passivos e situacionais do agente.
+ * Computado por detectAgentDamageModifiers a partir da ficha e compêndio.
+ */
+export interface AgentDamageProfile {
+  forValue: number;
+  agiValue: number;
+  intValue: number;
+  preValue: number;
+  vigValue: number;
+
+  // Modificadores Automáticos de Armas e Dano Físico
+  hasGolpePesado: boolean;
+  hasTiroCerteiro: boolean;
+  hasArtistaMarcial: boolean;
+  artistaMarcialDice: string; // "1d6", "1d8", "1d10"
+  hasMilitarParaBellum: boolean; // +2 em armas de fogo
+  hasLutadorMaoPesada: boolean; // +2 em armas corpo a corpo / desarmado
+  operarioWeaponName?: string; // +1 na arma de trabalho
+  hasNinjaUrbano: boolean; // +2 em CC leve e disparo
+  hasBalisticaAvancada: boolean; // +2 em armas de fogo
+  hasMiraDeElite: boolean; // +INT em armas de fogo de balas longas
+  hasAniquiladorMaquinaDeMatar: boolean; // +1 dado da arma favorita
+  hasGuerreiroPotenciaMaxima: boolean; // dobra bônus numéricos do Ataque Especial em CC
+  hasPunhosEnraivecidos: boolean; // +1d8 Sangue em ataques desarmados
+
+  // Modificadores Situacionais Disponíveis
+  ataqueEspecialMaxPe: number; // 0, 2, 3, 4 ou 5 conforme NEX
+  ataqueFurtivoDice?: string; // "1d6", "2d6", "3d6", "4d6"
+  hasInfiltradorAssassinar: boolean; // dobra dados do Ataque Furtivo
+  hasAniquiladorDestruidor: boolean; // +1 multiplicador crítico por 2 PE
+
+  // Modificadores de Rituais
+  hasRitualPotente: boolean; // +INT no dano/cura de rituais
+  hasRitualIntenso: boolean; // +PRE no dano/cura de rituais
+  hasCajadoCruzSangue: boolean; // +1 dado em rituais de Sangue
+  hasCatalisadorPotencializador: boolean; // +1 dado do mesmo tipo em rituais
+  hasCatalisadorPerturbador: boolean; // +2 na DT de rituais
+  hasParareligiosidade: boolean; // +2 PE para emular catalisador
+}
+
+/**
+ * Toggles e seletores situacionais passados no momento do golpe ou da conjuração.
+ */
+export interface SituationalDamageToggles {
+  ataqueEspecialPeSpent?: number; // 0, 2, 3, 4 ou 5 PE
+  ataqueEspecialAllocation?: 'damage' | 'attack' | 'split';
+
+  ataqueFurtivoActive?: boolean;
+  assassinarActive?: boolean;
+
+  destruidorActive?: boolean; // +1 mult crítico (2 PE)
+  rajadaActive?: boolean; // -1d20 no teste, +1 dado de dano
+
+  amaldicoarArmaBuff?: {
+    element: ParanormalElement;
+    tier: 'padrao' | 'discente' | 'verdadeiro';
+  };
+  odioIncontrolavelBuff?: {
+    tier: 'padrao' | 'discente' | 'verdadeiro';
+  };
+  chamasDoCaosBuff?: boolean;
+
+  ritualTier?: 'padrao' | 'discente' | 'verdadeiro';
+  catalisadorPotencializadorActive?: boolean;
+  catalisadorPerturbadorActive?: boolean;
+  parareligiosidadeActive?: boolean;
+}
+
+/**
+ * Componente atômico discriminado do dano para composição de breakdown na interface.
+ */
+export interface DynamicDamageComponent {
+  source: string;
+  type: 'base_dice' | 'extra_dice' | 'flat_bonus';
+  expression: string;
+  numericValue?: number;
+  multipliesOnCrit: boolean;
+  element?: ParanormalElement | 'fogo' | 'balistico' | 'corte' | 'impacto' | 'perfuracao';
+}
+
+/**
+ * Objeto completo resultante da resolução de um ataque de arma no contexto do agente.
+ */
+export interface ResolvedAttackDamage {
+  displayDamage: string;
+  normalFormula: string;
+  criticalFormula: string;
+  criticalThreat: number;
+  criticalMultiplier: number;
+  formattedCritical: string;
+  breakdown: DynamicDamageComponent[];
+  totalPeCost: number;
+  peCostExceedsLimit: boolean;
+  peCostExceedsCurrent: boolean;
+  attributeApplied?: 'FOR' | 'AGI' | 'INT';
+  attackBonusFromToggles?: number;
+}
+
+/**
+ * Objeto resultante da resolução do dano de um ritual no contexto do agente.
+ */
+export interface ResolvedRitualDamage {
+  ritualName: string;
+  tier: 'padrao' | 'discente' | 'verdadeiro';
+  peCost: number;
+  dtResistance: number;
+  displayDamage: string;
+  rollFormula: string;
+  breakdown: DynamicDamageComponent[];
+  totalPeCost: number;
+  peCostExceedsLimit: boolean;
+  peCostExceedsCurrent: boolean;
+  hasDamageFormula?: boolean;
 }

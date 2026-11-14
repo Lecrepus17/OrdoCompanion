@@ -178,6 +178,8 @@ export interface WeaponDamageRollOptions {
   weaponName: string;
   damage: string; // Ex: "2d6", "1d8+2", "3d6+2 + 2d6"
   critical: string; // Ex: "19/x3", "20/x2", "x3"
+  normalFormula?: string;
+  criticalFormula?: string;
   isCrit?: boolean;
   isMaxDamage?: boolean;
   mode?: CriticalDamageMode; // 'multiply_dice' (padrão oficial v1.1) | 'multiply_damage'
@@ -186,72 +188,108 @@ export interface WeaponDamageRollOptions {
 }
 
 /**
- * Rolagem de dano de arma com suporte aos dois modos de crítico e ao crítico máximo:
- * - Modo 'multiply_damage' (Padrão): Rola menos dados da base e multiplica o total pelo multiplicador do crítico.
- * - Modo 'multiply_dice' (Regra Canônica v1.1): Multiplica a quantidade de dados rolados da arma base.
- * - 'isMaxDamage': Dano Máximo (quando cai 20 no teste de ataque ou botão de Crítico Máximo), sem aleatoriedade.
+ * Normaliza configurações legadas de dano crítico (ex.: 'max_damage' removido como preferência)
+ * para garantir um modo de cálculo válido, mantendo 'multiply_dice' como padrão.
+ */
+export function normalizeCriticalDamageMode(mode?: string | null): CriticalDamageMode {
+  if (mode === 'multiply_damage' || mode === 'ask_user' || mode === 'multiply_dice') {
+    return mode;
+  }
+  return 'multiply_dice';
+}
+
+function parseFlatBonusOnly(expr: string): number {
+  const cleaned = expr.replace(/\s+/g, '');
+  if (!cleaned) return 0;
+  const matches = cleaned.match(/[+\-]?\d+/g);
+  if (!matches) return 0;
+  return matches.reduce((sum, token) => sum + (parseInt(token, 10) || 0), 0);
+}
+
+/**
+ * Rolagem de dano de arma com suporte aos dois modos de cálculo de crítico e ao crítico máximo:
+ * - Modo 'multiply_dice' (Padrão Oficial v1.1): Multiplica a quantidade de dados base rolados (ex: 1d4 x2 -> 2d4).
+ * - Modo 'multiply_damage' (Alternativo): Rola os dados base da arma e multiplica o resultado deles pelo multiplicador, somando bônus fixos sem multiplicá-los (ex: 1d4+2 x2 -> (1d4 × 2) + 2).
+ * - 'isMaxDamage': Dano Máximo (botão Crítico Máx ou 20 natural), sem aleatoriedade, respeitando o modo configurado.
  */
 export function rollWeaponDamage(options: WeaponDamageRollOptions): DiceRollResult {
   const {
     weaponName,
     damage,
     critical,
+    normalFormula,
+    criticalFormula,
     isCrit = false,
     isMaxDamage = false,
-    mode = 'multiply_dice',
+    mode: rawMode = 'multiply_dice',
     customLabel,
     attackContext,
   } = options;
 
+  const effectiveMode: 'multiply_dice' | 'multiply_damage' =
+    rawMode === 'multiply_damage' ? 'multiply_damage' : 'multiply_dice';
+
   const parsedCrit = parseCritical(critical);
   const mult = parsedCrit.mult || 2;
-  const cleanDamage = (damage || '1d6').trim();
+  const cleanDamage = (normalFormula || attackContext?.normalFormula || damage || '1d6').trim();
+  const explicitCritFormula = (criticalFormula || attackContext?.criticalFormula || '').trim();
 
   // Contexto de ataque salvo no resultado da rolagem para re-rolagens rápidas
   const effectiveAttackContext: WeaponAttackContext = attackContext || {
     weaponName,
-    damage: cleanDamage,
+    damage: (damage || cleanDamage).trim(),
     critical,
+    normalFormula: normalFormula || undefined,
+    criticalFormula: criticalFormula || undefined,
   };
 
-  // Se a arma possui apenas dano estático (sem dados "d"), resolve aritmeticamente
+  // Se a arma possui apenas dano estático (sem dados "d"), bônus fixos não multiplicam em crítico
   const hasDice = /d\d+/i.test(cleanDamage);
   if (!hasDice) {
     const flatVal = parseInt(cleanDamage, 10) || 0;
-    const isCriticalHit = isCrit || isMaxDamage || mode === 'max_damage';
-    const total = isCriticalHit && (mode === 'multiply_damage' || mode === 'max_damage' || isMaxDamage)
-      ? flatVal * mult
-      : flatVal;
+    const isCriticalHit = isCrit || isMaxDamage;
 
     return {
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       label: customLabel || (isCriticalHit ? `Dano CRÍTICO de ${weaponName} (x${mult})` : `Dano de ${weaponName}`),
       mode: 'formula',
-      formulaText: isCriticalHit ? `${cleanDamage} (x${mult}) = ${total}` : `${cleanDamage}`,
+      formulaText: isCriticalHit ? `${cleanDamage} (Crítico x${mult}) = ${flatVal}` : `${cleanDamage}`,
       diceResults: [],
-      bonus: total,
-      total,
+      bonus: flatVal,
+      total: flatVal,
       isCritical: isCriticalHit,
-      isMaxDamage: isMaxDamage || mode === 'max_damage',
+      isMaxDamage,
       attackContext: effectiveAttackContext,
       timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     };
   }
 
-  // 1. CRÍTICO MÁXIMO (quando cai 20 no teste de ataque, acionado diretamente ou modo max_damage)
-  const shouldDoMaxDamage = isMaxDamage || (isCrit && mode === 'max_damage');
-  if (shouldDoMaxDamage) {
-    if (mode === 'multiply_damage') {
-      // mode === 'multiply_damage' (menos dados, multiplica o total máximo)
-      const baseCalc = calculateMaxDamageForFormula(cleanDamage);
-      const critTotal = baseCalc.total * mult;
+  // Separa o bloco principal de dados da arma do restante (bônus fixos e dados extras que não multiplicam)
+  const firstDiceMatch = cleanDamage.match(/^(\d*)d(\d+)(.*)$/i);
+  const baseDiceExpr = firstDiceMatch
+    ? `${firstDiceMatch[1] ? parseInt(firstDiceMatch[1], 10) : 1}d${firstDiceMatch[2]}`
+    : cleanDamage;
+  const restExpr = firstDiceMatch ? (firstDiceMatch[3] || '').trim() : '';
+  const restHasDice = /d\d+/i.test(restExpr);
+
+  // 1. CRÍTICO MÁXIMO (botão Crítico Máx, disponível em qualquer situação)
+  if (isMaxDamage) {
+    if (effectiveMode === 'multiply_damage' && firstDiceMatch) {
+      const baseMax = calculateMaxDamageForFormula(baseDiceExpr);
+      const baseMaxSum = baseMax.diceResults.reduce((acc, v) => acc + v, 0);
+      const restCalc = restHasDice
+        ? calculateMaxDamageForFormula(restExpr)
+        : { diceResults: [], bonus: parseFlatBonusOnly(restExpr), total: parseFlatBonusOnly(restExpr) };
+      const critTotal = baseMaxSum * mult + restCalc.total;
+      const restLabel = restExpr ? ` ${restExpr.startsWith('+') || restExpr.startsWith('-') ? restExpr : `+ ${restExpr}`}` : '';
+
       return {
         id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         label: customLabel || `CRÍTICO MÁXIMO de ${weaponName} (x${mult})`,
         mode: 'formula',
-        formulaText: `${cleanDamage} (Máximo x${mult}) = ${baseCalc.total} x ${mult}`,
-        diceResults: baseCalc.diceResults,
-        bonus: baseCalc.bonus,
+        formulaText: `(${baseDiceExpr} × ${mult})${restLabel} [Máximo] = (${baseMaxSum} × ${mult})${restCalc.total !== 0 ? (restCalc.total > 0 ? ` + ${restCalc.total}` : ` - ${Math.abs(restCalc.total)}`) : ''}`,
+        diceResults: [...baseMax.diceResults, ...restCalc.diceResults],
+        bonus: restCalc.bonus,
         total: critTotal,
         isCritical: true,
         isMaxDamage: true,
@@ -259,8 +297,7 @@ export function rollWeaponDamage(options: WeaponDamageRollOptions): DiceRollResu
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       };
     } else {
-      // mode === 'multiply_dice' ou 'max_damage' (multiplica dados e maximiza)
-      const expanded = expandFormulaForCritical(cleanDamage, mult);
+      const expanded = explicitCritFormula || expandFormulaForCritical(cleanDamage, mult);
       const maxCalc = calculateMaxDamageForFormula(expanded);
       return {
         id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -280,8 +317,8 @@ export function rollWeaponDamage(options: WeaponDamageRollOptions): DiceRollResu
 
   // 2. CRÍTICO NORMAL
   if (isCrit) {
-    if (mode === 'multiply_dice') {
-      const expanded = expandFormulaForCritical(cleanDamage, mult);
+    if (effectiveMode === 'multiply_dice') {
+      const expanded = explicitCritFormula || expandFormulaForCritical(cleanDamage, mult);
       const rollRes = rollDiceFormula(
         expanded,
         customLabel || `Dano CRÍTICO de ${weaponName} (x${mult})`,
@@ -293,17 +330,25 @@ export function rollWeaponDamage(options: WeaponDamageRollOptions): DiceRollResu
         attackContext: effectiveAttackContext,
       };
     } else {
-      // mode === 'multiply_damage' (Padrão: rola dados normais e multiplica o total obtido)
+      // mode === 'multiply_damage': rola os dados base da arma, multiplica o resultado deles por mult e soma o restante sem multiplicar
       const baseRoll = rollDiceFormula(
-        cleanDamage,
+        baseDiceExpr,
         customLabel || `Dano CRÍTICO de ${weaponName} (x${mult})`,
         effectiveAttackContext
       );
-      const critTotal = baseRoll.total * mult;
+      const baseDiceSum = baseRoll.diceResults.reduce((acc, v) => acc + v, 0);
+      const restRoll = restHasDice
+        ? rollDiceFormula(restExpr)
+        : { diceResults: [], bonus: parseFlatBonusOnly(restExpr), total: parseFlatBonusOnly(restExpr) };
+      const critTotal = baseDiceSum * mult + restRoll.total;
+      const restLabel = restExpr ? ` ${restExpr.startsWith('+') || restExpr.startsWith('-') ? restExpr : `+ ${restExpr}`}` : '';
+
       return {
         ...baseRoll,
         label: customLabel || `Dano CRÍTICO de ${weaponName} (x${mult})`,
-        formulaText: `${cleanDamage} (x${mult} Dano) = ${baseRoll.total} x ${mult}`,
+        formulaText: `(${baseDiceExpr} × ${mult})${restLabel} = (${baseDiceSum} × ${mult})${restRoll.total !== 0 ? (restRoll.total > 0 ? ` + ${restRoll.total}` : ` - ${Math.abs(restRoll.total)}`) : ''}`,
+        diceResults: [...baseRoll.diceResults, ...restRoll.diceResults],
+        bonus: restRoll.bonus,
         total: critTotal,
         isCritical: true,
         attackContext: effectiveAttackContext,

@@ -6,22 +6,6 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### 5. Unificação de Armas (Agentes <-> Armaria), Cálculo de Crítico e Botão Crítico Máx Sempre Visível:
-**Título**: `feat(weapons,combat): unifica armas entre agentes e armaria e corrige calculo de critico`
-
-**Descrição**:
-- Extrai `WeaponEditorModal.tsx` da Armaria para uso bidirecional idêntico em `weapons.tsx` e `characters.tsx`, permitindo criar e editar armas completas de ambos os lados com sincronização automática
-- Implementa importação com escolha entre **Usar a Mesma (Vinculada)** e **Duplicar** com sufixo do nome atual do agente (`cloneCustomWeaponForAgent`), além de migração idempotente de ataques legados (`migrateCharacterLegacyAttacksToArmory`) e tombstones `deletedCustomWeaponIds` no `SmartMergeEngine` e `OfflineDataRepository`
-- Adiciona diálogos de remoção seguros: pergunta no Agente ("Remover só do Agente" vs "Remover do Agente e da Armaria") e alerta na Armaria quando há agentes vinculados
-- Remove `max_damage` ("Crítico Cheio") da preferência em `UserProfileModal.tsx`, normaliza perfis legados e torna o botão **Crítico Máx** sempre visível na Ficha, Armaria, `RecordPreviewModal` e `DiceToast` (com `CriticalModePromptModal.tsx` para o modo `ask_user`)
-- Corrige `rollWeaponDamage` (`multiply_damage`) em `dice.ts` para multiplicar somente os dados base da arma sem multiplicar bônus fixos (`(1d4 × 2) + 2`)
-- Atualiza e amplia testes em `criticalDamageRules.test.ts`, `dice.test.ts`, `weapons.test.ts`, `smartMerge.test.ts`, `frontendWeapons.test.tsx` e `frontendCharacters.test.tsx` (895/895 passando)
-
-```bash
-git add src/types/compendium.ts src/services/sync/types.ts src/repositories/IDataRepository.ts src/repositories/OfflineDataRepository.ts src/services/sync/SmartMergeEngine.ts src/utils/dice.ts src/utils/weapons.ts src/context/AppContext.tsx src/components/WeaponEditorModal.tsx src/components/CriticalModePromptModal.tsx src/components/UserProfileModal.tsx src/components/DiceToast.tsx src/components/RecordPreviewModal.tsx "src/app/(tabs)/weapons.tsx" "src/app/(tabs)/characters.tsx" tests/criticalDamageRules.test.ts tests/dice.test.ts tests/weapons.test.ts tests/smartMerge.test.ts tests/frontendWeapons.test.tsx tests/frontendCharacters.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
-git commit -m "feat(weapons,combat): unifica armas entre agentes e armaria e corrige calculo de critico" -m "- Extrai WeaponEditorModal reutilizavel para criar e editar armas completas tanto na Armaria quanto nos Agentes" -m "- Adiciona vinculo espelhado ou duplicacao com sufixo do nome do agente e sincronizacao bidirecional com tombstones" -m "- Adiciona confirmacoes dedicadas ao remover armas no Agente e na Armaria" -m "- Remove Critico Cheio das opcoes do usuario, mantem os 3 modos validos e exibe Critico Max sempre disponivel" -m "- Corrige modo multiply_damage em dice.ts para multiplicar apenas os dados base sem bonus fixos" -m "- Atualiza e adiciona testes cobrindo todo o fluxo (895/895 passando)"
-```
-
 ### 6. Registro de Pendência Técnica (Modificadores Dinâmicos de Dano por Agente):
 **Título**: `docs(roadmap): registra pendencia de modificadores dinamicos de dano por agente`
 
@@ -83,6 +67,9 @@ git commit -m "fix(cards): corrige overflow da moldura e ajusta altura da imagem
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 5. Unificação de Armas (Agentes <-> Armaria), Cálculo de Crítico e Botão Crítico Máx Sempre Visível:
+- **Título**: `feat(weapons,combat): unifica armas entre agentes e armaria e corrige calculo de critico`
 
 ### ✅ 4. Auditoria Hermes APK: Substituição de `TextEncoder`/`TextDecoder` por Codecs Puros em Segredos e PDFs:
 - **Título**: `fix(android,hermes): substitui TextEncoder e TextDecoder por codecs puros em segredos e pdfs`

@@ -12,7 +12,14 @@ import {
   OFFICIAL_WEAPON_MODS,
   checkModificationCompatibility,
   sanitizeWeaponModifications,
+  buildCustomWeaponFromCompendiumEntity,
+  cloneCustomWeaponForAgent,
+  buildAttackFromCustomWeapon,
+  buildInventoryItemsFromCustomWeapon,
+  syncCharacterWithCustomWeapon,
+  migrateCharacterLegacyAttacksToArmory,
 } from '../src/utils/weapons';
+import { CharacterSheet, CompendiumEntity, CustomWeapon } from '../src/types/compendium';
 
 describe('Sistema de Armas e Modificações (weapons.ts)', () => {
   describe('parseCritical e formatCritical', () => {
@@ -470,6 +477,151 @@ describe('Sistema de Armas e Modificações (weapons.ts)', () => {
       assert.ok(removedNames.includes('alongada'));
       assert.ok(removedNames.includes('mira_laser'));
       assert.ok(removedNames.includes('municao_dumdum'));
+    });
+  });
+
+  describe('Unificação Armaria <-> Agentes', () => {
+    const baseEntity: CompendiumEntity = {
+      id: 'weapon__livro_base__fuzil_assalto',
+      name: 'Fuzil de assalto',
+      category: 'weapon',
+      subCategory: 'Armas de Fogo • Duas Mãos • Tática',
+      bookId: 'livro_base',
+      bookTitle: 'Livro Base',
+      pageNumber: 59,
+      element: 'Nenhum',
+      tags: ['arma', 'fogo'],
+      summary: 'Fuzil automático de médio alcance.',
+      description: 'Arma tática padrão.',
+      damage: '2d10',
+      critical: '19/x3',
+      range: 'Médio',
+      spaces: '2',
+      itemCategory: 'II',
+      damageType: 'Balístico',
+      proficiency: 'Tática',
+      handedness: 'Duas Mãos',
+    };
+
+    const dummyChar: CharacterSheet = {
+      id: 'char_arthur',
+      name: 'Arthur Cervero',
+      player: 'Guaxinim',
+      rank: 'Operador',
+      affinity: 'Nenhum',
+      trackId: '',
+      classId: 'Especialista',
+      originId: 'Policial',
+      nex: 25,
+      pvCurrent: 30,
+      pvMax: 30,
+      peCurrent: 12,
+      peMax: 12,
+      sanCurrent: 20,
+      sanMax: 20,
+      defenseBonus: 0,
+      attributes: { AGI: 3, FOR: 1, INT: 2, PRE: 2, VIG: 2 },
+      skills: {},
+      attacks: [],
+      inventory: [],
+      entityIds: [],
+      notes: '',
+      updatedAt: '2026-10-25T01:00:00.000Z',
+    };
+
+    it('deve converter entidade do compêndio em CustomWeapon completa', () => {
+      const cw = buildCustomWeaponFromCompendiumEntity(baseEntity);
+      assert.strictEqual(cw.name, 'Fuzil de assalto');
+      assert.strictEqual(cw.baseWeaponId, baseEntity.id);
+      assert.strictEqual(cw.weaponType, 'Fogo');
+      assert.strictEqual(cw.proficiency, 'Tática');
+      assert.strictEqual(cw.finalDamage, '2d10');
+      assert.strictEqual(cw.finalCritical, '19/x3');
+    });
+
+    it('deve clonar arma usando o nome do agente naquele momento como sufixo', () => {
+      const original = buildCustomWeaponFromCompendiumEntity(baseEntity);
+      const clone = cloneCustomWeaponForAgent(original, 'Arthur Cervero');
+      assert.notStrictEqual(clone.id, original.id);
+      assert.strictEqual(clone.name, 'Fuzil de assalto (Arthur Cervero)');
+      assert.strictEqual(clone.baseDamage, original.baseDamage);
+    });
+
+    it('deve sincronizar edições na arma da Armaria para ataques e inventário vinculados no agente', () => {
+      const weapon = buildCustomWeaponFromCompendiumEntity(baseEntity);
+      const atk = buildAttackFromCustomWeapon(weapon, { linkMode: 'shared' });
+      const { weaponItem, ammoItem } = buildInventoryItemsFromCustomWeapon(weapon, {
+        attackId: atk.id,
+        includeAmmo: true,
+      });
+
+      const charWithWeapon: CharacterSheet = {
+        ...dummyChar,
+        attacks: [atk],
+        inventory: ammoItem ? [weaponItem, ammoItem] : [weaponItem],
+      };
+
+      const editedWeapon: CustomWeapon = {
+        ...weapon,
+        name: 'Fuzil de Assalto Silenciado',
+        finalDamage: '2d10+2',
+        finalCritical: '18/x3',
+        finalCategory: 'III',
+        attackBonus: 2,
+      };
+
+      const { updated, changed } = syncCharacterWithCustomWeapon(charWithWeapon, editedWeapon);
+      assert.strictEqual(changed, true);
+      assert.strictEqual(updated.attacks?.[0].name, 'Fuzil de Assalto Silenciado');
+      assert.strictEqual(updated.attacks?.[0].damage, '2d10+2');
+      assert.strictEqual(updated.attacks?.[0].critical, '18/x3');
+      assert.strictEqual(updated.attacks?.[0].test, 'Pontaria +2');
+      assert.strictEqual(updated.inventory?.[0].name, 'Fuzil de Assalto Silenciado');
+      assert.strictEqual(updated.inventory?.[0].category, 'III');
+    });
+
+    it('deve migrar ataques legados sem customWeaponId para a Armaria preservando tombstones deletados', () => {
+      const legacyChar: CharacterSheet = {
+        ...dummyChar,
+        attacks: [
+          {
+            id: 'atk_legacy_1',
+            name: 'Fuzil de assalto',
+            test: 'Pontaria',
+            damage: '2d10',
+            critical: '19/x3',
+            range: 'Médio',
+            special: 'Balístico',
+          },
+          {
+            id: 'atk_deleted_ref',
+            name: 'Pistola Removida',
+            test: 'Pontaria',
+            damage: '1d12',
+            critical: '18/x2',
+            range: 'Curto',
+            special: 'Balístico',
+            customWeaponId: 'wpn_deleted_tombstone',
+          },
+        ],
+      };
+
+      const res = migrateCharacterLegacyAttacksToArmory(
+        [legacyChar],
+        [],
+        [baseEntity],
+        ['wpn_deleted_tombstone']
+      );
+
+      assert.strictEqual(res.changed, true);
+      assert.strictEqual(res.customWeapons.length, 1);
+      assert.strictEqual(res.customWeapons[0].name, 'Fuzil de assalto');
+      assert.strictEqual(
+        res.customWeapons.some((w) => w.id === 'wpn_deleted_tombstone'),
+        false
+      );
+      assert.strictEqual(res.characters[0].attacks?.[0].customWeaponId, res.customWeapons[0].id);
+      assert.strictEqual(res.characters[0].attacks?.length, 2);
     });
   });
 });

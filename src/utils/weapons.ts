@@ -1,9 +1,15 @@
 import compendiumSeedRaw from '../data/seed/compendium_seed.json';
 import {
+  CharacterAttack,
+  CharacterInventoryItem,
+  CharacterSheet,
   CompendiumEntity,
+  CustomWeapon,
   ModificationTargetType,
   ParanormalElement,
+  WeaponHandedness,
   WeaponModificationDef,
+  WeaponProficiency,
   WeaponType,
 } from '../types/compendium';
 
@@ -691,6 +697,21 @@ export const OFFICIAL_WEAPON_MODS: WeaponModificationDef[] = [
     spacesChange: -1,
     source: 'Livro Base',
   },
+  {
+    id: 'acoplavel',
+    canonicalEntityId: 'item__arquivos_secretos_02__acoplavel',
+    shortId: 'acoplavel',
+    categoryIncrease: 1,
+    appliesTo: 'melee',
+    allowedWeaponTypes: ['Corpo a corpo'],
+    specialRequirementText: 'Armas Corpo a Corpo de Uma Mão',
+    ...getSeedInfo('item__arquivos_secretos_02__acoplavel', {
+      name: 'Acoplável',
+      description:
+        'Habilidade de arma que permite unir duas armas corpo a corpo de uma mão em uma única arma de duas mãos (aumenta categoria em +1, dano em +1 dado do mesmo tipo quando acoplada, +1 na margem ou multiplicador de crítico e dobra os espaços acoplada).',
+      source: 'Arquivos Secretos #02' as any,
+    }),
+  },
 ];
 
 export const OFFICIAL_WEAPON_MODS_MAP = new Map<string, WeaponModificationDef>();
@@ -1344,4 +1365,460 @@ export function sanitizeWeaponModifications(
   }
 
   return { sanitizedModIds: finalIds, removedMods: removed };
+}
+
+function generateWeaponId(prefix = 'weapon'): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function normalizeCategoryBadge(catStr?: string): '0' | 'I' | 'II' | 'III' | 'IV' {
+  const first = (catStr || '0').split(' ')[0].trim().toUpperCase();
+  if (first === '0' || first === 'I' || first === 'II' || first === 'III' || first === 'IV') {
+    return first;
+  }
+  if (first.startsWith('IV')) return 'IV';
+  return 'I';
+}
+
+export function resolveWeaponTypeFromEntity(ent: CompendiumEntity): WeaponType {
+  if (
+    ent.subCategory?.includes('Fogo') ||
+    ent.damageType === 'Balístico' ||
+    ent.description?.toLowerCase().includes('arma de fogo')
+  ) {
+    return 'Fogo';
+  }
+  if (
+    ent.subCategory?.includes('Corpo a corpo') ||
+    ent.range === 'Corpo a corpo' ||
+    ent.description?.toLowerCase().includes('corpo a corpo') ||
+    ent.damageType === 'Impacto' ||
+    ent.damageType === 'Corte'
+  ) {
+    return 'Corpo a corpo';
+  }
+  return 'Disparo';
+}
+
+export function resolveProficiencyFromEntity(ent: CompendiumEntity): WeaponProficiency {
+  if (ent.proficiency?.includes('Pesada') || ent.subCategory?.includes('Pesada')) {
+    return 'Pesada';
+  }
+  if (ent.proficiency?.includes('Tática') || ent.subCategory?.includes('Tática')) {
+    return 'Tática';
+  }
+  return 'Simples';
+}
+
+export function resolveHandednessFromEntity(ent: CompendiumEntity): WeaponHandedness {
+  if (ent.handedness?.includes('Duas Mãos')) return 'Duas Mãos';
+  if (ent.handedness?.includes('Leve')) return 'Leve';
+  return 'Uma Mão';
+}
+
+/**
+ * Constrói uma CustomWeapon completa da Armaria a partir de uma arma oficial do Compêndio.
+ */
+export function buildCustomWeaponFromCompendiumEntity(
+  ent: CompendiumEntity,
+  overrides: Partial<CustomWeapon> = {}
+): CustomWeapon {
+  const now = new Date().toISOString();
+  const weaponType = overrides.weaponType || resolveWeaponTypeFromEntity(ent);
+  const proficiency = overrides.proficiency || resolveProficiencyFromEntity(ent);
+  const handedness = overrides.handedness || resolveHandednessFromEntity(ent);
+  const baseDamage = overrides.baseDamage || ent.damage || '1d6';
+  const baseCritical = overrides.baseCritical || ent.critical || '20/x2';
+  const baseRange =
+    overrides.baseRange || ent.range || (weaponType === 'Corpo a corpo' ? 'Corpo a corpo' : 'Curto');
+  const baseDamageType = overrides.baseDamageType || ent.damageType || 'Balístico';
+  const baseSpaces = overrides.baseSpaces ?? (parseInt(ent.spaces || '1', 10) || 1);
+  const baseCategory = overrides.baseCategory || ent.itemCategory || '0';
+  const defAmmo = detectDefaultAmmo(ent.name, weaponType);
+  const ammoType = overrides.ammoType ?? defAmmo.ammoType;
+  const baseAmmoCategory = overrides.baseAmmoCategory ?? defAmmo.baseCategory;
+  const modifications = overrides.modifications || [];
+  const customModifications = overrides.customModifications || [];
+  const element: ParanormalElement =
+    overrides.element ||
+    (ent.element && ent.element !== 'Nenhum'
+      ? (ent.element as ParanormalElement)
+      : 'Nenhum');
+
+  const calc = calculateWeaponStats(
+    {
+      damage: baseDamage,
+      critical: baseCritical,
+      range: baseRange,
+      spaces: baseSpaces,
+      category: baseCategory,
+      damageType: baseDamageType,
+      element,
+      weaponType,
+      ammoType,
+      baseAmmoCategory,
+    },
+    modifications,
+    customModifications
+  );
+
+  return {
+    id: overrides.id || generateWeaponId('weapon'),
+    name: overrides.name || ent.name,
+    baseWeaponId: overrides.baseWeaponId ?? ent.id,
+    baseWeaponName: overrides.baseWeaponName || ent.name,
+    weaponType,
+    proficiency,
+    handedness,
+    baseDamage,
+    baseCritical,
+    baseRange,
+    baseDamageType,
+    baseSpaces,
+    baseCategory,
+    ammoType,
+    baseAmmoCategory,
+    ammoCategory: calc.ammoCategory,
+    ammoName: calc.ammoName,
+    modifications,
+    customModifications,
+    finalDamage: calc.finalDamage,
+    finalCritical: calc.finalCritical,
+    finalRange: calc.finalRange,
+    finalCategory: calc.finalCategory,
+    weaponCategory: calc.weaponCategory,
+    finalSpaces: calc.finalSpaces,
+    attackBonus: overrides.attackBonus ?? calc.attackBonus,
+    damageBonus: overrides.damageBonus ?? calc.damageBonus,
+    element: calc.element,
+    specialRules: overrides.specialRules ?? (calc.specialRules || ent.summary || ''),
+    notes: overrides.notes ?? (ent.description || ''),
+    createdAt: overrides.createdAt || now,
+    updatedAt: overrides.updatedAt || now,
+  };
+}
+
+/**
+ * Converte um CharacterAttack legado (sem CustomWeapon associada) em uma arma completa da Armaria.
+ */
+export function buildCustomWeaponFromLegacyAttack(
+  atk: CharacterAttack,
+  entities: CompendiumEntity[] = [],
+  existingId?: string
+): CustomWeapon {
+  const now = new Date().toISOString();
+  const cleanName = (atk.name || 'Arma do Agente').trim();
+  const matchedEnt = entities.find(
+    (e) => e.category === 'weapon' && e.name.toLowerCase() === cleanName.toLowerCase()
+  );
+
+  const isMelee =
+    atk.skillName === 'Luta' ||
+    (atk.range || '').toLowerCase().includes('corpo') ||
+    (matchedEnt ? resolveWeaponTypeFromEntity(matchedEnt) === 'Corpo a corpo' : false);
+  const weaponType: WeaponType = isMelee
+    ? 'Corpo a corpo'
+    : matchedEnt
+    ? resolveWeaponTypeFromEntity(matchedEnt)
+    : 'Fogo';
+
+  const proficiency: WeaponProficiency =
+    atk.proficiency || (matchedEnt ? resolveProficiencyFromEntity(matchedEnt) : 'Simples');
+  const handedness: WeaponHandedness = matchedEnt
+    ? resolveHandednessFromEntity(matchedEnt)
+    : 'Uma Mão';
+
+  const defAmmo = detectDefaultAmmo(cleanName, weaponType);
+  const baseDamage = atk.damage || matchedEnt?.damage || '1d6';
+  const baseCritical = atk.critical || matchedEnt?.critical || '20/x2';
+  const baseRange = atk.range || matchedEnt?.range || (isMelee ? 'Corpo a corpo' : 'Curto');
+  const baseCategory = matchedEnt?.itemCategory || '0';
+  const baseSpaces = matchedEnt ? parseInt(matchedEnt.spaces || '1', 10) || 1 : 1;
+  const baseDamageType = matchedEnt?.damageType || (isMelee ? 'Corte' : 'Balístico');
+
+  const calc = calculateWeaponStats(
+    {
+      damage: baseDamage,
+      critical: baseCritical,
+      range: baseRange,
+      spaces: baseSpaces,
+      category: baseCategory,
+      damageType: baseDamageType,
+      element: 'Nenhum',
+      weaponType,
+      ammoType: defAmmo.ammoType,
+      baseAmmoCategory: defAmmo.baseCategory,
+    },
+    [],
+    []
+  );
+
+  return {
+    id: existingId || `weapon_mig_${atk.id}`,
+    name: cleanName,
+    baseWeaponId: matchedEnt?.id,
+    baseWeaponName: matchedEnt?.name || cleanName,
+    weaponType,
+    proficiency,
+    handedness,
+    baseDamage,
+    baseCritical,
+    baseRange,
+    baseDamageType,
+    baseSpaces,
+    baseCategory,
+    ammoType: defAmmo.ammoType,
+    baseAmmoCategory: defAmmo.baseCategory,
+    ammoCategory: calc.ammoCategory,
+    ammoName: calc.ammoName,
+    modifications: [],
+    customModifications: [],
+    finalDamage: baseDamage,
+    finalCritical: baseCritical,
+    finalRange: baseRange,
+    finalCategory: calc.finalCategory,
+    weaponCategory: calc.weaponCategory,
+    finalSpaces: calc.finalSpaces,
+    attackBonus: atk.attackBonus || 0,
+    damageBonus: 0,
+    element: 'Nenhum',
+    specialRules: atk.special || calc.specialRules || baseDamageType,
+    notes: matchedEnt?.description || '',
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Duplica uma arma da Armaria para um agente específico, adicionando o nome do agente como sufixo.
+ */
+export function cloneCustomWeaponForAgent(weapon: CustomWeapon, agentName: string): CustomWeapon {
+  const now = new Date().toISOString();
+  const cleanAgent = (agentName || '').trim();
+  const suffix = cleanAgent ? ` (${cleanAgent})` : ' (Cópia)';
+  const duplicatedName = weapon.name.endsWith(suffix) ? weapon.name : `${weapon.name}${suffix}`;
+
+  return {
+    ...weapon,
+    id: generateWeaponId('weapon'),
+    name: duplicatedName,
+    modifications: [...(weapon.modifications || [])],
+    customModifications: (weapon.customModifications || []).map((cm) => ({ ...cm })),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Gera ou atualiza um CharacterAttack a partir de uma CustomWeapon da Armaria.
+ */
+export function buildAttackFromCustomWeapon(
+  weapon: CustomWeapon,
+  options: {
+    existingAttack?: Partial<CharacterAttack>;
+    linkMode?: 'shared' | 'copied';
+    sourceWeaponId?: string;
+  } = {}
+): CharacterAttack {
+  const { existingAttack, linkMode, sourceWeaponId } = options;
+  const defaultSkill = weapon.weaponType === 'Corpo a corpo' ? 'Luta' : 'Pontaria';
+  const skillName = existingAttack?.skillName || defaultSkill;
+  const bonus = weapon.attackBonus || 0;
+
+  return {
+    id: existingAttack?.id || `atk_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: weapon.name,
+    skillName,
+    attackBonus: bonus,
+    test: `${skillName}${bonus > 0 ? ` +${bonus}` : ''}`,
+    damage: weapon.finalDamage,
+    critical: weapon.finalCritical,
+    range: weapon.finalRange,
+    special: weapon.specialRules || weapon.baseDamageType,
+    customWeaponId: weapon.id,
+    linkMode: linkMode ?? existingAttack?.linkMode ?? 'shared',
+    sourceWeaponId: sourceWeaponId ?? existingAttack?.sourceWeaponId,
+    proficiency: weapon.proficiency,
+    criticalDamageMode: existingAttack?.criticalDamageMode,
+  };
+}
+
+/**
+ * Gera ou atualiza os itens de inventário (arma + munição opcional) correspondentes a uma CustomWeapon.
+ */
+export function buildInventoryItemsFromCustomWeapon(
+  weapon: CustomWeapon,
+  options: {
+    attackId?: string;
+    includeAmmo?: boolean;
+    existingWeaponItem?: CharacterInventoryItem;
+    existingAmmoItem?: CharacterInventoryItem;
+  } = {}
+): { weaponItem: CharacterInventoryItem; ammoItem?: CharacterInventoryItem } {
+  const { attackId, includeAmmo = true, existingWeaponItem, existingAmmoItem } = options;
+
+  const weaponItem: CharacterInventoryItem = {
+    id: existingWeaponItem?.id || `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: weapon.name,
+    category: normalizeCategoryBadge(weapon.finalCategory || weapon.weaponCategory),
+    spaces: weapon.finalSpaces || 1,
+    details: `Arma (${weapon.finalDamage}, Crítico: ${weapon.finalCritical}) • ${weapon.specialRules || weapon.baseDamageType}`,
+    equipped: existingWeaponItem?.equipped ?? true,
+    itemType: 'geral',
+    customWeaponId: weapon.id,
+    linkedAttackId: attackId ?? existingWeaponItem?.linkedAttackId,
+  };
+
+  const hasAmmo =
+    includeAmmo &&
+    weapon.weaponType !== 'Corpo a corpo' &&
+    Boolean(weapon.ammoCategory) &&
+    weapon.ammoCategory !== '—';
+
+  let ammoItem: CharacterInventoryItem | undefined;
+  if (hasAmmo) {
+    const ammoTitle = weapon.ammoName || `${weapon.ammoType || 'Munição'} (${weapon.name})`;
+    ammoItem = {
+      id: existingAmmoItem?.id || `inv_ammo_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: ammoTitle,
+      category: normalizeCategoryBadge(weapon.ammoCategory),
+      spaces: existingAmmoItem?.spaces ?? 1,
+      details: `Pacote de Munição para ${weapon.name}`,
+      equipped: existingAmmoItem?.equipped ?? true,
+      itemType: 'geral',
+      isAmmoForWeaponId: weapon.id,
+      linkedAttackId: attackId ?? existingAmmoItem?.linkedAttackId,
+    };
+  }
+
+  return { weaponItem, ammoItem };
+}
+
+/**
+ * Propaga edições feitas em uma CustomWeapon para todos os ataques e itens vinculados na ficha do agente.
+ */
+export function syncCharacterWithCustomWeapon(
+  character: CharacterSheet,
+  weapon: CustomWeapon
+): { updated: CharacterSheet; changed: boolean } {
+  const attacks = character.attacks || [];
+  const hasLinkedAttack = attacks.some((a) => a.customWeaponId === weapon.id);
+  const inventory = character.inventory || [];
+  const hasLinkedInv = inventory.some(
+    (it) => it.customWeaponId === weapon.id || it.isAmmoForWeaponId === weapon.id
+  );
+
+  if (!hasLinkedAttack && !hasLinkedInv) {
+    return { updated: character, changed: false };
+  }
+
+  const nextAttacks = attacks.map((atk) =>
+    atk.customWeaponId === weapon.id
+      ? buildAttackFromCustomWeapon(weapon, { existingAttack: atk })
+      : atk
+  );
+
+  const nextInventory = inventory.map((it) => {
+    if (it.customWeaponId === weapon.id) {
+      return buildInventoryItemsFromCustomWeapon(weapon, {
+        attackId: it.linkedAttackId,
+        includeAmmo: false,
+        existingWeaponItem: it,
+      }).weaponItem;
+    }
+    if (it.isAmmoForWeaponId === weapon.id) {
+      const { ammoItem } = buildInventoryItemsFromCustomWeapon(weapon, {
+        attackId: it.linkedAttackId,
+        includeAmmo: true,
+        existingAmmoItem: it,
+      });
+      return ammoItem || it;
+    }
+    return it;
+  });
+
+  return {
+    changed: true,
+    updated: {
+      ...character,
+      attacks: nextAttacks,
+      inventory: nextInventory,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Migração idempotente: garante que toda arma/ataque em fichas legadas possua uma CustomWeapon correspondente na Armaria.
+ */
+export function migrateCharacterLegacyAttacksToArmory(
+  characters: CharacterSheet[],
+  existingWeapons: CustomWeapon[],
+  entities: CompendiumEntity[],
+  deletedWeaponIds: string[] = []
+): { characters: CharacterSheet[]; customWeapons: CustomWeapon[]; changed: boolean } {
+  const deletedSet = new Set(deletedWeaponIds);
+  const weaponMap = new Map<string, CustomWeapon>(existingWeapons.map((w) => [w.id, w]));
+  const addedWeapons: CustomWeapon[] = [];
+  let changed = false;
+
+  const nextChars = characters.map((char) => {
+    const attacks = char.attacks || [];
+    if (attacks.length === 0) return char;
+
+    let charChanged = false;
+    let nextInventory = [...(char.inventory || [])];
+
+    const nextAttacks = attacks.map((atk) => {
+      if (atk.customWeaponId && weaponMap.has(atk.customWeaponId)) {
+        return atk;
+      }
+      // Se já foi explicitamente excluída da Armaria por tombstone, não ressuscita
+      if (atk.customWeaponId && deletedSet.has(atk.customWeaponId)) {
+        return atk;
+      }
+
+      const migratedWeapon = buildCustomWeaponFromLegacyAttack(atk, entities, atk.customWeaponId);
+      weaponMap.set(migratedWeapon.id, migratedWeapon);
+      addedWeapons.push(migratedWeapon);
+      charChanged = true;
+      changed = true;
+
+      // Vincula item de inventário existente com mesmo nome (caso exista sem customWeaponId)
+      const invIdx = nextInventory.findIndex(
+        (it) => !it.customWeaponId && it.name.trim().toLowerCase() === migratedWeapon.name.trim().toLowerCase()
+      );
+      if (invIdx >= 0) {
+        nextInventory[invIdx] = {
+          ...nextInventory[invIdx],
+          customWeaponId: migratedWeapon.id,
+          linkedAttackId: atk.id,
+        };
+      }
+
+      return {
+        ...atk,
+        customWeaponId: migratedWeapon.id,
+        linkMode: atk.linkMode || 'shared',
+        proficiency: atk.proficiency || migratedWeapon.proficiency,
+      };
+    });
+
+    if (!charChanged) return char;
+    return {
+      ...char,
+      attacks: nextAttacks,
+      inventory: nextInventory,
+    };
+  });
+
+  if (!changed) {
+    return { characters, customWeapons: existingWeapons, changed: false };
+  }
+
+  return {
+    characters: nextChars,
+    customWeapons: [...addedWeapons, ...existingWeapons],
+    changed: true,
+  };
 }

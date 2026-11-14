@@ -1,17 +1,47 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
+import { CriticalDamageMode, WeaponAttackContext } from '../types/compendium';
+import { normalizeCriticalDamageMode } from '../utils/dice';
+import { CriticalModePromptModal } from './CriticalModePromptModal';
 
 export const DiceToast: React.FC = () => {
-  const { latestRoll, dismissLatestRoll, rollWeaponDamage } = useApp();
+  const { latestRoll, dismissLatestRoll, rollWeaponDamage, userProfile } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const [critPrompt, setCritPrompt] = useState<{
+    attackContext: WeaponAttackContext;
+    isMaxDamage: boolean;
+  } | null>(null);
 
   if (!latestRoll) return null;
+
+  const triggerCritDamage = (
+    attackContext: WeaponAttackContext,
+    isMaxDamage: boolean,
+    chosenMode?: Exclude<CriticalDamageMode, 'ask_user'>
+  ) => {
+    const mode = normalizeCriticalDamageMode(chosenMode || userProfile?.criticalDamageMode);
+    if (mode === 'ask_user') {
+      setCritPrompt({ attackContext, isMaxDamage });
+      return;
+    }
+    rollWeaponDamage({
+      weaponName: attackContext.weaponName,
+      damage: attackContext.damage,
+      critical: attackContext.critical,
+      normalFormula: attackContext.normalFormula,
+      criticalFormula: attackContext.criticalFormula,
+      isCrit: true,
+      isMaxDamage,
+      mode,
+      attackContext,
+    });
+  };
 
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 6);
   const bottomPosition = 56 + bottomInset + 10;
@@ -106,6 +136,8 @@ export const DiceToast: React.FC = () => {
                     weaponName: latestRoll.attackContext.weaponName,
                     damage: latestRoll.attackContext.damage,
                     critical: latestRoll.attackContext.critical,
+                    normalFormula: latestRoll.attackContext.normalFormula,
+                    criticalFormula: latestRoll.attackContext.criticalFormula,
                     isCrit: false,
                     isMaxDamage: false,
                     attackContext: latestRoll.attackContext,
@@ -120,14 +152,7 @@ export const DiceToast: React.FC = () => {
                 style={[styles.toastActionBtn, styles.toastCritBtn]}
                 onPress={() => {
                   if (!latestRoll.attackContext) return;
-                  rollWeaponDamage({
-                    weaponName: latestRoll.attackContext.weaponName,
-                    damage: latestRoll.attackContext.damage,
-                    critical: latestRoll.attackContext.critical,
-                    isCrit: true,
-                    isMaxDamage: false,
-                    attackContext: latestRoll.attackContext,
-                  });
+                  triggerCritDamage(latestRoll.attackContext, false);
                 }}
               >
                 <Ionicons name="flash" size={13} color="#FFF" />
@@ -142,14 +167,7 @@ export const DiceToast: React.FC = () => {
                 ]}
                 onPress={() => {
                   if (!latestRoll.attackContext) return;
-                  rollWeaponDamage({
-                    weaponName: latestRoll.attackContext.weaponName,
-                    damage: latestRoll.attackContext.damage,
-                    critical: latestRoll.attackContext.critical,
-                    isCrit: true,
-                    isMaxDamage: true,
-                    attackContext: latestRoll.attackContext,
-                  });
+                  triggerCritDamage(latestRoll.attackContext, true);
                 }}
               >
                 <Ionicons name="sparkles" size={13} color="#000" />
@@ -161,6 +179,19 @@ export const DiceToast: React.FC = () => {
           </View>
         )}
       </View>
+
+      <CriticalModePromptModal
+        visible={critPrompt !== null}
+        weaponName={critPrompt?.attackContext.weaponName}
+        isMaxDamage={critPrompt?.isMaxDamage}
+        onClose={() => setCritPrompt(null)}
+        onSelect={(mode) => {
+          if (!critPrompt) return;
+          const t = critPrompt;
+          setCritPrompt(null);
+          triggerCritDamage(t.attackContext, t.isMaxDamage, mode);
+        }}
+      />
     </View>
   );
 };

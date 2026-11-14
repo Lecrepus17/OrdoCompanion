@@ -71,6 +71,8 @@ export interface IDataRepository {
   markCharacterDeleted(sheetId: string): Promise<void>;
   getDeletedCampaignIds(): Promise<string[]>;
   markCampaignDeleted(campaignId: string): Promise<void>;
+  getDeletedCustomWeaponIds(): Promise<string[]>;
+  markCustomWeaponDeleted(weaponId: string): Promise<void>;
   getCharacters(): Promise<CharacterSheet[]>;
   saveCharacters(characters: CharacterSheet[]): Promise<void>;
   getCampaigns(): Promise<Campaign[]>;

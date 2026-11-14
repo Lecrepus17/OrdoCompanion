@@ -42,6 +42,7 @@ const STORAGE_KEYS = {
   USER_PROFILE: '@ordem_paranormal:user_profile_v1',
   DELETED_CHARACTER_IDS: '@ordem_paranormal:deleted_character_ids_v1',
   DELETED_CAMPAIGN_IDS: '@ordem_paranormal:deleted_campaign_ids_v1',
+  DELETED_CUSTOM_WEAPON_IDS: '@ordem_paranormal:deleted_custom_weapon_ids_v1',
   DELETED_DYNAMIC_BOOK_IDS: '@ordem_paranormal:deleted_dynamic_book_ids_v1',
 };
 
@@ -689,8 +690,14 @@ export class OfflineDataRepository implements IDataRepository {
     const hasTokens = qTokens.length > 0;
 
     const filtered = all.filter((ent) => {
-      if (hasCategory && ent.category !== filters.category) {
-        return false;
+      if (hasCategory) {
+        if (filters.category === 'weapon') {
+          if (ent.category !== 'weapon' && !(ent.category === 'item' && Boolean(ent.damage))) {
+            return false;
+          }
+        } else if (ent.category !== filters.category) {
+          return false;
+        }
       }
 
       if (hasBookId) {
@@ -1144,6 +1151,23 @@ export class OfflineDataRepository implements IDataRepository {
     }
   }
 
+  async getDeletedCustomWeaponIds(): Promise<string[]> {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.DELETED_CUSTOM_WEAPON_IDS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async markCustomWeaponDeleted(weaponId: string): Promise<void> {
+    const list = await this.getDeletedCustomWeaponIds();
+    if (!list.includes(weaponId)) {
+      list.push(weaponId);
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CUSTOM_WEAPON_IDS, JSON.stringify(list));
+    }
+  }
+
   async getDeletedDynamicBookIds(): Promise<string[]> {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEYS.DELETED_DYNAMIC_BOOK_IDS);
@@ -1213,7 +1237,7 @@ export class OfflineDataRepository implements IDataRepository {
   }
 
   async exportUserDataJson(): Promise<string> {
-    const [favorites, savedLists, characters, campaigns, customWeapons, userProfile, deletedCharacterIds, deletedCampaignIds, deletedDynamicBookIds] = await Promise.all([
+    const [favorites, savedLists, characters, campaigns, customWeapons, userProfile, deletedCharacterIds, deletedCampaignIds, deletedCustomWeaponIds, deletedDynamicBookIds] = await Promise.all([
       this.getFavorites(),
       this.getSavedLists(),
       this.getCharacters(),
@@ -1222,6 +1246,7 @@ export class OfflineDataRepository implements IDataRepository {
       this.getUserProfile(),
       this.getDeletedCharacterIds(),
       this.getDeletedCampaignIds(),
+      this.getDeletedCustomWeaponIds(),
       this.getDeletedDynamicBookIds(),
     ]);
 
@@ -1240,6 +1265,7 @@ export class OfflineDataRepository implements IDataRepository {
       customWeapons,
       deletedCharacterIds,
       deletedCampaignIds,
+      deletedCustomWeaponIds,
       deletedDynamicBookIds,
     };
 
@@ -1338,6 +1364,12 @@ export class OfflineDataRepository implements IDataRepository {
       const existing = await this.getDeletedCampaignIds();
       const union = Array.from(new Set([...existing, ...parsed.deletedCampaignIds]));
       await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CAMPAIGN_IDS, JSON.stringify(union));
+    }
+
+    if (Array.isArray(parsed.deletedCustomWeaponIds)) {
+      const existing = await this.getDeletedCustomWeaponIds();
+      const union = Array.from(new Set([...existing, ...parsed.deletedCustomWeaponIds]));
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CUSTOM_WEAPON_IDS, JSON.stringify(union));
     }
 
     if (Array.isArray(parsed.deletedDynamicBookIds) || localDeletedDynamic.length > 0) {

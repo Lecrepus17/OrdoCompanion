@@ -263,6 +263,58 @@ describe('Mecanismo de Sincronização e Resolução de Conflitos (SmartMergeEng
     assert.ok(result.merged.deletedCharacterIds?.includes('char_excluido'));
   });
 
+  it('deve respeitar deletedCustomWeaponIds e não ressuscitar armas deletadas ao sincronizar com Google Drive', () => {
+    const aliveWeapon: CustomWeapon = {
+      id: 'wpn_alive',
+      name: 'Katana Tática',
+      baseWeaponName: 'Katana',
+      weaponType: 'Corpo a corpo',
+      proficiency: 'Tática',
+      handedness: 'Duas Mãos',
+      baseDamage: '1d10',
+      baseCritical: '19/x2',
+      baseRange: 'Corpo a corpo',
+      baseDamageType: 'C',
+      baseSpaces: 1,
+      baseCategory: 'I',
+      modifications: [],
+      finalDamage: '1d10',
+      finalCritical: '19/x2',
+      finalRange: 'Corpo a corpo',
+      finalCategory: 'I',
+      finalSpaces: 1,
+      attackBonus: 0,
+      damageBonus: 0,
+      element: 'Nenhum',
+      specialRules: '',
+      createdAt: '2026-10-25T01:00:00.000Z',
+      updatedAt: '2026-10-25T01:00:00.000Z',
+    };
+
+    const deletedWeapon: CustomWeapon = {
+      ...aliveWeapon,
+      id: 'wpn_deleted',
+      name: 'Arma Excluída',
+    };
+
+    const local = createDummyPayload({
+      customWeapons: [aliveWeapon],
+      deletedCustomWeaponIds: ['wpn_deleted'],
+    });
+    const remote = createDummyPayload({
+      customWeapons: [aliveWeapon, deletedWeapon],
+      deletedCustomWeaponIds: [],
+    });
+
+    const result = SmartMergeEngine.merge(local, remote);
+    const weapons = result.merged.customWeapons || [];
+
+    assert.strictEqual(weapons.length, 1);
+    assert.strictEqual(weapons[0].id, 'wpn_alive');
+    assert.ok(result.merged.deletedCustomWeaponIds?.includes('wpn_deleted'));
+    assert.strictEqual(result.hasRemoteChangesToUpload, true);
+  });
+
   it('deve mesclar perfil do usuário preservando o cloudSyncEnabled e dados mais recentes', () => {
     const local = createDummyPayload({
       userProfile: {

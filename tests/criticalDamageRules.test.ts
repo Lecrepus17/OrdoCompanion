@@ -5,6 +5,7 @@ import {
   rollWeaponDamage,
   expandFormulaForCritical,
   calculateMaxDamageForFormula,
+  normalizeCriticalDamageMode,
   rollDiceFormula,
   rollOrdemTest,
   WeaponDamageRollOptions,
@@ -38,7 +39,7 @@ describe('Feature 15: Critical Damage Rules & Calculation Modes (criticalDamageR
       assert.strictEqual(result.total, result.diceResults.reduce((acc, d) => acc + d, 0) + 5);
     });
 
-    it('1.2 modo multiply_damage (Modo Alternativo/Menos Dados): multiplica o total da rolagem base', () => {
+    it('1.2 modo multiply_damage (Modo Alternativo): multiplica apenas o resultado dos dados base, preservando bônus fixo', () => {
       const options: WeaponDamageRollOptions = {
         weaponName: 'Acha de Guerra',
         damage: '1d12+5',
@@ -53,13 +54,12 @@ describe('Feature 15: Critical Damage Rules & Calculation Modes (criticalDamageR
       // Rola apenas a base (1d12)
       assert.strictEqual(result.diceResults.length, 1);
       const dieVal = result.diceResults[0];
-      const baseTotal = dieVal + 5;
-      const expectedCritTotal = baseTotal * 3;
+      const expectedCritTotal = dieVal * 3 + 5;
       assert.strictEqual(result.total, expectedCritTotal);
-      assert.ok(result.formulaText.includes('x3 Dano'));
+      assert.ok(result.formulaText.includes('(1d12 × 3) +5'));
     });
 
-    it('1.3 modo max_damage / isMaxDamage: dano cheio maximizado em multiply_dice', () => {
+    it('1.3 isMaxDamage (Crítico Máx): dano cheio maximizado em multiply_dice', () => {
       const options: WeaponDamageRollOptions = {
         weaponName: 'Espingarda',
         damage: '4d6+2',
@@ -81,7 +81,7 @@ describe('Feature 15: Critical Damage Rules & Calculation Modes (criticalDamageR
       assert.strictEqual(result.total, 74);
     });
 
-    it('1.4 modo max_damage / isMaxDamage: dano cheio maximizado em multiply_damage', () => {
+    it('1.4 isMaxDamage (Crítico Máx): dano cheio maximizado em multiply_damage multiplica apenas os dados base', () => {
       const options: WeaponDamageRollOptions = {
         weaponName: 'Espingarda',
         damage: '4d6+2',
@@ -94,8 +94,39 @@ describe('Feature 15: Critical Damage Rules & Calculation Modes (criticalDamageR
 
       assert.strictEqual(result.isCritical, true);
       assert.strictEqual(result.isMaxDamage, true);
-      // Base máxima = 4*6 + 2 = 26. Multiplicado por 3 = 78
-      assert.strictEqual(result.total, 78);
+      // Dados máximos = 4*6 = 24. Multiplicado por 3 = 72 + bônus 2 = 74
+      assert.strictEqual(result.total, 74);
+    });
+
+    it('1.5 example canônico 1d4+2 x2 em multiply_damage resulta em (1d4 × 2) + 2', () => {
+      const res = rollWeaponDamage({
+        weaponName: 'Punhal',
+        damage: '1d4+2',
+        critical: '19/x2',
+        isCrit: true,
+        mode: 'multiply_damage',
+      });
+      assert.strictEqual(res.diceResults.length, 1);
+      assert.strictEqual(res.total, res.diceResults[0] * 2 + 2);
+
+      const resMax = rollWeaponDamage({
+        weaponName: 'Punhal',
+        damage: '1d4+2',
+        critical: '19/x2',
+        isCrit: true,
+        isMaxDamage: true,
+        mode: 'multiply_damage',
+      });
+      // (4 * 2) + 2 = 10
+      assert.strictEqual(resMax.total, 10);
+    });
+
+    it('1.6 normalizeCriticalDamageMode converte valor legado max_damage para multiply_dice e preserva os 3 modos válidos', () => {
+      assert.strictEqual(normalizeCriticalDamageMode('max_damage'), 'multiply_dice');
+      assert.strictEqual(normalizeCriticalDamageMode(undefined), 'multiply_dice');
+      assert.strictEqual(normalizeCriticalDamageMode('multiply_dice'), 'multiply_dice');
+      assert.strictEqual(normalizeCriticalDamageMode('multiply_damage'), 'multiply_damage');
+      assert.strictEqual(normalizeCriticalDamageMode('ask_user'), 'ask_user');
     });
 
     it('1.5 rolagem normal sem crítico (isCrit: false) rola apenas dano base independente do modo', () => {
@@ -150,7 +181,7 @@ describe('Feature 15: Critical Damage Rules & Calculation Modes (criticalDamageR
         mode: 'multiply_damage',
       };
       const resultMult = rollWeaponDamage(optionsMult);
-      assert.strictEqual(resultMult.total, 10, '5 multiplicado por x2 = 10');
+      assert.strictEqual(resultMult.total, 5, 'Dano estático sem dados não multiplica em crítico');
     });
 
     it('2.3 arma com múltiplos grupos de dados (ex: "2d8+1d6+3")', () => {
@@ -277,10 +308,10 @@ describe('Feature 15: Critical Damage Rules & Calculation Modes (criticalDamageR
 
       const result = rollWeaponDamage(options);
 
-      // Rola apenas 4 dados e multiplica o total obtido por 3
+      // Rola apenas 4 dados e multiplica apenas os dados por 3, mantendo +6
       assert.strictEqual(result.diceResults.length, 4);
       const sum = result.diceResults.reduce((a, b) => a + b, 0);
-      assert.strictEqual(result.total, (sum + 6) * 3);
+      assert.strictEqual(result.total, sum * 3 + 6);
     });
 
     it('4.3 Cenário: Ataque atinge Crítico Máximo com poder Golpe Destruidor', () => {
@@ -332,7 +363,7 @@ describe('Feature 15: Critical Damage Rules & Calculation Modes (criticalDamageR
 
       const result = rollWeaponDamage(options);
       assert.strictEqual(Number.isNaN(result.total), false);
-      assert.strictEqual(result.total, 20);
+      assert.strictEqual(result.total, 10);
     });
 
     it('5.3 multiplicador 0 ou negativo é normalizado defensivamente', () => {

@@ -27,11 +27,27 @@ import {
   CriticalDamageMode,
   CustomWeapon,
   ParanormalElement,
+  ResolvedAttackDamage,
+  SituationalDamageToggles,
   TrainingDegree,
 } from '../../types/compendium';
 import { confirmAction } from '../../utils/alert';
 import { copyToClipboard } from '../../utils/clipboard';
-import { parseCritical } from '../../utils/weapons';
+import { normalizeCriticalDamageMode } from '../../utils/dice';
+import {
+  buildAttackFromCustomWeapon,
+  buildCustomWeaponFromCompendiumEntity,
+  buildCustomWeaponFromLegacyAttack,
+  parseCritical,
+} from '../../utils/weapons';
+import {
+  detectAgentDamageModifiers,
+  resolveAgentAttackDamage,
+  resolveAgentRitualDamage,
+} from '../../utils/damageModifiers';
+import { AttackPreparationModal } from '../../components/AttackPreparationModal';
+import { CriticalModePromptModal } from '../../components/CriticalModePromptModal';
+import { WeaponEditorModal } from '../../components/WeaponEditorModal';
 import PrintSheetModal from '../../components/PrintSheetModal';
 import CreateAgentModal from '../../components/CreateAgentModal';
 import LevelUpModal from '../../components/LevelUpModal';
@@ -101,6 +117,9 @@ export default function CharactersScreen() {
     upsertCharacter,
     deleteCharacter,
     customWeapons,
+    upsertCustomWeapon,
+    equipWeaponToCharacter,
+    removeAttackFromCharacter,
     entities,
     getEntityById,
     rollSkillTest,
@@ -169,20 +188,25 @@ export default function CharactersScreen() {
     | 'link_compendium'
     | 'add_weapon_armaria'
     | 'add_weapon_compendium'
+    | 'add_item_compendium'
   >(null);
   const [pickerSearch, setPickerSearch] = useState('');
 
-  // Manual Attack Modal
-  const [attackModalVisible, setAttackModalVisible] = useState(false);
-  const [editingAttackId, setEditingAttackId] = useState<string | null>(null);
-  const [atkName, setAtkName] = useState('');
-  const [atkTest, setAtkTest] = useState('');
-  const [atkSkill, setAtkSkill] = useState('Pontaria');
-  const [atkBonus, setAtkBonus] = useState('0');
-  const [atkDamage, setAtkDamage] = useState('2d10');
-  const [atkCritical, setAtkCritical] = useState('19/x3');
-  const [atkRange, setAtkRange] = useState('Médio');
-  const [atkSpecial, setAtkSpecial] = useState('Balístico');
+  // Weapon Editor & Unified Attack Modals
+  const [weaponEditorVisible, setWeaponEditorVisible] = useState(false);
+  const [editingWeapon, setEditingWeapon] = useState<CustomWeapon | null>(null);
+  const [editingLegacyAttack, setEditingLegacyAttack] = useState<CharacterAttack | null>(null);
+  const [importChoiceWeapon, setImportChoiceWeapon] = useState<CustomWeapon | null>(null);
+  const [deleteAttackChoice, setDeleteAttackChoice] = useState<CharacterAttack | null>(null);
+  const [prepModalAttack, setPrepModalAttack] = useState<CharacterAttack | null>(null);
+  const [ritualTierById, setRitualTierById] = useState<
+    Record<string, 'padrao' | 'discente' | 'verdadeiro'>
+  >({});
+  const [critPromptAttack, setCritPromptAttack] = useState<{
+    attack: CharacterAttack;
+    isMaxDamage: boolean;
+    resolved?: ResolvedAttackDamage;
+  } | null>(null);
 
   // Manual Ability Modal
   const [abilityModalVisible, setAbilityModalVisible] = useState(false);
@@ -231,6 +255,12 @@ export default function CharactersScreen() {
     return getCharacterProficiencies(activeChar);
   }, [activeChar]);
 
+  // Perfil dinâmico de modificadores de dano por agente
+  const agentDamageProfile = useMemo(() => {
+    if (!activeChar) return null;
+    return detectAgentDamageModifiers(activeChar, getEntityById);
+  }, [activeChar, getEntityById]);
+
   // Bônus de Vestimentas e Utensílios Canônicos (R3)
   const itemSkillBonuses = useMemo(() => {
     if (!activeChar?.inventory) {
@@ -244,6 +274,26 @@ export default function CharactersScreen() {
     }
     return calculateActiveItemSkillBonuses(activeChar.inventory);
   }, [activeChar?.inventory]);
+
+  // Intercepta botão de retorno físico (Android) para fechar sub-modais de confirmação de armas
+  useEffect(() => {
+    if (!importChoiceWeapon && !deleteAttackChoice) return;
+    if (Platform.OS !== 'web' && typeof document === 'undefined') {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (deleteAttackChoice) {
+          setDeleteAttackChoice(null);
+          return true;
+        }
+        if (importChoiceWeapon) {
+          setImportChoiceWeapon(null);
+          return true;
+        }
+        return false;
+      });
+      return () => sub.remove();
+    }
+    return undefined;
+  }, [importChoiceWeapon, deleteAttackChoice]);
 
   // Helper para resolver informações de arma para checagem de proficiência
   const getAttackWeaponInfo = (atk: CharacterAttack): WeaponProficiencyCheckInput => {
@@ -333,6 +383,9 @@ export default function CharactersScreen() {
         weapons.push(e);
         equipables.push(e);
       } else if (cat === 'item') {
+        if (Boolean(e.damage)) {
+          weapons.push(e);
+        }
         equipables.push(e);
       }
     }
@@ -512,156 +565,114 @@ export default function CharactersScreen() {
 
   // Attacks actions
   const openNewAttackModal = () => {
-    setEditingAttackId(null);
-    setAtkName('');
-    setAtkSkill('Pontaria');
-    setAtkBonus('0');
-    setAtkTest('Pontaria');
-    setAtkDamage('2d10');
-    setAtkCritical('19/x3');
-    setAtkRange('Médio');
-    setAtkSpecial('Balístico');
-    setAttackModalVisible(true);
+    setEditingWeapon(null);
+    setEditingLegacyAttack(null);
+    setWeaponEditorVisible(true);
   };
 
   const openEditAttackModal = (atk: CharacterAttack) => {
-    setEditingAttackId(atk.id);
-    setAtkName(atk.name || '');
-    setAtkSkill(atk.skillName || (atk.test?.includes('Luta') ? 'Luta' : 'Pontaria'));
-    setAtkBonus(atk.attackBonus !== undefined ? String(atk.attackBonus) : '0');
-    setAtkTest(atk.test || 'Pontaria');
-    setAtkDamage(atk.damage || '1d6');
-    setAtkCritical(atk.critical || '20/x2');
-    setAtkRange(atk.range || 'Curto');
-    setAtkSpecial(atk.special || '');
-    setAttackModalVisible(true);
+    const linked = atk.customWeaponId
+      ? customWeapons.find((w) => w.id === atk.customWeaponId)
+      : undefined;
+    const weaponToEdit = linked || buildCustomWeaponFromLegacyAttack(atk, entities, atk.customWeaponId);
+    setEditingWeapon(weaponToEdit);
+    setEditingLegacyAttack(atk);
+    setWeaponEditorVisible(true);
   };
 
-  const handleSaveAttack = async () => {
-    if (!activeChar || !atkName.trim()) return;
-    const existing = activeChar.attacks || [];
-    const bonusNum = parseInt(atkBonus, 10) || 0;
-    const currentAttack = editingAttackId ? existing.find((a) => a.id === editingAttackId) : null;
+  const handleSaveAgentWeapon = async (savedWeapon: CustomWeapon) => {
+    const existedInArmory = customWeapons.some((w) => w.id === savedWeapon.id);
+    await upsertCustomWeapon(savedWeapon);
 
-    const attackEntry: CharacterAttack = {
-      id: editingAttackId || `atk_${Date.now()}`,
-      name: atkName.trim(),
-      skillName: atkSkill,
-      attackBonus: bonusNum,
-      test: `${atkSkill}${bonusNum > 0 ? ` +${bonusNum}` : ''}`,
-      damage: atkDamage.trim() || '1d6',
-      critical: atkCritical.trim() || '20/x2',
-      range: atkRange.trim() || 'Curto',
-      special: atkSpecial.trim(),
-      customWeaponId: currentAttack?.customWeaponId,
-      proficiency: currentAttack?.proficiency,
-    };
-
-    const next = editingAttackId
-      ? existing.map((a) => (a.id === editingAttackId ? attackEntry : a))
-      : [...existing, attackEntry];
-
-    await updateActiveChar({ attacks: next });
-    setAttackModalVisible(false);
-  };
-
-  const handleAddWeaponFromArmaria = async (weapon: CustomWeapon) => {
-    if (!activeChar) return;
-    const existingAttacks = activeChar.attacks || [];
-    const existingInventory = activeChar.inventory || [];
-    const skillHint = weapon.weaponType === 'Corpo a corpo' ? 'Luta' : 'Pontaria';
-
-    const newAttack: CharacterAttack = {
-      id: `atk_${Date.now()}`,
-      name: weapon.name,
-      skillName: skillHint,
-      attackBonus: weapon.attackBonus,
-      test: `${skillHint}${weapon.attackBonus > 0 ? ` +${weapon.attackBonus}` : ''}`,
-      damage: weapon.finalDamage,
-      critical: weapon.finalCritical,
-      range: weapon.finalRange,
-      special: weapon.specialRules || weapon.baseDamageType,
-      customWeaponId: weapon.id,
-      proficiency: weapon.proficiency,
-    };
-
-    const newInv: CharacterInventoryItem = {
-      id: `inv_${Date.now()}`,
-      name: weapon.name,
-      category: (weapon.finalCategory || weapon.weaponCategory || 'I').split(' ')[0] as any,
-      spaces: weapon.finalSpaces,
-      details: `Arma (${weapon.finalDamage}, Crítico: ${weapon.finalCritical}) • ${weapon.specialRules}`,
-      equipped: true,
-    };
-
-    const newItems: CharacterInventoryItem[] = [newInv];
-    if (weapon.ammoCategory && weapon.ammoCategory !== '—' && weapon.weaponType !== 'Corpo a corpo') {
-      const ammoTitle = weapon.ammoName || `${weapon.ammoType || 'Munição'} (${weapon.name})`;
-      newItems.push({
-        id: `inv_ammo_${Date.now()}`,
-        name: ammoTitle,
-        category: (weapon.ammoCategory || '0').split(' ')[0] as any,
-        spaces: 1,
-        details: `Pacote de Munição para ${weapon.name}`,
-        equipped: true,
-      });
+    if (activeChar) {
+      if (!editingWeapon) {
+        // Arma recém-criada direto na ficha do agente: vincula em Ataques e Inventário
+        await equipWeaponToCharacter(savedWeapon, activeChar.id, {
+          mode: 'shared',
+          includeAmmo: true,
+        });
+      } else if (!existedInArmory && editingLegacyAttack) {
+        // Caso especial de ataque legado ainda não presente na Armaria (ex.: ficha importada/mock)
+        const syncedAttack = buildAttackFromCustomWeapon(savedWeapon, {
+          existingAttack: editingLegacyAttack,
+          linkMode: editingLegacyAttack.linkMode || 'shared',
+          sourceWeaponId: editingLegacyAttack.sourceWeaponId,
+        });
+        await updateActiveChar({
+          attacks: (activeChar.attacks || []).map((a) =>
+            a.id === editingLegacyAttack.id ? syncedAttack : a
+          ),
+        });
+      }
     }
 
-    await updateActiveChar({
-      attacks: [...existingAttacks, newAttack],
-      inventory: [...existingInventory, ...newItems],
+    setWeaponEditorVisible(false);
+    setEditingWeapon(null);
+    setEditingLegacyAttack(null);
+  };
+
+  const handleAddWeaponFromArmaria = (weapon: CustomWeapon) => {
+    if (!activeChar) return;
+    setPickerModalType(null);
+    setImportChoiceWeapon(weapon);
+  };
+
+  const handleConfirmImportArmariaWeapon = async (mode: 'shared' | 'duplicate') => {
+    if (!activeChar || !importChoiceWeapon) return;
+    const weapon = importChoiceWeapon;
+    setImportChoiceWeapon(null);
+    await equipWeaponToCharacter(weapon, activeChar.id, {
+      mode,
+      includeAmmo: true,
     });
     setPickerModalType(null);
   };
 
   const handleAddWeaponFromCompendium = async (ent: CompendiumEntity) => {
     if (!activeChar) return;
-    const isMelee = ent.subCategory?.includes('Corpo');
-    const skillHint = isMelee ? 'Luta' : 'Pontaria';
-    const prof = (ent.proficiency ||
-      (ent.subCategory?.includes('Tática')
-        ? 'Tática'
-        : ent.subCategory?.includes('Pesada')
-        ? 'Pesada'
-        : 'Simples')) as any;
-
-    const newAttack: CharacterAttack = {
-      id: `atk_${Date.now()}`,
-      name: ent.name,
-      skillName: skillHint,
-      attackBonus: 0,
-      test: skillHint,
-      damage: ent.damage || '1d6',
-      critical: ent.critical || '20/x2',
-      range: ent.range || (isMelee ? 'Corpo a corpo' : 'Curto'),
-      special: `${ent.damageType || 'B'} • Cat ${ent.itemCategory || '0'}`,
-      proficiency: prof,
-    };
-
-    const newInv: CharacterInventoryItem = {
-      id: `inv_${Date.now()}`,
-      name: ent.name,
-      category: (ent.itemCategory || '0') as any,
-      spaces: parseInt(ent.spaces || '1', 10) || 1,
-      details: ent.summary || `Arma (${ent.damage}, ${ent.critical})`,
-      equipped: true,
-    };
-
-    await updateActiveChar({
-      attacks: [...(activeChar.attacks || []), newAttack],
-      inventory: [...(activeChar.inventory || []), newInv],
+    const newWeapon = buildCustomWeaponFromCompendiumEntity(ent);
+    await upsertCustomWeapon(newWeapon);
+    await equipWeaponToCharacter(newWeapon, activeChar.id, {
+      mode: 'shared',
+      includeAmmo: true,
     });
     setPickerModalType(null);
   };
 
-  const handleRollAttackTest = (attack: CharacterAttack) => {
+  const resolveAttackForActiveChar = (
+    attack: CharacterAttack,
+    toggles?: SituationalDamageToggles
+  ): ResolvedAttackDamage | undefined => {
+    if (!activeChar) return undefined;
+    const linked = attack.customWeaponId
+      ? customWeapons.find((w) => w.id === attack.customWeaponId)
+      : undefined;
+    return resolveAgentAttackDamage({
+      attack,
+      character: activeChar,
+      customWeapon: linked,
+      toggles,
+      profile: agentDamageProfile || undefined,
+      getEntityById,
+    });
+  };
+
+  const handleRollAttackTest = (
+    attack: CharacterAttack,
+    resolvedOverride?: ResolvedAttackDamage
+  ) => {
     if (!activeChar) return;
+    const resolved = resolvedOverride || resolveAttackForActiveChar(attack);
     const skillName = attack.skillName || (attack.range === 'Corpo a corpo' ? 'Luta' : 'Pontaria');
     const skillDef = OFFICIAL_SKILLS_LIST.find((s) => s.name === skillName);
     const attrKey = skillDef?.attr || (attack.range === 'Corpo a corpo' ? 'FOR' : 'AGI');
     const attrVal = activeChar.attributes[attrKey];
     const skillEntry = activeChar.skills[skillName] || { degree: 0, bonus: 0 };
-    const totalBonus = (skillEntry.degree || 0) + (skillEntry.bonus || 0) + (attack.attackBonus || 0);
+    const totalBonus =
+      (skillEntry.degree || 0) +
+      (skillEntry.bonus || 0) +
+      (attack.attackBonus || 0) +
+      (resolved?.attackBonusFromToggles || 0);
 
     const weaponInfo = getAttackWeaponInfo(attack);
     const profCheck = characterProficiencies
@@ -682,67 +693,94 @@ export default function CharactersScreen() {
       penaltySuffix += ' [Penalidade de Proteção: -2d20]';
     }
 
-    const parsedCrit = parseCritical(attack.critical);
+    const effectiveDamage = resolved?.displayDamage || attack.damage;
+    const effectiveCritical = resolved?.formattedCritical || attack.critical;
+    const parsedCrit = parseCritical(effectiveCritical);
     rollSkillTest(
       effectiveDice,
       totalBonus,
       `Ataque: ${attack.name} (${skillName})${penaltySuffix}`,
-      parsedCrit.threat
+      parsedCrit.threat,
+      {
+        weaponName: attack.name,
+        damage: effectiveDamage,
+        critical: effectiveCritical,
+        attackId: attack.id,
+        normalFormula: resolved?.normalFormula,
+        criticalFormula: resolved?.criticalFormula,
+      }
     );
   };
 
   const handleRollAttackDamage = (
     attack: CharacterAttack,
     isCrit: boolean,
-    chosenMode?: CriticalDamageMode
+    chosenMode?: CriticalDamageMode,
+    isMaxDamage = false,
+    resolvedOverride?: ResolvedAttackDamage
   ) => {
-    let effectiveMode: CriticalDamageMode =
+    const resolved = resolvedOverride || resolveAttackForActiveChar(attack);
+    const rawMode =
       chosenMode ||
       (attack.criticalDamageMode && attack.criticalDamageMode !== 'default'
         ? attack.criticalDamageMode
         : activeChar?.criticalDamageMode && activeChar.criticalDamageMode !== 'default'
         ? activeChar.criticalDamageMode
         : userProfile?.criticalDamageMode || 'multiply_dice');
+    const effectiveMode = normalizeCriticalDamageMode(rawMode);
 
     if (isCrit && effectiveMode === 'ask_user') {
-      Alert.alert(
-        `Crítico: ${attack.name}`,
-        'Como deseja calcular o dano crítico deste ataque?',
-        [
-          {
-            text: 'Multiplica Dados (v1.1)',
-            onPress: () => handleRollAttackDamage(attack, true, 'multiply_dice'),
-          },
-          {
-            text: 'Multiplica Total',
-            onPress: () => handleRollAttackDamage(attack, true, 'multiply_damage'),
-          },
-          {
-            text: 'Crítico Cheio (Máximo)',
-            onPress: () => handleRollAttackDamage(attack, true, 'max_damage'),
-          },
-          {
-            text: 'Cancelar',
-            style: 'cancel',
-          },
-        ]
-      );
+      setCritPromptAttack({ attack, isMaxDamage, resolved });
       return;
     }
 
+    const effectiveDamage = resolved?.displayDamage || attack.damage;
+    const effectiveCritical = resolved?.formattedCritical || attack.critical;
+
     rollWeaponDamage({
       weaponName: attack.name,
-      damage: attack.damage,
-      critical: attack.critical,
+      damage: effectiveDamage,
+      critical: effectiveCritical,
+      normalFormula: resolved?.normalFormula,
+      criticalFormula: resolved?.criticalFormula,
       isCrit,
+      isMaxDamage,
       mode: effectiveMode,
       attackContext: {
         weaponName: attack.name,
-        damage: attack.damage,
-        critical: attack.critical,
+        damage: effectiveDamage,
+        critical: effectiveCritical,
         attackId: attack.id,
+        normalFormula: resolved?.normalFormula,
+        criticalFormula: resolved?.criticalFormula,
       },
     });
+  };
+
+  const handleConfirmPreparedRoll = async ({
+    mode,
+    resolved,
+  }: {
+    mode: 'attack' | 'damage' | 'crit';
+    resolved: ResolvedAttackDamage;
+    toggles: SituationalDamageToggles;
+  }) => {
+    if (!activeChar || !prepModalAttack) return;
+    const attack = prepModalAttack;
+    setPrepModalAttack(null);
+
+    if (resolved.totalPeCost > 0) {
+      const nextPe = Math.max(0, (activeChar.peCurrent || 0) - resolved.totalPeCost);
+      await updateActiveChar({ peCurrent: nextPe });
+    }
+
+    if (mode === 'attack') {
+      handleRollAttackTest(attack, resolved);
+    } else if (mode === 'crit') {
+      handleRollAttackDamage(attack, true, undefined, false, resolved);
+    } else {
+      handleRollAttackDamage(attack, false, undefined, false, resolved);
+    }
   };
 
   // Abilities actions
@@ -2091,9 +2129,10 @@ export default function CharactersScreen() {
               <TouchableOpacity
                 style={styles.addAtkBtnGhost}
                 onPress={openNewAttackModal}
+                testID="btn-add-weapon-new"
               >
                 <Ionicons name="add" size={15} color={colors.text} />
-                <Text style={styles.addAtkBtnGhostText}>Manual</Text>
+                <Text style={styles.addAtkBtnGhostText}>Nova Arma</Text>
               </TouchableOpacity>
             </View>
 
@@ -2107,14 +2146,24 @@ export default function CharactersScreen() {
               </View>
             ) : (
               activeChar.attacks.map((atk) => {
+                const linkedWeapon = atk.customWeaponId
+                  ? customWeapons.find((w) => w.id === atk.customWeaponId)
+                  : undefined;
+                const resolvedAttack = resolveAttackForActiveChar(atk);
+                const effectiveDamageText = resolvedAttack ? resolvedAttack.displayDamage : atk.damage;
+                const effectiveCritText = resolvedAttack ? resolvedAttack.formattedCritical : atk.critical;
+                const passiveBadgeComponents = (resolvedAttack?.breakdown || []).filter(
+                  (b) => b.source !== 'Base da Arma'
+                );
+
                 const openAttackPreview = () =>
                   openRecordPreview({
                     target: {
                       kind: 'character_attack',
                       attack: atk,
-                      customWeapon: atk.customWeaponId
-                        ? customWeapons.find((w) => w.id === atk.customWeaponId)
-                        : undefined,
+                      customWeapon: linkedWeapon,
+                      character: activeChar,
+                      resolvedDamage: resolvedAttack,
                     },
                   });
                 return (
@@ -2152,6 +2201,20 @@ export default function CharactersScreen() {
                           }
                           return null;
                         })()}
+                        {passiveBadgeComponents.length > 0 ? (
+                          <View
+                            style={styles.attackBadgesRow}
+                            testID={`sheet-attack-badges-${atk.id}`}
+                          >
+                            {passiveBadgeComponents.map((comp, bIdx) => (
+                              <View key={`${comp.source}_${bIdx}`} style={styles.attackModBadge}>
+                                <Text style={styles.attackModBadgeText}>
+                                  {comp.source} ({comp.expression})
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <TouchableOpacity
@@ -2176,12 +2239,9 @@ export default function CharactersScreen() {
                           <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
                         </TouchableOpacity>
                         <TouchableOpacity
-                          onPress={() =>
-                            updateActiveChar({
-                              attacks: (activeChar.attacks || []).filter((a) => a.id !== atk.id),
-                            })
-                          }
+                          onPress={() => setDeleteAttackChoice(atk)}
                           testID={`sheet-attack-delete-${atk.id}`}
+                          accessibilityLabel={`Remover arma ${atk.name}`}
                         >
                           <Ionicons name="trash-outline" size={18} color="#EF4444" />
                         </TouchableOpacity>
@@ -2191,11 +2251,24 @@ export default function CharactersScreen() {
                     <View style={styles.attackStatsRow}>
                       <View style={styles.statPill}>
                         <Text style={styles.statLabel}>DANO</Text>
-                        <Text style={styles.statValue}>{atk.damage}</Text>
+                        <Text
+                          style={styles.statValue}
+                          testID={`sheet-attack-effective-damage-${atk.id}`}
+                        >
+                          {effectiveDamageText}
+                        </Text>
+                        {effectiveDamageText !== atk.damage ? (
+                          <Text
+                            style={styles.statBaseSub}
+                            testID={`sheet-attack-base-damage-${atk.id}`}
+                          >
+                            Base: {atk.damage}
+                          </Text>
+                        ) : null}
                       </View>
                       <View style={styles.statPill}>
                         <Text style={styles.statLabel}>CRÍTICO</Text>
-                        <Text style={styles.statValue}>{atk.critical}</Text>
+                        <Text style={styles.statValue}>{effectiveCritText}</Text>
                       </View>
                       <View style={styles.statPill}>
                         <Text style={styles.statLabel}>ALCANCE</Text>
@@ -2234,11 +2307,25 @@ export default function CharactersScreen() {
                       </TouchableOpacity>
                     ) : null}
 
+                    <TouchableOpacity
+                      style={styles.prepareAttackBtn}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        setPrepModalAttack(atk);
+                      }}
+                      testID={`sheet-attack-prepare-${atk.id}`}
+                      accessibilityLabel={`Preparar golpe tático com ${atk.name}`}
+                    >
+                      <Ionicons name="options-outline" size={15} color="#A855F7" />
+                      <Text style={styles.prepareAttackBtnText}>Preparar Golpe Tático</Text>
+                    </TouchableOpacity>
+
                     {/* Rolagens do Ataque */}
                     <View style={styles.attackRollsRow}>
                       <TouchableOpacity
                         style={styles.rollAttackBtn}
-                        onPress={() => handleRollAttackTest(atk)}
+                        onPress={() => handleRollAttackTest(atk, resolvedAttack)}
+                        testID={`sheet-attack-roll-test-${atk.id}`}
                       >
                         <Ionicons name="dice" size={15} color="#FFF" />
                         <Text style={styles.rollAttackBtnText}>Testar Ataque</Text>
@@ -2246,18 +2333,39 @@ export default function CharactersScreen() {
 
                       <TouchableOpacity
                         style={styles.rollDamageBtn}
-                        onPress={() => handleRollAttackDamage(atk, false)}
+                        onPress={() =>
+                          handleRollAttackDamage(atk, false, undefined, false, resolvedAttack)
+                        }
+                        testID={`sheet-attack-roll-damage-${atk.id}`}
                       >
                         <Ionicons name="flash-outline" size={14} color="#FFF" />
-                        <Text style={styles.rollDamageBtnText}>Dano ({atk.damage})</Text>
+                        <Text style={styles.rollDamageBtnText}>
+                          Dano ({effectiveDamageText})
+                        </Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
                         style={styles.rollCritBtn}
-                        onPress={() => handleRollAttackDamage(atk, true)}
+                        onPress={() =>
+                          handleRollAttackDamage(atk, true, undefined, false, resolvedAttack)
+                        }
+                        testID={`sheet-attack-roll-crit-${atk.id}`}
                       >
                         <Ionicons name="flame" size={14} color="#FFF" />
-                        <Text style={styles.rollCritBtnText}>Crítico ({atk.critical})</Text>
+                        <Text style={styles.rollCritBtnText}>
+                          Crítico ({effectiveCritText})
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.rollCritMaxBtn}
+                        onPress={() =>
+                          handleRollAttackDamage(atk, true, undefined, true, resolvedAttack)
+                        }
+                        testID={`sheet-attack-roll-crit-max-${atk.id}`}
+                      >
+                        <Ionicons name="flash" size={14} color="#FDE047" />
+                        <Text style={styles.rollCritMaxBtnText}>Crítico Máx</Text>
                       </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
@@ -2510,6 +2618,11 @@ export default function CharactersScreen() {
                 isEntity: boolean;
                 categoryGroup: 'class_power' | 'paranormal_power' | 'ritual' | 'general';
                 element?: string;
+                ritualEntity?: Partial<CompendiumEntity> & {
+                  name: string;
+                  description?: string;
+                  cost?: string;
+                };
               };
 
               const unifiedList: UnifiedAbility[] = [];
@@ -2537,6 +2650,10 @@ export default function CharactersScreen() {
                   group = 'class_power';
                 }
 
+                const extractedElem = (ab.originPage || '').match(/Sangue|Morte|Conhecimento|Energia|Medo/i)?.[0] as
+                  | ParanormalElement
+                  | undefined;
+
                 unifiedList.push({
                   id: ab.id,
                   name: ab.name,
@@ -2545,6 +2662,17 @@ export default function CharactersScreen() {
                   description: ab.description,
                   isEntity: false,
                   categoryGroup: group,
+                  element: extractedElem,
+                  ritualEntity:
+                    group === 'ritual'
+                      ? {
+                          id: ab.id,
+                          name: ab.name,
+                          description: ab.description,
+                          cost: ab.cost,
+                          element: extractedElem,
+                        }
+                      : undefined,
                 });
               });
 
@@ -2572,6 +2700,7 @@ export default function CharactersScreen() {
                   isEntity: true,
                   categoryGroup: group,
                   element: ent.element,
+                  ritualEntity: ent.category === 'ritual' ? ent : undefined,
                 });
               });
 
@@ -2605,6 +2734,22 @@ export default function CharactersScreen() {
                     });
                   }
                 };
+
+                const selectedTier = ritualTierById[item.id] || 'padrao';
+                const resolvedRitual =
+                  item.categoryGroup === 'ritual' && item.ritualEntity
+                    ? resolveAgentRitualDamage({
+                        ritual: item.ritualEntity,
+                        character: activeChar,
+                        tier: selectedTier,
+                        profile: agentDamageProfile || undefined,
+                        getEntityById,
+                      })
+                    : null;
+
+                const ritualPowerBadges = (resolvedRitual?.breakdown || []).filter(
+                  (b) => !b.source.startsWith('Ritual (') && b.source !== 'Bônus Base do Ritual'
+                );
 
                 return (
                   <TouchableOpacity
@@ -2665,6 +2810,107 @@ export default function CharactersScreen() {
                     </View>
                     {item.description ? (
                       <Text style={styles.abilityCardDesc}>{item.description}</Text>
+                    ) : null}
+                    {resolvedRitual ? (
+                      <View style={styles.ritualControlBox}>
+                        <View
+                          style={styles.ritualBadgesRow}
+                          testID={`ritual-badges-${item.id}`}
+                        >
+                          <View style={styles.ritualDtBadge} testID={`ritual-dt-${item.id}`}>
+                            <Text style={styles.ritualDtBadgeText}>
+                              DT {resolvedRitual.dtResistance}
+                            </Text>
+                          </View>
+                          <View style={styles.ritualModBadge}>
+                            <Text style={styles.ritualModBadgeText}>
+                              {resolvedRitual.totalPeCost} PE
+                            </Text>
+                          </View>
+                          {ritualPowerBadges.map((b, idx) => (
+                            <View key={`${b.source}_${idx}`} style={styles.ritualModBadge}>
+                              <Text style={styles.ritualModBadgeText}>
+                                {b.source} ({b.expression})
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+
+                        <View style={styles.ritualTierRow}>
+                          {(['padrao', 'discente', 'verdadeiro'] as const).map((tier) => {
+                            const active = selectedTier === tier;
+                            const label =
+                              tier === 'padrao'
+                                ? 'Padrão'
+                                : tier === 'discente'
+                                ? 'Discente'
+                                : 'Verdadeiro';
+                            return (
+                              <TouchableOpacity
+                                key={tier}
+                                style={[
+                                  styles.ritualTierPill,
+                                  active && styles.ritualTierPillActive,
+                                ]}
+                                onPress={(e) => {
+                                  e.stopPropagation?.();
+                                  setRitualTierById((prev) => ({
+                                    ...prev,
+                                    [item.id]: tier,
+                                  }));
+                                }}
+                                testID={`ritual-tier-${item.id}-${tier}`}
+                              >
+                                <Text
+                                  style={[
+                                    styles.ritualTierPillText,
+                                    active && styles.ritualTierPillTextActive,
+                                  ]}
+                                >
+                                  {label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.ritualRollBtn}
+                          onPress={async (e) => {
+                            e.stopPropagation?.();
+                            const tierLabel =
+                              selectedTier === 'padrao'
+                                ? 'Padrão'
+                                : selectedTier === 'discente'
+                                ? 'Discente'
+                                : 'Verdadeiro';
+                            const nextPe = Math.max(
+                              0,
+                              (activeChar.peCurrent || 0) - resolvedRitual.totalPeCost
+                            );
+                            await updateActiveChar({ peCurrent: nextPe });
+                            if (resolvedRitual.hasDamageFormula && resolvedRitual.rollFormula) {
+                              rollFormula(
+                                resolvedRitual.rollFormula,
+                                `${item.name} (${tierLabel})`
+                              );
+                            } else {
+                              Alert.alert(
+                                'Ritual Conjurado',
+                                `"${item.name}" (${tierLabel}) conjurado! -${resolvedRitual.totalPeCost} PE (DT ${resolvedRitual.dtResistance}). PE restante: ${nextPe}/${activeChar.peMax}`
+                              );
+                            }
+                          }}
+                          testID={`ritual-roll-damage-${item.id}`}
+                        >
+                          <Ionicons name="sparkles" size={14} color="#FFF" />
+                          <Text style={styles.ritualRollBtnText}>
+                            {resolvedRitual.hasDamageFormula
+                              ? `Conjurar & Rolar (${resolvedRitual.displayDamage})`
+                              : `Conjurar Ritual (${resolvedRitual.totalPeCost} PE)`}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     ) : null}
                   </TouchableOpacity>
                 );
@@ -2873,6 +3119,17 @@ export default function CharactersScreen() {
                 <Ionicons name="add" size={15} color="#FFF" />
                 <Text style={styles.addAtkBtnText}>Novo Item</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.addAtkBtnSecondary}
+                onPress={() => {
+                  setPickerSearch('');
+                  setPickerModalType('add_item_compendium');
+                }}
+              >
+                <Ionicons name="book-outline" size={15} color="#FFF" />
+                <Text style={styles.addAtkBtnText}>Do Compêndio</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Lista de Itens */}
@@ -3072,111 +3329,202 @@ export default function CharactersScreen() {
       </ScrollView>
 
       {/* ============================================================ */}
-      {/* MODAL: Novo Ataque Manual                                    */}
+      {/* MODAL UNIFICADO: Editor Completo de Arma (Armaria <-> Agente) */}
       {/* ============================================================ */}
+      <WeaponEditorModal
+        visible={weaponEditorVisible}
+        onClose={() => {
+          setWeaponEditorVisible(false);
+          setEditingWeapon(null);
+          setEditingLegacyAttack(null);
+        }}
+        initialWeapon={editingWeapon}
+        onSave={handleSaveAgentWeapon}
+        saveButtonLabel={editingWeapon ? 'Salvar Arma e Sincronizar' : 'Criar e Equipar Arma'}
+        linkedAgentNames={
+          editingWeapon
+            ? characters
+                .filter((c) => (c.attacks || []).some((a) => a.customWeaponId === editingWeapon.id))
+                .map((c) => c.name)
+            : undefined
+        }
+      />
+
+      {/* MODAL: Preparação de Golpe Tático */}
+      {activeChar && agentDamageProfile ? (
+        <AttackPreparationModal
+          visible={prepModalAttack !== null}
+          attack={prepModalAttack}
+          character={activeChar}
+          customWeapon={
+            prepModalAttack?.customWeaponId
+              ? customWeapons.find((w) => w.id === prepModalAttack.customWeaponId)
+              : undefined
+          }
+          profile={agentDamageProfile}
+          onClose={() => setPrepModalAttack(null)}
+          onConfirmRoll={handleConfirmPreparedRoll}
+        />
+      ) : null}
+
+      {/* MODAL: Escolha do modo de Crítico ("Perguntar Sempre") */}
+      <CriticalModePromptModal
+        visible={critPromptAttack !== null}
+        weaponName={critPromptAttack?.attack.name}
+        isMaxDamage={critPromptAttack?.isMaxDamage}
+        onClose={() => setCritPromptAttack(null)}
+        onSelect={(mode) => {
+          if (!critPromptAttack) return;
+          const target = critPromptAttack;
+          setCritPromptAttack(null);
+          handleRollAttackDamage(target.attack, true, mode, target.isMaxDamage, target.resolved);
+        }}
+      />
+
+      {/* MODAL: Escolha ao Importar Arma da Armaria (Usar a Mesma vs Duplicar) */}
       <Modal
-        visible={attackModalVisible}
-        animationType="slide"
-        onRequestClose={() => setAttackModalVisible(false)}
+        visible={importChoiceWeapon !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setImportChoiceWeapon(null)}
       >
-        <View style={styles.modalWrap}>
-          <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 14) }]}>
-            <Text style={styles.modalTitle}>
-              {editingAttackId ? 'Editar Ataque / Arma' : 'Novo Ataque / Arma'}
+        <View style={styles.weaponChoiceOverlay}>
+          <View style={styles.weaponChoiceCard}>
+            <View style={styles.weaponChoiceHeader}>
+              <Text style={styles.weaponChoiceTitle}>Importar da Armaria</Text>
+              <TouchableOpacity
+                onPress={() => setImportChoiceWeapon(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.weaponChoiceSub}>
+              Como deseja adicionar "{importChoiceWeapon?.name}" à ficha de {activeChar?.name}?
             </Text>
-            <TouchableOpacity onPress={() => setAttackModalVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close" size={24} color={colors.text} />
+
+            <TouchableOpacity
+              style={styles.weaponChoiceBtn}
+              onPress={() => handleConfirmImportArmariaWeapon('shared')}
+              testID="btn-import-weapon-shared"
+            >
+              <Ionicons name="link" size={18} color="#38BDF8" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.weaponChoiceBtnTitle}>Usar a Mesma (Vinculada)</Text>
+                <Text style={styles.weaponChoiceBtnDesc}>
+                  Qualquer edição na Armaria ou neste agente atualiza os dois lados automaticamente.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.weaponChoiceBtn}
+              onPress={() => handleConfirmImportArmariaWeapon('duplicate')}
+              testID="btn-import-weapon-duplicate"
+            >
+              <Ionicons name="copy-outline" size={18} color="#10B981" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.weaponChoiceBtnTitle}>
+                  Duplicar ({importChoiceWeapon?.name} ({activeChar?.name || 'Agente'}))
+                </Text>
+                <Text style={styles.weaponChoiceBtnDesc}>
+                  Cria uma cópia independente na Armaria com o nome atual do agente; edições futuras não afetam a original.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.weaponChoiceCancelBtn}
+              onPress={() => {
+                setImportChoiceWeapon(null);
+                setPickerModalType('add_weapon_armaria');
+              }}
+              testID="btn-import-weapon-cancel"
+            >
+              <Text style={styles.weaponChoiceCancelText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
 
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom + 24, 34), gap: 12 }}>
-            <View>
-              <Text style={styles.fieldLabel}>Nome do Ataque / Arma</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Fuzil de Precisão Modificado"
-                placeholderTextColor={colors.textMuted}
-                value={atkName}
-                onChangeText={setAtkName}
-              />
+      {/* MODAL: Confirmação de Remoção de Arma no Agente */}
+      <Modal
+        visible={deleteAttackChoice !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setDeleteAttackChoice(null)}
+      >
+        <View style={styles.weaponChoiceOverlay}>
+          <View style={styles.weaponChoiceCard}>
+            <View style={styles.weaponChoiceHeader}>
+              <Text style={styles.weaponChoiceTitle}>Remover Arma</Text>
+              <TouchableOpacity
+                onPress={() => setDeleteAttackChoice(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={colors.text} />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Perícia Base</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Pontaria ou Luta"
-                  placeholderTextColor={colors.textMuted}
-                  value={atkSkill}
-                  onChangeText={setAtkSkill}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Bônus no Teste (+X)</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="numeric"
-                  placeholder="Ex: 2"
-                  placeholderTextColor={colors.textMuted}
-                  value={atkBonus}
-                  onChangeText={setAtkBonus}
-                />
-              </View>
-            </View>
+            <Text style={styles.weaponChoiceSub}>
+              Deseja remover "{deleteAttackChoice?.name}" apenas da ficha de {activeChar?.name} ou também excluí-la da Armaria?
+            </Text>
 
-            <View style={styles.row}>
+            <TouchableOpacity
+              style={styles.weaponChoiceBtn}
+              onPress={async () => {
+                if (!activeChar || !deleteAttackChoice) return;
+                const target = deleteAttackChoice;
+                setDeleteAttackChoice(null);
+                await removeAttackFromCharacter(activeChar.id, target.id, {
+                  alsoDeleteFromArmory: false,
+                });
+              }}
+              testID="btn-delete-attack-agent-only"
+            >
+              <Ionicons name="person-remove-outline" size={18} color="#F59E0B" />
               <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Dano</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: 2d10+2"
-                  placeholderTextColor={colors.textMuted}
-                  value={atkDamage}
-                  onChangeText={setAtkDamage}
-                />
+                <Text style={styles.weaponChoiceBtnTitle}>Remover só do Agente</Text>
+                <Text style={styles.weaponChoiceBtnDesc}>
+                  Remove o ataque e os itens vinculados desta ficha, mantendo a arma na Armaria.
+                </Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Crítico</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: 18/x3"
-                  placeholderTextColor={colors.textMuted}
-                  value={atkCritical}
-                  onChangeText={setAtkCritical}
-                />
-              </View>
-            </View>
-
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Alcance</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: Médio, Longo"
-                  placeholderTextColor={colors.textMuted}
-                  value={atkRange}
-                  onChangeText={setAtkRange}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Especial / Notas</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: Balístico, Mira Laser"
-                  placeholderTextColor={colors.textMuted}
-                  value={atkSpecial}
-                  onChangeText={setAtkSpecial}
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.saveHeaderBtnLarge} onPress={handleSaveAttack}>
-              <Text style={styles.saveHeaderBtnText}>
-                {editingAttackId ? 'Salvar Alterações' : 'Salvar Ataque'}
-              </Text>
             </TouchableOpacity>
-          </ScrollView>
+
+            {deleteAttackChoice?.customWeaponId ? (
+              <TouchableOpacity
+                style={[styles.weaponChoiceBtn, { borderColor: 'rgba(239, 68, 68, 0.45)', backgroundColor: 'rgba(239, 68, 68, 0.08)' }]}
+                onPress={async () => {
+                  if (!activeChar || !deleteAttackChoice) return;
+                  const target = deleteAttackChoice;
+                  setDeleteAttackChoice(null);
+                  await removeAttackFromCharacter(activeChar.id, target.id, {
+                    alsoDeleteFromArmory: true,
+                  });
+                }}
+                testID="btn-delete-attack-and-armory"
+              >
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.weaponChoiceBtnTitle, { color: '#EF4444' }]}>
+                    Remover do Agente e da Armaria
+                  </Text>
+                  <Text style={styles.weaponChoiceBtnDesc}>
+                    Exclui permanentemente a arma da Armaria e desvincula de todos os agentes que a utilizam.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity
+              style={styles.weaponChoiceCancelBtn}
+              onPress={() => setDeleteAttackChoice(null)}
+              testID="btn-delete-attack-cancel"
+            >
+              <Text style={styles.weaponChoiceCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -3593,6 +3941,8 @@ export default function CharactersScreen() {
                 ? 'Vincular da Armaria'
                 : pickerModalType === 'add_weapon_compendium'
                 ? 'Vincular do Compêndio'
+                : pickerModalType === 'add_item_compendium'
+                ? 'Adicionar Item do Compêndio'
                 : 'Selecionar do Compêndio'}
             </Text>
             <TouchableOpacity onPress={() => setPickerModalType(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -3748,13 +4098,23 @@ export default function CharactersScreen() {
                     ? classesList
                     : pickerModalType === 'track'
                     ? tracksList
+                    : pickerModalType === 'add_item_compendium'
+                    ? equipableEntities.filter((e) => e.category === 'item' || e.category === 'weapon')
                     : equipableEntities;
 
                 if (pickerModalType === 'link_compendium') {
                   if (compendiumFilterTab === 'class_powers') {
                     baseList = baseList.filter((e) => {
                       const sub = (e.subCategory || '').toLowerCase();
-                      return e.category === 'power' && (sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista'));
+                      return (
+                        e.category === 'power' &&
+                        (sub.includes('combatente') ||
+                          sub.includes('especialista') ||
+                          sub.includes('ocultista') ||
+                          sub.includes('geral') ||
+                          sub.includes('intenção') ||
+                          sub.includes('intencao'))
+                      );
                     });
                   } else if (compendiumFilterTab === 'paranormal_powers') {
                     baseList = baseList.filter((e) => {
@@ -3817,6 +4177,33 @@ export default function CharactersScreen() {
                             skills: updatedSkills,
                           });
                         }
+                      } else if (pickerModalType === 'add_item_compendium') {
+                        const existing = activeChar.inventory || [];
+                        const textBlob = `${item.subCategory || ''} ${item.description || ''}`.toLowerCase();
+                        const detectedType: 'geral' | 'vestimenta' | 'utensilio' =
+                          textBlob.includes('vestimenta')
+                            ? 'vestimenta'
+                            : textBlob.includes('utensílio') || textBlob.includes('utensilio')
+                            ? 'utensilio'
+                            : 'geral';
+                        const validCats = ['0', 'I', 'II', 'III', 'IV'] as const;
+                        const normalizedCat = validCats.includes((item.itemCategory || '') as any)
+                          ? (item.itemCategory as '0' | 'I' | 'II' | 'III' | 'IV')
+                          : 'I';
+                        const parsedSpaces = parseFloat(String(item.spaces || '1').replace(',', '.'));
+                        const invSpaces = Number.isFinite(parsedSpaces) && parsedSpaces >= 0 ? parsedSpaces : 1;
+                        const newInvItem: CharacterInventoryItem = {
+                          id: `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                          name: item.name,
+                          category: normalizedCat,
+                          spaces: invSpaces,
+                          details: item.description || item.summary || '',
+                          equipped: true,
+                          itemType: detectedType,
+                          isVestimenta: detectedType === 'vestimenta',
+                          isUtensilio: detectedType === 'utensilio',
+                        };
+                        await updateActiveChar({ inventory: [...existing, newInvItem] });
                       }
                       setPickerModalType(null);
                     };
@@ -4821,6 +5208,89 @@ export const createStyles = (colors: ThemeColors) =>
     fontSize: 10,
     fontWeight: '800',
   },
+  rollCritMaxBtn: {
+    flex: 1,
+    minWidth: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#7F1D1D',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  rollCritMaxBtnText: {
+    color: '#FEF08A',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  weaponChoiceOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  weaponChoiceCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 18,
+    gap: 10,
+  },
+  weaponChoiceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  weaponChoiceTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  weaponChoiceSub: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  weaponChoiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 12,
+  },
+  weaponChoiceBtnTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  weaponChoiceBtnDesc: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  weaponChoiceCancelBtn: {
+    marginTop: 2,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  weaponChoiceCancelText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   skillOfficialRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -5351,6 +5821,134 @@ export const createStyles = (colors: ThemeColors) =>
   },
   bonusPillTextActive: {
     color: '#FFF',
+    fontWeight: '800',
+  },
+  attackBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 6,
+  },
+  attackModBadge: {
+    backgroundColor: 'rgba(168, 85, 247, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.35)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  attackModBadgeText: {
+    color: '#D8B4FE',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  statBaseSub: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  prepareAttackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 40,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.45)',
+    marginTop: 6,
+  },
+  prepareAttackBtnText: {
+    color: '#E9D5FF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  ritualControlBox: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 8,
+  },
+  ritualBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  ritualDtBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  ritualDtBadgeText: {
+    color: '#FCA5A5',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  ritualModBadge: {
+    backgroundColor: 'rgba(168, 85, 247, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.35)',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  ritualModBadgeText: {
+    color: '#D8B4FE',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  ritualTierRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  ritualTierPill: {
+    flex: 1,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+  },
+  ritualTierPillActive: {
+    backgroundColor: 'rgba(168, 85, 247, 0.25)',
+    borderColor: '#A855F7',
+  },
+  ritualTierPillText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  ritualTierPillTextActive: {
+    color: '#FFF',
+    fontWeight: '800',
+  },
+  ritualRollBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 40,
+    borderRadius: 8,
+    backgroundColor: '#7C3AED',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  ritualRollBtnText: {
+    color: '#FFF',
+    fontSize: 12,
     fontWeight: '800',
   },
 });

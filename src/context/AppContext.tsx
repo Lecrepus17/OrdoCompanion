@@ -8,6 +8,7 @@ import {
   CampaignInitiativeEntry,
   CampaignMonster,
   CampaignStoryScene,
+  CharacterAttack,
   CharacterSheet,
   CompendiumEntity,
   CompendiumFilters,
@@ -19,7 +20,20 @@ import {
   WeaponAttackContext,
 } from '../types/compendium';
 import { defaultRepository } from '../repositories/OfflineDataRepository';
-import { rollDiceFormula, rollOrdemTest, rollWeaponDamage, WeaponDamageRollOptions } from '../utils/dice';
+import {
+  normalizeCriticalDamageMode,
+  rollDiceFormula,
+  rollOrdemTest,
+  rollWeaponDamage,
+  WeaponDamageRollOptions,
+} from '../utils/dice';
+import {
+  buildAttackFromCustomWeapon,
+  buildInventoryItemsFromCustomWeapon,
+  cloneCustomWeaponForAgent,
+  migrateCharacterLegacyAttacksToArmory,
+  syncCharacterWithCustomWeapon,
+} from '../utils/weapons';
 import {
   cloudSyncManager,
   SyncExecutionResult,
@@ -123,6 +137,16 @@ interface AppContextValue {
   customWeapons: CustomWeapon[];
   upsertCustomWeapon: (weapon: CustomWeapon) => Promise<void>;
   deleteCustomWeapon: (weaponId: string) => Promise<void>;
+  equipWeaponToCharacter: (
+    weapon: CustomWeapon,
+    charId: string,
+    options: { mode: 'shared' | 'duplicate'; includeAmmo?: boolean }
+  ) => Promise<{ weapon: CustomWeapon; attack: CharacterAttack } | null>;
+  removeAttackFromCharacter: (
+    charId: string,
+    attackId: string,
+    options?: { alsoDeleteFromArmory?: boolean }
+  ) => Promise<void>;
 
   // Dice Roller & Toast
   rollHistory: DiceRollResult[];
@@ -335,25 +359,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     (async () => {
       await defaultRepository.initialize();
-      const [favs, lists, chars, camps, weapons, profile] = await Promise.all([
+      const [favs, lists, chars, camps, weapons, profile, deletedWeaponIds] = await Promise.all([
         defaultRepository.getFavorites(),
         defaultRepository.getSavedLists(),
         defaultRepository.getCharacters(),
         defaultRepository.getCampaigns(),
         defaultRepository.getCustomWeapons(),
         defaultRepository.getUserProfile(),
+        defaultRepository.getDeletedCustomWeaponIds(),
       ]);
+      const allEntities = defaultRepository.getAllEntities();
+      const migrated = migrateCharacterLegacyAttacksToArmory(
+        chars,
+        weapons,
+        allEntities,
+        deletedWeaponIds
+      );
+      if (migrated.changed) {
+        await Promise.all([
+          defaultRepository.saveCharacters(migrated.characters),
+          defaultRepository.saveCustomWeapons(migrated.customWeapons),
+        ]);
+      }
+      const normalizedProfile: UserProfile = {
+        ...profile,
+        criticalDamageMode: normalizeCriticalDamageMode(profile.criticalDamageMode),
+      };
       setFavoritesArr(favs);
       setSavedLists(lists);
-      setCharacters(chars);
+      setCharacters(migrated.characters);
       setCampaigns(camps);
       if (camps.length > 0) {
         setActiveCampaignId(camps[0].id);
       }
-      setCustomWeapons(weapons);
-      setUserProfile(profile);
-      if (profile.listingColumns === 1 || profile.listingColumns === 2) {
-        setListingColumnsState(profile.listingColumns);
+      setCustomWeapons(migrated.customWeapons);
+      setUserProfile(normalizedProfile);
+      if (normalizedProfile.listingColumns === 1 || normalizedProfile.listingColumns === 2) {
+        setListingColumnsState(normalizedProfile.listingColumns);
       }
 
       // Inicializa CloudSyncManager
@@ -780,6 +822,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       defaultRepository.saveCustomWeapons(next);
       return next;
     });
+    // Propaga automaticamente edições da arma da Armaria para todos os agentes vinculados
+    setCharacters((prevChars) => {
+      let anyChanged = false;
+      const nextChars = prevChars.map((c) => {
+        const synced = syncCharacterWithCustomWeapon(c, weapon);
+        if (synced.changed) {
+          anyChanged = true;
+          return synced.updated;
+        }
+        return c;
+      });
+      if (anyChanged) {
+        defaultRepository.saveCharacters(nextChars);
+      }
+      return anyChanged ? nextChars : prevChars;
+    });
     cloudSyncManager.scheduleAutoSync();
   }, []);
 
@@ -789,8 +847,144 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       defaultRepository.saveCustomWeapons(next);
       return next;
     });
+    // Remove referências da arma excluída nos agentes vinculados (ataques e itens de inventário)
+    setCharacters((prevChars) => {
+      let anyChanged = false;
+      const now = new Date().toISOString();
+      const nextChars = prevChars.map((c) => {
+        const hasAttack = (c.attacks || []).some((a) => a.customWeaponId === weaponId);
+        const hasInv = (c.inventory || []).some(
+          (it) => it.customWeaponId === weaponId || it.isAmmoForWeaponId === weaponId
+        );
+        if (!hasAttack && !hasInv) return c;
+        anyChanged = true;
+        return {
+          ...c,
+          attacks: (c.attacks || []).filter((a) => a.customWeaponId !== weaponId),
+          inventory: (c.inventory || []).filter(
+            (it) => it.customWeaponId !== weaponId && it.isAmmoForWeaponId !== weaponId
+          ),
+          updatedAt: now,
+        };
+      });
+      if (anyChanged) {
+        defaultRepository.saveCharacters(nextChars);
+      }
+      return anyChanged ? nextChars : prevChars;
+    });
+    await defaultRepository.markCustomWeaponDeleted(weaponId);
     cloudSyncManager.scheduleAutoSync();
   }, []);
+
+  const equipWeaponToCharacter = useCallback(
+    async (
+      weapon: CustomWeapon,
+      charId: string,
+      options: { mode: 'shared' | 'duplicate'; includeAmmo?: boolean }
+    ): Promise<{ weapon: CustomWeapon; attack: CharacterAttack } | null> => {
+      const targetChar = characters.find((c) => c.id === charId);
+      if (!targetChar) return null;
+
+      const effectiveWeapon =
+        options.mode === 'duplicate'
+          ? cloneCustomWeaponForAgent(weapon, targetChar.name)
+          : weapon;
+
+      setCustomWeapons((prev) => {
+        const exists = prev.some((w) => w.id === effectiveWeapon.id);
+        const next = exists
+          ? prev.map((w) => (w.id === effectiveWeapon.id ? effectiveWeapon : w))
+          : [effectiveWeapon, ...prev];
+        defaultRepository.saveCustomWeapons(next);
+        return next;
+      });
+
+      const newAttack = buildAttackFromCustomWeapon(effectiveWeapon, {
+        linkMode: options.mode === 'duplicate' ? 'copied' : 'shared',
+        sourceWeaponId: options.mode === 'duplicate' ? weapon.id : undefined,
+      });
+
+      const { weaponItem, ammoItem } = buildInventoryItemsFromCustomWeapon(effectiveWeapon, {
+        attackId: newAttack.id,
+        includeAmmo: options.includeAmmo !== false,
+      });
+
+      const newItems = ammoItem ? [weaponItem, ammoItem] : [weaponItem];
+      const now = new Date().toISOString();
+
+      setCharacters((prevChars) => {
+        const nextChars = prevChars.map((c) => {
+          if (c.id !== charId) return c;
+          return {
+            ...c,
+            attacks: [...(c.attacks || []), newAttack],
+            inventory: [...(c.inventory || []), ...newItems],
+            updatedAt: now,
+          };
+        });
+        defaultRepository.saveCharacters(nextChars);
+        return nextChars;
+      });
+
+      cloudSyncManager.scheduleAutoSync();
+      return { weapon: effectiveWeapon, attack: newAttack };
+    },
+    [characters]
+  );
+
+  const removeAttackFromCharacter = useCallback(
+    async (
+      charId: string,
+      attackId: string,
+      options?: { alsoDeleteFromArmory?: boolean }
+    ) => {
+      let weaponIdToDelete: string | undefined;
+      const now = new Date().toISOString();
+
+      setCharacters((prevChars) => {
+        const nextChars = prevChars.map((c) => {
+          if (c.id !== charId) return c;
+          const targetAtk = (c.attacks || []).find((a) => a.id === attackId);
+          if (!targetAtk) return c;
+          weaponIdToDelete = targetAtk.customWeaponId;
+          const remainingAttacks = (c.attacks || []).filter((a) => a.id !== attackId);
+          const stillHasSameWeapon =
+            Boolean(targetAtk.customWeaponId) &&
+            remainingAttacks.some((a) => a.customWeaponId === targetAtk.customWeaponId);
+
+          const remainingInventory = (c.inventory || []).filter((it) => {
+            if (it.linkedAttackId === attackId) return false;
+            if (
+              !it.linkedAttackId &&
+              !stillHasSameWeapon &&
+              targetAtk.customWeaponId &&
+              (it.customWeaponId === targetAtk.customWeaponId ||
+                it.isAmmoForWeaponId === targetAtk.customWeaponId)
+            ) {
+              return false;
+            }
+            return true;
+          });
+
+          return {
+            ...c,
+            attacks: remainingAttacks,
+            inventory: remainingInventory,
+            updatedAt: now,
+          };
+        });
+        defaultRepository.saveCharacters(nextChars);
+        return nextChars;
+      });
+
+      if (options?.alsoDeleteFromArmory && weaponIdToDelete) {
+        await deleteCustomWeapon(weaponIdToDelete);
+      } else {
+        cloudSyncManager.scheduleAutoSync();
+      }
+    },
+    [deleteCustomWeapon]
+  );
 
   // Rolagens e Transmissão para a Mesa Virtual
   const broadcastRollToTable = useCallback(
@@ -846,7 +1040,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const rollWeaponDamageAction = useCallback(
     (options: WeaponDamageRollOptions) => {
-      const effectiveMode = options.mode || userProfile.criticalDamageMode || 'multiply_dice';
+      const effectiveMode = normalizeCriticalDamageMode(options.mode || userProfile.criticalDamageMode);
       const res = rollWeaponDamage({ ...options, mode: effectiveMode });
       setLatestRoll(res);
       setRollHistory((prev) => [res, ...prev.slice(0, 49)]);
@@ -990,19 +1184,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [updateUserProfile]);
 
   const reloadFromRepository = useCallback(async () => {
-    const [favs, lists, chars, camps, weapons, profile] = await Promise.all([
+    const [favs, lists, chars, camps, weapons, deletedWeaponIds, rawProfile] = await Promise.all([
       defaultRepository.getFavorites(),
       defaultRepository.getSavedLists(),
       defaultRepository.getCharacters(),
       defaultRepository.getCampaigns(),
       defaultRepository.getCustomWeapons(),
+      defaultRepository.getDeletedCustomWeaponIds(),
       defaultRepository.getUserProfile(),
     ]);
+    const normalizedMode = normalizeCriticalDamageMode(rawProfile.criticalDamageMode);
+    const profile: UserProfile =
+      rawProfile.criticalDamageMode !== normalizedMode
+        ? { ...rawProfile, criticalDamageMode: normalizedMode }
+        : rawProfile;
+    if (profile !== rawProfile) {
+      await defaultRepository.saveUserProfile(profile);
+    }
+
+    const allEntities = defaultRepository.getAllEntities();
+    const migration = migrateCharacterLegacyAttacksToArmory(
+      chars,
+      weapons,
+      allEntities,
+      deletedWeaponIds
+    );
+    if (migration.changed) {
+      await Promise.all([
+        defaultRepository.saveCustomWeapons(migration.customWeapons),
+        defaultRepository.saveCharacters(migration.characters),
+      ]);
+    }
+
     setFavoritesArr(favs);
     setSavedLists(lists);
-    setCharacters(chars);
+    setCharacters(migration.characters);
     setCampaigns(camps);
-    setCustomWeapons(weapons);
+    setCustomWeapons(migration.customWeapons);
     setUserProfile(profile);
     if (profile.listingColumns === 1 || profile.listingColumns === 2) {
       setListingColumnsState(profile.listingColumns);
@@ -1338,6 +1556,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       customWeapons,
       upsertCustomWeapon,
       deleteCustomWeapon,
+      equipWeaponToCharacter,
+      removeAttackFromCharacter,
       rollHistory,
       latestRoll,
       dismissLatestRoll,
@@ -1438,6 +1658,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       customWeapons,
       upsertCustomWeapon,
       deleteCustomWeapon,
+      equipWeaponToCharacter,
+      removeAttackFromCharacter,
       rollHistory,
       latestRoll,
       dismissLatestRoll,

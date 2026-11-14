@@ -19,14 +19,17 @@ import {
   useThemedStyles,
 } from '../theme';
 import { useApp } from '../context/AppContext';
-import { CompendiumEntity } from '../types/compendium';
+import { CompendiumEntity, CriticalDamageMode } from '../types/compendium';
 import { RecordPreviewRequest } from '../types/recordPreview';
+import { normalizeCriticalDamageMode } from '../utils/dice';
+import { resolveAgentAttackDamage } from '../utils/damageModifiers';
 import {
   isAmmoModification,
   OFFICIAL_WEAPON_MODS,
   OFFICIAL_WEAPON_MODS_MAP,
 } from '../utils/weapons';
 import { OFFICIAL_SKILLS_LIST } from '../utils/progression';
+import { CriticalModePromptModal } from './CriticalModePromptModal';
 import { RecordImageExportModal } from './cardImage/RecordImageExportModal';
 
 export interface RecordPreviewModalProps {
@@ -51,11 +54,24 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [cardImageModalOpen, setCardImageModalOpen] = useState(false);
+  const [critPromptTarget, setCritPromptTarget] = useState<{
+    weaponName: string;
+    damage: string;
+    critical: string;
+    normalFormula?: string;
+    criticalFormula?: string;
+    attackId?: string;
+    isMaxDamage: boolean;
+  } | null>(null);
 
   // Intercepta botão de retorno físico no Android
   useEffect(() => {
     if (Platform.OS === 'web' || typeof document !== 'undefined' || !request) return;
     const onBackPress = () => {
+      if (critPromptTarget) {
+        setCritPromptTarget(null);
+        return true;
+      }
       if (cardImageModalOpen) {
         setCardImageModalOpen(false);
         return true;
@@ -65,7 +81,7 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
-  }, [request, cardImageModalOpen, onClose]);
+  }, [request, cardImageModalOpen, critPromptTarget, onClose]);
   const {
     entities,
     getEntityById,
@@ -75,6 +91,54 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
     rollWeaponDamage,
     userProfile,
   } = useApp();
+
+  const handlePreviewWeaponDamage = (
+    params: {
+      weaponName: string;
+      damage: string;
+      critical: string;
+      attackId?: string;
+      normalFormula?: string;
+      criticalFormula?: string;
+    },
+    isCrit: boolean,
+    isMaxDamage = false,
+    chosenMode?: Exclude<CriticalDamageMode, 'ask_user'>
+  ) => {
+    const effectiveMode = normalizeCriticalDamageMode(
+      chosenMode || userProfile?.criticalDamageMode
+    );
+    if (isCrit && effectiveMode === 'ask_user') {
+      setCritPromptTarget({
+        weaponName: params.weaponName,
+        damage: params.damage,
+        critical: params.critical,
+        normalFormula: params.normalFormula,
+        criticalFormula: params.criticalFormula,
+        attackId: params.attackId,
+        isMaxDamage,
+      });
+      return;
+    }
+    rollWeaponDamage({
+      weaponName: params.weaponName,
+      damage: params.damage,
+      critical: params.critical,
+      normalFormula: params.normalFormula,
+      criticalFormula: params.criticalFormula,
+      isCrit,
+      isMaxDamage,
+      mode: effectiveMode,
+      attackContext: {
+        weaponName: params.weaponName,
+        damage: params.damage,
+        critical: params.critical,
+        attackId: params.attackId,
+        normalFormula: params.normalFormula,
+        criticalFormula: params.criticalFormula,
+      },
+    });
+  };
 
   // Resolve underlying CompendiumEntity when possible
   const resolvedEntity = useMemo<CompendiumEntity | undefined>(() => {
@@ -603,7 +667,7 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
   return (
     <>
       <Modal
-        visible={!cardImageModalOpen}
+        visible={!cardImageModalOpen && critPromptTarget === null}
       transparent
       animationType="fade"
       onRequestClose={onClose}
@@ -754,10 +818,46 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
                       <View style={styles.diceRow}>
                         <TouchableOpacity
                           style={styles.diceBtn}
-                          onPress={() => rollFormula(w.finalDamage, `Dano: ${w.name}`)}
+                          onPress={() =>
+                            handlePreviewWeaponDamage(
+                              { weaponName: w.name, damage: w.finalDamage, critical: w.finalCritical },
+                              false,
+                              false
+                            )
+                          }
                         >
                           <Ionicons name="dice" size={16} color="#FFF" />
-                          <Text style={styles.diceBtnText}>Rolar Dano ({w.finalDamage})</Text>
+                          <Text style={styles.diceBtnText}>Dano ({w.finalDamage})</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.diceBtn, { backgroundColor: '#991B1B' }]}
+                          onPress={() =>
+                            handlePreviewWeaponDamage(
+                              { weaponName: w.name, damage: w.finalDamage, critical: w.finalCritical },
+                              true,
+                              false
+                            )
+                          }
+                        >
+                          <Ionicons name="flame" size={16} color="#FFF" />
+                          <Text style={styles.diceBtnText}>Crítico ({w.finalCritical})</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.diceBtn,
+                            { backgroundColor: '#7F1D1D', borderWidth: 1, borderColor: '#EF4444' },
+                          ]}
+                          onPress={() =>
+                            handlePreviewWeaponDamage(
+                              { weaponName: w.name, damage: w.finalDamage, critical: w.finalCritical },
+                              true,
+                              true
+                            )
+                          }
+                          testID="preview-weapon-crit-max-btn"
+                        >
+                          <Ionicons name="flash" size={16} color="#FDE047" />
+                          <Text style={[styles.diceBtnText, { color: '#FEF08A' }]}>Crítico Máx</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -971,23 +1071,75 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
               {/* 6. ATAQUE DA FICHA */}
               {target.kind === 'character_attack' && (() => {
                 const atk = target.attack;
+                const resolvedDmg =
+                  target.resolvedDamage ||
+                  (target.character
+                    ? resolveAgentAttackDamage({
+                        attack: atk,
+                        character: target.character,
+                        customWeapon: target.customWeapon,
+                        getEntityById,
+                      })
+                    : undefined);
+                const displayDmg = resolvedDmg ? resolvedDmg.displayDamage : atk.damage || '1d6';
+                const displayCrit = resolvedDmg ? resolvedDmg.formattedCritical : atk.critical || '20/x2';
+                const dmgRollParams = {
+                  weaponName: atk.name,
+                  damage: displayDmg,
+                  critical: displayCrit,
+                  attackId: atk.id,
+                  normalFormula: resolvedDmg?.normalFormula,
+                  criticalFormula: resolvedDmg?.criticalFormula,
+                };
                 return (
                   <>
                     <View style={styles.statsCard}>
                       <Text style={styles.sectionTitle}>Parâmetros do Ataque</Text>
                       <View style={styles.gridStats}>
                         <PreviewStat label="Teste" value={atk.test || 'Luta / Pontaria'} highlight />
-                        <PreviewStat label="Dano" value={atk.damage || '1d6'} highlight />
-                        <PreviewStat label="Crítico" value={atk.critical || '20/x2'} />
+                        <PreviewStat label="Dano Efetivo" value={displayDmg} highlight />
+                        {resolvedDmg && displayDmg !== atk.damage && (
+                          <PreviewStat label="Dano Base" value={atk.damage || '1d6'} />
+                        )}
+                        <PreviewStat label="Crítico" value={displayCrit} />
                         <PreviewStat label="Alcance" value={atk.range || 'Curto'} />
                       </View>
+                      {resolvedDmg && resolvedDmg.breakdown.length > 0 && (
+                        <View style={{ marginTop: 8, gap: 3 }}>
+                          <Text style={styles.sectionSubLabel}>Composição do Agente:</Text>
+                          {resolvedDmg.breakdown.map((comp, idx) => (
+                            <Text key={`${comp.source}_${idx}`} style={styles.descText}>
+                              • {comp.source}: {comp.expression}
+                              {comp.multipliesOnCrit ? ' (×crít)' : ''}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
                       <View style={styles.diceRow}>
                         <TouchableOpacity
                           style={styles.diceBtn}
-                          onPress={() => rollFormula(atk.damage, `Dano: ${atk.name}`)}
+                          onPress={() => handlePreviewWeaponDamage(dmgRollParams, false, false)}
                         >
                           <Ionicons name="dice" size={16} color="#FFF" />
-                          <Text style={styles.diceBtnText}>Rolar Dano ({atk.damage})</Text>
+                          <Text style={styles.diceBtnText}>Dano ({displayDmg})</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.diceBtn, { backgroundColor: '#991B1B' }]}
+                          onPress={() => handlePreviewWeaponDamage(dmgRollParams, true, false)}
+                        >
+                          <Ionicons name="flame" size={16} color="#FFF" />
+                          <Text style={styles.diceBtnText}>Crítico ({displayCrit})</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.diceBtn,
+                            { backgroundColor: '#7F1D1D', borderWidth: 1, borderColor: '#EF4444' },
+                          ]}
+                          onPress={() => handlePreviewWeaponDamage(dmgRollParams, true, true)}
+                          testID="preview-attack-crit-max-btn"
+                        >
+                          <Ionicons name="flash" size={16} color="#FDE047" />
+                          <Text style={[styles.diceBtnText, { color: '#FEF08A' }]}>Crítico Máx</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1212,6 +1364,31 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
       visible={cardImageModalOpen}
       target={resolvedEntity || target}
       onClose={() => setCardImageModalOpen(false)}
+    />
+
+    <CriticalModePromptModal
+      visible={critPromptTarget !== null}
+      weaponName={critPromptTarget?.weaponName}
+      isMaxDamage={critPromptTarget?.isMaxDamage}
+      onClose={() => setCritPromptTarget(null)}
+      onSelect={(mode) => {
+        if (!critPromptTarget) return;
+        const t = critPromptTarget;
+        setCritPromptTarget(null);
+        handlePreviewWeaponDamage(
+          {
+            weaponName: t.weaponName,
+            damage: t.damage,
+            critical: t.critical,
+            attackId: t.attackId,
+            normalFormula: t.normalFormula,
+            criticalFormula: t.criticalFormula,
+          },
+          true,
+          t.isMaxDamage,
+          mode
+        );
+      }}
     />
   </>
 );

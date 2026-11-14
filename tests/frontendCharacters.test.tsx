@@ -3,6 +3,7 @@ import test, { describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import CharactersScreen from '../src/app/(tabs)/characters';
+import { UserProfileModal } from '../src/components/UserProfileModal';
 import {
   renderWithProviders,
   cleanup,
@@ -11,7 +12,7 @@ import {
   mockAlertCalls,
 } from './frontendTestUtils';
 import { defaultRepository } from '../src/repositories/OfflineDataRepository';
-import { CharacterSheet } from '../src/types/compendium';
+import { CharacterSheet, CustomWeapon } from '../src/types/compendium';
 
 describe('Frontend - Tela de Fichas de Personagem (characters.tsx)', () => {
   const sampleSheet: CharacterSheet = {
@@ -296,5 +297,113 @@ describe('Frontend - Tela de Fichas de Personagem (characters.tsx)', () => {
     const rollBtn = getByTestId('btn-roll-skill-Investigação');
     assert.ok(rollBtn);
     assert.ok(getByText(/\+7/));
+  });
+
+  test('deve abrir o editor completo da Armaria ao editar arma no agente, sincronizar edições, perguntar ao excluir e manter Crítico Máx sempre visível', async () => {
+    const linkedWeapon: CustomWeapon = {
+      id: 'wpn_shared_katana',
+      name: 'Katana Ritualística',
+      baseWeaponName: 'Katana',
+      weaponType: 'Corpo a corpo',
+      proficiency: 'Tática',
+      handedness: 'Duas Mãos',
+      baseDamage: '1d10',
+      baseCritical: '19/x2',
+      baseRange: 'Corpo a corpo',
+      baseDamageType: 'C',
+      baseSpaces: 1,
+      baseCategory: 'I',
+      modifications: [],
+      finalDamage: '1d10',
+      finalCritical: '19/x2',
+      finalRange: 'Corpo a corpo',
+      finalCategory: 'I',
+      finalSpaces: 1,
+      attackBonus: 0,
+      damageBonus: 0,
+      element: 'Nenhum',
+      specialRules: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const charWithWeapon: CharacterSheet = {
+      ...sampleSheet,
+      id: 'char_weapon_sync',
+      attacks: [
+        {
+          id: 'atk_shared_1',
+          name: 'Katana Ritualística',
+          test: 'Luta',
+          skillName: 'Luta',
+          attackBonus: 0,
+          damage: '1d10',
+          critical: '19/x2',
+          range: 'Corpo a corpo',
+          special: 'C',
+          customWeaponId: 'wpn_shared_katana',
+          linkMode: 'shared',
+        },
+      ],
+      inventory: [
+        {
+          id: 'inv_shared_1',
+          name: 'Katana Ritualística',
+          category: 'I',
+          spaces: 1,
+          equipped: true,
+          customWeaponId: 'wpn_shared_katana',
+          linkedAttackId: 'atk_shared_1',
+        },
+      ],
+    };
+
+    await defaultRepository.saveCustomWeapons([linkedWeapon]);
+    await defaultRepository.saveCharacters([charWithWeapon]);
+
+    const { getByText, getByTestId, queryByTestId } = await renderWithProviders(<CharactersScreen />);
+    await fireClick(getByText('Dante Ocultista'));
+    await fireClick(getByText('Ataques'));
+
+    // Botão Crítico Máx sempre visível no card de ataque
+    assert.ok(getByTestId('sheet-attack-roll-crit-max-atk_shared_1'));
+
+    // Botão Editar abre o editor completo unificado
+    await fireClick(getByTestId('sheet-attack-edit-atk_shared_1'));
+    const nameInput = getByTestId('weapon-editor-name-input');
+    assert.ok(nameInput);
+    await changeInputText(nameInput as HTMLInputElement, 'Katana da Ordem');
+    await fireClick(getByTestId('weapon-editor-save-btn'));
+
+    // Deve ter sincronizado tanto na Armaria quanto no Agente
+    const updatedWeapons = await defaultRepository.getCustomWeapons();
+    const savedWep = updatedWeapons.find((w) => w.id === 'wpn_shared_katana');
+    assert.strictEqual(savedWep?.name, 'Katana da Ordem');
+
+    const updatedChars = await defaultRepository.getCharacters();
+    assert.strictEqual(updatedChars[0].attacks?.[0].name, 'Katana da Ordem');
+
+    // Clicar em deletar pergunta entre remover só do Agente ou também da Armaria
+    await fireClick(getByTestId('sheet-attack-delete-atk_shared_1'));
+    assert.ok(queryByTestId('btn-delete-attack-agent-only'));
+    assert.ok(queryByTestId('btn-delete-attack-and-armory'));
+
+    // Remove só do agente: arma continua na Armaria
+    await fireClick(getByTestId('btn-delete-attack-agent-only'));
+    const weaponsAfterAgentDelete = await defaultRepository.getCustomWeapons();
+    assert.ok(weaponsAfterAgentDelete.some((w) => w.id === 'wpn_shared_katana'));
+    const charsAfterDelete = await defaultRepository.getCharacters();
+    assert.strictEqual(charsAfterDelete[0].attacks?.length, 0);
+  });
+
+  test('UserProfileModal não deve exibir opção "Crítico Cheio" e deve manter as 3 opções de cálculo de crítico', async () => {
+    const { queryByTestId, getByTestId } = await renderWithProviders(
+      <UserProfileModal visible={true} onClose={() => {}} />
+    );
+
+    assert.strictEqual(queryByTestId('crit-mode-max_damage'), null);
+    assert.ok(getByTestId('crit-mode-multiply_dice'));
+    assert.ok(getByTestId('crit-mode-multiply_damage'));
+    assert.ok(getByTestId('crit-mode-ask_user'));
   });
 });

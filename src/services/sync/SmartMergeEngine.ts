@@ -162,7 +162,24 @@ export class SmartMergeEngine {
       ...remoteWeapons.map((w) => w.id),
     ]);
 
+    const mergedDeletedWeaponIds = Array.from(new Set([
+      ...(local.deletedCustomWeaponIds || []),
+      ...(remote.deletedCustomWeaponIds || []),
+    ]));
+    const deletedWeaponSet = new Set(mergedDeletedWeaponIds);
+    if (mergedDeletedWeaponIds.length > (local.deletedCustomWeaponIds || []).length) {
+      hasLocalChangesToApply = true;
+    }
+    if (mergedDeletedWeaponIds.length > (remote.deletedCustomWeaponIds || []).length) {
+      hasRemoteChangesToUpload = true;
+    }
+
     for (const id of allWeaponIds) {
+      if (deletedWeaponSet.has(id)) {
+        if (remoteWeapons.some((w) => w.id === id)) hasRemoteChangesToUpload = true;
+        if (localWeapons.some((w) => w.id === id)) hasLocalChangesToApply = true;
+        continue;
+      }
       const loc = localWeapons.find((w) => w.id === id);
       const rem = remoteWeapons.find((w) => w.id === id);
 
@@ -505,6 +522,7 @@ export class SmartMergeEngine {
       customWeapons: mergedWeapons,
       deletedCharacterIds: mergedDeletedCharIds,
       deletedCampaignIds: mergedDeletedCampIds,
+      deletedCustomWeaponIds: mergedDeletedWeaponIds,
       deletedDynamicBookIds: mergedDeletedDynamicBookIds,
     };
 
