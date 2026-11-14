@@ -1,13 +1,20 @@
 {
-  "version": "1.5.0-beta.2",
+  "version": "1.5.1-beta.1",
   "minVersion": "1.0.0-beta.1",
-  "releaseName": "Ordo Companion v1.5.0-beta.2",
-  "releaseDate": "2026-11-11",
-  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.5.0-beta.2",
-  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.5.0-beta.2/OrdoCompanion.apk",
+  "releaseName": "Ordo Companion v1.5.1-beta.1",
+  "releaseDate": "2026-11-14",
+  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.5.1-beta.1",
+  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.5.1-beta.1/OrdoCompanion.apk",
   "changelog": [
-    "Estabilidade do Leitor de PDF Nativo no Celular",
-    "Página Real do PDF nos Registros do Compêndio"
+    "Dano Dinâmico por Agente, Preparação de Golpe Tático e Conjuração de Rituais",
+    "Armas Unificadas entre Agentes e Armaria",
+    "Botão `Crítico Máx` Sempre Disponível e Cálculo de Crítico Corrigido",
+    "Importação em Lote de PDFs Mais Segura e Sem Travamentos por Memória",
+    "Imagens dos Cards Mais Compactas e Sem Estouro da Moldura",
+    "Exportação e Compartilhamento de Cards em PNG Corrigidos no Android",
+    "Reconhecimento de Voz Nativo (Microfone) no G.L.I.T.C.H.",
+    "Maior Estabilidade Offline no APK Android (Chaves e PDFs)",
+    "Compêndio Completo dos Mascarados, Agentes e Hexatombe (*Arquivos Secretos #02*) e Itens no Inventário"
   ],
   "forceUpdate": false
 }
