@@ -6,25 +6,14 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### 9. Layout Responsivo e Altura Automática na Geração de Imagem dos Cards:
-**Título**: `fix(cards): corrige overflow da moldura e ajusta altura da imagem ao conteudo`
-
-**Descrição**:
-- Corrige o grid de estatísticas de `svgCardRenderer.ts` que ultrapassava a moldura interna à direita (largura calculada sem o recuo de 10px)
-- Quebra de texto passa a ser calculada pela largura útil real e tamanho da fonte (título, descrição, resumo, seções extras), respeitando quebras de linha e palavras longas
-- Valores, badges e fonte do livro longos são truncados com reticências em vez de vazar das caixas
-- Altura da imagem é automática conforme o conteúdo e a largura padrão cai de 1080 para 800px (ex.: card de ritual de 1080×1350 para 800×659), reduzindo o tamanho do arquivo; larguras maiores apenas escalam o desenho
-- `cardExportService.ts` usa as dimensões reais do SVG (`getSvgDimensions`) no Canvas/Print
-- Adiciona testes de regressão (Tier 6) em `tests/cardLayoutAlignment.test.ts`
-
-```bash
-git add src/services/cardImage/svgCardRenderer.ts src/services/cardImage/cardExportService.ts tests/cardLayoutAlignment.test.ts docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
-git commit -m "fix(cards): corrige overflow da moldura e ajusta altura da imagem ao conteudo" -m "- Corrige grid de estatisticas ultrapassando a moldura interna" -m "- Quebra de texto por largura util real e truncamento de valores longos" -m "- Altura automatica e largura padrao de 800px reduzindo o tamanho das imagens" -m "- Adiciona testes de regressao em tests/cardLayoutAlignment.test.ts"
-```
+*(Nenhum commit pendente no momento.)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 9. Layout Responsivo e Altura Automática na Geração de Imagem dos Cards:
+- **Título**: `fix(cards): corrige overflow da moldura e ajusta altura da imagem ao conteudo`
 
 ### ✅ 8. Motor de Modificadores Dinâmicos de Dano por Agente, Preparação de Golpe Tático e Conjuração de Rituais:
 - **Título**: `feat(rules,characters): implementa modificadores dinamicos de dano por agente, preparacao de golpe e rituais`

@@ -1,7 +1,7 @@
 import './setup';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateCardSvg } from '../src/services/cardImage/svgCardRenderer';
+import { generateCardSvg, getSvgDimensions } from '../src/services/cardImage/svgCardRenderer';
 import { extractRecordCardData } from '../src/services/cardImage/cardDataExtractor';
 import {
   generateLocalCardFile,
@@ -324,6 +324,73 @@ describe('Features 18, 19, 20: Card Generation Layout, Deduplication & Real Imag
         const svg = generateCardSvg(cardData, theme, { width: 1080, height: 1350 });
         assert.ok(svg.length > 0);
       });
+    });
+  });
+
+  // =========================================================================
+  // TIER 6: Limites da moldura e altura automática
+  // =========================================================================
+  describe('Tier 6: Caixas dentro da moldura e altura ajustada ao conteúdo', () => {
+    const baseCard: RecordCardData = {
+      id: 'rit_alterar_destino',
+      name: 'Alterar Destino',
+      category: 'ritual',
+      categoryLabel: 'Ritual',
+      subCategory: '4º Círculo',
+      element: 'Energia',
+      bookTitle: 'Livro Base',
+      pageNumber: 134,
+      stats: [
+        { label: 'Círculo', value: '4º Círculo', highlight: true },
+        { label: 'Execução', value: 'reação' },
+        { label: 'Alcance', value: 'pessoal' },
+        { label: 'Alvo/Área', value: 'Alvo: você' },
+        { label: 'Duração', value: 'instantânea' },
+        { label: 'Resistência', value: 'Um valor extremamente longo que antes estourava a caixa' },
+      ],
+      description: 'Você vislumbra seu futuro próximo, analisando milhões de possibilidades.',
+      extraSections: [{ title: 'Verdadeiro (+5 PE)', content: 'Muda o alcance para curto.' }],
+      tags: [],
+    };
+
+    it('6.1 grid de estatísticas não ultrapassa a moldura interna', () => {
+      const theme = resolveRecordTheme(baseCard);
+      const svg = generateCardSvg(baseCard, theme);
+      const { width } = getSvgDimensions(svg);
+      const grid = svg.match(/<g id="stats-grid">[\s\S]*?<\/g>\s*<\/g>/)![0];
+      const rects = [...grid.matchAll(/<rect x="(\d+(?:\.\d+)?)"[^>]*?\swidth="(\d+(?:\.\d+)?)"/g)];
+      assert.equal(rects.length, 6);
+      // Moldura interna (coordenadas base 800): x=36 até 764
+      for (const r of rects) {
+        const right = parseFloat(r[1]) + parseFloat(r[2]);
+        assert.ok(right <= 764 - 10, `Caixa termina em ${right}, além da moldura`);
+      }
+      assert.equal(width, 800);
+      assert.ok(!svg.includes('antes estourava a caixa'), 'Valor longo deve ser truncado com reticências');
+    });
+
+    it('6.2 altura automática encolhe para conteúdo curto e cresce para conteúdo longo', () => {
+      const theme = resolveRecordTheme(baseCard);
+      const short = getSvgDimensions(generateCardSvg(baseCard, theme));
+      const long = getSvgDimensions(
+        generateCardSvg({ ...baseCard, description: 'Texto longo de teste. '.repeat(60) }, theme)
+      );
+      assert.ok(short.height < 800, `Card curto não deveria ter ${short.height}px de altura`);
+      assert.ok(long.height > short.height);
+    });
+
+    it('6.3 com altura fixa, a descrição é truncada antes do rodapé', () => {
+      const theme = resolveRecordTheme(baseCard);
+      const svg = generateCardSvg(
+        { ...baseCard, description: 'Texto longo de teste. '.repeat(200) },
+        theme,
+        { width: 800, height: 700 }
+      );
+      assert.ok(svg.includes('Ver texto completo'));
+      const footerY = parseFloat(svg.match(/<g id="footer-branding">\s*<line[^>]*y1="(\d+(?:\.\d+)?)"/)![1]);
+      const body = svg.match(/<g id="description-body">[\s\S]*?<\/g>/)![0];
+      const ys = [...body.matchAll(/y="(\d+(?:\.\d+)?)"/g)].map((m) => parseFloat(m[1]));
+      assert.ok(Math.max(...ys) < footerY, 'Descrição invade o rodapé');
     });
   });
 });
