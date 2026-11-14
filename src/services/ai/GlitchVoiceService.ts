@@ -114,9 +114,46 @@ function getExpoSpeech(): any {
   }
 }
 
+function getExpoSpeechRecognition(): any {
+  const scope = typeof globalThis !== 'undefined' ? (globalThis as any) : {};
+  if (scope.ExpoSpeechRecognitionModule) return scope.ExpoSpeechRecognitionModule;
+  if (scope.ExpoSpeechRecognition) return scope.ExpoSpeechRecognition;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('expo-speech-recognition');
+    return mod?.ExpoSpeechRecognitionModule || mod?.default?.ExpoSpeechRecognitionModule || mod?.default || mod;
+  } catch {
+    return null;
+  }
+}
+
+const STT_ERROR_MESSAGES: Record<string, string> = {
+  'not-allowed': 'Permissão de microfone negada. Libere o acesso nas configurações.',
+  'permission-denied': 'Permissão de microfone negada pelo dispositivo.',
+  'no-speech': 'Nenhuma fala detectada. Tente novamente mais perto do microfone.',
+  'speech-timeout': 'Tempo esgotado sem detectar voz. Tente novamente.',
+  network: 'Falha de rede no reconhecimento de voz.',
+  'service-not-allowed': 'Serviço de reconhecimento de voz indisponível neste aparelho.',
+  'language-not-supported': 'Idioma selecionado não suportado para reconhecimento de voz.',
+  'audio-capture': 'Não foi possível capturar o áudio do microfone.',
+  busy: 'Microfone ocupado no momento. Aguarde um instante e tente novamente.',
+  'too-many-requests': 'Muitas solicitações de voz seguidas. Aguarde alguns segundos.',
+};
+
+function mapSttErrorToPortuguese(errType: string, fallbackMessage?: string): string {
+  if (STT_ERROR_MESSAGES[errType]) {
+    return STT_ERROR_MESSAGES[errType];
+  }
+  return fallbackMessage ? `Erro no microfone (${errType}): ${fallbackMessage}` : `Erro no microfone (${errType})`;
+}
+
 class GlitchVoiceServiceImpl {
   private activeUtterance: any = null;
   private activeRecognition: any = null;
+  private nativeModuleRef: any = null;
+  private nativeSubscriptions: Array<{ remove?: () => void }> = [];
+  private listeningSessionId: number = 0;
+  private manualAbort: boolean = false;
   private isListeningState: boolean = false;
   private isSpeakingState: boolean = false;
   private audioContext: any = null;
@@ -150,11 +187,18 @@ class GlitchVoiceServiceImpl {
 
   /**
    * Verifica se Speech-to-Text (STT) é suportado no ambiente atual de forma síncrona e segura.
-   * No runtime nativo Android (Hermes), retorna false sem tentar acessar objetos de browser inexistentes.
+   * No mobile (Android/iOS), utiliza expo-speech-recognition; na Web, utiliza Web Speech API.
    */
   isSttSupported(): boolean {
     try {
       if (Platform.OS !== 'web') {
+        const nativeMod = getExpoSpeechRecognition();
+        if (nativeMod && typeof nativeMod.start === 'function') {
+          if (typeof nativeMod.isRecognitionAvailable === 'function') {
+            return Boolean(nativeMod.isRecognitionAvailable());
+          }
+          return true;
+        }
         const scope = this.getGlobalScope();
         return Boolean(
           scope?.ExpoSpeechRecognition ||
@@ -386,10 +430,132 @@ class GlitchVoiceServiceImpl {
     }
   }
 
+  private cleanupNativeListeners(): void {
+    for (const sub of this.nativeSubscriptions) {
+      try {
+        sub?.remove?.();
+      } catch {}
+    }
+    this.nativeSubscriptions = [];
+    this.nativeModuleRef = null;
+  }
+
+  /**
+   * Inicia o reconhecimento de voz (Speech-to-Text) de forma assíncrona,
+   * solicitando permissões de microfone quando executando em Android/iOS nativo.
+   */
+  async startListeningAsync(callbacks: GlitchSttCallbacks, options?: GlitchSttOptions): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      return this.startListening(callbacks, options);
+    }
+
+    const nativeMod = getExpoSpeechRecognition();
+    const recognitionAvailable =
+      nativeMod &&
+      typeof nativeMod.start === 'function' &&
+      (typeof nativeMod.isRecognitionAvailable !== 'function' || Boolean(nativeMod.isRecognitionAvailable()));
+
+    if (!recognitionAvailable) {
+      callbacks.onError?.(
+        'Reconhecimento de voz direto indisponível neste dispositivo. Dica: use o botão de microfone do teclado virtual para ditar.'
+      );
+      return false;
+    }
+
+    this.abortListening();
+    const sessionId = ++this.listeningSessionId;
+
+    try {
+      if (typeof nativeMod.requestPermissionsAsync === 'function') {
+        const permission = await nativeMod.requestPermissionsAsync();
+        if (sessionId !== this.listeningSessionId) {
+          return false;
+        }
+        if (!permission?.granted) {
+          callbacks.onError?.('Permissão de microfone negada. Libere o acesso nas configurações do aparelho.');
+          return false;
+        }
+      }
+
+      this.cleanupNativeListeners();
+      this.nativeModuleRef = nativeMod;
+      this.manualAbort = false;
+
+      if (typeof nativeMod.addListener === 'function') {
+        const addSub = (eventName: string, handler: (ev: any) => void) => {
+          const sub = nativeMod.addListener(eventName, handler);
+          if (sub) this.nativeSubscriptions.push(sub);
+        };
+
+        addSub('start', () => {
+          if (sessionId !== this.listeningSessionId) return;
+          this.isListeningState = true;
+          callbacks.onStart?.();
+        });
+
+        addSub('result', (event: any) => {
+          if (sessionId !== this.listeningSessionId) return;
+          const transcript = (event?.results?.[0]?.transcript || '').trim();
+          if (transcript) {
+            callbacks.onResult?.(transcript, Boolean(event?.isFinal));
+          }
+        });
+
+        addSub('error', (event: any) => {
+          if (sessionId !== this.listeningSessionId) return;
+          this.isListeningState = false;
+          const errType = event?.error || 'unknown';
+          if (errType === 'aborted' && this.manualAbort) {
+            this.manualAbort = false;
+            this.cleanupNativeListeners();
+            return;
+          }
+          this.manualAbort = false;
+          this.cleanupNativeListeners();
+          callbacks.onError?.(mapSttErrorToPortuguese(errType, event?.message));
+        });
+
+        addSub('end', () => {
+          if (sessionId !== this.listeningSessionId) return;
+          this.isListeningState = false;
+          this.manualAbort = false;
+          this.cleanupNativeListeners();
+          callbacks.onEnd?.();
+        });
+      }
+
+      this.isListeningState = true;
+      nativeMod.start({
+        lang: options?.lang || 'pt-BR',
+        interimResults: options?.interimResults ?? true,
+        continuous: options?.continuous ?? false,
+        maxAlternatives: 1,
+        addsPunctuation: true,
+      });
+      return true;
+    } catch (err: any) {
+      this.isListeningState = false;
+      this.manualAbort = false;
+      this.cleanupNativeListeners();
+      callbacks.onError?.(err?.message || 'Falha ao iniciar o microfone.');
+      return false;
+    }
+  }
+
   /**
    * Inicia o reconhecimento de voz (Speech-to-Text).
+   * Na Web executa de forma síncrona via Web Speech API; no mobile delega para startListeningAsync.
    */
   startListening(callbacks: GlitchSttCallbacks, options?: GlitchSttOptions): boolean {
+    if (Platform.OS !== 'web') {
+      if (!this.isSttSupported()) {
+        callbacks.onError?.('Reconhecimento de fala não suportado neste navegador ou dispositivo.');
+        return false;
+      }
+      void this.startListeningAsync(callbacks, options);
+      return true;
+    }
+
     if (!this.isSttSupported()) {
       callbacks.onError?.('Reconhecimento de fala não suportado neste navegador ou dispositivo.');
       return false;
@@ -436,17 +602,7 @@ class GlitchVoiceServiceImpl {
       recognition.onerror = (event: any) => {
         this.isListeningState = false;
         const errType = event?.error || 'falha desconhecida';
-        let userFriendly = `Erro no microfone (${errType})`;
-
-        if (errType === 'not-allowed' || errType === 'permission-denied') {
-          userFriendly = 'Permissão de microfone negada pelo navegador.';
-        } else if (errType === 'no-speech') {
-          userFriendly = 'Nenhum som detectado. Tente novamente.';
-        } else if (errType === 'network') {
-          userFriendly = 'Falha de rede no reconhecimento de voz.';
-        }
-
-        callbacks.onError?.(userFriendly);
+        callbacks.onError?.(mapSttErrorToPortuguese(errType));
       };
 
       recognition.onend = () => {
@@ -468,28 +624,45 @@ class GlitchVoiceServiceImpl {
   }
 
   /**
-   * Finaliza a escuta do microfone normalmente.
+   * Finaliza a escuta do microfone normalmente (permitindo entrega do resultado final).
    */
   stopListening(): void {
     this.isListeningState = false;
+    if (!this.nativeModuleRef) {
+      // Se ainda estava aguardando permissão, invalida a sessão pendente
+      this.listeningSessionId++;
+    }
     if (this.activeRecognition) {
       try {
         this.activeRecognition.stop();
       } catch {}
       this.activeRecognition = null;
     }
+    if (this.nativeModuleRef) {
+      try {
+        this.nativeModuleRef.stop?.();
+      } catch {}
+    }
   }
 
   /**
-   * Cancela abruptamente a escuta do microfone.
+   * Cancela abruptamente a escuta do microfone e remove listeners nativos.
    */
   abortListening(): void {
+    this.listeningSessionId++;
     this.isListeningState = false;
     if (this.activeRecognition) {
       try {
         this.activeRecognition.abort();
       } catch {}
       this.activeRecognition = null;
+    }
+    if (this.nativeModuleRef) {
+      this.manualAbort = true;
+      try {
+        this.nativeModuleRef.abort?.();
+      } catch {}
+      this.cleanupNativeListeners();
     }
   }
 }

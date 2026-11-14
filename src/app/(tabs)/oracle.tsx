@@ -99,6 +99,8 @@ export default function OracleScreen() {
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<any>(null);
   const isMountedRef = useRef(true);
+  const isStartingListeningRef = useRef(false);
+  const voiceNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeRelic = config.relicPersona || (config.anfitriaoMode ? 'anfitriao' : 'none');
   const effectiveApiKey = getEffectiveApiKey(config);
@@ -145,7 +147,11 @@ export default function OracleScreen() {
 
     return () => {
       isMountedRef.current = false;
-      GlitchVoiceService.stopListening();
+      if (voiceNoticeTimeoutRef.current) {
+        clearTimeout(voiceNoticeTimeoutRef.current);
+        voiceNoticeTimeoutRef.current = null;
+      }
+      GlitchVoiceService.abortListening();
       GlitchVoiceService.stopSpeaking();
     };
   }, []);
@@ -243,60 +249,76 @@ export default function OracleScreen() {
     }
   };
 
+  const showVoiceNotice = (msg: string) => {
+    if (!isMountedRef.current) return;
+    setVoiceNotice(msg);
+    if (voiceNoticeTimeoutRef.current) {
+      clearTimeout(voiceNoticeTimeoutRef.current);
+    }
+    voiceNoticeTimeoutRef.current = setTimeout(() => {
+      if (isMountedRef.current) setVoiceNotice(null);
+    }, 4500);
+  };
+
   // Manipuladores de Comando e Resposta por Voz (STT & TTS)
-  const handleToggleVoiceInput = () => {
+  const handleToggleVoiceInput = async () => {
     if (isListening) {
       GlitchVoiceService.stopListening();
       setIsListening(false);
       return;
     }
 
+    if (isStartingListeningRef.current) {
+      return;
+    }
+
     if (!GlitchVoiceService.isSttSupported()) {
-      setVoiceNotice(
+      showVoiceNotice(
         'Reconhecimento de voz direto indisponível neste dispositivo. Dica: use o botão de microfone do teclado virtual para ditar.'
       );
       inputRef.current?.focus();
-      setTimeout(() => {
-        if (isMountedRef.current) setVoiceNotice(null);
-      }, 4000);
       return;
     }
 
     GlitchVoiceService.stopSpeaking();
     setSpeakingMessageId(null);
     setVoiceNotice(null);
+    isStartingListeningRef.current = true;
 
-    const started = GlitchVoiceService.startListening(
-      {
-        onStart: () => {
-          if (isMountedRef.current) setIsListening(true);
+    const baseInput = inputText.trim();
+
+    try {
+      const started = await GlitchVoiceService.startListeningAsync(
+        {
+          onStart: () => {
+            if (isMountedRef.current) setIsListening(true);
+          },
+          onResult: (transcript) => {
+            if (isMountedRef.current) {
+              setInputText(baseInput ? `${baseInput} ${transcript}` : transcript);
+            }
+          },
+          onError: (errMsg) => {
+            if (isMountedRef.current) {
+              setIsListening(false);
+              showVoiceNotice(errMsg);
+            }
+          },
+          onEnd: () => {
+            if (isMountedRef.current) setIsListening(false);
+          },
         },
-        onResult: (transcript) => {
-          if (isMountedRef.current) {
-            setInputText(transcript);
-          }
-        },
-        onError: (errMsg) => {
-          if (isMountedRef.current) {
-            setIsListening(false);
-            setVoiceNotice(errMsg);
-            setTimeout(() => {
-              if (isMountedRef.current) setVoiceNotice(null);
-            }, 4000);
-          }
-        },
-        onEnd: () => {
-          if (isMountedRef.current) setIsListening(false);
-        },
-      },
-      {
-        lang: config.voiceLanguage || 'pt-BR',
-        interimResults: true,
+        {
+          lang: config.voiceLanguage || 'pt-BR',
+          interimResults: true,
+        }
+      );
+
+      if (isMountedRef.current) {
+        setIsListening(started);
       }
-    );
-
-    if (!started && isMountedRef.current) {
-      setIsListening(false);
+    } finally {
+      isStartingListeningRef.current = false;
     }
   };
 
@@ -308,10 +330,7 @@ export default function OracleScreen() {
     }
 
     if (!GlitchVoiceService.isTtsSupported()) {
-      setVoiceNotice('Sintetizador de voz não suportado neste dispositivo.');
-      setTimeout(() => {
-        if (isMountedRef.current) setVoiceNotice(null);
-      }, 4000);
+      showVoiceNotice('Sintetizador de voz não suportado neste dispositivo.');
       return;
     }
 
@@ -327,10 +346,7 @@ export default function OracleScreen() {
       onError: (err: any) => {
         if (isMountedRef.current) {
           setSpeakingMessageId(null);
-          setVoiceNotice(err?.message || 'Falha ao reproduzir áudio.');
-          setTimeout(() => {
-            if (isMountedRef.current) setVoiceNotice(null);
-          }, 4000);
+          showVoiceNotice(err?.message || 'Falha ao reproduzir áudio.');
         }
       },
     });

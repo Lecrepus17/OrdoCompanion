@@ -25,7 +25,8 @@
       "softwareKeyboardLayoutMode": "pan",
       "usesCleartextTraffic": true,
       "permissions": [
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -45,7 +46,19 @@
       "expo-web-browser",
       "expo-sharing",
       "@config-plugins/react-native-pdf",
-      "@config-plugins/react-native-blob-util"
+      "@config-plugins/react-native-blob-util",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Permitir que $(PRODUCT_NAME) acesse o microfone para ditar comandos ao G.L.I.T.C.H.",
+          "speechRecognitionPermission": "Permitir que $(PRODUCT_NAME) use o reconhecimento de voz para transcrever perguntas.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.as",
+            "com.google.android.tts"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

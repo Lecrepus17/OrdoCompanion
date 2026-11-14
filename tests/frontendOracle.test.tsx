@@ -1,7 +1,7 @@
 import './setup';
 import test, { describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import React from 'react';
+import React, { act } from 'react';
 import OracleScreen from '../src/app/(tabs)/oracle';
 import { AiChatMessageItem } from '../src/components/AiChatMessageItem';
 import { AiConfigModal } from '../src/components/AiConfigModal';
@@ -12,6 +12,7 @@ import {
   fireClick,
   changeInputText,
 } from './frontendTestUtils';
+import { setMobilePlatform } from './setup';
 
 describe('Frontend - Tela do Oráculo G.L.I.T.C.H. (oracle.tsx)', () => {
   beforeEach(async () => {
@@ -312,6 +313,62 @@ $$\\text{Dano Final Brutal: } 9d8+6$$ [Aba: dice]`,
 
     const micBtn = container.querySelector('[data-testid="voice-mic-button"]');
     assert.ok(micBtn, 'Botão de microfone deve estar presente na barra de mensagens');
+  });
+
+  test('OracleScreen deve ativar microfone nativo no Android e preencher o texto ditado', async () => {
+    const origNative = (globalThis as any).ExpoSpeechRecognitionModule;
+    const listeners = new Map<string, Set<(ev: any) => void>>();
+
+    (globalThis as any).ExpoSpeechRecognitionModule = {
+      isRecognitionAvailable: () => true,
+      requestPermissionsAsync: async () => ({ granted: true, status: 'granted' }),
+      addListener: (eventName: string, handler: (ev: any) => void) => {
+        if (!listeners.has(eventName)) listeners.set(eventName, new Set());
+        listeners.get(eventName)!.add(handler);
+        return {
+          remove: () => {
+            listeners.get(eventName)?.delete(handler);
+          },
+        };
+      },
+      start: () => {
+        listeners.get('start')?.forEach((fn) => fn(null));
+        setTimeout(() => {
+          listeners.get('result')?.forEach((fn) =>
+            fn({ isFinal: true, results: [{ transcript: 'Como conjurar Cicatrização?' }] })
+          );
+          listeners.get('end')?.forEach((fn) => fn(null));
+        }, 35);
+      },
+      stop: () => {
+        listeners.get('end')?.forEach((fn) => fn(null));
+      },
+      abort: () => {},
+    };
+
+    try {
+      const { container, queryByText } = await renderWithProviders(<OracleScreen />, {
+        mobile: 'android',
+      });
+
+      const micBtn = container.querySelector('[data-testid="voice-mic-button"]');
+      assert.ok(micBtn, 'Botão de microfone deve existir no Android');
+
+      await fireClick(micBtn!);
+
+      assert.ok(queryByText(/Ouvindo comando de voz/i));
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 55));
+      });
+
+      const textarea = container.querySelector('textarea, input') as HTMLTextAreaElement | HTMLInputElement | null;
+      assert.ok(textarea, 'Campo de texto deve existir');
+      assert.equal(textarea!.value, 'Como conjurar Cicatrização?');
+    } finally {
+      (globalThis as any).ExpoSpeechRecognitionModule = origNative;
+      setMobilePlatform('web');
+    }
   });
 
   test('AiChatMessageItem deve renderizar o botão de Ouvir/Parar voz e acionar onSpeak', async () => {

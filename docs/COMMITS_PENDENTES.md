@@ -6,21 +6,6 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### 3. Reconhecimento de Voz Nativo (Microfone STT) no G.L.I.T.C.H. para Android/iOS:
-**Título**: `feat(ai,android): implementa reconhecimento de voz nativo no microfone do glitch`
-
-**Descrição**:
-- Instala `expo-speech-recognition` (~58.0.1) e configura o plugin em `app.json` junto com `android.permission.RECORD_AUDIO`
-- Adiciona `android.permission.RECORD_AUDIO` e `<queries>` (`android.speech.RecognitionService` e pacotes Google de voz) em `android/app/src/main/AndroidManifest.xml`
-- Integra STT nativo em `src/services/ai/GlitchVoiceService.ts` (`startListeningAsync`, solicitação de permissão, listeners nativos e mapeamento de erros em português) mantendo compatibilidade com Web Speech API
-- Atualiza `handleToggleVoiceInput` em `src/app/(tabs)/oracle.tsx` para usar `startListeningAsync`, evitar cliques duplicados e preservar texto pré-digitado
-- Adiciona testes de regressão em `tests/glitchVoice.test.ts` e `tests/frontendOracle.test.tsx`
-
-```bash
-git add app.json package.json package-lock.json android/app/src/main/AndroidManifest.xml src/services/ai/GlitchVoiceService.ts "src/app/(tabs)/oracle.tsx" tests/glitchVoice.test.ts tests/frontendOracle.test.tsx docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
-git commit -m "feat(ai,android): implementa reconhecimento de voz nativo no microfone do glitch" -m "- Instala expo-speech-recognition e configura RECORD_AUDIO e queries no AndroidManifest" -m "- Implementa startListeningAsync com permissoes e listeners nativos em GlitchVoiceService.ts" -m "- Atualiza handleToggleVoiceInput em oracle.tsx preservando texto previo" -m "- Adiciona testes de STT nativo em tests/glitchVoice.test.ts e tests/frontendOracle.test.tsx"
-```
-
 ### 4. Auditoria Hermes APK: Substituição de `TextEncoder`/`TextDecoder` por Codecs Puros em Segredos e PDFs:
 **Título**: `fix(android,hermes): substitui TextEncoder e TextDecoder por codecs puros em segredos e pdfs`
 
@@ -112,6 +97,9 @@ git commit -m "fix(cards): corrige overflow da moldura e ajusta altura da imagem
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 3. Reconhecimento de Voz Nativo (Microfone STT) no G.L.I.T.C.H. para Android/iOS:
+- **Título**: `feat(ai,android): implementa reconhecimento de voz nativo no microfone do glitch`
 
 ### ✅ 2. Correção de Exportação PNG dos Cards no Android APK (Erro `Buffer`) e Remoção do Botão SVG:
 - **Título**: `fix(cards,android): corrige exportacao png sem Buffer e remove botao svg do modal`
