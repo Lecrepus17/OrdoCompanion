@@ -6,19 +6,6 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### 6. Registro de Pendência Técnica (Modificadores Dinâmicos de Dano por Agente):
-**Título**: `docs(roadmap): registra pendencia de modificadores dinamicos de dano por agente`
-
-**Descrição**:
-- Cria `docs/PENDENCIAS.md` detalhando a pendência de soma de FOR em armas corpo a corpo, bônus de habilidades/poderes/trilhas/rituais por agente, separação de armas compartilhadas e regras de crítico
-- Define pré-requisito explícito de varredura geral no compêndio/código e `/plan` antes de executar
-- Atualiza o índice em `docs/README.md`
-
-```bash
-git add docs/PENDENCIAS.md docs/README.md docs/COMMITS_PENDENTES.md
-git commit -m "docs(roadmap): registra pendencia de modificadores dinamicos de dano por agente" -m "- Documenta pendencia para soma de FOR corpo a corpo e bonus de habilidades/rituais por agente em docs/PENDENCIAS.md" -m "- Estabelece obrigatoriedade de varredura geral no compendio e /plan antes da implementacao" -m "- Atualiza indice da central de documentacao em docs/README.md"
-```
-
 ### 7. Extração Completa dos Mascarados (Arquivos Secretos #02), Armas Amaldiçoadas e Botão Do Compêndio no Inventário:
 **Título**: `fix(compendium,weapons): restaura itens, armas, poderes e aliados dos Mascarados e integra ao inventario`
 
@@ -67,6 +54,9 @@ git commit -m "fix(cards): corrige overflow da moldura e ajusta altura da imagem
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ 6. Registro de Pendência Técnica (Modificadores Dinâmicos de Dano por Agente):
+- **Título**: `docs(roadmap): registra pendencia de modificadores dinamicos de dano por agente`
 
 ### ✅ 5. Unificação de Armas (Agentes <-> Armaria), Cálculo de Crítico e Botão Crítico Máx Sempre Visível:
 - **Título**: `feat(weapons,combat): unifica armas entre agentes e armaria e corrige calculo de critico`
