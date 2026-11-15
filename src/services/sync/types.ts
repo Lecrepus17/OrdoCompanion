@@ -3,6 +3,7 @@ import {
   Campaign,
   CharacterSheet,
   CompendiumEntity,
+  CustomCatalogItem,
   CustomWeapon,
   SavedList,
   UnlockedBookRecord,
@@ -29,6 +30,7 @@ export interface UserDataBackupPayload {
   characters?: CharacterSheet[];
   campaigns?: Campaign[];
   customWeapons?: CustomWeapon[];
+  customItems?: CustomCatalogItem[];
   unlockedBooks?: Record<string, UnlockedBookRecord>;
   dynamicBooks?: BookWithPages[];
   dynamicEntities?: CompendiumEntity[];
@@ -36,6 +38,7 @@ export interface UserDataBackupPayload {
   deletedCharacterIds?: string[];
   deletedCampaignIds?: string[];
   deletedCustomWeaponIds?: string[];
+  deletedCustomItemIds?: string[];
 }
 
 export type SyncStatus = 'idle' | 'checking' | 'syncing' | 'synced' | 'error';
@@ -62,6 +65,7 @@ export interface MergeStats {
   charactersCount: number;
   campaignsCount?: number;
   weaponsCount: number;
+  itemsCount?: number;
   customEntitiesCount: number;
   favoritesCount: number;
   listsCount: number;

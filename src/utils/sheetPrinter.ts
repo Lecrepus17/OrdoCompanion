@@ -8,6 +8,10 @@ import {
   getDescStyle,
 } from './abilitySummarizer';
 import {
+  calculateInventoryMechanicsSummary,
+  formatSpacesLabel,
+} from './inventoryItems';
+import {
   BASE_FRONT_B64,
   BASE_BACK_B64,
   SH_FRONT_B64,
@@ -175,8 +179,12 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
     (char.defenseOther || 0);
 
   const baseFor = char.attributes?.FOR || 0;
-  const maxLoad = (baseFor <= 0 ? 2 : baseFor * 5) + (char.maxLoadBonus || 0);
-  const curLoad = (char.inventory || []).reduce((acc, it) => acc + (it.spaces || 0), 0);
+  const invSummary = calculateInventoryMechanicsSummary(char.inventory || []);
+  const maxLoad =
+    (baseFor <= 0 ? 2 : baseFor * 5) +
+    (char.maxLoadBonus || 0) +
+    invSummary.totalLoadBonusFromItems;
+  const curLoad = formatSpacesLabel(invSummary.totalSpacesUsed);
 
   // Collect abilities & rituals to display
   const allAbilities = [...(char.abilities || [])];
@@ -607,15 +615,18 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
           ${col1Items
             .map((it, idx) => {
               const top = 73.8 + idx * 2.00;
+              const qty = it.quantity !== undefined ? it.quantity : 1;
+              const itemSpaces = formatSpacesLabel((it.spaces ?? 1) * qty);
+              const label = `${qty > 1 ? `${qty}x ` : ''}${it.name}`;
               return `
                 <div class="field" style="left: 6.6%; top: ${top}%; width: 27.8%; font-size: 10px;">
-                  ${escapeHtml(it.name)}
+                  ${escapeHtml(label)}
                 </div>
                 <div class="field center" style="left: 35.2%; top: ${top}%; width: 5.5%; font-size: 10px;">
                   ${escapeHtml(it.category || '0')}
                 </div>
                 <div class="field center" style="left: 41.4%; top: ${top}%; width: 5.5%; font-size: 10px;">
-                  ${it.spaces || 1}
+                  ${itemSpaces}
                 </div>
               `;
             })
@@ -624,15 +635,18 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
           ${col2Items
             .map((it, idx) => {
               const top = 73.8 + idx * 2.00;
+              const qty = it.quantity !== undefined ? it.quantity : 1;
+              const itemSpaces = formatSpacesLabel((it.spaces ?? 1) * qty);
+              const label = `${qty > 1 ? `${qty}x ` : ''}${it.name}`;
               return `
                 <div class="field" style="left: 48.5%; top: ${top}%; width: 27.8%; font-size: 10px;">
-                  ${escapeHtml(it.name)}
+                  ${escapeHtml(label)}
                 </div>
                 <div class="field center" style="left: 77.2%; top: ${top}%; width: 5.5%; font-size: 10px;">
                   ${escapeHtml(it.category || '0')}
                 </div>
                 <div class="field center" style="left: 83.4%; top: ${top}%; width: 5.5%; font-size: 10px;">
-                  ${it.spaces || 1}
+                  ${itemSpaces}
                 </div>
               `;
             })
@@ -713,15 +727,18 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
         ${col1Items
           .map((it, idx) => {
             const top = 56.8 + idx * 2.00;
+            const qty = it.quantity !== undefined ? it.quantity : 1;
+            const itemSpaces = formatSpacesLabel((it.spaces ?? 1) * qty);
+            const label = `${qty > 1 ? `${qty}x ` : ''}${it.name}`;
             return `
               <div class="field" style="left: 5.2%; top: ${top}%; width: 28.0%; font-size: 10px;">
-                ${escapeHtml(it.name)}
+                ${escapeHtml(label)}
               </div>
               <div class="field center" style="left: 33.8%; top: ${top}%; width: 5.5%; font-size: 10px;">
                 ${escapeHtml(it.category || '0')}
               </div>
               <div class="field center" style="left: 40.0%; top: ${top}%; width: 5.5%; font-size: 10px;">
-                ${it.spaces || 1}
+                ${itemSpaces}
               </div>
             `;
           })
@@ -730,15 +747,18 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
         ${col2Items
           .map((it, idx) => {
             const top = 56.8 + idx * 2.00;
+            const qty = it.quantity !== undefined ? it.quantity : 1;
+            const itemSpaces = formatSpacesLabel((it.spaces ?? 1) * qty);
+            const label = `${qty > 1 ? `${qty}x ` : ''}${it.name}`;
             return `
               <div class="field" style="left: 47.5%; top: ${top}%; width: 28.0%; font-size: 10px;">
-                ${escapeHtml(it.name)}
+                ${escapeHtml(label)}
               </div>
               <div class="field center" style="left: 76.2%; top: ${top}%; width: 5.5%; font-size: 10px;">
                 ${escapeHtml(it.category || '0')}
               </div>
               <div class="field center" style="left: 82.3%; top: ${top}%; width: 5.5%; font-size: 10px;">
-                ${it.spaces || 1}
+                ${itemSpaces}
               </div>
             `;
           })

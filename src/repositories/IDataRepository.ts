@@ -8,6 +8,7 @@ import {
   CharacterSheet,
   CompendiumEntity,
   CompendiumFilters,
+  CustomCatalogItem,
   CustomWeapon,
   SavedList,
   UnlockedBookRecord,
@@ -73,12 +74,16 @@ export interface IDataRepository {
   markCampaignDeleted(campaignId: string): Promise<void>;
   getDeletedCustomWeaponIds(): Promise<string[]>;
   markCustomWeaponDeleted(weaponId: string): Promise<void>;
+  getDeletedCustomItemIds(): Promise<string[]>;
+  markCustomItemDeleted(itemId: string): Promise<void>;
   getCharacters(): Promise<CharacterSheet[]>;
   saveCharacters(characters: CharacterSheet[]): Promise<void>;
   getCampaigns(): Promise<Campaign[]>;
   saveCampaigns(campaigns: Campaign[]): Promise<void>;
   getCustomWeapons(): Promise<CustomWeapon[]>;
   saveCustomWeapons(weapons: CustomWeapon[]): Promise<void>;
+  getCustomItems(): Promise<CustomCatalogItem[]>;
+  saveCustomItems(items: CustomCatalogItem[]): Promise<void>;
 
   // Perfil do Usuário & Prontidão para Nuvem
   getUserProfile(): Promise<UserProfile>;

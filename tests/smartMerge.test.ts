@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { SmartMergeEngine } from '../src/services/sync/SmartMergeEngine';
 import { UserDataBackupPayload } from '../src/services/sync/types';
-import { CharacterSheet, CustomWeapon, SavedList } from '../src/types/compendium';
+import { CharacterSheet, CustomCatalogItem, CustomWeapon, SavedList } from '../src/types/compendium';
 
 function makeDummyChar(
   partial: Partial<CharacterSheet> & { id: string; name: string }
@@ -343,5 +343,52 @@ describe('Mecanismo de Sincronização e Resolução de Conflitos (SmartMergeEng
     assert.strictEqual(profile?.playerName, 'Thiago Fritz (Líder)');
     assert.strictEqual(profile?.cloudSyncEnabled, true);
     assert.strictEqual(result.hasLocalChangesToApply, true);
+  });
+
+  it('deve mesclar customItems por updatedAt e respeitar tombstones em deletedCustomItemIds', () => {
+    const localOlder: CustomCatalogItem = {
+      id: 'citem_shared_sync',
+      name: 'Cicatrizante Tático v1',
+      baseItemName: 'Cicatrizante',
+      itemType: 'geral',
+      subCategoryGroup: 'cura',
+      baseCategory: 'I',
+      baseSpaces: 1,
+      finalCategory: 'I',
+      finalSpaces: 1,
+      details: 'Versão antiga',
+      element: 'Nenhum',
+      modifications: [],
+      createdAt: '2026-10-25T01:00:00.000Z',
+      updatedAt: '2026-10-25T01:00:00.000Z',
+    };
+    const remoteNewer: CustomCatalogItem = {
+      ...localOlder,
+      name: 'Cicatrizante Tático v2',
+      details: 'Versão atualizada',
+      updatedAt: '2026-10-25T02:00:00.000Z',
+    };
+    const deletedRemote: CustomCatalogItem = {
+      ...localOlder,
+      id: 'citem_deleted_1',
+      name: 'Item Apagado',
+    };
+
+    const result = SmartMergeEngine.merge(
+      createDummyPayload({
+        customItems: [localOlder],
+        deletedCustomItemIds: ['citem_deleted_1'],
+      }),
+      createDummyPayload({
+        customItems: [remoteNewer, deletedRemote],
+        deletedCustomItemIds: [],
+      })
+    );
+
+    assert.strictEqual(result.merged.customItems?.length, 1);
+    assert.strictEqual(result.merged.customItems?.[0].name, 'Cicatrizante Tático v2');
+    assert.ok(result.merged.deletedCustomItemIds?.includes('citem_deleted_1'));
+    assert.strictEqual(result.hasLocalChangesToApply, true);
+    assert.strictEqual(result.hasRemoteChangesToUpload, true);
   });
 });

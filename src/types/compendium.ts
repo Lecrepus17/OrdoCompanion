@@ -265,6 +265,96 @@ export interface CharacterAbility {
   type: 'habilidade' | 'ritual' | 'poder';
 }
 
+export type InventoryItemCategoryGroup =
+  | 'acessorio'
+  | 'cura'
+  | 'explosivo'
+  | 'operacional'
+  | 'paranormal'
+  | 'amaldicoado'
+  | 'protecao'
+  | 'municao'
+  | 'outro';
+
+export type ItemMechanicType =
+  | 'none'
+  | 'heal_pv'
+  | 'heal_pe'
+  | 'heal_san'
+  | 'heal_all'
+  | 'temp_pv'
+  | 'temp_pe'
+  | 'damage_roll'
+  | 'utility_roll'
+  | 'pe_activation'
+  | 'load_bonus'
+  | 'skill_bonus'
+  | 'block_rd_bonus';
+
+export interface ItemMechanic {
+  id: string;
+  type: ItemMechanicType;
+  label: string;
+  formula?: string;
+  flatValue?: number;
+  peCost?: number;
+  actionCost?: string;
+  dtFormula?: 'AGI' | 'INT' | 'PRE' | 'VIG' | string;
+  damageType?: string;
+  targetSkill?: string;
+  isSituationalSkillBonus?: boolean;
+  resistanceText?: string;
+  removesCondition?: string;
+  notes?: string;
+}
+
+export interface AccessoryModificationDef {
+  id: string;
+  name: string;
+  categoryIncrease: number;
+  spacesChange?: number;
+  description: string;
+  source: 'Livro Base' | 'Sobrevivendo ao Horror' | 'Homebrew';
+}
+
+export interface CustomItemModEntry {
+  id: string;
+  name: string;
+  effect: string;
+  categoryIncrease: number;
+  spacesChange?: number;
+}
+
+export interface CustomCatalogItem {
+  id: string;
+  name: string;
+  baseItemId?: string;
+  baseItemName: string;
+  itemType: 'geral' | 'vestimenta' | 'utensilio' | 'protecao' | 'escudo';
+  subCategoryGroup: InventoryItemCategoryGroup;
+  baseCategory: '0' | 'I' | 'II' | 'III' | 'IV';
+  baseSpaces: number;
+  finalCategory: '0' | 'I' | 'II' | 'III' | 'IV';
+  finalSpaces: number;
+  details: string;
+  element: ParanormalElement;
+  modifications: string[];
+  customModifications?: CustomItemModEntry[];
+  skillBonus?: number;
+  targetSkill?: string;
+  secondarySkill?: string;
+  secondaryBonus?: number;
+  instrumentalSkill?: string;
+  justification?: string;
+  consumable?: boolean;
+  maxCharges?: number;
+  loadBonus?: number;
+  blockRdBonus?: number;
+  mechanics?: ItemMechanic[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CharacterInventoryItem {
   id: string;
   name: string;
@@ -279,7 +369,22 @@ export interface CharacterInventoryItem {
   targetSkill?: string;
   secondarySkill?: string;
   secondaryBonus?: number;
+  instrumentalSkill?: string;
   justification?: string;
+  quantity?: number;
+  charges?: number;
+  maxCharges?: number;
+  consumable?: boolean;
+  subCategoryGroup?: InventoryItemCategoryGroup;
+  element?: ParanormalElement;
+  sourceEntityId?: string;
+  customItemId?: string;
+  linkMode?: 'shared' | 'copied';
+  modifications?: string[];
+  customModifications?: CustomItemModEntry[];
+  loadBonus?: number;
+  blockRdBonus?: number;
+  mechanics?: ItemMechanic[];
   customWeaponId?: string;
   linkedAttackId?: string;
   isAmmoForWeaponId?: string;
@@ -326,8 +431,10 @@ export interface CharacterSheet {
   // Status vitais
   pvCurrent: number;
   pvMax: number;
+  pvTemp?: number;
   peCurrent: number;
   peMax: number;
+  peTemp?: number;
   sanCurrent: number;
   sanMax: number;
   

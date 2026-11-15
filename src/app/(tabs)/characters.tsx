@@ -25,13 +25,16 @@ import {
   CharacterSheet,
   CompendiumEntity,
   CriticalDamageMode,
+  CustomCatalogItem,
   CustomWeapon,
+  InventoryItemCategoryGroup,
+  ItemMechanic,
   ParanormalElement,
   ResolvedAttackDamage,
   SituationalDamageToggles,
   TrainingDegree,
 } from '../../types/compendium';
-import { confirmAction } from '../../utils/alert';
+import { confirmAction, showAlert } from '../../utils/alert';
 import { copyToClipboard } from '../../utils/clipboard';
 import { normalizeCriticalDamageMode } from '../../utils/dice';
 import {
@@ -47,7 +50,17 @@ import {
 } from '../../utils/damageModifiers';
 import { AttackPreparationModal } from '../../components/AttackPreparationModal';
 import { CriticalModePromptModal } from '../../components/CriticalModePromptModal';
+import { ItemEditorModal, ItemEditorSaveResult } from '../../components/ItemEditorModal';
 import { WeaponEditorModal } from '../../components/WeaponEditorModal';
+import {
+  buildCatalogItemFromCuratedItem,
+  buildInventoryItemFromCuratedItem,
+  calculateInventoryMechanicsSummary,
+  calculateItemSaveDt,
+  CuratedCompendiumItem,
+  formatSpacesLabel,
+  getCuratedCompendiumItems,
+} from '../../utils/inventoryItems';
 import PrintSheetModal from '../../components/PrintSheetModal';
 import CreateAgentModal from '../../components/CreateAgentModal';
 import LevelUpModal from '../../components/LevelUpModal';
@@ -120,6 +133,9 @@ export default function CharactersScreen() {
     upsertCustomWeapon,
     equipWeaponToCharacter,
     removeAttackFromCharacter,
+    customItems,
+    upsertCustomItem,
+    equipCatalogItemToCharacter,
     entities,
     getEntityById,
     rollSkillTest,
@@ -189,8 +205,10 @@ export default function CharactersScreen() {
     | 'add_weapon_armaria'
     | 'add_weapon_compendium'
     | 'add_item_compendium'
+    | 'add_item_depot'
   >(null);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [itemCompendiumFilter, setItemCompendiumFilter] = useState<'all' | InventoryItemCategoryGroup>('all');
 
   // Weapon Editor & Unified Attack Modals
   const [weaponEditorVisible, setWeaponEditorVisible] = useState(false);
@@ -219,16 +237,14 @@ export default function CharactersScreen() {
   const [abElement, setAbElement] = useState<string>('Nenhum');
   const [compendiumFilterTab, setCompendiumFilterTab] = useState<'all' | 'class_powers' | 'paranormal_powers' | 'rituals' | 'items'>('all');
 
-  // Manual Inventory Item Modal
-  const [itemModalVisible, setItemModalVisible] = useState(false);
-  const [itName, setItName] = useState('');
-  const [itCat, setItCat] = useState<'0' | 'I' | 'II' | 'III' | 'IV'>('I');
-  const [itSpaces, setItSpaces] = useState('1');
-  const [itDetails, setItDetails] = useState('');
-  const [itItemType, setItItemType] = useState<'geral' | 'vestimenta' | 'utensilio'>('geral');
-  const [itTargetSkill, setItTargetSkill] = useState('');
-  const [itSkillBonus, setItSkillBonus] = useState<number>(2);
-  const [itJustification, setItJustification] = useState('');
+  // Unified Item Editor & Item Mechanics Modals
+  const [itemEditorVisible, setItemEditorVisible] = useState(false);
+  const [editingInventoryItem, setEditingInventoryItem] = useState<CharacterInventoryItem | null>(null);
+  const [importChoiceItem, setImportChoiceItem] = useState<CustomCatalogItem | null>(null);
+  const [healChoiceModal, setHealChoiceModal] = useState<{
+    item: CharacterInventoryItem;
+    mechanic: ItemMechanic;
+  } | null>(null);
 
   // Print Sheet Modal
   const [printModalVisible, setPrintModalVisible] = useState(false);
@@ -275,11 +291,31 @@ export default function CharactersScreen() {
     return calculateActiveItemSkillBonuses(activeChar.inventory);
   }, [activeChar?.inventory]);
 
-  // Intercepta botão de retorno físico (Android) para fechar sub-modais de confirmação de armas
+  // Resumo mecânico do inventário (Espaços decimais, bônus de Mochila Militar, Braçadeira Reforçada e limites por patente)
+  const inventorySummary = useMemo(
+    () => calculateInventoryMechanicsSummary(activeChar?.inventory || []),
+    [activeChar?.inventory]
+  );
+
+  // Lista curada e enriquecida de itens do compêndio
+  const curatedCompendiumItems = useMemo(
+    () => getCuratedCompendiumItems(entities),
+    [entities]
+  );
+
+  // Intercepta botão de retorno físico (Android) para fechar sub-modais de confirmação de armas e itens
   useEffect(() => {
-    if (!importChoiceWeapon && !deleteAttackChoice) return;
+    if (!importChoiceWeapon && !deleteAttackChoice && !importChoiceItem && !healChoiceModal) return;
     if (Platform.OS !== 'web' && typeof document === 'undefined') {
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (healChoiceModal) {
+          setHealChoiceModal(null);
+          return true;
+        }
+        if (importChoiceItem) {
+          setImportChoiceItem(null);
+          return true;
+        }
         if (deleteAttackChoice) {
           setDeleteAttackChoice(null);
           return true;
@@ -293,7 +329,7 @@ export default function CharactersScreen() {
       return () => sub.remove();
     }
     return undefined;
-  }, [importChoiceWeapon, deleteAttackChoice]);
+  }, [importChoiceWeapon, deleteAttackChoice, importChoiceItem, healChoiceModal]);
 
   // Helper para resolver informações de arma para checagem de proficiência
   const getAttackWeaponInfo = (atk: CharacterAttack): WeaponProficiencyCheckInput => {
@@ -819,29 +855,280 @@ export default function CharactersScreen() {
   };
 
   // Inventory actions
-  const handleSaveInventoryItem = async () => {
-    if (!activeChar || !itName.trim()) return;
+  const handleSaveUnifiedItem = async (result: ItemEditorSaveResult) => {
+    if (!activeChar) return;
+    const { catalogItem, quantity, charges, alsoSaveToDepot } = result;
     const existing = activeChar.inventory || [];
-    const isVest = itItemType === 'vestimenta';
-    const isUten = itItemType === 'utensilio';
-    const isBonusItem = isVest || isUten;
 
-    const newItem: CharacterInventoryItem = {
-      id: `inv_${Date.now()}`,
-      name: itName.trim(),
-      category: itCat,
-      spaces: parseInt(itSpaces, 10) || 1,
-      details: itDetails.trim(),
-      equipped: true,
-      itemType: itItemType,
-      isVestimenta: isVest,
-      isUtensilio: isUten,
-      skillBonus: isBonusItem ? itSkillBonus : undefined,
-      targetSkill: isBonusItem && itTargetSkill ? itTargetSkill : undefined,
-      justification: isBonusItem && itJustification.trim() ? itJustification.trim() : undefined,
+    if (alsoSaveToDepot) {
+      await upsertCustomItem(catalogItem);
+    }
+
+    if (editingInventoryItem) {
+      const updatedInvItem: CharacterInventoryItem = {
+        ...editingInventoryItem,
+        name: catalogItem.name,
+        category: catalogItem.finalCategory,
+        spaces: catalogItem.finalSpaces,
+        details: catalogItem.details,
+        itemType: catalogItem.itemType,
+        isVestimenta: catalogItem.itemType === 'vestimenta',
+        isUtensilio: catalogItem.itemType === 'utensilio',
+        skillBonus: catalogItem.skillBonus,
+        targetSkill: catalogItem.targetSkill,
+        secondarySkill: catalogItem.secondarySkill,
+        secondaryBonus: catalogItem.secondaryBonus,
+        instrumentalSkill: catalogItem.instrumentalSkill,
+        justification: catalogItem.justification,
+        quantity,
+        consumable: catalogItem.consumable,
+        maxCharges: catalogItem.maxCharges,
+        charges:
+          catalogItem.maxCharges !== undefined
+            ? Math.min(charges ?? catalogItem.maxCharges, catalogItem.maxCharges)
+            : undefined,
+        subCategoryGroup: catalogItem.subCategoryGroup,
+        element: catalogItem.element,
+        sourceEntityId: catalogItem.baseItemId,
+        customItemId: alsoSaveToDepot ? catalogItem.id : editingInventoryItem.customItemId,
+        linkMode: alsoSaveToDepot
+          ? editingInventoryItem.linkMode || 'shared'
+          : editingInventoryItem.linkMode,
+        modifications: [...(catalogItem.modifications || [])],
+        customModifications: catalogItem.customModifications
+          ? catalogItem.customModifications.map((m) => ({ ...m }))
+          : undefined,
+        loadBonus: catalogItem.loadBonus,
+        blockRdBonus: catalogItem.blockRdBonus,
+        mechanics: (catalogItem.mechanics || []).map((m) => ({ ...m })),
+      };
+      await updateActiveChar({
+        inventory: existing.map((it) => (it.id === editingInventoryItem.id ? updatedInvItem : it)),
+      });
+    } else {
+      const newItem: CharacterInventoryItem = {
+        id: `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        name: catalogItem.name,
+        category: catalogItem.finalCategory,
+        spaces: catalogItem.finalSpaces,
+        details: catalogItem.details,
+        equipped: true,
+        itemType: catalogItem.itemType,
+        isVestimenta: catalogItem.itemType === 'vestimenta',
+        isUtensilio: catalogItem.itemType === 'utensilio',
+        skillBonus: catalogItem.skillBonus,
+        targetSkill: catalogItem.targetSkill,
+        secondarySkill: catalogItem.secondarySkill,
+        secondaryBonus: catalogItem.secondaryBonus,
+        instrumentalSkill: catalogItem.instrumentalSkill,
+        justification: catalogItem.justification,
+        quantity,
+        charges,
+        maxCharges: catalogItem.maxCharges,
+        consumable: catalogItem.consumable,
+        subCategoryGroup: catalogItem.subCategoryGroup,
+        element: catalogItem.element,
+        sourceEntityId: catalogItem.baseItemId,
+        customItemId: alsoSaveToDepot ? catalogItem.id : undefined,
+        linkMode: alsoSaveToDepot ? 'shared' : undefined,
+        modifications: [...(catalogItem.modifications || [])],
+        customModifications: catalogItem.customModifications
+          ? catalogItem.customModifications.map((m) => ({ ...m }))
+          : undefined,
+        loadBonus: catalogItem.loadBonus,
+        blockRdBonus: catalogItem.blockRdBonus,
+        mechanics: (catalogItem.mechanics || []).map((m) => ({ ...m })),
+      };
+      await updateActiveChar({ inventory: [...existing, newItem] });
+    }
+
+    setItemEditorVisible(false);
+    setEditingInventoryItem(null);
+  };
+
+  const handleConfirmImportDepotItem = async (mode: 'shared' | 'duplicate') => {
+    if (!activeChar || !importChoiceItem) return;
+    const item = importChoiceItem;
+    setImportChoiceItem(null);
+    await equipCatalogItemToCharacter(item, activeChar.id, { mode, quantity: 1 });
+  };
+
+  const isInventoryItemDepleted = (it: CharacterInventoryItem): boolean => {
+    const qty = it.quantity !== undefined ? it.quantity : 1;
+    if (qty <= 0) return true;
+    if (it.maxCharges && it.maxCharges > 0 && (it.charges ?? it.maxCharges) <= 0 && qty <= 1) {
+      return true;
+    }
+    return false;
+  };
+
+  const consumeInventoryItemUse = (
+    inventory: CharacterInventoryItem[],
+    itemId: string
+  ): CharacterInventoryItem[] => {
+    return inventory.map((it) => {
+      if (it.id !== itemId) return it;
+      const hasCharges = Boolean(it.maxCharges && it.maxCharges > 0);
+      if (hasCharges) {
+        const curCharges = it.charges ?? it.maxCharges ?? 0;
+        const curQty = it.quantity ?? 1;
+        if (curCharges > 1) {
+          return { ...it, charges: curCharges - 1 };
+        }
+        if (curQty > 1) {
+          return { ...it, quantity: curQty - 1, charges: it.maxCharges };
+        }
+        return { ...it, charges: 0 };
+      }
+      if (it.consumable) {
+        const curQty = it.quantity ?? 1;
+        return { ...it, quantity: Math.max(0, curQty - 1) };
+      }
+      return it;
+    });
+  };
+
+  const handleAdjustItemQuantity = async (itemId: string, delta: number) => {
+    if (!activeChar) return;
+    const nextInv = (activeChar.inventory || []).map((it) => {
+      if (it.id !== itemId) return it;
+      const cur = it.quantity ?? 1;
+      const next = Math.max(0, cur + delta);
+      return {
+        ...it,
+        quantity: next,
+        charges:
+          next > 0 && cur === 0 && it.maxCharges && it.charges === 0
+            ? it.maxCharges
+            : it.charges,
+      };
+    });
+    await updateActiveChar({ inventory: nextInv });
+  };
+
+  const handleRechargeInventoryItem = async (itemId: string) => {
+    if (!activeChar) return;
+    const nextInv = (activeChar.inventory || []).map((it) => {
+      if (it.id !== itemId) return it;
+      return {
+        ...it,
+        quantity: Math.max(1, it.quantity ?? 1),
+        charges: it.maxCharges ? it.maxCharges : it.charges,
+      };
+    });
+    await updateActiveChar({ inventory: nextInv });
+  };
+
+  const spendPeWithTempFirst = (peCost: number) => {
+    if (!activeChar || peCost <= 0) {
+      return { peCurrent: activeChar?.peCurrent || 0, peTemp: activeChar?.peTemp || 0 };
+    }
+    const curTemp = activeChar.peTemp || 0;
+    const fromTemp = Math.min(curTemp, peCost);
+    const remCost = peCost - fromTemp;
+    return {
+      peTemp: curTemp - fromTemp,
+      peCurrent: Math.max(0, (activeChar.peCurrent || 0) - remCost),
     };
-    await updateActiveChar({ inventory: [...existing, newItem] });
-    setItemModalVisible(false);
+  };
+
+  const handleExecuteItemMechanic = async (
+    item: CharacterInventoryItem,
+    mechanic: ItemMechanic,
+    targetMode?: 'self' | 'ally'
+  ) => {
+    if (!activeChar) return;
+    if (isInventoryItemDepleted(item)) {
+      showAlert('Item Esgotado', `"${item.name}" está com 0 usos. Recarregue ou reponha para usar novamente.`);
+      return;
+    }
+
+    const peCost = mechanic.peCost || 0;
+    const totalAvailablePe = (activeChar.peCurrent || 0) + (activeChar.peTemp || 0);
+    if (peCost > 0 && totalAvailablePe < peCost) {
+      showAlert('PE Insuficiente', `São necessários ${peCost} PE para ativar "${item.name}".`);
+      return;
+    }
+
+    const isHealingOrTemp =
+      mechanic.type === 'heal_pv' ||
+      mechanic.type === 'heal_pe' ||
+      mechanic.type === 'heal_san' ||
+      mechanic.type === 'heal_all' ||
+      mechanic.type === 'temp_pv' ||
+      mechanic.type === 'temp_pe';
+
+    if (isHealingOrTemp && !targetMode) {
+      setHealChoiceModal({ item, mechanic });
+      return;
+    }
+
+    let rolledTotal = mechanic.flatValue || 0;
+    if (mechanic.formula && mechanic.formula.trim()) {
+      const dtInfo = mechanic.dtFormula ? calculateItemSaveDt(activeChar, mechanic.dtFormula) : null;
+      const rollLabel = `${item.name}: ${mechanic.label}${dtInfo ? ` (${dtInfo.label})` : ''}${
+        targetMode === 'ally' ? ' [Aliado]' : ''
+      }`;
+      const res = rollFormula(mechanic.formula, rollLabel);
+      rolledTotal = res.total;
+    }
+
+    const patch: Partial<CharacterSheet> = {};
+    if (peCost > 0) {
+      const peSpend = spendPeWithTempFirst(peCost);
+      patch.peCurrent = peSpend.peCurrent;
+      patch.peTemp = peSpend.peTemp;
+    }
+
+    if (targetMode === 'self' && rolledTotal > 0) {
+      const basePeAfterCost = patch.peCurrent ?? activeChar.peCurrent;
+      if (mechanic.type === 'heal_pv') {
+        patch.pvCurrent = Math.min(activeChar.pvMax, activeChar.pvCurrent + rolledTotal);
+      } else if (mechanic.type === 'heal_pe') {
+        patch.peCurrent = Math.min(activeChar.peMax, basePeAfterCost + rolledTotal);
+      } else if (mechanic.type === 'heal_san') {
+        patch.sanCurrent = Math.min(activeChar.sanMax, activeChar.sanCurrent + rolledTotal);
+      } else if (mechanic.type === 'heal_all') {
+        patch.pvCurrent = Math.min(activeChar.pvMax, activeChar.pvCurrent + rolledTotal);
+        patch.peCurrent = Math.min(activeChar.peMax, basePeAfterCost + rolledTotal);
+        patch.sanCurrent = Math.min(activeChar.sanMax, activeChar.sanCurrent + rolledTotal);
+      } else if (mechanic.type === 'temp_pv') {
+        patch.pvTemp = (activeChar.pvTemp || 0) + rolledTotal;
+      } else if (mechanic.type === 'temp_pe') {
+        patch.peTemp = (patch.peTemp ?? activeChar.peTemp ?? 0) + rolledTotal;
+      }
+    }
+
+    if (item.consumable || (item.maxCharges && item.maxCharges > 0)) {
+      patch.inventory = consumeInventoryItemUse(activeChar.inventory || [], item.id);
+    }
+
+    if (Object.keys(patch).length > 0) {
+      await updateActiveChar(patch);
+    }
+
+    if (mechanic.type === 'pe_activation' && !mechanic.formula) {
+      showAlert(
+        `${item.name} Ativado`,
+        `-${peCost} PE aplicados para "${mechanic.label}".${mechanic.notes ? `\n\n${mechanic.notes}` : ''}`
+      );
+    } else if (isHealingOrTemp && targetMode === 'self' && !mechanic.formula) {
+      showAlert(
+        `${item.name} Aplicado`,
+        `+${rolledTotal} aplicado em ${activeChar.name}.`
+      );
+    } else if (!mechanic.formula) {
+      const dtInfo = mechanic.dtFormula ? calculateItemSaveDt(activeChar, mechanic.dtFormula) : null;
+      const infoLines = [
+        peCost > 0 ? `-${peCost} PE gastos.` : '',
+        mechanic.actionCost ? `Ação: ${mechanic.actionCost}` : '',
+        dtInfo ? dtInfo.label : '',
+        mechanic.notes || item.details || '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+      showAlert(`${item.name} — ${mechanic.label}`, infoLines || 'Efeito ativado!');
+    }
   };
 
   // Protection Assistant action
@@ -895,13 +1182,10 @@ export default function CharactersScreen() {
   const maxLoad = useMemo(() => {
     if (!activeChar) return 2;
     const base = activeChar.attributes.FOR <= 0 ? 2 : activeChar.attributes.FOR * 5;
-    return base + (activeChar.maxLoadBonus || 0);
-  }, [activeChar]);
+    return base + (activeChar.maxLoadBonus || 0) + inventorySummary.totalLoadBonusFromItems;
+  }, [activeChar, inventorySummary.totalLoadBonusFromItems]);
 
-  const currentLoad = useMemo(() => {
-    if (!activeChar || !activeChar.inventory) return 0;
-    return activeChar.inventory.reduce((acc, item) => acc + (item.spaces || 0), 0);
-  }, [activeChar]);
+  const currentLoad = inventorySummary.totalSpacesUsed;
 
   // Total Defense Calculation
   const totalDefense = useMemo(() => {
@@ -920,7 +1204,8 @@ export default function CharactersScreen() {
   const esquivaTotal = totalDefense + reflexosBonus;
 
   const fortitudeEntry = activeChar?.skills?.['Fortitude'] || { degree: 0, bonus: 0 };
-  const bloqueioRD = (fortitudeEntry.degree || 0) + (fortitudeEntry.bonus || 0);
+  const bloqueioRD =
+    (fortitudeEntry.degree || 0) + (fortitudeEntry.bonus || 0) + inventorySummary.totalBlockRdBonus;
 
   const lutaEntry = activeChar?.skills?.['Luta'] || { degree: 0, bonus: 0 };
   const contraAtaqueBonus = (lutaEntry.degree || 0) + (lutaEntry.bonus || 0);
@@ -1695,7 +1980,21 @@ export default function CharactersScreen() {
                 color="#EF4444"
                 current={activeChar.pvCurrent}
                 max={activeChar.pvMax}
-                onChangeCurrent={(v) => updateActiveChar({ pvCurrent: Math.max(0, v) })}
+                onChangeCurrent={(v) => {
+                  const delta = v - activeChar.pvCurrent;
+                  if (delta < 0 && (activeChar.pvTemp || 0) > 0) {
+                    const dmg = -delta;
+                    const curTemp = activeChar.pvTemp || 0;
+                    const fromTemp = Math.min(curTemp, dmg);
+                    const remDmg = dmg - fromTemp;
+                    updateActiveChar({
+                      pvTemp: curTemp - fromTemp,
+                      pvCurrent: Math.max(0, activeChar.pvCurrent - remDmg),
+                    });
+                    return;
+                  }
+                  updateActiveChar({ pvCurrent: Math.max(0, v) });
+                }}
                 onChangeMax={(v) => updateActiveChar({ pvMax: Math.max(1, v) })}
               />
               <StatCounterRow
@@ -1703,7 +2002,21 @@ export default function CharactersScreen() {
                 color="#F59E0B"
                 current={activeChar.peCurrent}
                 max={activeChar.peMax}
-                onChangeCurrent={(v) => updateActiveChar({ peCurrent: Math.max(0, v) })}
+                onChangeCurrent={(v) => {
+                  const delta = v - activeChar.peCurrent;
+                  if (delta < 0 && (activeChar.peTemp || 0) > 0) {
+                    const spent = -delta;
+                    const curTemp = activeChar.peTemp || 0;
+                    const fromTemp = Math.min(curTemp, spent);
+                    const remSpent = spent - fromTemp;
+                    updateActiveChar({
+                      peTemp: curTemp - fromTemp,
+                      peCurrent: Math.max(0, activeChar.peCurrent - remSpent),
+                    });
+                    return;
+                  }
+                  updateActiveChar({ peCurrent: Math.max(0, v) });
+                }}
                 onChangeMax={(v) => updateActiveChar({ peMax: Math.max(1, v) })}
               />
               <StatCounterRow
@@ -1714,6 +2027,67 @@ export default function CharactersScreen() {
                 onChangeCurrent={(v) => updateActiveChar({ sanCurrent: Math.max(0, v) })}
                 onChangeMax={(v) => updateActiveChar({ sanMax: Math.max(1, v) })}
               />
+
+              {/* Badges & Controles de PV / PE Temporários */}
+              <View style={styles.tempStatsRow} testID="status-vital-temp-badges">
+                <View style={[styles.tempStatBadge, { borderColor: 'rgba(16, 185, 129, 0.45)', backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.tempStatLabel, { color: '#34D399' }]}>PV TEMPORÁRIOS</Text>
+                    <Text style={styles.tempStatVal} testID="pv-temp-value">
+                      +{activeChar.pvTemp || 0} PV Temp
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.tempMiniBtn}
+                    onPress={() => updateActiveChar({ pvTemp: Math.max(0, (activeChar.pvTemp || 0) - 1) })}
+                  >
+                    <Text style={styles.tempMiniBtnText}>-1</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.tempMiniBtn}
+                    onPress={() => updateActiveChar({ pvTemp: (activeChar.pvTemp || 0) + 1 })}
+                  >
+                    <Text style={styles.tempMiniBtnText}>+1</Text>
+                  </TouchableOpacity>
+                  {(activeChar.pvTemp || 0) > 0 ? (
+                    <TouchableOpacity
+                      style={[styles.tempMiniBtn, { borderColor: '#EF4444' }]}
+                      onPress={() => updateActiveChar({ pvTemp: 0 })}
+                    >
+                      <Ionicons name="close" size={12} color="#EF4444" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+
+                <View style={[styles.tempStatBadge, { borderColor: 'rgba(245, 158, 11, 0.45)', backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.tempStatLabel, { color: '#FBBF24' }]}>PE TEMPORÁRIOS</Text>
+                    <Text style={styles.tempStatVal} testID="pe-temp-value">
+                      +{activeChar.peTemp || 0} PE Temp
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.tempMiniBtn}
+                    onPress={() => updateActiveChar({ peTemp: Math.max(0, (activeChar.peTemp || 0) - 1) })}
+                  >
+                    <Text style={styles.tempMiniBtnText}>-1</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.tempMiniBtn}
+                    onPress={() => updateActiveChar({ peTemp: (activeChar.peTemp || 0) + 1 })}
+                  >
+                    <Text style={styles.tempMiniBtnText}>+1</Text>
+                  </TouchableOpacity>
+                  {(activeChar.peTemp || 0) > 0 ? (
+                    <TouchableOpacity
+                      style={[styles.tempMiniBtn, { borderColor: '#EF4444' }]}
+                      onPress={() => updateActiveChar({ peTemp: 0 })}
+                    >
+                      <Ionicons name="close" size={12} color="#EF4444" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
 
               {/* Avisos de Condições Vitais de Ordem Paranormal */}
               {activeChar.pvCurrent <= 0 && (
@@ -1982,7 +2356,7 @@ export default function CharactersScreen() {
                     RD {bloqueioRD}
                   </Text>
                   <Text style={{ fontSize: 9, color: colors.textSecondary }}>
-                    Reduz dano por Fortitude (+{bloqueioRD})
+                    Fortitude + Itens (+{bloqueioRD})
                   </Text>
                 </TouchableOpacity>
 
@@ -2999,10 +3373,13 @@ export default function CharactersScreen() {
                     currentLoad > maxLoad && { color: '#EF4444' },
                   ]}
                 >
-                  {currentLoad} / {maxLoad} espaços
+                  {formatSpacesLabel(currentLoad)} / {maxLoad} espaços
                 </Text>
                 <Text style={styles.loadSub}>
                   Base: 5x FOR ({activeChar.attributes.FOR}) + Mochila ({activeChar.maxLoadBonus || 0})
+                  {inventorySummary.totalLoadBonusFromItems > 0
+                    ? ` + Itens (+${inventorySummary.totalLoadBonusFromItems})`
+                    : ''}
                 </Text>
               </View>
               <View style={styles.stepperRow}>
@@ -3050,7 +3427,7 @@ export default function CharactersScreen() {
                     CONDIÇÃO: SOBRECARREGADO
                   </Text>
                   <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }}>
-                    Carga excedida ({currentLoad}/{maxLoad} espaços). Você sofre –2d20 em testes de Força e Agilidade e seu deslocamento é reduzido em 3m.
+                    Carga excedida ({formatSpacesLabel(currentLoad)}/{maxLoad} espaços). Você sofre –2d20 em testes de Força e Agilidade e seu deslocamento é reduzido em 3m.
                   </Text>
                 </View>
               </View>
@@ -3058,22 +3435,31 @@ export default function CharactersScreen() {
 
             {/* Limites de Itens por Categoria da Patente */}
             <View style={styles.itemLimitsGrid}>
-              <View style={styles.limitPill}>
-                <Text style={styles.limitLabel}>CAT I</Text>
-                <Text style={styles.limitNum}>{activeChar.itemLimits?.cat1 ?? 2}</Text>
-              </View>
-              <View style={styles.limitPill}>
-                <Text style={styles.limitLabel}>CAT II</Text>
-                <Text style={styles.limitNum}>{activeChar.itemLimits?.cat2 ?? 0}</Text>
-              </View>
-              <View style={styles.limitPill}>
-                <Text style={styles.limitLabel}>CAT III</Text>
-                <Text style={styles.limitNum}>{activeChar.itemLimits?.cat3 ?? 0}</Text>
-              </View>
-              <View style={styles.limitPill}>
-                <Text style={styles.limitLabel}>CAT IV</Text>
-                <Text style={styles.limitNum}>{activeChar.itemLimits?.cat4 ?? 0}</Text>
-              </View>
+              {(
+                [
+                  { label: 'CAT I', catKey: 'I' as const, maxVal: activeChar.itemLimits?.cat1 ?? 2 },
+                  { label: 'CAT II', catKey: 'II' as const, maxVal: activeChar.itemLimits?.cat2 ?? 0 },
+                  { label: 'CAT III', catKey: 'III' as const, maxVal: activeChar.itemLimits?.cat3 ?? 0 },
+                  { label: 'CAT IV', catKey: 'IV' as const, maxVal: activeChar.itemLimits?.cat4 ?? 0 },
+                ] as const
+              ).map((entry) => {
+                const usedVal = inventorySummary.categoryCounts[entry.catKey] || 0;
+                const overLimit = usedVal > entry.maxVal;
+                return (
+                  <View
+                    key={entry.catKey}
+                    style={[
+                      styles.limitPill,
+                      overLimit && { borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.12)' },
+                    ]}
+                  >
+                    <Text style={styles.limitLabel}>{entry.label}</Text>
+                    <Text style={[styles.limitNum, overLimit && { color: '#EF4444' }]}>
+                      {usedVal} / {entry.maxVal}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
 
             {/* Painel Didático de Vestimentas (R3) */}
@@ -3105,16 +3491,10 @@ export default function CharactersScreen() {
               <TouchableOpacity
                 style={styles.addAtkBtnPrimary}
                 onPress={() => {
-                  setItName('');
-                  setItCat('I');
-                  setItSpaces('1');
-                  setItDetails('');
-                  setItItemType('geral');
-                  setItTargetSkill('');
-                  setItSkillBonus(2);
-                  setItJustification('');
-                  setItemModalVisible(true);
+                  setEditingInventoryItem(null);
+                  setItemEditorVisible(true);
                 }}
+                testID="btn-add-item-new"
               >
                 <Ionicons name="add" size={15} color="#FFF" />
                 <Text style={styles.addAtkBtnText}>Novo Item</Text>
@@ -3124,8 +3504,22 @@ export default function CharactersScreen() {
                 style={styles.addAtkBtnSecondary}
                 onPress={() => {
                   setPickerSearch('');
+                  setPickerModalType('add_item_depot');
+                }}
+                testID="btn-add-item-depot"
+              >
+                <Ionicons name="briefcase-outline" size={15} color="#38BDF8" />
+                <Text style={styles.addAtkBtnText}>Do Depósito</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.addAtkBtnSecondary}
+                onPress={() => {
+                  setPickerSearch('');
+                  setItemCompendiumFilter('all');
                   setPickerModalType('add_item_compendium');
                 }}
+                testID="btn-add-item-compendium"
               >
                 <Ionicons name="book-outline" size={15} color="#FFF" />
                 <Text style={styles.addAtkBtnText}>Do Compêndio</Text>
@@ -3135,7 +3529,7 @@ export default function CharactersScreen() {
             {/* Lista de Itens */}
             {(!activeChar.inventory || activeChar.inventory.length === 0) ? (
               <Text style={styles.emptyHint}>
-                Inventário vazio. Adicione itens ou vincule armas da Armaria.
+                Inventário vazio. Adicione itens do Compêndio, do Depósito ou vincule armas da Armaria.
               </Text>
             ) : (
               activeChar.inventory.map((it) => {
@@ -3146,111 +3540,273 @@ export default function CharactersScreen() {
                 const isVest = it.itemType === 'vestimenta' || it.isVestimenta;
                 const isUten = it.itemType === 'utensilio' || it.isUtensilio;
                 const isExceeded = isVest && it.equipped && itemSkillBonuses.exceededClothes.includes(it.name);
+                const qty = it.quantity !== undefined ? it.quantity : 1;
+                const hasCharges = Boolean(it.maxCharges && it.maxCharges > 0);
+                const curCharges = it.charges ?? it.maxCharges ?? 0;
+                const depleted = isInventoryItemDepleted(it);
+                const totalSpacesForItem = (it.spaces || 0) * qty;
+                const actionMechanics = (it.mechanics || []).filter(
+                  (m) => m.type !== 'none' && m.type !== 'load_bonus' && m.type !== 'block_rd_bonus'
+                );
 
                 return (
                   <TouchableOpacity
                     key={it.id}
-                    style={styles.invItemRow}
-                    activeOpacity={0.85}
+                    style={[
+                      styles.invItemCard,
+                      depleted && { opacity: 0.72, borderColor: 'rgba(239, 68, 68, 0.45)' },
+                    ]}
+                    activeOpacity={0.88}
                     onPress={openInvPreview}
                     onLongPress={openInvPreview}
                     delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                     testID={`sheet-inv-${it.id}`}
                   >
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <Text style={styles.invItemName}>
-                          {it.name} <Text style={styles.invItemCat}>(Cat {it.category})</Text>
-                        </Text>
-                        {isVest && (
-                          <View style={[styles.invItemTypeBadge, { borderColor: '#A855F7', backgroundColor: 'rgba(168, 85, 247, 0.12)' }]}>
-                            <Text style={[styles.invItemTypeBadgeText, { color: '#C084FC' }]}>Vestimenta</Text>
-                          </View>
-                        )}
-                        {isUten && (
-                          <View style={[styles.invItemTypeBadge, { borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.12)' }]}>
-                            <Text style={[styles.invItemTypeBadgeText, { color: '#38BDF8' }]}>Utensílio</Text>
-                          </View>
-                        )}
+                    <View style={styles.invItemRowTop}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text style={styles.invItemName}>
+                            {qty > 1 ? `${qty}× ` : ''}
+                            {it.name} <Text style={styles.invItemCat}>(Cat {it.category})</Text>
+                          </Text>
+                          {isVest && (
+                            <View style={[styles.invItemTypeBadge, { borderColor: '#A855F7', backgroundColor: 'rgba(168, 85, 247, 0.12)' }]}>
+                              <Text style={[styles.invItemTypeBadgeText, { color: '#C084FC' }]}>Vestimenta</Text>
+                            </View>
+                          )}
+                          {isUten && (
+                            <View style={[styles.invItemTypeBadge, { borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.12)' }]}>
+                              <Text style={[styles.invItemTypeBadgeText, { color: '#38BDF8' }]}>Utensílio</Text>
+                            </View>
+                          )}
+                          {it.customItemId ? (
+                            <View style={[styles.invItemTypeBadge, { borderColor: it.linkMode === 'copied' ? '#10B981' : '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.1)' }]}>
+                              <Text style={[styles.invItemTypeBadgeText, { color: it.linkMode === 'copied' ? '#34D399' : '#38BDF8' }]}>
+                                {it.linkMode === 'copied' ? 'Cópia Depósito' : 'Vinculado'}
+                              </Text>
+                            </View>
+                          ) : null}
+                          {depleted ? (
+                            <View style={[styles.invItemTypeBadge, { borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.14)' }]} testID={`sheet-inv-depleted-${it.id}`}>
+                              <Text style={[styles.invItemTypeBadgeText, { color: '#FCA5A5' }]}>0 usos</Text>
+                            </View>
+                          ) : hasCharges ? (
+                            <View style={[styles.invItemTypeBadge, { borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
+                              <Text style={[styles.invItemTypeBadgeText, { color: '#FCD34D' }]}>
+                                ⚡ {curCharges}/{it.maxCharges} usos
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+
+                        {it.targetSkill && it.skillBonus ? (
+                          <Text style={{ fontSize: 11, color: '#A855F7', fontWeight: '700', marginTop: 2 }}>
+                            +{it.skillBonus} em {it.targetSkill}
+                            {it.secondarySkill ? ` • +${it.secondaryBonus || 2} ${it.secondarySkill}` : ''}
+                            {isExceeded ? ' (⚠️ Excedente: sem bônus)' : !it.equipped ? ' (Desativado)' : ''}
+                          </Text>
+                        ) : null}
+                        {it.instrumentalSkill ? (
+                          <Text style={{ fontSize: 10, color: '#38BDF8', fontWeight: '700', marginTop: 2 }}>
+                            Kit Instrumental: {it.instrumentalSkill}
+                          </Text>
+                        ) : null}
+                        {(it.loadBonus || it.blockRdBonus) ? (
+                          <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '700', marginTop: 2 }}>
+                            {it.loadBonus ? `+${it.loadBonus} espaços de carga` : ''}
+                            {it.loadBonus && it.blockRdBonus ? ' • ' : ''}
+                            {it.blockRdBonus ? `+${it.blockRdBonus} RD no Bloqueio` : ''}
+                          </Text>
+                        ) : null}
+                        {it.justification ? (
+                          <Text style={{ fontSize: 10, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
+                            "{it.justification}"
+                          </Text>
+                        ) : null}
+                        {it.details ? (
+                          <Text style={styles.invItemDetails}>{it.details}</Text>
+                        ) : null}
                       </View>
-                      {it.targetSkill && it.skillBonus ? (
-                        <Text style={{ fontSize: 11, color: '#A855F7', fontWeight: '700', marginTop: 2 }}>
-                          +{it.skillBonus} em {it.targetSkill}
-                          {isExceeded ? ' (⚠️ Excedente: sem bônus)' : !it.equipped ? ' (Desativado)' : ''}
-                        </Text>
-                      ) : null}
-                      {it.justification ? (
-                        <Text style={{ fontSize: 10, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
-                          "{it.justification}"
-                        </Text>
-                      ) : null}
-                      {it.details ? (
-                        <Text style={styles.invItemDetails}>{it.details}</Text>
-                      ) : null}
                     </View>
 
-                    {/* Botão Rápido de Toggle (Vestir/Despir ou Empunhar/Guardar) */}
-                    <TouchableOpacity
-                      style={[
-                        styles.invToggleBtn,
-                        it.equipped
-                          ? { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: '#10B981' }
-                          : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
-                      ]}
-                      onPress={(e) => {
-                        e.stopPropagation?.();
-                        handleToggleEquipItem(it.id);
-                      }}
-                      testID={`btn-toggle-equip-${it.id}`}
-                    >
-                      <Ionicons
-                        name={it.equipped ? 'checkmark-circle' : 'ellipse-outline'}
-                        size={13}
-                        color={it.equipped ? '#10B981' : colors.textMuted}
-                      />
-                      <Text
+                    {/* Mecânicas Interativas do Item (Curar, Temporários, Rolar Dano/DT, Ativar PE) */}
+                    {actionMechanics.length > 0 ? (
+                      <View style={styles.invMechanicsRow}>
+                        {actionMechanics.map((mech) => {
+                          const dtInfo = mech.dtFormula
+                            ? calculateItemSaveDt(activeChar, mech.dtFormula)
+                            : null;
+                          const isHeal =
+                            mech.type === 'heal_pv' ||
+                            mech.type === 'heal_pe' ||
+                            mech.type === 'heal_san' ||
+                            mech.type === 'heal_all' ||
+                            mech.type === 'temp_pv' ||
+                            mech.type === 'temp_pe';
+                          const isDmg = mech.type === 'damage_roll';
+                          return (
+                            <TouchableOpacity
+                              key={mech.id}
+                              disabled={depleted}
+                              style={[
+                                styles.invMechBtn,
+                                isHeal && { backgroundColor: 'rgba(16, 185, 129, 0.18)', borderColor: '#10B981' },
+                                isDmg && { backgroundColor: 'rgba(239, 68, 68, 0.18)', borderColor: '#EF4444' },
+                                depleted && { opacity: 0.4 },
+                              ]}
+                              onPress={(e) => {
+                                e.stopPropagation?.();
+                                handleExecuteItemMechanic(it, mech);
+                              }}
+                              testID={`btn-use-mech-${it.id}-${mech.id}`}
+                            >
+                              <Ionicons
+                                name={isHeal ? 'medkit' : isDmg ? 'flame' : 'flash'}
+                                size={13}
+                                color={isHeal ? '#34D399' : isDmg ? '#FCA5A5' : '#FCD34D'}
+                              />
+                              <Text style={styles.invMechBtnText}>
+                                {depleted
+                                  ? 'Esgotado'
+                                  : `${mech.label}${mech.formula ? ` (${mech.formula})` : mech.flatValue ? ` (+${mech.flatValue})` : ''}${mech.peCost ? ` • -${mech.peCost} PE` : ''}${dtInfo ? ` • ${dtInfo.label}` : ''}`}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                        {depleted ? (
+                          <TouchableOpacity
+                            style={[styles.invMechBtn, { borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.14)' }]}
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              handleRechargeInventoryItem(it.id);
+                            }}
+                            testID={`btn-recharge-item-${it.id}`}
+                          >
+                            <Ionicons name="refresh" size={13} color="#38BDF8" />
+                            <Text style={[styles.invMechBtnText, { color: '#38BDF8' }]}>Recarregar</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                    ) : depleted ? (
+                      <View style={styles.invMechanicsRow}>
+                        <TouchableOpacity
+                          style={[styles.invMechBtn, { borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.14)' }]}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            handleRechargeInventoryItem(it.id);
+                          }}
+                          testID={`btn-recharge-item-${it.id}`}
+                        >
+                          <Ionicons name="refresh" size={13} color="#38BDF8" />
+                          <Text style={[styles.invMechBtnText, { color: '#38BDF8' }]}>Repor Unidade</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+
+                    {/* Rodapé: Quantidade, Toggle Equipado, Espaços, Editar, Info, Remover */}
+                    <View style={styles.invItemFooter}>
+                      <View style={styles.invQtyStepper}>
+                        <TouchableOpacity
+                          style={styles.invQtyBtn}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            handleAdjustItemQuantity(it.id, -1);
+                          }}
+                          testID={`btn-qty-minus-${it.id}`}
+                        >
+                          <Ionicons name="remove" size={13} color={colors.text} />
+                        </TouchableOpacity>
+                        <Text style={styles.invQtyText}>{qty}</Text>
+                        <TouchableOpacity
+                          style={styles.invQtyBtn}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            handleAdjustItemQuantity(it.id, 1);
+                          }}
+                          testID={`btn-qty-plus-${it.id}`}
+                        >
+                          <Ionicons name="add" size={13} color={colors.text} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <TouchableOpacity
                         style={[
-                          styles.invToggleBtnText,
-                          { color: it.equipped ? '#10B981' : colors.textMuted },
+                          styles.invToggleBtn,
+                          it.equipped
+                            ? { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: '#10B981' }
+                            : { backgroundColor: colors.surface, borderColor: colors.border },
                         ]}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          handleToggleEquipItem(it.id);
+                        }}
+                        testID={`btn-toggle-equip-${it.id}`}
                       >
-                        {isVest
-                          ? it.equipped
-                            ? 'Vestida'
-                            : 'Despida'
-                          : isUten
-                          ? it.equipped
-                            ? 'Empunhado'
-                            : 'Guardado'
-                          : it.equipped
-                          ? 'Equipado'
-                          : 'Guardado'}
-                      </Text>
-                    </TouchableOpacity>
+                        <Ionicons
+                          name={it.equipped ? 'checkmark-circle' : 'ellipse-outline'}
+                          size={13}
+                          color={it.equipped ? '#10B981' : colors.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.invToggleBtnText,
+                            { color: it.equipped ? '#10B981' : colors.textMuted },
+                          ]}
+                        >
+                          {isVest
+                            ? it.equipped
+                              ? 'Vestida'
+                              : 'Despida'
+                            : isUten
+                            ? it.equipped
+                              ? 'Empunhado'
+                              : 'Guardado'
+                            : it.equipped
+                            ? 'Equipado'
+                            : 'Guardado'}
+                        </Text>
+                      </TouchableOpacity>
 
-                    <View style={styles.invSpacesBadge}>
-                      <Text style={styles.invSpacesText}>{it.spaces} esp.</Text>
+                      <View style={styles.invSpacesBadge}>
+                        <Text style={styles.invSpacesText}>{formatSpacesLabel(totalSpacesForItem)} esp.</Text>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          setEditingInventoryItem(it);
+                          setItemEditorVisible(true);
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        testID={`sheet-inv-edit-${it.id}`}
+                      >
+                        <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          openInvPreview();
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        testID={`sheet-inv-info-${it.id}`}
+                      >
+                        <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          updateActiveChar({
+                            inventory: (activeChar.inventory || []).filter((x) => x.id !== it.id),
+                          });
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        testID={`sheet-inv-delete-${it.id}`}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      </TouchableOpacity>
                     </View>
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation?.();
-                        openInvPreview();
-                      }}
-                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                      testID={`sheet-inv-info-${it.id}`}
-                    >
-                      <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation?.();
-                        updateActiveChar({
-                          inventory: (activeChar.inventory || []).filter((x) => x.id !== it.id),
-                        });
-                      }}
-                    >
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                    </TouchableOpacity>
                   </TouchableOpacity>
                 );
               })
@@ -3693,230 +4249,158 @@ export default function CharactersScreen() {
       </Modal>
 
       {/* ============================================================ */}
-      {/* MODAL: Novo Item de Inventário                               */}
+      {/* MODAL UNIFICADO: Criar / Editar Item no Inventário           */}
       {/* ============================================================ */}
+      <ItemEditorModal
+        visible={itemEditorVisible}
+        onClose={() => {
+          setItemEditorVisible(false);
+          setEditingInventoryItem(null);
+        }}
+        mode="character"
+        initialInventoryItem={editingInventoryItem}
+        onSave={handleSaveUnifiedItem}
+      />
+
+      {/* MODAL: Escolha ao Importar Item do Depósito (Vinculado vs Duplicado) */}
       <Modal
-        visible={itemModalVisible}
-        animationType="slide"
-        onRequestClose={() => setItemModalVisible(false)}
+        visible={importChoiceItem !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setImportChoiceItem(null)}
       >
-        <View style={styles.modalWrap}>
-          <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 14) }]}>
-            <Text style={styles.modalTitle}>Novo Item no Inventário</Text>
-            <TouchableOpacity onPress={() => setItemModalVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close" size={24} color={colors.text} />
+        <View style={styles.weaponChoiceOverlay}>
+          <View style={styles.weaponChoiceCard}>
+            <View style={styles.weaponChoiceHeader}>
+              <Text style={styles.weaponChoiceTitle}>Importar do Depósito</Text>
+              <TouchableOpacity
+                onPress={() => setImportChoiceItem(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.weaponChoiceSub}>
+              Como deseja adicionar "{importChoiceItem?.name}" à ficha de {activeChar?.name}?
+            </Text>
+
+            <TouchableOpacity
+              style={styles.weaponChoiceBtn}
+              onPress={() => handleConfirmImportDepotItem('shared')}
+              testID="btn-import-item-shared"
+            >
+              <Ionicons name="link" size={18} color="#38BDF8" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.weaponChoiceBtnTitle}>Usar o Mesmo (Vinculado)</Text>
+                <Text style={styles.weaponChoiceBtnDesc}>
+                  Alterações neste item no Depósito atualizam automaticamente esta ficha.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.weaponChoiceBtn}
+              onPress={() => handleConfirmImportDepotItem('duplicate')}
+              testID="btn-import-item-duplicate"
+            >
+              <Ionicons name="copy-outline" size={18} color="#10B981" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.weaponChoiceBtnTitle}>
+                  Duplicar ({importChoiceItem?.name} ({activeChar?.name || 'Agente'}))
+                </Text>
+                <Text style={styles.weaponChoiceBtnDesc}>
+                  Cria uma cópia independente no Depósito para este agente.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.weaponChoiceCancelBtn}
+              onPress={() => {
+                setImportChoiceItem(null);
+                setPickerModalType('add_item_depot');
+              }}
+            >
+              <Text style={styles.weaponChoiceCancelText}>Voltar</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
 
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom + 24, 34), gap: 12 }}>
-            {/* Seletor de Tipo de Item */}
-            <View>
-              <Text style={styles.fieldLabel}>Tipo de Item</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {(['geral', 'vestimenta', 'utensilio'] as const).map((t) => {
-                  const isSelected = itItemType === t;
-                  const label = t === 'geral' ? 'Geral' : t === 'vestimenta' ? 'Vestimenta' : 'Utensílio';
-                  return (
-                    <TouchableOpacity
-                      key={t}
-                      style={[
-                        styles.itemTypePill,
-                        isSelected && styles.itemTypePillActive,
-                      ]}
-                      onPress={() => {
-                        setItItemType(t);
-                        if (t === 'vestimenta' || t === 'utensilio') {
-                          if (!itSpaces || itSpaces === '0') setItSpaces('1');
-                        }
-                      }}
-                      testID={`item-type-pill-${t}`}
-                    >
-                      <Text
-                        style={[
-                          styles.itemTypePillText,
-                          isSelected && styles.itemTypePillTextActive,
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+      {/* MODAL: Aplicar Cura / Temporário em Mim vs Em Aliado */}
+      <Modal
+        visible={healChoiceModal !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setHealChoiceModal(null)}
+      >
+        <View style={styles.weaponChoiceOverlay}>
+          <View style={styles.weaponChoiceCard}>
+            <View style={styles.weaponChoiceHeader}>
+              <Text style={styles.weaponChoiceTitle}>
+                Usar {healChoiceModal?.item.name}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setHealChoiceModal(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={colors.text} />
+              </TouchableOpacity>
             </View>
 
-            <View>
-              <Text style={styles.fieldLabel}>Nome do Item</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Kit de Primeiros Socorros, Jaqueta de Couro..."
-                placeholderTextColor={colors.textMuted}
-                value={itName}
-                onChangeText={setItName}
-                testID="item-name-input"
-              />
-            </View>
+            <Text style={styles.weaponChoiceSub}>
+              {healChoiceModal?.mechanic.label}
+              {healChoiceModal?.mechanic.formula ? ` (${healChoiceModal.mechanic.formula})` : ''}
+              {healChoiceModal?.mechanic.flatValue ? ` (+${healChoiceModal.mechanic.flatValue})` : ''}
+              . Onde deseja aplicar o efeito?
+            </Text>
 
-            <View style={styles.row}>
+            <TouchableOpacity
+              style={styles.weaponChoiceBtn}
+              onPress={() => {
+                if (!healChoiceModal) return;
+                const target = healChoiceModal;
+                setHealChoiceModal(null);
+                void handleExecuteItemMechanic(target.item, target.mechanic, 'self');
+              }}
+              testID="btn-heal-choice-self"
+            >
+              <Ionicons name="person" size={18} color="#10B981" />
               <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Categoria (0, I, II, III, IV)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="I"
-                  placeholderTextColor={colors.textMuted}
-                  value={itCat}
-                  onChangeText={(v) => setItCat(v as any)}
-                  testID="item-cat-input"
-                />
+                <Text style={styles.weaponChoiceBtnTitle}>Aplicar em Mim ({activeChar?.name})</Text>
+                <Text style={styles.weaponChoiceBtnDesc}>
+                  Rola os dados, soma diretamente nos seus pontos atuais/temporários e consome 1 uso.
+                </Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Espaços Ocupados</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="numeric"
-                  placeholder="1"
-                  placeholderTextColor={colors.textMuted}
-                  value={itSpaces}
-                  onChangeText={setItSpaces}
-                  testID="item-spaces-input"
-                />
-              </View>
-            </View>
-
-            {/* Configurações de Bônus para Vestimentas e Utensílios */}
-            {(itItemType === 'vestimenta' || itItemType === 'utensilio') && (
-              <View style={styles.bonusConfigBox}>
-                {/* Perícia Alvo */}
-                <View>
-                  <Text style={styles.fieldLabel}>
-                    Perícia Beneficiada ({itItemType === 'vestimenta' ? 'Vestimenta' : 'Utensílio'})
-                  </Text>
-                  <Text style={styles.pedagogicalHint}>
-                    Canônico: Vestimentas e Utensílios não se aplicam a Luta e Pontaria (Livro Base p. 63).
-                  </Text>
-
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 6, paddingVertical: 4 }}
-                  >
-                    {OFFICIAL_SKILLS_LIST.filter(
-                      (s) => !isBannedItemSkill(s.name)
-                    ).map((sk) => {
-                      const isSel = itTargetSkill === sk.name;
-                      return (
-                        <TouchableOpacity
-                          key={sk.name}
-                          style={[
-                            styles.skillChip,
-                            isSel && styles.skillChipActive,
-                          ]}
-                          onPress={() => setItTargetSkill(sk.name)}
-                          testID={`skill-chip-${sk.name}`}
-                        >
-                          <Text
-                            style={[
-                              styles.skillChipText,
-                              isSel && styles.skillChipTextActive,
-                            ]}
-                          >
-                            {sk.name}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                  {itTargetSkill ? (
-                    <Text style={{ fontSize: 11, color: '#A855F7', fontWeight: '700', marginTop: 4 }}>
-                      Perícia selecionada: {itTargetSkill}
-                    </Text>
-                  ) : (
-                    <Text style={{ fontSize: 11, color: colors.textMuted, fontStyle: 'italic', marginTop: 4 }}>
-                      Toque em uma perícia acima para vinculá-la ao item.
-                    </Text>
-                  )}
-                </View>
-
-                {/* Bônus Concedido (+2 / +5) */}
-                <View style={{ marginTop: 8 }}>
-                  <Text style={styles.fieldLabel}>Bônus Concedido</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity
-                      style={[
-                        styles.bonusPill,
-                        itSkillBonus === 2 && styles.bonusPillActive,
-                      ]}
-                      onPress={() => {
-                        setItSkillBonus(2);
-                        if (itCat === 'II') setItCat('I');
-                      }}
-                      testID="bonus-pill-2"
-                    >
-                      <Text
-                        style={[
-                          styles.bonusPillText,
-                          itSkillBonus === 2 && styles.bonusPillTextActive,
-                        ]}
-                      >
-                        +2 (Padrão)
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.bonusPill,
-                        itSkillBonus === 5 && styles.bonusPillActive,
-                      ]}
-                      onPress={() => {
-                        setItSkillBonus(5);
-                        if (itCat === 'I' || itCat === '0') setItCat('II');
-                      }}
-                      testID="bonus-pill-5"
-                    >
-                      <Text
-                        style={[
-                          styles.bonusPillText,
-                          itSkillBonus === 5 && styles.bonusPillTextActive,
-                        ]}
-                      >
-                        +5 (Aprimorado)
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Justificativa Pedagógica */}
-                <View style={{ marginTop: 8 }}>
-                  <Text style={styles.fieldLabel}>Justificativa do Bônus</Text>
-                  <TextInput
-                    style={[styles.input, styles.roleplayArea]}
-                    multiline
-                    placeholder="Descreva a justificativa do bônus deste item. A palavra final é do Mestre da mesa"
-                    placeholderTextColor={colors.textMuted}
-                    value={itJustification}
-                    onChangeText={setItJustification}
-                    testID="item-justification-input"
-                  />
-                </View>
-              </View>
-            )}
-
-            <View>
-              <Text style={styles.fieldLabel}>Detalhes / Descrição</Text>
-              <TextInput
-                style={[styles.input, styles.roleplayArea]}
-                multiline
-                placeholder="Detalhes ou propriedades do item..."
-                placeholderTextColor={colors.textMuted}
-                value={itDetails}
-                onChangeText={setItDetails}
-              />
-            </View>
-
-            <TouchableOpacity style={styles.saveHeaderBtnLarge} onPress={handleSaveInventoryItem} testID="btn-save-item">
-              <Text style={styles.saveHeaderBtnText}>Salvar Item</Text>
             </TouchableOpacity>
-          </ScrollView>
+
+            <TouchableOpacity
+              style={styles.weaponChoiceBtn}
+              onPress={() => {
+                if (!healChoiceModal) return;
+                const target = healChoiceModal;
+                setHealChoiceModal(null);
+                void handleExecuteItemMechanic(target.item, target.mechanic, 'ally');
+              }}
+              testID="btn-heal-choice-ally"
+            >
+              <Ionicons name="people" size={18} color="#38BDF8" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.weaponChoiceBtnTitle}>Aplicar em Aliado (Apenas Rolar)</Text>
+                <Text style={styles.weaponChoiceBtnDesc}>
+                  Rola o resultado na tela e na mesa virtual para o aliado, consumindo 1 uso sem alterar seus pontos.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.weaponChoiceCancelBtn}
+              onPress={() => setHealChoiceModal(null)}
+            >
+              <Text style={styles.weaponChoiceCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -3941,6 +4425,8 @@ export default function CharactersScreen() {
                 ? 'Vincular da Armaria'
                 : pickerModalType === 'add_weapon_compendium'
                 ? 'Vincular do Compêndio'
+                : pickerModalType === 'add_item_depot'
+                ? 'Importar do Depósito'
                 : pickerModalType === 'add_item_compendium'
                 ? 'Adicionar Item do Compêndio'
                 : 'Selecionar do Compêndio'}
@@ -3951,12 +4437,61 @@ export default function CharactersScreen() {
           </View>
 
           <TextInput
-            style={[styles.input, { margin: 14, marginBottom: pickerModalType === 'link_compendium' ? 6 : 14 }]}
+            style={[
+              styles.input,
+              {
+                margin: 14,
+                marginBottom:
+                  pickerModalType === 'link_compendium' || pickerModalType === 'add_item_compendium'
+                    ? 6
+                    : 14,
+              },
+            ]}
             placeholder="Filtrar por nome..."
             placeholderTextColor={colors.textMuted}
             value={pickerSearch}
             onChangeText={setPickerSearch}
           />
+
+          {pickerModalType === 'add_item_compendium' && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0, height: 46 }}
+              contentContainerStyle={{
+                gap: 6,
+                paddingHorizontal: 14,
+                paddingVertical: 4,
+                alignItems: 'center',
+              }}
+            >
+              {(
+                [
+                  { id: 'all', label: `Todos (${curatedCompendiumItems.length})` },
+                  { id: 'cura', label: 'Cura' },
+                  { id: 'acessorio', label: 'Acessório' },
+                  { id: 'explosivo', label: 'Explosivo' },
+                  { id: 'operacional', label: 'Operacional' },
+                  { id: 'paranormal', label: 'Paranormal' },
+                  { id: 'amaldicoado', label: 'Amaldiçoado' },
+                  { id: 'protecao', label: 'Proteção' },
+                ] as const
+              ).map((tab) => {
+                const active = itemCompendiumFilter === tab.id;
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    style={[styles.rankPill, active && styles.rankPillActive]}
+                    onPress={() => setItemCompendiumFilter(tab.id)}
+                  >
+                    <Text style={[styles.rankPillText, active && styles.rankPillTextActive]}>
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           {pickerModalType === 'link_compendium' && (
             <ScrollView
@@ -4089,6 +4624,125 @@ export default function CharactersScreen() {
                     </TouchableOpacity>
                   );
                 })
+            ) : pickerModalType === 'add_item_depot' ? (
+              customItems.length === 0 ? (
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyTitle}>Nenhum item no Depósito</Text>
+                  <Text style={styles.emptySub}>
+                    Crie itens na aba "Armaria ➔ Itens & Acessórios" ou salve um item marcando "Salvar também no Depósito".
+                  </Text>
+                </View>
+              ) : (
+                customItems
+                  .filter((it) => it.name.toLowerCase().includes(pickerSearch.toLowerCase()))
+                  .map((it) => (
+                    <TouchableOpacity
+                      key={it.id}
+                      style={styles.pickerItem}
+                      onPress={() => {
+                        setPickerModalType(null);
+                        setImportChoiceItem(it);
+                      }}
+                      testID={`picker-depot-item-${it.id}`}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.pickerItemTitle}>{it.name}</Text>
+                        <Text style={styles.pickerItemSub}>
+                          Cat {it.finalCategory} • {formatSpacesLabel(it.finalSpaces)} esp. • {it.itemType.toUpperCase()}
+                          {it.targetSkill ? ` • +${it.skillBonus || 2} ${it.targetSkill}` : ''}
+                        </Text>
+                        {it.mechanics && it.mechanics.length > 0 ? (
+                          <Text style={[styles.pickerItemSub, { color: '#38BDF8', marginTop: 2 }]}>
+                            Mecânicas: {it.mechanics.map((m) => m.label).join(', ')}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Ionicons name="add-circle" size={22} color={colors.primary} />
+                    </TouchableOpacity>
+                  ))
+              )
+            ) : pickerModalType === 'add_item_compendium' ? (
+              curatedCompendiumItems
+                .filter((it) => {
+                  if (itemCompendiumFilter !== 'all' && it.subCategoryGroup !== itemCompendiumFilter) {
+                    return false;
+                  }
+                  if (!pickerSearch.trim()) return true;
+                  const q = pickerSearch.trim().toLowerCase();
+                  return (
+                    it.name.toLowerCase().includes(q) ||
+                    it.description.toLowerCase().includes(q) ||
+                    it.bookTitle.toLowerCase().includes(q)
+                  );
+                })
+                .map((it: CuratedCompendiumItem) => (
+                  <TouchableOpacity
+                    key={it.id}
+                    style={styles.pickerItem}
+                    onPress={async () => {
+                      const invItem = buildInventoryItemFromCuratedItem(it);
+                      await updateActiveChar({
+                        inventory: [...(activeChar.inventory || []), invItem],
+                      });
+                      setPickerModalType(null);
+                    }}
+                    onLongPress={() => {
+                      if (it.sourceEntity) {
+                        openEntityPreview(it.sourceEntity);
+                      }
+                    }}
+                    delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                    testID={`picker-comp-item-${it.id}`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={styles.pickerItemTitle}>{it.name}</Text>
+                        <View style={styles.invSpacesBadge}>
+                          <Text style={styles.invSpacesText}>
+                            Cat {it.category} • {formatSpacesLabel(it.spaces)} esp.
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.pickerItemSub}>
+                        {it.bookTitle}
+                        {it.pageNumber ? ` p. ${it.pageNumber}` : ''} • {it.subCategoryGroup.toUpperCase()}
+                      </Text>
+                      {it.mechanics.length > 0 ? (
+                        <Text style={[styles.pickerItemSub, { color: '#34D399', marginTop: 2 }]}>
+                          ⚡ {it.mechanics.map((m) => `${m.label}${m.formula ? ` (${m.formula})` : ''}`).join(' • ')}
+                        </Text>
+                      ) : null}
+                      {it.description ? (
+                        <Text style={[styles.pickerItemSub, { marginTop: 2 }]} numberOfLines={2}>
+                          {it.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                      <TouchableOpacity
+                        style={styles.depotMiniBtn}
+                        onPress={async (e) => {
+                          e.stopPropagation?.();
+                          const catalogItem = buildCatalogItemFromCuratedItem(it);
+                          await equipCatalogItemToCharacter(catalogItem, activeChar.id, {
+                            mode: 'shared',
+                            quantity: 1,
+                          });
+                          setPickerModalType(null);
+                          showAlert(
+                            'Adicionado à Ficha & Depósito',
+                            `"${catalogItem.name}" foi salvo no Depósito e equipado em ${activeChar.name}!`
+                          );
+                        }}
+                        testID={`picker-comp-item-depot-${it.id}`}
+                      >
+                        <Ionicons name="briefcase-outline" size={12} color="#38BDF8" />
+                        <Text style={styles.depotMiniBtnText}>+ Depósito</Text>
+                      </TouchableOpacity>
+                      <Ionicons name="add-circle" size={22} color={colors.primary} />
+                    </View>
+                  </TouchableOpacity>
+                ))
             ) : (
               (() => {
                 let baseList =
@@ -4098,8 +4752,6 @@ export default function CharactersScreen() {
                     ? classesList
                     : pickerModalType === 'track'
                     ? tracksList
-                    : pickerModalType === 'add_item_compendium'
-                    ? equipableEntities.filter((e) => e.category === 'item' || e.category === 'weapon')
                     : equipableEntities;
 
                 if (pickerModalType === 'link_compendium') {
@@ -4177,33 +4829,6 @@ export default function CharactersScreen() {
                             skills: updatedSkills,
                           });
                         }
-                      } else if (pickerModalType === 'add_item_compendium') {
-                        const existing = activeChar.inventory || [];
-                        const textBlob = `${item.subCategory || ''} ${item.description || ''}`.toLowerCase();
-                        const detectedType: 'geral' | 'vestimenta' | 'utensilio' =
-                          textBlob.includes('vestimenta')
-                            ? 'vestimenta'
-                            : textBlob.includes('utensílio') || textBlob.includes('utensilio')
-                            ? 'utensilio'
-                            : 'geral';
-                        const validCats = ['0', 'I', 'II', 'III', 'IV'] as const;
-                        const normalizedCat = validCats.includes((item.itemCategory || '') as any)
-                          ? (item.itemCategory as '0' | 'I' | 'II' | 'III' | 'IV')
-                          : 'I';
-                        const parsedSpaces = parseFloat(String(item.spaces || '1').replace(',', '.'));
-                        const invSpaces = Number.isFinite(parsedSpaces) && parsedSpaces >= 0 ? parsedSpaces : 1;
-                        const newInvItem: CharacterInventoryItem = {
-                          id: `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                          name: item.name,
-                          category: normalizedCat,
-                          spaces: invSpaces,
-                          details: item.description || item.summary || '',
-                          equipped: true,
-                          itemType: detectedType,
-                          isVestimenta: detectedType === 'vestimenta',
-                          isUtensilio: detectedType === 'utensilio',
-                        };
-                        await updateActiveChar({ inventory: [...existing, newInvItem] });
                       }
                       setPickerModalType(null);
                     };
@@ -5949,6 +6574,129 @@ export const createStyles = (colors: ThemeColors) =>
   ritualRollBtnText: {
     color: '#FFF',
     fontSize: 12,
+    fontWeight: '800',
+  },
+  tempStatsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    flexWrap: 'wrap',
+  },
+  tempStatBadge: {
+    flex: 1,
+    minWidth: 150,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  tempStatLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  tempStatVal: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  tempMiniBtn: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    minWidth: 26,
+    alignItems: 'center',
+  },
+  tempMiniBtnText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  invItemCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 10,
+    gap: 8,
+    marginTop: 6,
+  },
+  invItemRowTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  invMechanicsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  invMechBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+  invMechBtnText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  invItemFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  invQtyStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  invQtyBtn: {
+    padding: 2,
+  },
+  invQtyText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+    minWidth: 14,
+    textAlign: 'center',
+  },
+  depotMiniBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  depotMiniBtnText: {
+    color: '#38BDF8',
+    fontSize: 10,
     fontWeight: '800',
   },
 });

@@ -14,7 +14,7 @@ export interface ActiveItemSkillBonus {
   skillName: string;
   bonus: number; // +2 or +5
   sourceItemName: string;
-  itemType: 'vestimenta' | 'utensilio';
+  itemType: 'vestimenta' | 'utensilio' | 'geral';
   justification?: string;
 }
 
@@ -103,13 +103,26 @@ export function calculateActiveItemSkillBonuses(
 
   // 2. Filtrar utensílios equipados/empunhados
   const equippedUtensils = inventory.filter(
-    (item) => item.equipped && isUtensilItem(item)
+    (item) => item.equipped && (item.quantity ?? 1) > 0 && isUtensilItem(item)
+  );
+
+  // 2b. Filtrar itens operacionais/gerais equipados com mecânica fixa de bônus em perícia
+  const equippedSkillItems = inventory.filter(
+    (item) =>
+      item.equipped &&
+      (item.quantity ?? 1) > 0 &&
+      !isClothingItem(item) &&
+      !isUtensilItem(item) &&
+      (item.mechanics || []).some(
+        (m) => m.type === 'skill_bonus' && !m.isSituationalSkillBonus && Boolean(m.targetSkill)
+      )
   );
 
   // Lista de itens ativos elegíveis para fornecer bônus
-  const activeItems: { item: CharacterInventoryItem; itemType: 'vestimenta' | 'utensilio' }[] = [
+  const activeItems: { item: CharacterInventoryItem; itemType: 'vestimenta' | 'utensilio' | 'geral' }[] = [
     ...allowedClothes.map((item) => ({ item, itemType: 'vestimenta' as const })),
     ...equippedUtensils.map((item) => ({ item, itemType: 'utensilio' as const })),
+    ...equippedSkillItems.map((item) => ({ item, itemType: 'geral' as const })),
   ];
 
   // 3. Processar bônus de perícias de cada item elegível
@@ -136,6 +149,9 @@ export function calculateActiveItemSkillBonuses(
       // Regra de não-cumulatividade (Livro Base p. 63 e p. 312)
       const existing = effectiveBonuses[cleanSkill];
       if (existing) {
+        if (existing.sourceItemName === item.name && bonus <= existing.bonus) {
+          return;
+        }
         if (bonus > existing.bonus) {
           warnings.push(
             `Bônus não cumulativo em ${cleanSkill}: o bônus de +${bonus} de "${item.name}" substitui o bônus de +${existing.bonus} de "${existing.sourceItemName}" (Livro Base p. 63, p. 312).`
@@ -169,6 +185,15 @@ export function calculateActiveItemSkillBonuses(
     // Bônus secundário (modificação Função Adicional)
     if (item.secondarySkill) {
       processBonus(item.secondarySkill, item.secondaryBonus || 2);
+    }
+
+    // Mecânicas fixas de bônus em perícia (não-situacionais)
+    if (item.mechanics) {
+      for (const mech of item.mechanics) {
+        if (mech.type === 'skill_bonus' && !mech.isSituationalSkillBonus && mech.targetSkill) {
+          processBonus(mech.targetSkill, mech.flatValue || 2);
+        }
+      }
     }
   }
 

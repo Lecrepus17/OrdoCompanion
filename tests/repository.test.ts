@@ -293,5 +293,44 @@ describe('Repositório de Dados e Compêndio (OfflineDataRepository)', () => {
         'Filtro category: weapon deve retornar Sniper Fantasma'
       );
     });
+
+    it('deve persistir, exportar e importar customItems e deletedCustomItemIds', async () => {
+      await repo.saveCustomItems([
+        {
+          id: 'citem_repo_1',
+          name: 'Mochila Tática',
+          baseItemName: 'Mochila Militar',
+          itemType: 'geral',
+          subCategoryGroup: 'operacional',
+          baseCategory: 'I',
+          baseSpaces: 0,
+          finalCategory: 'I',
+          finalSpaces: 0,
+          details: '+2 espaços de carga',
+          element: 'Nenhum',
+          modifications: [],
+          loadBonus: 2,
+          createdAt: '2026-11-01T10:00:00.000Z',
+          updatedAt: '2026-11-01T10:00:00.000Z',
+        },
+      ]);
+      await repo.markCustomItemDeleted('citem_removed_9');
+
+      const json = await repo.exportUserDataJson();
+      const parsed = JSON.parse(json);
+      assert.strictEqual(parsed.customItems.length, 1);
+      assert.deepStrictEqual(parsed.deletedCustomItemIds, ['citem_removed_9']);
+
+      resetMockStorage();
+      const freshRepo = new OfflineDataRepository();
+      await freshRepo.initialize();
+      await freshRepo.importUserDataJson(json);
+
+      const loadedItems = await freshRepo.getCustomItems();
+      const loadedDeleted = await freshRepo.getDeletedCustomItemIds();
+      assert.strictEqual(loadedItems.length, 1);
+      assert.strictEqual(loadedItems[0].name, 'Mochila Tática');
+      assert.deepStrictEqual(loadedDeleted, ['citem_removed_9']);
+    });
   });
 });

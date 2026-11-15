@@ -9,9 +9,11 @@ import {
   CampaignMonster,
   CampaignStoryScene,
   CharacterAttack,
+  CharacterInventoryItem,
   CharacterSheet,
   CompendiumEntity,
   CompendiumFilters,
+  CustomCatalogItem,
   CustomWeapon,
   DEFAULT_USER_PROFILE,
   DiceRollResult,
@@ -34,6 +36,11 @@ import {
   migrateCharacterLegacyAttacksToArmory,
   syncCharacterWithCustomWeapon,
 } from '../utils/weapons';
+import {
+  buildInventoryItemFromCatalogItem,
+  cloneCatalogItemForAgent,
+  syncCharacterWithCatalogItem,
+} from '../utils/inventoryItems';
 import {
   cloudSyncManager,
   SyncExecutionResult,
@@ -147,6 +154,16 @@ interface AppContextValue {
     attackId: string,
     options?: { alsoDeleteFromArmory?: boolean }
   ) => Promise<void>;
+
+  // Custom Items & Depósito de Itens
+  customItems: CustomCatalogItem[];
+  upsertCustomItem: (item: CustomCatalogItem) => Promise<void>;
+  deleteCustomItem: (itemId: string) => Promise<void>;
+  equipCatalogItemToCharacter: (
+    item: CustomCatalogItem,
+    charId: string,
+    options: { mode: 'shared' | 'duplicate'; quantity?: number }
+  ) => Promise<{ catalogItem: CustomCatalogItem; inventoryItem: CharacterInventoryItem } | null>;
 
   // Dice Roller & Toast
   rollHistory: DiceRollResult[];
@@ -292,6 +309,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [customWeapons, setCustomWeapons] = useState<CustomWeapon[]>([]);
+  const [customItems, setCustomItems] = useState<CustomCatalogItem[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_USER_PROFILE);
   const [listingColumns, setListingColumnsState] = useState<1 | 2>(1);
   const [rollHistory, setRollHistory] = useState<DiceRollResult[]>([]);
@@ -359,12 +377,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     (async () => {
       await defaultRepository.initialize();
-      const [favs, lists, chars, camps, weapons, profile, deletedWeaponIds] = await Promise.all([
+      const [favs, lists, chars, camps, weapons, items, profile, deletedWeaponIds] = await Promise.all([
         defaultRepository.getFavorites(),
         defaultRepository.getSavedLists(),
         defaultRepository.getCharacters(),
         defaultRepository.getCampaigns(),
         defaultRepository.getCustomWeapons(),
+        defaultRepository.getCustomItems(),
         defaultRepository.getUserProfile(),
         defaultRepository.getDeletedCustomWeaponIds(),
       ]);
@@ -393,6 +412,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveCampaignId(camps[0].id);
       }
       setCustomWeapons(migrated.customWeapons);
+      setCustomItems(items);
       setUserProfile(normalizedProfile);
       if (normalizedProfile.listingColumns === 1 || normalizedProfile.listingColumns === 2) {
         setListingColumnsState(normalizedProfile.listingColumns);
@@ -986,6 +1006,110 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [deleteCustomWeapon]
   );
 
+  // Itens & Acessórios do Depósito Compartilhado
+  const upsertCustomItem = useCallback(async (item: CustomCatalogItem) => {
+    setCustomItems((prev) => {
+      const exists = prev.some((it) => it.id === item.id);
+      const next = exists
+        ? prev.map((it) => (it.id === item.id ? item : it))
+        : [item, ...prev];
+      defaultRepository.saveCustomItems(next);
+      return next;
+    });
+    setCharacters((prevChars) => {
+      let anyChanged = false;
+      const nextChars = prevChars.map((c) => {
+        const synced = syncCharacterWithCatalogItem(c, item);
+        if (synced.changed) {
+          anyChanged = true;
+          return synced.updated;
+        }
+        return c;
+      });
+      if (anyChanged) {
+        defaultRepository.saveCharacters(nextChars);
+      }
+      return anyChanged ? nextChars : prevChars;
+    });
+    cloudSyncManager.scheduleAutoSync();
+  }, []);
+
+  const deleteCustomItem = useCallback(async (itemId: string) => {
+    setCustomItems((prev) => {
+      const next = prev.filter((it) => it.id !== itemId);
+      defaultRepository.saveCustomItems(next);
+      return next;
+    });
+    setCharacters((prevChars) => {
+      let anyChanged = false;
+      const now = new Date().toISOString();
+      const nextChars = prevChars.map((c) => {
+        const hasItem = (c.inventory || []).some((it) => it.customItemId === itemId);
+        if (!hasItem) return c;
+        anyChanged = true;
+        return {
+          ...c,
+          inventory: (c.inventory || []).filter((it) => it.customItemId !== itemId),
+          updatedAt: now,
+        };
+      });
+      if (anyChanged) {
+        defaultRepository.saveCharacters(nextChars);
+      }
+      return anyChanged ? nextChars : prevChars;
+    });
+    await defaultRepository.markCustomItemDeleted(itemId);
+    cloudSyncManager.scheduleAutoSync();
+  }, []);
+
+  const equipCatalogItemToCharacter = useCallback(
+    async (
+      item: CustomCatalogItem,
+      charId: string,
+      options: { mode: 'shared' | 'duplicate'; quantity?: number }
+    ): Promise<{ catalogItem: CustomCatalogItem; inventoryItem: CharacterInventoryItem } | null> => {
+      const targetChar = characters.find((c) => c.id === charId);
+      if (!targetChar) return null;
+
+      const effectiveItem =
+        options.mode === 'duplicate'
+          ? cloneCatalogItemForAgent(item, targetChar.name)
+          : item;
+
+      setCustomItems((prev) => {
+        const exists = prev.some((it) => it.id === effectiveItem.id);
+        const next = exists
+          ? prev.map((it) => (it.id === effectiveItem.id ? effectiveItem : it))
+          : [effectiveItem, ...prev];
+        defaultRepository.saveCustomItems(next);
+        return next;
+      });
+
+      const inventoryItem = buildInventoryItemFromCatalogItem(effectiveItem, {
+        linkMode: options.mode === 'duplicate' ? 'copied' : 'shared',
+        quantity: options.quantity ?? 1,
+      });
+      const now = new Date().toISOString();
+
+      setCharacters((prevChars) => {
+        const nextChars = prevChars.map((c) => {
+          if (c.id !== charId) return c;
+          return {
+            ...c,
+            inventory: [...(c.inventory || []), inventoryItem],
+            updatedAt: now,
+          };
+        });
+        defaultRepository.saveCharacters(nextChars);
+        return nextChars;
+      });
+
+      cloudSyncManager.scheduleAutoSync();
+      return { catalogItem: effectiveItem, inventoryItem };
+    },
+    [characters]
+  );
+
   // Rolagens e Transmissão para a Mesa Virtual
   const broadcastRollToTable = useCallback(
     async (
@@ -1184,12 +1308,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [updateUserProfile]);
 
   const reloadFromRepository = useCallback(async () => {
-    const [favs, lists, chars, camps, weapons, deletedWeaponIds, rawProfile] = await Promise.all([
+    const [favs, lists, chars, camps, weapons, items, deletedWeaponIds, rawProfile] = await Promise.all([
       defaultRepository.getFavorites(),
       defaultRepository.getSavedLists(),
       defaultRepository.getCharacters(),
       defaultRepository.getCampaigns(),
       defaultRepository.getCustomWeapons(),
+      defaultRepository.getCustomItems(),
       defaultRepository.getDeletedCustomWeaponIds(),
       defaultRepository.getUserProfile(),
     ]);
@@ -1221,6 +1346,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCharacters(migration.characters);
     setCampaigns(camps);
     setCustomWeapons(migration.customWeapons);
+    setCustomItems(items);
     setUserProfile(profile);
     if (profile.listingColumns === 1 || profile.listingColumns === 2) {
       setListingColumnsState(profile.listingColumns);
@@ -1558,6 +1684,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteCustomWeapon,
       equipWeaponToCharacter,
       removeAttackFromCharacter,
+      customItems,
+      upsertCustomItem,
+      deleteCustomItem,
+      equipCatalogItemToCharacter,
       rollHistory,
       latestRoll,
       dismissLatestRoll,
@@ -1660,6 +1790,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteCustomWeapon,
       equipWeaponToCharacter,
       removeAttackFromCharacter,
+      customItems,
+      upsertCustomItem,
+      deleteCustomItem,
+      equipCatalogItemToCharacter,
       rollHistory,
       latestRoll,
       dismissLatestRoll,

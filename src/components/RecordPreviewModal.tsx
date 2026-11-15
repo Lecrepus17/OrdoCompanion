@@ -1157,16 +1157,40 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
               {/* 7. ITEM DE INVENTÁRIO DA FICHA */}
               {target.kind === 'character_inventory' && (() => {
                 const it = target.item;
+                const qty = it.quantity !== undefined ? it.quantity : 1;
+                const totalSpaces = Math.round(((it.spaces || 0) * qty) * 100) / 100;
+                const chargesText =
+                  it.maxCharges && it.maxCharges > 0
+                    ? `${it.charges ?? it.maxCharges}/${it.maxCharges} usos`
+                    : null;
                 return (
                   <>
                     <View style={styles.statsCard}>
                       <Text style={styles.sectionTitle}>Dados do Item no Inventário</Text>
                       <View style={styles.gridStats}>
                         <PreviewStat label="Categoria" value={`Cat. ${it.category}`} highlight />
-                        <PreviewStat label="Espaços" value={String(it.spaces)} />
+                        <PreviewStat
+                          label="Espaços"
+                          value={`${String(totalSpaces).replace('.', ',')} esp.${qty > 1 ? ` (${qty}×)` : ''}`}
+                        />
+                        <PreviewStat label="Quantidade" value={String(qty)} />
                         <PreviewStat label="Status" value={it.equipped ? 'Equipado' : 'Guardado'} />
+                        {chargesText ? <PreviewStat label="Cargas" value={chargesText} highlight /> : null}
                       </View>
                     </View>
+                    {it.mechanics && it.mechanics.length > 0 ? (
+                      <View style={styles.descBox}>
+                        <Text style={styles.sectionTitle}>Mecânicas do Item</Text>
+                        {it.mechanics.map((m) => (
+                          <Text key={m.id} style={styles.descText}>
+                            • {m.label}
+                            {m.formula ? ` (${m.formula})` : m.flatValue ? ` (+${m.flatValue})` : ''}
+                            {m.peCost ? ` — ${m.peCost} PE` : ''}
+                            {m.dtFormula ? ` — DT ${m.dtFormula}` : ''}
+                          </Text>
+                        ))}
+                      </View>
+                    ) : null}
                     {!!it.details && (
                       <View style={styles.descBox}>
                         <Text style={styles.sectionTitle}>Detalhes e Anotações</Text>

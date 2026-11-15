@@ -14,10 +14,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CriticalModePromptModal } from '../../components/CriticalModePromptModal';
+import { ItemEditorModal, ItemEditorSaveResult } from '../../components/ItemEditorModal';
 import { WeaponEditorModal } from '../../components/WeaponEditorModal';
 import { ThemeColors, useTheme, useThemedStyles } from '../../theme';
-import { CriticalDamageMode, CustomWeapon } from '../../types/compendium';
+import {
+  CriticalDamageMode,
+  CustomCatalogItem,
+  CustomWeapon,
+  InventoryItemCategoryGroup,
+} from '../../types/compendium';
 import { confirmAction, showAlert } from '../../utils/alert';
+import {
+  buildCatalogItemFromCuratedItem,
+  CuratedCompendiumItem,
+  formatSpacesLabel,
+  getCuratedCompendiumItems,
+  OFFICIAL_ACCESSORY_MODS_MAP,
+} from '../../utils/inventoryItems';
 import {
   isAmmoModification,
   OFFICIAL_WEAPON_MODS,
@@ -35,10 +48,15 @@ export default function WeaponsScreen() {
   const bottomInset = Math.max(insets.bottom, 10);
   const styles = useThemedStyles(createStyles);
   const {
+    entities,
     customWeapons,
     upsertCustomWeapon,
     deleteCustomWeapon,
     equipWeaponToCharacter,
+    customItems,
+    upsertCustomItem,
+    deleteCustomItem,
+    equipCatalogItemToCharacter,
     characters,
     rollWeaponDamage,
     userProfile,
@@ -46,8 +64,10 @@ export default function WeaponsScreen() {
     openRecordPreview,
   } = useApp();
 
+  const [activeSection, setActiveSection] = useState<'weapons' | 'items'>('weapons');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+  const [itemFilterGroup, setItemFilterGroup] = useState<'all' | InventoryItemCategoryGroup>('all');
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingWeapon, setEditingWeapon] = useState<CustomWeapon | null>(null);
   const [equipModalWeapon, setEquipModalWeapon] = useState<CustomWeapon | null>(null);
@@ -58,11 +78,48 @@ export default function WeaponsScreen() {
     isMaxDamage: boolean;
   } | null>(null);
 
-  // Intercepta botão de retorno físico (Android) e do navegador (Web) para fechar o modal de equipar
+  const [itemEditorVisible, setItemEditorVisible] = useState(false);
+  const [editingCatalogItem, setEditingCatalogItem] = useState<CustomCatalogItem | null>(null);
+  const [equipModalItem, setEquipModalItem] = useState<CustomCatalogItem | null>(null);
+  const [equipItemMode, setEquipItemMode] = useState<'shared' | 'duplicate'>('shared');
+  const [equipItemQuantity, setEquipItemQuantity] = useState(1);
+  const [compItemPickerVisible, setCompItemPickerVisible] = useState(false);
+  const [compItemSearch, setCompItemSearch] = useState('');
+  const [compItemFilter, setCompItemFilter] = useState<'all' | InventoryItemCategoryGroup>('all');
+
+  const curatedCompendiumItems = useMemo(
+    () => getCuratedCompendiumItems(entities),
+    [entities]
+  );
+
+  const filteredCompendiumItems = useMemo(() => {
+    const q = compItemSearch.trim().toLowerCase();
+    return curatedCompendiumItems.filter((it) => {
+      if (compItemFilter !== 'all' && it.subCategoryGroup !== compItemFilter) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        it.name.toLowerCase().includes(q) ||
+        it.description.toLowerCase().includes(q) ||
+        it.bookTitle.toLowerCase().includes(q)
+      );
+    });
+  }, [curatedCompendiumItems, compItemFilter, compItemSearch]);
+
+  // Intercepta botão de retorno físico (Android) e do navegador (Web) para fechar modais da tela
   useEffect(() => {
-    if (equipModalWeapon === null) return;
+    if (equipModalWeapon === null && equipModalItem === null && !compItemPickerVisible) return;
 
     const handleBack = () => {
+      if (compItemPickerVisible) {
+        setCompItemPickerVisible(false);
+        return true;
+      }
+      if (equipModalItem !== null) {
+        setEquipModalItem(null);
+        return true;
+      }
       setEquipModalWeapon(null);
       return true;
     };
@@ -96,7 +153,7 @@ export default function WeaponsScreen() {
     return () => {
       sub?.remove();
     };
-  }, [equipModalWeapon]);
+  }, [equipModalWeapon, equipModalItem, compItemPickerVisible]);
 
   const openNewWeaponEditor = () => {
     setEditingWeapon(null);
@@ -164,6 +221,80 @@ export default function WeaponsScreen() {
     });
   };
 
+  const openNewItemEditor = () => {
+    setEditingCatalogItem(null);
+    setItemEditorVisible(true);
+  };
+
+  const openCompendiumItemPicker = () => {
+    setCompItemSearch('');
+    setCompItemFilter('all');
+    setCompItemPickerVisible(true);
+  };
+
+  const handleImportCompendiumItemToDepot = async (curated: CuratedCompendiumItem, openEditor = false) => {
+    const catalogItem = buildCatalogItemFromCuratedItem(curated);
+    if (openEditor) {
+      setCompItemPickerVisible(false);
+      setEditingCatalogItem({
+        ...catalogItem,
+        id: `citem_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      });
+      setItemEditorVisible(true);
+      return;
+    }
+    await upsertCustomItem(catalogItem);
+    setCompItemPickerVisible(false);
+    showAlert(
+      'Importado para o Depósito!',
+      `"${catalogItem.name}" (Cat ${catalogItem.finalCategory} • ${formatSpacesLabel(catalogItem.finalSpaces)} esp.) já está disponível no Depósito para equipar em qualquer agente.`
+    );
+  };
+
+  const openEditCatalogItem = (item: CustomCatalogItem) => {
+    setEditingCatalogItem(item);
+    setItemEditorVisible(true);
+  };
+
+  const handleSaveCatalogItem = async (result: ItemEditorSaveResult) => {
+    await upsertCustomItem(result.catalogItem);
+    setItemEditorVisible(false);
+    setEditingCatalogItem(null);
+  };
+
+  const handleEquipCatalogItemToAgent = async (charId: string) => {
+    if (!equipModalItem) return;
+    const targetChar = characters.find((c) => c.id === charId);
+    if (!targetChar) return;
+    const res = await equipCatalogItemToCharacter(equipModalItem, charId, {
+      mode: equipItemMode,
+      quantity: equipItemQuantity,
+    });
+    if (!res) return;
+    setEquipModalItem(null);
+    showAlert(
+      equipItemMode === 'duplicate' ? 'Item Duplicado e Equipado!' : 'Item Equipado e Vinculado!',
+      `"${res.catalogItem.name}" (Cat ${res.catalogItem.finalCategory}) foi adicionado ao inventário de ${targetChar.name}!`
+    );
+  };
+
+  const filteredItems = useMemo(() => {
+    return customItems.filter((it) => {
+      if (itemFilterGroup !== 'all' && it.subCategoryGroup !== itemFilterGroup) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          it.name.toLowerCase().includes(q) ||
+          it.baseItemName.toLowerCase().includes(q) ||
+          it.details.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [customItems, itemFilterGroup, searchQuery]);
+
   const filteredWeapons = useMemo(() => {
     return customWeapons.filter((w) => {
       if (filterType !== 'all' && w.weaponType !== filterType) {
@@ -206,11 +337,82 @@ export default function WeaponsScreen() {
             <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
             <Text style={[styles.createBtnText, { color: colors.primary }]}>Manual</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.createBtn} onPress={openNewWeaponEditor}>
+          {activeSection === 'items' ? (
+            <TouchableOpacity
+              style={[
+                styles.createBtn,
+                {
+                  backgroundColor: colors.surfaceElevated,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={openCompendiumItemPicker}
+              testID="btn-depot-from-compendium"
+            >
+              <Ionicons name="book-outline" size={18} color={colors.text} />
+              <Text style={[styles.createBtnText, { color: colors.text }]}>Compêndio</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity
+            style={styles.createBtn}
+            onPress={activeSection === 'weapons' ? openNewWeaponEditor : openNewItemEditor}
+            testID={activeSection === 'weapons' ? 'btn-new-weapon' : 'btn-new-depot-item'}
+          >
             <Ionicons name="add" size={20} color="#FFF" />
-            <Text style={styles.createBtnText}>Nova Arma</Text>
+            <Text style={styles.createBtnText}>
+              {activeSection === 'weapons' ? 'Nova Arma' : 'Novo Item'}
+            </Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Segmented Switcher: Armas | Itens & Acessórios */}
+      <View style={styles.sectionSwitcherRow}>
+        <TouchableOpacity
+          style={[
+            styles.sectionSwitcherTab,
+            activeSection === 'weapons' && styles.sectionSwitcherTabActive,
+          ]}
+          onPress={() => setActiveSection('weapons')}
+          testID="armory-tab-weapons"
+        >
+          <Ionicons
+            name="construct-outline"
+            size={15}
+            color={activeSection === 'weapons' ? '#FFF' : colors.textSecondary}
+          />
+          <Text
+            style={[
+              styles.sectionSwitcherText,
+              activeSection === 'weapons' && styles.sectionSwitcherTextActive,
+            ]}
+          >
+            Armas ({customWeapons.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.sectionSwitcherTab,
+            activeSection === 'items' && styles.sectionSwitcherTabActive,
+          ]}
+          onPress={() => setActiveSection('items')}
+          testID="armory-tab-items"
+        >
+          <Ionicons
+            name="medkit-outline"
+            size={15}
+            color={activeSection === 'items' ? '#FFF' : colors.textSecondary}
+          />
+          <Text
+            style={[
+              styles.sectionSwitcherText,
+              activeSection === 'items' && styles.sectionSwitcherTextActive,
+            ]}
+          >
+            Itens & Acessórios ({customItems.length})
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Filter / Search Row */}
@@ -219,7 +421,11 @@ export default function WeaponsScreen() {
           <Ionicons name="search" size={17} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por arma, efeito ou modificação..."
+            placeholder={
+              activeSection === 'weapons'
+                ? 'Buscar por arma, efeito ou modificação...'
+                : 'Buscar no depósito de itens, acessórios ou curativos...'
+            }
             placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -231,22 +437,219 @@ export default function WeaponsScreen() {
           ) : null}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeFilterRow}>
-          {['all', 'Fogo', 'Corpo a corpo', 'Disparo'].map((t) => (
-            <TouchableOpacity
-              key={t}
-              style={[styles.typePill, filterType === t && styles.typePillActive]}
-              onPress={() => setFilterType(t)}
-            >
-              <Text style={[styles.typePillText, filterType === t && styles.typePillTextActive]}>
-                {t === 'all' ? 'Todas as Armas' : t}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {activeSection === 'weapons' ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeFilterRow}>
+            {['all', 'Fogo', 'Corpo a corpo', 'Disparo'].map((t) => (
+              <TouchableOpacity
+                key={t}
+                style={[styles.typePill, filterType === t && styles.typePillActive]}
+                onPress={() => setFilterType(t)}
+              >
+                <Text style={[styles.typePillText, filterType === t && styles.typePillTextActive]}>
+                  {t === 'all' ? 'Todas as Armas' : t}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeFilterRow}>
+            {(
+              [
+                { value: 'all', label: 'Todos os Itens' },
+                { value: 'cura', label: 'Cura' },
+                { value: 'acessorio', label: 'Acessório' },
+                { value: 'explosivo', label: 'Explosivo' },
+                { value: 'operacional', label: 'Operacional' },
+                { value: 'paranormal', label: 'Paranormal' },
+                { value: 'amaldicoado', label: 'Amaldiçoado' },
+                { value: 'protecao', label: 'Proteção' },
+              ] as const
+            ).map((grp) => (
+              <TouchableOpacity
+                key={grp.value}
+                style={[styles.typePill, itemFilterGroup === grp.value && styles.typePillActive]}
+                onPress={() => setItemFilterGroup(grp.value)}
+              >
+                <Text
+                  style={[
+                    styles.typePillText,
+                    itemFilterGroup === grp.value && styles.typePillTextActive,
+                  ]}
+                >
+                  {grp.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
-      {/* Weapons List */}
+      {/* Weapons or Items List */}
+      {activeSection === 'items' ? (
+        <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}>
+          {filteredItems.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Ionicons name="briefcase-outline" size={48} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>Nenhum item no Depósito</Text>
+              <Text style={styles.emptySub}>
+                Crie itens, acessórios aprimorados, explosivos ou curativos reutilizáveis e equipe-os facilmente em qualquer agente.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <TouchableOpacity
+                  style={[styles.createBtn, { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.primary }]}
+                  onPress={openCompendiumItemPicker}
+                  testID="btn-depot-first-from-compendium"
+                >
+                  <Ionicons name="book-outline" size={18} color={colors.primary} />
+                  <Text style={[styles.createBtnText, { color: colors.primary }]}>Importar do Compêndio</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.createBtn}
+                  onPress={openNewItemEditor}
+                  testID="btn-create-first-depot-item"
+                >
+                  <Ionicons name="add" size={18} color="#FFF" />
+                  <Text style={styles.createBtnText}>Criar Personalizado</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            filteredItems.map((item) => {
+              const elemDef =
+                item.element && item.element !== 'Nenhum'
+                  ? colors.elements[item.element as keyof typeof colors.elements]
+                  : null;
+              const elemColor = elemDef?.border || colors.textSecondary;
+
+              return (
+                <View key={item.id} style={styles.weaponCard} testID={`depot-item-card-${item.id}`}>
+                  <View style={styles.weaponHeader}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.nameRow}>
+                        <Text style={styles.weaponName}>{item.name}</Text>
+                        {item.element && item.element !== 'Nenhum' ? (
+                          <View style={[styles.elementBadge, { borderColor: elemColor }]}>
+                            <Text style={[styles.elementBadgeText, { color: elemColor }]}>
+                              {item.element}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={styles.baseLabel}>
+                        {item.itemType.toUpperCase()} • {item.subCategoryGroup.toUpperCase()}
+                        {item.targetSkill ? ` • +${item.skillBonus || 2} ${item.targetSkill}` : ''}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryBadgeText}>Cat {item.finalCategory}</Text>
+                      </View>
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryBadgeText}>
+                          {formatSpacesLabel(item.finalSpaces)} esp.
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {item.details ? (
+                    <Text style={styles.specialRulesText} numberOfLines={3}>
+                      {item.details}
+                    </Text>
+                  ) : null}
+
+                  {(item.modifications?.length || item.customModifications?.length || item.mechanics?.length) ? (
+                    <View style={styles.modBadgesWrap}>
+                      {item.modifications.map((mid) => {
+                        const modDef = OFFICIAL_ACCESSORY_MODS_MAP.get(mid);
+                        return (
+                          <View key={mid} style={styles.modBadge}>
+                            <Ionicons name="checkmark-circle" size={12} color="#10B981" />
+                            <Text style={styles.modBadgeText}>{modDef?.name || mid}</Text>
+                          </View>
+                        );
+                      })}
+                      {item.customModifications?.map((cmod) => (
+                        <View key={cmod.id} style={[styles.modBadge, { borderColor: '#818CF8' }]}>
+                          <Ionicons name="sparkles" size={12} color="#818CF8" />
+                          <Text style={styles.modBadgeText}>{cmod.name}</Text>
+                        </View>
+                      ))}
+                      {item.mechanics?.map((mech) => (
+                        <View
+                          key={mech.id}
+                          style={[
+                            styles.modBadge,
+                            { borderColor: 'rgba(245, 158, 11, 0.5)', backgroundColor: 'rgba(245, 158, 11, 0.08)' },
+                          ]}
+                        >
+                          <Ionicons name="flash" size={11} color="#F59E0B" />
+                          <Text style={[styles.modBadgeText, { color: '#FDE68A' }]}>
+                            {mech.label}
+                            {mech.formula ? ` (${mech.formula})` : mech.flatValue ? ` (+${mech.flatValue})` : ''}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  <View style={styles.cardActionsRow}>
+                    <View style={styles.cardActionsMain}>
+                      <TouchableOpacity
+                        style={styles.equipBtn}
+                        onPress={() => {
+                          setEquipItemMode('shared');
+                          setEquipItemQuantity(1);
+                          setEquipModalItem(item);
+                        }}
+                        testID={`btn-depot-item-equip-${item.id}`}
+                      >
+                        <Ionicons name="person-add-outline" size={14} color="#38BDF8" />
+                        <Text style={styles.equipBtnText}>Equipar em Agente</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.cardActionsRight}>
+                      <TouchableOpacity
+                        style={styles.iconBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => openEditCatalogItem(item)}
+                        testID={`btn-depot-item-edit-${item.id}`}
+                      >
+                        <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.iconBtn, styles.deleteIconBtn]}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => {
+                          const linkedChars = characters.filter((c) =>
+                            (c.inventory || []).some((it) => it.customItemId === item.id)
+                          );
+                          const warn =
+                            linkedChars.length > 0
+                              ? `\n\nAtenção: este item está equipado em ${linkedChars.length} agente(s) (${linkedChars
+                                  .map((c) => c.name)
+                                  .join(', ')}). Excluir também removerá o item dessas fichas.`
+                              : '';
+                          confirmAction({
+                            title: 'Excluir Item do Depósito?',
+                            message: `Tem certeza que deseja excluir "${item.name}"?${warn}`,
+                            confirmText: 'Excluir',
+                            destructive: true,
+                            onConfirm: () => deleteCustomItem(item.id),
+                          });
+                        }}
+                        testID={`btn-depot-item-delete-${item.id}`}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      ) : (
       <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}>
         {filteredWeapons.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -546,7 +949,152 @@ export default function WeaponsScreen() {
             );
           })
         )}
+      {/* Weapons List End */}
       </ScrollView>
+      )}
+
+      {/* MODAL UNIFICADO: Editor de Criação / Modificação de Item */}
+      <ItemEditorModal
+        visible={itemEditorVisible}
+        onClose={() => {
+          setItemEditorVisible(false);
+          setEditingCatalogItem(null);
+        }}
+        mode="depot"
+        initialCatalogItem={editingCatalogItem}
+        onSave={handleSaveCatalogItem}
+        linkedAgentNames={
+          editingCatalogItem
+            ? characters
+                .filter((c) =>
+                  (c.inventory || []).some(
+                    (it) => it.customItemId === editingCatalogItem.id && it.linkMode !== 'copied'
+                  )
+                )
+                .map((c) => c.name)
+            : undefined
+        }
+      />
+
+      {/* MODAL: Equipar Item do Depósito em Agente */}
+      <Modal
+        visible={equipModalItem !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setEquipModalItem(null)}
+      >
+        <View style={[styles.modalOverlay, { paddingBottom: Math.max(insets.bottom + 16, 20) }]}>
+          <View style={styles.equipDialogCard}>
+            <View style={styles.equipDialogHeader}>
+              <Text style={styles.equipDialogTitle}>Equipar Item no Agente</Text>
+              <TouchableOpacity
+                onPress={() => setEquipModalItem(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.equipDialogSub}>
+              Escolha se o agente usará o mesmo item vinculado ou uma cópia independente no Depósito.
+            </Text>
+
+            <View style={styles.equipModeRow}>
+              <TouchableOpacity
+                style={[styles.equipModePill, equipItemMode === 'shared' && styles.equipModePillActive]}
+                onPress={() => setEquipItemMode('shared')}
+                testID="btn-equip-item-mode-shared"
+              >
+                <Ionicons
+                  name="link"
+                  size={14}
+                  color={equipItemMode === 'shared' ? '#38BDF8' : colors.textMuted}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.equipModeTitle, equipItemMode === 'shared' && { color: '#38BDF8' }]}>
+                    Usar o Mesmo
+                  </Text>
+                  <Text style={styles.equipModeDesc}>Edições replicam entre Depósito e agente</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.equipModePill, equipItemMode === 'duplicate' && styles.equipModePillActive]}
+                onPress={() => setEquipItemMode('duplicate')}
+                testID="btn-equip-item-mode-duplicate"
+              >
+                <Ionicons
+                  name="copy-outline"
+                  size={14}
+                  color={equipItemMode === 'duplicate' ? '#10B981' : colors.textMuted}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.equipModeTitle, equipItemMode === 'duplicate' && { color: '#10B981' }]}>
+                    Duplicar
+                  </Text>
+                  <Text style={styles.equipModeDesc}>Cria cópia com o nome do agente</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {equipModalItem ? (
+              <View style={styles.equipWeaponOverview}>
+                <View style={styles.equipOverviewRow}>
+                  <Text style={styles.equipOverviewTitle}>{equipModalItem.name}</Text>
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>
+                      Cat {equipModalItem.finalCategory} • {formatSpacesLabel(equipModalItem.finalSpaces)} esp.
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.equipQtyRow}>
+                  <Text style={styles.equipAmmoText}>Quantidade inicial:</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <TouchableOpacity
+                      style={styles.qtyMiniBtn}
+                      onPress={() => setEquipItemQuantity((q) => Math.max(1, q - 1))}
+                    >
+                      <Ionicons name="remove" size={14} color={colors.text} />
+                    </TouchableOpacity>
+                    <Text style={styles.equipOverviewTitle}>{equipItemQuantity}</Text>
+                    <TouchableOpacity
+                      style={styles.qtyMiniBtn}
+                      onPress={() => setEquipItemQuantity((q) => q + 1)}
+                    >
+                      <Ionicons name="add" size={14} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {characters.length === 0 ? (
+              <Text style={styles.noAgentsText}>
+                Nenhum agente cadastrado ainda. Crie um agente na aba "Agentes".
+              </Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 250, marginTop: 10 }}>
+                {characters.map((char) => (
+                  <TouchableOpacity
+                    key={char.id}
+                    style={styles.charSelectRow}
+                    onPress={() => handleEquipCatalogItemToAgent(char.id)}
+                    testID={`btn-equip-item-agent-${char.id}`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.charSelectName}>{char.name}</Text>
+                      <Text style={styles.charSelectMeta}>
+                        NEX {char.nex}% • {char.rank}
+                      </Text>
+                    </View>
+                    <Ionicons name="add-circle" size={24} color={colors.primary} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* MODAL UNIFICADO: Editor de Criação / Modificação de Arma */}
       <WeaponEditorModal
@@ -732,6 +1280,142 @@ export default function WeaponsScreen() {
                 })}
               </ScrollView>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL: Importar Item / Amaldiçoado do Compêndio para o Depósito */}
+      <Modal
+        visible={compItemPickerVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCompItemPickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.equipDialogCard, { maxHeight: '88%', padding: 16 }]}>
+            <View style={styles.equipDialogHeader}>
+              <Text style={styles.equipDialogTitle}>Importar do Compêndio ({filteredCompendiumItems.length})</Text>
+              <TouchableOpacity onPress={() => setCompItemPickerVisible(false)}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.equipDialogSub}>
+              Escolha qualquer item comum, paranormal ou amaldiçoado oficial para salvar no Depósito pronto para uso.
+            </Text>
+
+            <View style={[styles.searchBox, { marginTop: 6 }]}>
+              <Ionicons name="search" size={16} color={colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar item (ex: Vislumbre, Cicatrizante, Crânio...)"
+                placeholderTextColor={colors.textMuted}
+                value={compItemSearch}
+                onChangeText={setCompItemSearch}
+                testID="input-depot-compendium-search"
+              />
+              {compItemSearch ? (
+                <TouchableOpacity onPress={() => setCompItemSearch('')}>
+                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0, maxHeight: 42, marginTop: 4 }}
+              contentContainerStyle={styles.typeFilterRow}
+            >
+              {(
+                [
+                  { value: 'all', label: `Todos (${curatedCompendiumItems.length})` },
+                  { value: 'amaldicoado', label: 'Amaldiçoado' },
+                  { value: 'paranormal', label: 'Paranormal' },
+                  { value: 'cura', label: 'Cura' },
+                  { value: 'acessorio', label: 'Acessório' },
+                  { value: 'explosivo', label: 'Explosivo' },
+                  { value: 'operacional', label: 'Operacional' },
+                  { value: 'protecao', label: 'Proteção' },
+                ] as const
+              ).map((grp) => (
+                <TouchableOpacity
+                  key={grp.value}
+                  style={[styles.typePill, compItemFilter === grp.value && styles.typePillActive]}
+                  onPress={() => setCompItemFilter(grp.value)}
+                >
+                  <Text
+                    style={[
+                      styles.typePillText,
+                      compItemFilter === grp.value && styles.typePillTextActive,
+                    ]}
+                  >
+                    {grp.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <ScrollView style={{ marginTop: 8 }} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
+              {filteredCompendiumItems.map((it) => {
+                const alreadyInDepot = customItems.some(
+                  (ci) =>
+                    (ci.baseItemId && ci.baseItemId === it.id) ||
+                    ci.name.trim().toLowerCase() === it.name.trim().toLowerCase()
+                );
+                return (
+                  <TouchableOpacity
+                    key={it.id}
+                    style={styles.compendiumWeaponItem}
+                    onPress={() => handleImportCompendiumItemToDepot(it, false)}
+                    testID={`btn-depot-comp-pick-${it.id}`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={styles.compendiumWeaponName}>{it.name}</Text>
+                        <View style={styles.categoryBadge}>
+                          <Text style={styles.categoryBadgeText}>
+                            Cat {it.category} • {formatSpacesLabel(it.spaces)} esp.
+                          </Text>
+                        </View>
+                        {alreadyInDepot ? (
+                          <View style={[styles.categoryBadge, { borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+                            <Text style={[styles.categoryBadgeText, { color: '#10B981' }]}>No Depósito</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={styles.compendiumWeaponSub}>
+                        {it.bookTitle}
+                        {it.pageNumber ? ` p. ${it.pageNumber}` : ''} • {it.subCategoryGroup.toUpperCase()}
+                        {it.element && it.element !== 'Nenhum' ? ` • ${it.element}` : ''}
+                      </Text>
+                      {it.mechanics.length > 0 ? (
+                        <Text style={[styles.compendiumWeaponSub, { color: '#34D399', marginTop: 2 }]}>
+                          ⚡ {it.mechanics.map((m) => `${m.label}${m.formula ? ` (${m.formula})` : ''}`).join(' • ')}
+                        </Text>
+                      ) : null}
+                      {it.description ? (
+                        <Text style={styles.compendiumWeaponStats} numberOfLines={2}>
+                          {it.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 }}>
+                      <TouchableOpacity
+                        style={styles.iconBtn}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          handleImportCompendiumItemToDepot(it, true);
+                        }}
+                        testID={`btn-depot-comp-edit-${it.id}`}
+                      >
+                        <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                      <Ionicons name="add-circle" size={24} color={colors.primary} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1698,5 +2382,52 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: 10,
     lineHeight: 13,
     marginTop: 1,
+  },
+  sectionSwitcherRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  sectionSwitcherTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  sectionSwitcherTabActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  sectionSwitcherText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  sectionSwitcherTextActive: {
+    color: '#FFF',
+  },
+  equipQtyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  qtyMiniBtn: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
 });

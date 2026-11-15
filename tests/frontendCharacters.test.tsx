@@ -12,7 +12,7 @@ import {
   mockAlertCalls,
 } from './frontendTestUtils';
 import { defaultRepository } from '../src/repositories/OfflineDataRepository';
-import { CharacterSheet, CustomWeapon } from '../src/types/compendium';
+import { CharacterSheet, CustomCatalogItem, CustomWeapon } from '../src/types/compendium';
 
 describe('Frontend - Tela de Fichas de Personagem (characters.tsx)', () => {
   const sampleSheet: CharacterSheet = {
@@ -405,5 +405,89 @@ describe('Frontend - Tela de Fichas de Personagem (characters.tsx)', () => {
     assert.ok(getByTestId('crit-mode-multiply_dice'));
     assert.ok(getByTestId('crit-mode-multiply_damage'));
     assert.ok(getByTestId('crit-mode-ask_user'));
+  });
+
+  test('aba Itens deve suportar Depósito, Compêndio curado, cura Aplicada em Mim vs Aliado, PV Temp e manter 0 usos desabilitado', async () => {
+    const depotItem: CustomCatalogItem = {
+      id: 'citem_depot_ui_1',
+      name: 'Bandagem Tática',
+      baseItemName: 'Bandagem',
+      itemType: 'geral',
+      subCategoryGroup: 'cura',
+      baseCategory: '0',
+      baseSpaces: 0.5,
+      finalCategory: '0',
+      finalSpaces: 0.5,
+      details: 'Cura 2d4+2 PV.',
+      element: 'Nenhum',
+      modifications: [],
+      consumable: true,
+      maxCharges: 1,
+      mechanics: [
+        {
+          id: 'mech_bandagem_1',
+          type: 'heal_pv',
+          label: 'Estancar / Curar PV',
+          formula: '2d4+2',
+        },
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const injuredAgent: CharacterSheet = {
+      ...sampleSheet,
+      id: 'char_inv_ui',
+      pvCurrent: 12,
+      pvMax: 28,
+      pvTemp: 4,
+      peTemp: 2,
+      inventory: [
+        {
+          id: 'inv_bandage_1',
+          name: 'Bandagem Tática',
+          category: '0',
+          spaces: 0.5,
+          equipped: true,
+          quantity: 1,
+          charges: 1,
+          maxCharges: 1,
+          consumable: true,
+          customItemId: depotItem.id,
+          linkMode: 'shared',
+          mechanics: depotItem.mechanics,
+        },
+      ],
+    };
+
+    await defaultRepository.saveCustomItems([depotItem]);
+    await defaultRepository.saveCharacters([injuredAgent]);
+
+    const { getByText, getByTestId, queryByTestId } = await renderWithProviders(<CharactersScreen />);
+    await fireClick(getByText('Dante Ocultista'));
+
+    // Badges de PV/PE Temporários visíveis no Status Vital
+    assert.ok(getByTestId('pv-temp-value'));
+    assert.ok(getByTestId('pe-temp-value'));
+
+    // Abrir aba Itens (Inventário)
+    await fireClick(getByText(/Inventário/i));
+    assert.ok(getByTestId('btn-add-item-new'));
+    assert.ok(getByTestId('btn-add-item-depot'));
+    assert.ok(getByTestId('btn-add-item-compendium'));
+
+    // Usar Bandagem -> abre escolha Aplicar em Mim vs Aliado
+    await fireClick(getByTestId('btn-use-mech-inv_bandage_1-mech_bandagem_1'));
+    assert.ok(queryByTestId('btn-heal-choice-self'));
+    assert.ok(queryByTestId('btn-heal-choice-ally'));
+
+    // Seleciona Aplicar em Mim -> cura PV e mantém o item no inventário com 0 usos
+    await fireClick(getByTestId('btn-heal-choice-self'));
+    assert.ok(getByTestId('sheet-inv-depleted-inv_bandage_1'));
+    assert.ok(getByTestId('btn-recharge-item-inv_bandage_1'));
+
+    const updatedChars = await defaultRepository.getCharacters();
+    assert.ok(updatedChars[0].pvCurrent > 12, 'PV deve ter aumentado após aplicar cura em si');
+    assert.strictEqual(updatedChars[0].inventory?.[0].charges, 0);
   });
 });

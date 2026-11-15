@@ -3,6 +3,7 @@ import {
   Campaign,
   CharacterSheet,
   CompendiumEntity,
+  CustomCatalogItem,
   CustomWeapon,
   SavedList,
   UnlockedBookRecord,
@@ -207,6 +208,62 @@ export class SmartMergeEngine {
       }
     }
     const mergedWeapons = Array.from(weaponMap.values());
+
+    // 2.5. Itens & Acessórios Customizados (Depósito)
+    const localItems = local.customItems || [];
+    const remoteItems = remote.customItems || [];
+    const itemMap = new Map<string, CustomCatalogItem>();
+
+    const allItemIds = new Set([
+      ...localItems.map((it) => it.id),
+      ...remoteItems.map((it) => it.id),
+    ]);
+
+    const mergedDeletedItemIds = Array.from(new Set([
+      ...(local.deletedCustomItemIds || []),
+      ...(remote.deletedCustomItemIds || []),
+    ]));
+    const deletedItemSet = new Set(mergedDeletedItemIds);
+    if (mergedDeletedItemIds.length > (local.deletedCustomItemIds || []).length) {
+      hasLocalChangesToApply = true;
+    }
+    if (mergedDeletedItemIds.length > (remote.deletedCustomItemIds || []).length) {
+      hasRemoteChangesToUpload = true;
+    }
+
+    for (const id of allItemIds) {
+      if (deletedItemSet.has(id)) {
+        if (remoteItems.some((it) => it.id === id)) hasRemoteChangesToUpload = true;
+        if (localItems.some((it) => it.id === id)) hasLocalChangesToApply = true;
+        continue;
+      }
+      const loc = localItems.find((it) => it.id === id);
+      const rem = remoteItems.find((it) => it.id === id);
+
+      if (loc && rem) {
+        const locTime = parseDate(loc.updatedAt || loc.createdAt);
+        const remTime = parseDate(rem.updatedAt || rem.createdAt);
+
+        if (remTime > locTime) {
+          itemMap.set(id, rem);
+          hasLocalChangesToApply = true;
+          conflictsResolved++;
+        } else if (locTime > remTime) {
+          itemMap.set(id, loc);
+          hasRemoteChangesToUpload = true;
+          conflictsResolved++;
+        } else {
+          itemMap.set(id, loc);
+        }
+      } else if (loc && !rem) {
+        itemMap.set(id, loc);
+        hasRemoteChangesToUpload = true;
+      } else if (!loc && rem) {
+        itemMap.set(id, rem);
+        hasLocalChangesToApply = true;
+      }
+    }
+    const mergedItems = Array.from(itemMap.values());
 
     // 3. Entidades Customizadas (Homebrews)
     const localCustom = local.customEntities || [];
@@ -520,9 +577,11 @@ export class SmartMergeEngine {
       characters: mergedCharacters,
       campaigns: mergedCampaigns,
       customWeapons: mergedWeapons,
+      customItems: mergedItems,
       deletedCharacterIds: mergedDeletedCharIds,
       deletedCampaignIds: mergedDeletedCampIds,
       deletedCustomWeaponIds: mergedDeletedWeaponIds,
+      deletedCustomItemIds: mergedDeletedItemIds,
       deletedDynamicBookIds: mergedDeletedDynamicBookIds,
     };
 
@@ -534,6 +593,7 @@ export class SmartMergeEngine {
         charactersCount: mergedCharacters.length,
         campaignsCount: mergedCampaigns.length,
         weaponsCount: mergedWeapons.length,
+        itemsCount: mergedItems.length,
         customEntitiesCount: mergedCustomEntities.length,
         favoritesCount: mergedFavorites.length,
         listsCount: mergedSavedLists.length,

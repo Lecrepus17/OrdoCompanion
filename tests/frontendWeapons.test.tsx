@@ -164,4 +164,83 @@ describe('Frontend - Tela de Armaria e Arsenal (weapons.tsx)', () => {
     const cloned = savedWeapons.find((w) => w.name === 'Fuzil de Caça Sombrio (Jouki)');
     assert.ok(cloned, 'Deveria ter criado cópia da arma com o nome do agente');
   });
+
+  test('sub-aba Itens & Acessórios na Armaria deve listar e equipar itens do Depósito em um agente', async () => {
+    await defaultRepository.saveCustomItems([
+      {
+        id: 'citem_armory_test_1',
+        name: 'Utensílio de Medicina Aprimorado',
+        baseItemName: 'Utensílio',
+        itemType: 'utensilio',
+        subCategoryGroup: 'acessorio',
+        baseCategory: 'I',
+        baseSpaces: 1,
+        finalCategory: 'II',
+        finalSpaces: 1,
+        details: '+5 em Medicina',
+        element: 'Nenhum',
+        modifications: ['mod_acc_aprimorado'],
+        targetSkill: 'Medicina',
+        skillBonus: 5,
+        mechanics: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+    await defaultRepository.saveCharacters([
+      {
+        id: 'char_depot_equip_1',
+        name: 'Liz Webber',
+        player: 'Player',
+        rank: 'Operador',
+        affinity: 'Nenhum',
+        trackId: '',
+        classId: 'Especialista',
+        originId: 'Médica',
+        nex: 25,
+        pvCurrent: 22,
+        pvMax: 22,
+        peCurrent: 12,
+        peMax: 12,
+        sanCurrent: 24,
+        sanMax: 24,
+        defenseBonus: 0,
+        attributes: { AGI: 2, FOR: 1, INT: 3, PRE: 2, VIG: 2 },
+        skills: {},
+        attacks: [],
+        inventory: [],
+        entityIds: [],
+        notes: '',
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+
+    const { getByTestId, getByText } = await renderWithProviders(<WeaponsScreen />);
+    await fireClick(getByTestId('armory-tab-items'));
+    assert.ok(getByText('Utensílio de Medicina Aprimorado'));
+
+    await fireClick(getByTestId('btn-depot-item-equip-citem_armory_test_1'));
+    await fireClick(getByTestId('btn-equip-item-agent-char_depot_equip_1'));
+
+    const chars = await defaultRepository.getCharacters();
+    assert.strictEqual(chars[0].inventory?.length, 1);
+    assert.strictEqual(chars[0].inventory?.[0].name, 'Utensílio de Medicina Aprimorado');
+    assert.strictEqual(chars[0].inventory?.[0].customItemId, 'citem_armory_test_1');
+    assert.strictEqual(chars[0].inventory?.[0].linkMode, 'shared');
+  });
+
+  test('sub-aba Itens & Acessórios deve permitir importar item amaldiçoado existente do Compêndio direto para o Depósito', async () => {
+    const { getByTestId, getByText } = await renderWithProviders(<WeaponsScreen />);
+    await fireClick(getByTestId('armory-tab-items'));
+
+    await fireClick(getByTestId('btn-depot-from-compendium'));
+    await fireClick(getByTestId('btn-depot-comp-pick-item__livro_base__vislumbre_do_fim'));
+
+    assert.ok(getByText('Vislumbre do Fim'));
+    const saved = await defaultRepository.getCustomItems();
+    const imported = saved.find((i) => i.name === 'Vislumbre do Fim');
+    assert.ok(imported, 'Vislumbre do Fim deveria ter sido salvo no Depósito');
+    assert.strictEqual(imported?.subCategoryGroup, 'amaldicoado');
+    assert.ok((imported?.mechanics?.length ?? 0) > 0);
+  });
 });

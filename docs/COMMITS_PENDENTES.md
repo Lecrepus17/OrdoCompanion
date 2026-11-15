@@ -12,6 +12,10 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ Depósito de Itens, Importação Curada do Compêndio & Mecânicas Interativas (2026-11-15):
+- **Título**: `feat(inventory): adicionar depósito de itens, compêndio curado e mecânicas interativas`
+- **Resumo**: Depósito compartilhado offline/Drive/Supabase, restauração dos 32 itens amaldiçoados autônomos e mecânicas canônicas (*Vislumbre do Fim*, *Frasco de Lodo*, *Anel Invertido*, cura Mim vs Aliado, badges `PV Temp.`/`PE Temp.`, estado `0 usos` e Recarregar), botão `Compêndio` na sub-aba `Itens & Acessórios` e impressão atualizada.
+
 ### ✅ 1. Preparação da Release v1.5.1-beta.1 (versionCode 11):
 ```bash
 git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md

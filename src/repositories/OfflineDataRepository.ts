@@ -9,6 +9,7 @@ import {
   CharacterSheet,
   CompendiumEntity,
   CompendiumFilters,
+  CustomCatalogItem,
   CustomWeapon,
   EntityClassFilter,
   ExcludableType,
@@ -39,10 +40,12 @@ const STORAGE_KEYS = {
   CHARACTERS: '@ordem_paranormal:characters_v1',
   CAMPAIGNS: '@ordem_paranormal:campaigns_v1',
   CUSTOM_WEAPONS: '@ordem_paranormal:custom_weapons_v1',
+  CUSTOM_ITEMS: '@ordem_paranormal:custom_items_v1',
   USER_PROFILE: '@ordem_paranormal:user_profile_v1',
   DELETED_CHARACTER_IDS: '@ordem_paranormal:deleted_character_ids_v1',
   DELETED_CAMPAIGN_IDS: '@ordem_paranormal:deleted_campaign_ids_v1',
   DELETED_CUSTOM_WEAPON_IDS: '@ordem_paranormal:deleted_custom_weapon_ids_v1',
+  DELETED_CUSTOM_ITEM_IDS: '@ordem_paranormal:deleted_custom_item_ids_v1',
   DELETED_DYNAMIC_BOOK_IDS: '@ordem_paranormal:deleted_dynamic_book_ids_v1',
 };
 
@@ -1168,6 +1171,23 @@ export class OfflineDataRepository implements IDataRepository {
     }
   }
 
+  async getDeletedCustomItemIds(): Promise<string[]> {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.DELETED_CUSTOM_ITEM_IDS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async markCustomItemDeleted(itemId: string): Promise<void> {
+    const list = await this.getDeletedCustomItemIds();
+    if (!list.includes(itemId)) {
+      list.push(itemId);
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CUSTOM_ITEM_IDS, JSON.stringify(list));
+    }
+  }
+
   async getDeletedDynamicBookIds(): Promise<string[]> {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEYS.DELETED_DYNAMIC_BOOK_IDS);
@@ -1224,6 +1244,19 @@ export class OfflineDataRepository implements IDataRepository {
     await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_WEAPONS, JSON.stringify(weapons));
   }
 
+  async getCustomItems(): Promise<CustomCatalogItem[]> {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_ITEMS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async saveCustomItems(items: CustomCatalogItem[]): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_ITEMS, JSON.stringify(items));
+  }
+
   async getUserProfile(): Promise<UserProfile> {
     return { ...this.userProfile };
   }
@@ -1237,16 +1270,18 @@ export class OfflineDataRepository implements IDataRepository {
   }
 
   async exportUserDataJson(): Promise<string> {
-    const [favorites, savedLists, characters, campaigns, customWeapons, userProfile, deletedCharacterIds, deletedCampaignIds, deletedCustomWeaponIds, deletedDynamicBookIds] = await Promise.all([
+    const [favorites, savedLists, characters, campaigns, customWeapons, customItems, userProfile, deletedCharacterIds, deletedCampaignIds, deletedCustomWeaponIds, deletedCustomItemIds, deletedDynamicBookIds] = await Promise.all([
       this.getFavorites(),
       this.getSavedLists(),
       this.getCharacters(),
       this.getCampaigns(),
       this.getCustomWeapons(),
+      this.getCustomItems(),
       this.getUserProfile(),
       this.getDeletedCharacterIds(),
       this.getDeletedCampaignIds(),
       this.getDeletedCustomWeaponIds(),
+      this.getDeletedCustomItemIds(),
       this.getDeletedDynamicBookIds(),
     ]);
 
@@ -1263,9 +1298,11 @@ export class OfflineDataRepository implements IDataRepository {
       characters,
       campaigns,
       customWeapons,
+      customItems,
       deletedCharacterIds,
       deletedCampaignIds,
       deletedCustomWeaponIds,
+      deletedCustomItemIds,
       deletedDynamicBookIds,
     };
 
@@ -1354,6 +1391,10 @@ export class OfflineDataRepository implements IDataRepository {
       await this.saveCustomWeapons(parsed.customWeapons);
     }
 
+    if (Array.isArray(parsed.customItems)) {
+      await this.saveCustomItems(parsed.customItems);
+    }
+
     if (Array.isArray(parsed.deletedCharacterIds)) {
       const existing = await this.getDeletedCharacterIds();
       const union = Array.from(new Set([...existing, ...parsed.deletedCharacterIds]));
@@ -1370,6 +1411,12 @@ export class OfflineDataRepository implements IDataRepository {
       const existing = await this.getDeletedCustomWeaponIds();
       const union = Array.from(new Set([...existing, ...parsed.deletedCustomWeaponIds]));
       await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CUSTOM_WEAPON_IDS, JSON.stringify(union));
+    }
+
+    if (Array.isArray(parsed.deletedCustomItemIds)) {
+      const existing = await this.getDeletedCustomItemIds();
+      const union = Array.from(new Set([...existing, ...parsed.deletedCustomItemIds]));
+      await AsyncStorage.setItem(STORAGE_KEYS.DELETED_CUSTOM_ITEM_IDS, JSON.stringify(union));
     }
 
     if (Array.isArray(parsed.deletedDynamicBookIds) || localDeletedDynamic.length > 0) {
