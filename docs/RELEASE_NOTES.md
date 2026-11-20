@@ -1,36 +1,29 @@
-# 🩸 Ordo Companion v1.5.1-beta.1
+# 🩸 Ordo Companion v1.6.0-beta.1
 
-## 🚀 Principais Novidades da v1.5.1-beta.1
+## 🚀 Principais Novidades da v1.6.0-beta.1
 
-* **Dano Dinâmico por Agente, Preparação de Golpe Tático e Conjuração de Rituais**:
-  * Rolagens e cards de ataque agora calculam automaticamente os modificadores do **agente** sem alterar armas compartilhadas da Armaria: atributo correto (`FOR`, `AGI` em armas ágeis/Artista Marcial, `FOR+AGI` em Arco Composto com `Tiro Certeiro`, `INT` em fuzis com `Mira de Elite`), passos extras (`Golpe Pesado`, `Calibre Grosso`, `Máquina de Matar`) e bônus de origens/poderes (`Para Bellum`, `Mão Pesada`, `Ferramenta de Trabalho`, `Balística Avançada`, `Ninja Urbano`).
-  * Novo botão **Preparar Golpe Tático** para ativar gastos de PE e buffs em tempo real (`Ataque Especial`, `Potência Máxima`, `Ataque Furtivo`, `Assassinar`, `Destruidor`, `Rajada`, `Amaldiçoar Arma`, `Ódio Incontrolável`, `Chamas do Caos`), com alertas de limite de PE/turno e dedução automática de PE ao rolar, respeitando estritamente o que multiplica no crítico (apenas dados base + `Lancinante`).
-  * A aba **Habilidades & Rituais** passa a exibir a **DT** dinâmica, badges de poderes (`Ritual Potente` +INT, `Ritual Intenso` +PRE, catalisadores e `Cajado da Cruz de Sangue`), seletor de círculo (**Padrão**, **Discente**, **Verdadeiro**) e o botão direto **Conjurar & Rolar** com gasto automático de PE.
-* **Armas Unificadas entre Agentes e Armaria**:
-  * Toda arma de Agente agora é uma arma completa da Armaria (e vice-versa). Tocar em **Editar** ou **Nova Arma** na ficha do Agente abre o mesmo editor completo com arma base, modificações oficiais, maldições e munição.
-  * Ao importar ou equipar uma arma da Armaria no Agente, agora é possível escolher entre **Usar a Mesma (Vinculada)** — onde qualquer alteração replica automaticamente para todos os vínculos — ou **Duplicar**, criando uma cópia independente na Armaria com o nome do agente naquele momento (`Nome (Agente)`).
-  * Remoções seguras: excluir uma arma no Agente pergunta se deseja remover apenas da ficha ou também da Armaria; excluir na Armaria alerta sobre agentes vinculados antes de confirmar.
-* **Botão `Crítico Máx` Sempre Disponível e Cálculo de Crítico Corrigido**:
-  * O botão **Crítico Máx** agora aparece sempre junto aos ataques e armas (na Ficha de Agentes, na Armaria, no modal de inspeção e no `DiceToast`), sem depender de configuração oculta.
-  * Removida a opção incorreta "Crítico Cheio" das configurações de usuário; o Perfil agora mantém os 3 modos válidos: **Multiplica Dados (Padrão)**, **Multiplica Resultado** e **Perguntar Sempre**.
-  * No modo **Multiplica Resultado**, o multiplicador passa a incidir apenas sobre os dados rolados da arma, preservando bônus fixos sem multiplicá-los (ex.: `1d4+2` em `x2` → `(1d4 × 2) + 2`).
-* **Importação em Lote de PDFs Mais Segura e Sem Travamentos por Memória**:
-  * Aprimorado o envio de múltiplos arquivos PDF de uma só vez no celular, movendo os arquivos temporários diretamente no armazenamento do aparelho sem duplicação em disco e exibindo o progresso por arquivo.
-  * Bloqueada qualquer tentativa acidental de download/leitura integral de PDFs em memória RAM no Android (`arrayBuffer`), prevenindo crashes por falta de memória (`OutOfMemoryError`) em livros grandes como *Sobrevivendo ao Horror* (~84 MB).
-* **Imagens dos Cards Mais Compactas e Sem Estouro da Moldura**:
-  * Corrigidas as caixas de estatísticas que ultrapassavam a borda do card e textos que ocupavam só metade da largura; valores longos agora são abreviados com reticências.
-  * A altura da imagem passa a se ajustar ao conteúdo (sem grandes áreas vazias), e a resolução padrão foi otimizada para 800px de largura, gerando arquivos bem menores para Discord/WhatsApp.
-* **Exportação e Compartilhamento de Cards em PNG Corrigidos no Android**:
-  * Corrigido o erro `Property 'Buffer' doesn't exist` ao baixar ou compartilhar cards no celular, utilizando captura nativa real em PNG (`react-native-view-shot`) com salvamento direto via seletor de pastas do Android ou compartilhamento via `expo-sharing`.
-  * Removido o botão de formato `SVG` da barra inferior do gerador de imagens, mantendo os botões diretos **Copiar**, **Compartilhar** e **Baixar**.
-
-* **Reconhecimento de Voz Nativo (Microfone) no G.L.I.T.C.H.**:
-  * Ativado o ditado direto pelo botão de microfone no Android e iOS via `expo-speech-recognition`, com solicitação automática de permissão de microfone, transcrição em tempo real e preservação de texto já digitado.
-* **Maior Estabilidade Offline no APK Android (Chaves e PDFs)**:
-  * Eliminadas falhas silenciosas e potenciais travamentos no Android ao decodificar segredos internos (`.env`), validar senha mestre de livros e extrair metadados/páginas de PDFs offline sem depender de APIs Web/Node ausentes no motor Hermes.
-* **Compêndio Completo dos Mascarados, Agentes e Hexatombe (*Arquivos Secretos #02*) e Itens no Inventário**:
-  * Corrigida a extração de *Arquivos Secretos #02* (além de aliados e armas de `#06` e `#09` e correção de VD do *Felino-infernal*), restaurando todos os **itens amaldiçoados dos Mascarados** (`Manoplas do Colosso`, `Elmo do Colosso`, `Machado do Mutilador`, `Punhal X`, `Sniper Fantasma`, `A Antena`, `Faca Predadora`), `Catalisador Sofisticado e Horrorizado`, a habilidade de arma `Acoplável`, os 10 recursos de sobrevivência do Hexatombe, os 11 aliados inline, os poderes gerais/de classe e os 5 **Poderes de Intenção**.
-  * Armas amaldiçoadas com estatísticas de combate (incluindo `Manoplas do Colosso`, `Punhos Enraivecidos`, `Arcabuz dos Moretti`, `A Primeira Adaga`, `Sniper Fantasma`, etc.) agora aparecem também no filtro **Armas** do Compêndio, na **Armaria** e no seletor de ataques da Ficha, além de a aba **Inventário** da Ficha ganhar o botão **`Do Compêndio`** para adicionar itens diretamente.
+* **Criador Completo de Ameaças Estilo C.R.I.S. (`#ORD-913969`)**:
+  * Novo `ThreatCreatorModal` acessível tanto pela **Aba do Mestre** (campanhas) quanto pelo botão **Criar Ameaça (C.R.I.S.)** na tela inicial do **Compêndio**.
+  * Presets automáticos de **VD 20 a 400** (PV, Defesa, Resistências Fort/Ref/Von, Atributos, Presença Perturbadora com imunidade canônica até VD 340, Ataque, Dano e RD), ataques e habilidades estruturadas com rolagem rápida em 1 toque (incluindo margem de ameaça crítica na rolagem de ataque), Enigma de Medo e opção de exportação ao Compêndio.
+* **Mascarados & Forma Suprema (`#ORD-33762V` — Arquivos Secretos #02 p. 47, 94-97)**:
+  * Novo painel interativo **Máscara & Forma Suprema** na ficha do agente com ativação (`-6 SAN`, `+20 PV`, `+10 PE`, `+10 Defesa`), contador e manutenção por rodada (`-2 SAN` com alerta ao zerar SAN/entrar em Morrendo), suporte a `+5` em testes/ataques/iniciativa/reações/atributos e DT de rituais, `+2d` de dano em armas (sem multiplicar no crítico) e rituais, além da opção **Discente/Verdadeiro Livre**.
+  * Novo filtro **Mascarados & Aliados** no seletor do Compêndio da ficha.
+* **Maldições para Proteções & Acessórios, Armaria Expandida & Compêndio (`#ORD-5322T7`, `#ORD-4017YV`, `#ORD-4662K3`)**:
+  * Suporte completo às **10 Maldições Oficiais de Proteções & Escudos** e **13 Maldições Oficiais de Acessórios** em `ProtectionModal`, `ItemEditorModal` e **Armaria**, com progressão canônica (`+II` na 1ª maldição, `+I` nas seguintes) e bloqueio automático de elementos opressores (*Sangue ↔ Conhecimento ↔ Energia ↔ Morte*) inclusive contra o elemento base do item.
+  * Sub-aba na **Armaria** expandida para **Proteções & Itens** com atalhos rápidos (`+ Proteção`, `+ Vestimenta`, `+ Utensílio`, `+ Item Geral`), escolha de proteções equipáveis múltiplas (`replaceExisting=false`) no `ProtectionModal`, recálculo automático de Defesa/RD ao equipar/desequipar no inventário e respeito estrito a `appliesTo` em Itens Gerais.
+* **Correções de Regras na Evolução Assistida & Auditoria Mobile/APK (`#ORD-5322T7`)**:
+  * Isolamento estrito de aumentos de atributo (somente 20/50/80/95%), promoções de perícias no NEX 35%/70% restritas a perícias já treinadas em degraus de `+5`, cota canônica `2 + Int` no Grau de Treinamento de Combatente Veterano, detecção de *Transcender* como Poder Paranormal, isolamento completo do modo *"Não aumentar NEX"* e limite de PE por rodada (`getPeRoundLimit`).
+  * Auditoria completa de **UI Mobile/Web (360px & tema claro)** e **Android APK**: `BackHandler` exclusivo no Android e isolamento de `popstate` Web quando modais estão abertos, `onRequestClose`/`statusBarTranslucent`/`KeyboardAvoidingView` em modais, `keyboardShouldPersistTaps="handled"` em listas/modais e contrastes por tokens do tema.
+* **Depósito de Itens & Importação do Compêndio na Ficha e na Armaria**:
+  * Nova sub-aba dentro da tela **Armaria** funcionando como catálogo compartilhado entre todos os agentes e sincronizado offline, via Google Drive e Supabase, com botão **Compêndio / Importar do Compêndio** para trazer itens e itens amaldiçoados existentes com 1 toque.
+  * Três fluxos diretos na aba **Inventário** do agente: **Novo Item**, **Do Depósito** (com escolha entre **Vincular / Usar o Mesmo** ou **Duplicar**) e **Do Compêndio** (158 itens curados entre comuns, paranormais e 60 itens amaldiçoados com atalho `+ Depósito`).
+* **Editor Unificado e Modificações Oficiais de Acessórios**:
+  * Novo `ItemEditorModal` com seleção opcional de base do Compêndio, tipos/subcategorias de equipamento, espaços decimais (`0,5`) ou nulos (`0`), cargas/usos, melhorias caseiras e modificações oficiais de acessórios (*Aprimorado*, *Discreto*, *Função Adicional* com 2º Aprimorado, *Instrumental*).
+* **Mecânicas Interativas de Itens & Status Temporários**:
+  * Botão **Usar / Ativar / Rolar** direto nos cards do inventário com suporte a cura de PV/PE/Sanidade, rolagem de dano/explosivos com cálculo automático de **DT** (`10 + PE/rodada + atributo`), gasto de PE e habilidades de perícias.
+  * Itens de cura e pontos temporários oferecem escolha rápida **"Aplicar em Mim"** vs **"Aplicar em Aliado (Apenas Rolar)"**, além de badges exclusivos de **PV Temp.** e **PE Temp.** no Status Vital com absorção automática ao sofrer dano/gasto.
+  * Consumíveis esgotados permanecem no inventário com badge **`0 usos`** e botão **Usar** bloqueado para preservar registro, oferecendo atalho rápido de **Recarregar / Repor**.
+  * Bônus passivos automáticos aplicados quando equipados: carga máxima expandida (*Mochila Militar*), RD adicional de bloqueio (*Braçadeira Reforçada*) e bônus fixos em perícias.
 
 ---
 
