@@ -12,7 +12,7 @@ Esta skill automatiza o fluxo contínuo de correção de bugs visuais, de UX, AP
 ## 1. Como Funciona o Fluxo
 
 1. **Coleta de Evidências (Pelo Usuário)**:
-   * Durante o uso do app no celular ou emulador, o usuário tira prints dos problemas encontrados.
+   * Durante o uso do app no celular, emulador ou PC/Web, o usuário tira prints dos problemas encontrados.
    * O usuário salva os arquivos em `docs/imagensDosProblemas/` colocando **a descrição do problema como o próprio nome do arquivo** (ex.: `botão de salvar cortado no modo deitado.png`, `pdf trava ao rolar página.jpg`).
    * A pasta `docs/imagensDosProblemas/` já está configurada no `.gitignore` para nunca poluir o repositório Git.
 
@@ -33,8 +33,9 @@ Sempre que esta skill for acionada ou o usuário pedir para processar a pasta `d
 
 ### Passo 2: Roteamento por Domínio Especializado
 Classifique cada print e acione o papel/subagente correspondente conforme a matriz do `GEMINI.md`:
-* 📱 **`mobile-ui-expert`** (`mobile-ui-audit`): Cortes de texto, sobreposição de botões, modo paisagem (`landscape`), cabeçalhos, responsividade em telas pequenas e modais.
+* 📱 **`mobile-ui-expert`** (`mobile-ui-audit`): Cortes de texto, sobreposição de botões, tema claro/escuro, modo paisagem (`landscape`), cabeçalhos, responsividade em telas pequenas (`360px`), Tablet ou Desktop widescreen e modais.
 * 🤖 **`android-apk-guardian`** (`android-apk-audit`): Falhas exclusivas do celular/APK, `BackHandler`, `expo-sharing`, `expo-file-system`, `expo-print`, `expo-speech`, teclado virtual ou APIs Web ausentes no Hermes.
+* 💻 **`web-desktop-guardian`** (`web-desktop-audit`): Falhas exclusivas do PC/Web ou PWA instalado (`manifest.json`, `sw.js`, download/upload `.json`, IndexedDB/`PDF.js`, ergonomia mouse/teclado, janela standalone).
 * 🔄 **`sync-offline-guardian`** (`sync-offline-audit`): Problemas de sincronização com Google Drive/Supabase, exclusões que retornam (falta de tombstones) ou cache offline.
 * 🔮 **`glitch-prompt-engineer`** (`glitch-prompt-audit`): Erros de chave de API (Gemini/Groq/Ollama), voz/TTS do G.L.I.T.C.H. ou respostas do modo offline.
 * 🛡️ **`rpg-rules-expert`** (`rpg-rules-audit`): Erros de cálculo de PV/PE/SAN, NEX, Defesa, RD, proficiências, rituais ou armas.
@@ -58,4 +59,4 @@ Classifique cada print e acione o papel/subagente correspondente conforme a matr
 > `Processe e corrija todos os problemas da pasta docs/imagensDosProblemas seguindo a skill screenshot-bug-triage. Ao finalizar e validar nos testes, limpe as imagens processadas da pasta.`
 
 ### Opção B — Execução em Equipe Completa Multi-Agente (`/teamwork` sem entrevista)
-> `/teamwork [skip-interview] Processe e resolva todos os problemas documentados nos prints em docs/imagensDosProblemas (onde o nome de cada arquivo descreve o erro). Inspecione as imagens, distribua para os agentes especializados (mobile-ui-expert, android-apk-guardian, sync-offline-guardian, glitch-prompt-engineer, rpg-rules-expert), valide com npm run typecheck e testes automatizados, limpe as imagens da pasta após corrigir e atualize a governança.`
+> `/teamwork [skip-interview] Processe e resolva todos os problemas documentados nos prints em docs/imagensDosProblemas (onde o nome de cada arquivo descreve o erro). Inspecione as imagens, distribua para os agentes especializados (mobile-ui-expert, android-apk-guardian, web-desktop-guardian, sync-offline-guardian, glitch-prompt-engineer, rpg-rules-expert), valide com npm run typecheck e testes automatizados, limpe as imagens da pasta após corrigir e atualize a governança.`

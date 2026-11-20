@@ -46,13 +46,18 @@
     },
     {
       "id": "mobile-ui-expert",
-      "label": "📱 Frontend & UI/UX Mobile",
-      "focus": "Paleta tática sombria, responsividade em telas de 360px, SafeAreaView, modais e ergonomia sem poluição visual."
+      "label": "📱 Frontend & UI/UX (Mobile, Tablet & PC)",
+      "focus": "Paleta tática claro/escuro, responsividade 360px/paisagem até Desktop widescreen, SafeAreaView, modais e ergonomia sem poluição visual."
     },
     {
       "id": "android-apk-guardian",
       "label": "🤖 Guardião de Android APK (Hermes)",
       "focus": "Paridade absoluta no APK compilado: ausência de window/document/navigator sem guarda, BackHandler, Scoped Storage, expo-sharing e teclado."
+    },
+    {
+      "id": "web-desktop-guardian",
+      "label": "💻 Guardião de Web App & Desktop PWA (PC)",
+      "focus": "Manifesto PWA, Service Worker offline, build estático (expo export -p web), PDF.js/IndexedDB, download/upload .json, OAuth Web, atualização PC e isolamento bilateral sem vazar DOM para o Hermes."
     },
     {
       "id": "sync-offline-guardian",

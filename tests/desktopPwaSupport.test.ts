@@ -265,4 +265,37 @@ describe('Desktop PC & PWA Support (SOL-MEL-001)', () => {
     assert.ok(androidIdentity.getByTestId('profile-pc-pwa-info-card'));
   });
 
+  it('deve registrar especialista web-desktop-guardian e UI/UX multiplataforma nas skills, GEMINI.md e SSOT', () => {
+    const webSkillPath = path.join(rootDir, '.agents', 'skills', 'web-desktop-audit', 'SKILL.md');
+    const uiSkillPath = path.join(rootDir, '.agents', 'skills', 'mobile-ui-audit', 'SKILL.md');
+    const geminiPath = path.join(rootDir, 'GEMINI.md');
+    const triagePath = path.join(rootDir, 'data', 'request_triage_questions.json');
+
+    assert.ok(fs.existsSync(webSkillPath), 'Skill web-desktop-audit deve existir');
+    assert.ok(fs.existsSync(uiSkillPath), 'Skill mobile-ui-audit deve existir');
+
+    const webSkill = fs.readFileSync(webSkillPath, 'utf8');
+    assert.ok(webSkill.includes('name: web-desktop-audit'));
+    assert.ok(webSkill.includes('public/manifest.json'));
+    assert.ok(webSkill.includes('public/sw.js'));
+    assert.ok(webSkill.includes('build:pc'));
+
+    const uiSkill = fs.readFileSync(uiSkillPath, 'utf8');
+    assert.ok(uiSkill.includes('name: mobile-ui-audit'));
+    assert.ok(uiSkill.includes('360px'));
+    assert.ok(uiSkill.includes('1024px'));
+    assert.ok(uiSkill.includes('Tema Claro'));
+
+    const gemini = fs.readFileSync(geminiPath, 'utf8');
+    assert.ok(gemini.includes('web-desktop-guardian'));
+    assert.ok(gemini.includes('web-desktop-audit'));
+    assert.ok(gemini.includes('mobile-ui-expert'));
+
+    const triage = JSON.parse(fs.readFileSync(triagePath, 'utf8'));
+    const specialistIds = triage.specialists.map((s: any) => s.id);
+    assert.ok(specialistIds.includes('web-desktop-guardian'));
+    assert.ok(specialistIds.includes('mobile-ui-expert'));
+    const uiSpec = triage.specialists.find((s: any) => s.id === 'mobile-ui-expert');
+    assert.ok(uiSpec.label.includes('PC'));
+  });
 });

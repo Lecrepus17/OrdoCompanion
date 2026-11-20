@@ -71,13 +71,14 @@ Qualquer agente trabalhando em regras, fichas ou compêndio deve respeitar as me
 | Domínio da Alteração | Gatilhos & Arquivos Afetados | Agente Especializado | Skill Vinculada | Ação Automática Obrigatória |
 | :--- | :--- | :--- | :--- | :--- |
 | **Regras e Fórmulas de RPG** | Alterações em fórmulas, PV/PE/SAN, NEX, perícias, rituais, poderes, itens amaldiçoados, patentes ou CD/DT.<br>• `src/utils/progression.ts`<br>• `src/types/character.ts`<br>• `data/*.json`<br>• `src/services/rules/` | 🛡️ `rpg-rules-expert`<br>*(Auditor de Regras)* | `rpg-rules-audit` | Auditar conformidade estrita com o livro canônico v1.1 e suplementos; validar limites de PE (`NEX / 5`), CD de rituais (`10 + limite PE + PRE`) e pré-requisitos antes de aprovar. |
-| **Interface, Telas & UX** | Telas Expo Router, componentes visuais, modais, estilização tática, temas sombrios, responsividade ou áudio.<br>• `app/**/*.tsx`<br>• `src/components/**`<br>• `src/theme/**` | 📱 `mobile-ui-expert`<br>*(Frontend & Mobile UX)* | `mobile-ui-audit` | Implementar seguindo o tema tático sombrio (Ordo/Outro Lado), `SafeAreaView`, prevenção de quebras de layout/overflow e suporte multiplataforma (Android, iOS, Web). |
+| **Interface, Telas & UX (Mobile, Tablet & PC)** | Telas Expo Router, componentes visuais, modais, estilização tática, tema claro/escuro, responsividade (360px até Desktop widescreen) ou áudio.<br>• `src/app/**/*.tsx`<br>• `src/components/**`<br>• `src/theme/**` | 📱 `mobile-ui-expert`<br>*(Frontend & UI/UX Multiplataforma)* | `mobile-ui-audit` | Implementar seguindo a paleta tática sombria e tema claro/escuro, `SafeAreaView`, prevenção de overflow em 360px/paisagem e contenção responsiva (`maxWidth`) em telas grandes no PC/Tablet. |
 | **Sincronização & Offline First** | Sincronização Google Drive/Supabase, mesclagem temporal, resolução de conflitos, soft delete de fichas e campanhas.<br>• `src/services/sync/**`<br>• `src/repositories/**`<br>• `src/context/AppContext.tsx` | 🔄 `sync-offline-guardian`<br>*(Guardião de Sync & Offline)* | `sync-offline-audit` | Garantir persistência offline local, integridade do SmartMergeEngine, propagação de exclusões suaves (`deletedCharacterIds`) e ausência total de perda de dados. |
 | **IA Paranormal (G.L.I.T.C.H.)** | Prompts de sistema, personas da Ordem, injeção de contexto RAG, provedores remotos e motor offline.<br>• `src/services/ai/**`<br>• `src/types/ai.ts` | 🔮 `glitch-prompt-engineer`<br>*(Engenheiro de IA Paranormal)* | `glitch-prompt-audit` | Calibrar tom tático militar/investigativo, resiliência do modo offline (`AiOfflineEngine`), RAG enxuto com economia de tokens e estrita fidelidade sem alucinação de regras. |
 | **Pipeline de Dados & Compêndio** | Extração de PDFs oficiais (10 livros), scripts OCR/regex em Python, seeds JSON e páginas de livros.<br>• `scripts/extract_*.py`<br>• `data/compendium_seed.json` | 📚 `data-pipeline-architect`<br>*(Arquiteto de Compêndio)* | `data-pipeline-audit` | Auditar integridade referencial dos 10 suplementos oficiais (1.261 páginas), índices remissivos "Ver no Livro", busca fonética e normalização de entidades. |
 | **Compatibilidade & Runtime Android APK** | Execução no Android (.apk), empacotamento, botões físicos, hardware back press, sistema de arquivos local, Scoped Storage, expo-sharing, expo-file-system ou isolamento de APIs web/DOM.<br>• `android/**`<br>• `app.json`<br>• `eas.json`<br>• `src/utils/alert.ts`<br>• `src/utils/clipboard.ts`<br>• `src/utils/agentSharing.ts`<br>• `src/utils/sheetPrinter.ts`<br>• Exportadores de arquivos e modais nativos | 🤖 `android-apk-guardian`<br>*(Guardião de Compatibilidade Android APK)* | `android-apk-audit` | Auditar código contra vazamento de globais de browser (`window`, `document`, `navigator`); assegurar interceptação de `BackHandler` em modais e sub-telas; validar integridade de I/O em disco e compartilhamento via `expo-sharing` e estabilidade de layout/teclado no Android. |
-| **Triagem em Lote de Prints de Problemas** | Capturas de tela salvas na pasta `docs/imagensDosProblemas/` com o título do arquivo descrevendo o erro encontrado no celular.<br>• `docs/imagensDosProblemas/*.{png,jpg,jpeg,webp}` | 📸 Orquestrador Multi-Domínio<br>*(UI + APK + Sync + IA + Regras)* | `screenshot-bug-triage` | Inspecionar cada print e seu nome de arquivo, rotear para os agentes especializados correspondentes, corrigir todos os erros, validar testes, limpar as imagens processadas da pasta e atualizar a governança. |
-| **Triagem Crítica de Solicitações (Discord & Chat Direto)** | Pedidos para ler novos erros/melhorias do servidor Discord OU solicitações/ideias diretas no chat.<br>• `data/request_triage_questions.json`<br>• `scripts/discord_requests.js`<br>• `docs/SOLICITACOES.md`<br>• `src/services/support/**` | ⚖️ Orquestrador Crítico Multi-Agente<br>*(Tech Lead + UI + Regras + APK + Sync + IA)* | `request-triage` | Ler `data/request_triage_questions.json` (SSOT), buscar entradas via `npm run requests:fetch -- --json` (quando Discord), separar estritamente **🐛 Erros** vs. **💡 Melhorias**, auditar criticamente (não aprovar cegamente) com os agentes especializados, exibir questionário (`ask_question`) e só então executar ou salvar em `docs/SOLICITACOES.md`. |
+| **Compatibilidade Web App & Desktop PWA (PC)** | Execução no navegador Desktop e app instalável no PC (Windows, macOS e Linux), manifesto PWA, Service Worker offline, build estático Web, IndexedDB de PDFs, downloads/uploads `.json`, OAuth Web, atualização PC e stubs `.web.tsx`.<br>• `public/manifest.json`, `public/sw.js`<br>• `src/app/+html.tsx`, `app.json` (`expo.web`)<br>• `src/utils/desktopPwa.ts`<br>• `src/services/updates/UpdateCheckerService.ts`<br>• `src/components/UpdateNotificationModal.tsx`<br>• `src/components/UserProfileModal.tsx`<br>• `src/components/PdfViewerModal.tsx` (`PDF.js`)<br>• `scripts/create_release.js`, `package.json` (`build:pc`) | 💻 `web-desktop-guardian`<br>*(Guardião de Web App & Desktop PWA)* | `web-desktop-audit` | Auditar manifesto PWA, cache offline do Service Worker (preservando IndexedDB para PDFs), fluxo de instalação standalone, download/importação `.json` no computador, atualizador PC, ergonomia mouse/teclado e isolamento bilateral sem vazar DOM para o Hermes Android. |
+| **Triagem em Lote de Prints de Problemas** | Capturas de tela salvas na pasta `docs/imagensDosProblemas/` com o título do arquivo descrevendo o erro encontrado no celular ou no PC.<br>• `docs/imagensDosProblemas/*.{png,jpg,jpeg,webp}` | 📸 Orquestrador Multi-Domínio<br>*(UI + APK + Web/PC + Sync + IA + Regras)* | `screenshot-bug-triage` | Inspecionar cada print e seu nome de arquivo, rotear para os agentes especializados correspondentes, corrigir todos os erros, validar testes, limpar as imagens processadas da pasta e atualizar a governança. |
+| **Triagem Crítica de Solicitações (Discord & Chat Direto)** | Pedidos para ler novos erros/melhorias do servidor Discord OU solicitações/ideias diretas no chat.<br>• `data/request_triage_questions.json`<br>• `scripts/discord_requests.js`<br>• `docs/SOLICITACOES.md`<br>• `src/services/support/**` | ⚖️ Orquestrador Crítico Multi-Agente<br>*(Tech Lead + UI + Regras + APK + Web/PC + Sync + IA)* | `request-triage` | Ler `data/request_triage_questions.json` (SSOT), buscar entradas via `npm run requests:fetch -- --json` (quando Discord), separar estritamente **🐛 Erros** vs. **💡 Melhorias**, auditar criticamente (não aprovar cegamente) com os agentes especializados, exibir questionário (`ask_question`) e só então executar ou salvar em `docs/SOLICITACOES.md`. |
 | **Testes, Lógica & Integridade** | Qualquer alteração de código, correção de bugs, refatoração de utilitários ou mudanças nos JSONs do compêndio.<br>• `tests/**`<br>• `scripts/test_database_integrity.py`<br>• `src/types/**` | 🧪 `qa-reliability-engineer`<br>*(QA & Integridade)* | `run-suite` | Aplicar Smart Testing Gates (`npm run test:rules`, `npm run test:front`, `npm run test:sync` ou `npm run test:all`), garantindo `typecheck` e ausência de regressões. |
 | **Finalização de Recurso & Publicação de Release** | Conclusão de funcionalidades ou pedido para preparar/subir nova versão.<br>• `scripts/create_release.js`<br>• `docs/ATUALIZACOES_PENDENTES.md`<br>• `docs/RELEASE_NOTES.md`<br>• `version.json`, `app.json`, `package.json` | 📋 `release-manager`<br>*(Gerente de Releases)* | `update-recorder` | Atualizar `docs/ATUALIZACOES_PENDENTES.md`, classificar SemVer e, ao preparar release, rodar `npm run test:all` + `npm run release`, gerando `docs/RELEASE_NOTES.md` (copiado automaticamente para o Clipboard `Ctrl+V`) e exibindo o texto pronto para o GitHub Releases. |
 | **Registro de Commits Git** | Finalização do ciclo de trabalho e preparação para persistir alterações no Git. | 🎯 `git-commit-architect`<br>*(Arquiteto de Commits)* | `commit-generator` | Inspecionar `git status`, redigir mensagem semântica (Conventional Commits) e atualizar `docs/COMMITS_PENDENTES.md` com comando pronto de terminal. |
@@ -95,11 +96,12 @@ Sempre que uma alteração ou nova funcionalidade for solicitada, siga rigorosam
 ┌────────────────────────────────────────────────────────┐
 │ 1. Triagem Automática de Domínio                       │
 │    • Regras/Fichas ➔ 🛡️ rpg-rules-expert               │
-│    • Telas/Componentes/UX ➔ 📱 mobile-ui-expert        │
+│    • Telas/UX (Mobile & PC) ➔ 📱 mobile-ui-expert      │
 │    • Sincronização/Offline ➔ 🔄 sync-offline-guardian  │
 │    • IA G.L.I.T.C.H. ➔ 🔮 glitch-prompt-engineer       │
 │    • Extração/Dados ➔ 📚 data-pipeline-architect       │
 │    • Compatibilidade Android ➔ 🤖 android-apk-guardian │
+│    • Compatibilidade Web/PC ➔ 💻 web-desktop-guardian  │
 └────────────────────────────────────────────────────────┘
         │
         ▼
@@ -156,17 +158,22 @@ Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução 
 * **Configuração**: `TypeName: "self"`, `Role: "Android APK Auditor"`, `Prompt: "Audite todos os módulos modificados contra a skill android-apk-audit, verificando BackHandler, chamadas a window/document/navigator e operações de disco nativas..."`.
 * **Benefício**: Garante que funcionalidades novas não quebrem no dispositivo móvel em produção sem travar a thread de UI.
 
+#### 💻 Padrão 7: Auditoria de Compatibilidade Web & Desktop PWA (PC Runtime Audit)
+* **Cenário**: Alterações em recursos Web/PC, manifesto PWA (`manifest.json`), Service Worker (`sw.js`), exportadores `Blob`, `PDF.js`/IndexedDB, OAuth Web, atualizador PC ou responsividade Desktop.
+* **Configuração**: `TypeName: "self"`, `Role: "Web Desktop PWA Auditor"`, `Prompt: "Audite todos os módulos modificados contra a skill web-desktop-audit, verificando manifesto PWA, Service Worker offline, download/upload .json, stubs .web.tsx, ergonomia desktop e isolamento seguro sem vazar APIs DOM para o Hermes Android..."`.
+* **Benefício**: Assegura que o aplicativo para PC funcione offline e em janela standalone sem quebrar o build estático (`npm run build:pc`) nem regredir o APK Android.
+
 #### 📸 Padrão 5: Triagem em Lote de Prints de Problemas (`docs/imagensDosProblemas/`)
-* **Cenário**: O desenvolvedor acumula capturas de tela do celular na pasta `docs/imagensDosProblemas/` (ignorada no `.gitignore`), onde o nome de cada arquivo descreve o erro encontrado.
+* **Cenário**: O desenvolvedor acumula capturas de tela do celular ou do PC na pasta `docs/imagensDosProblemas/` (ignorada no `.gitignore`), onde o nome de cada arquivo descreve o erro encontrado.
 * **Skill Vinculada**: `.agents/skills/screenshot-bug-triage/SKILL.md`
 * **Fluxo Automático**:
   1. Inspecionar todas as imagens em `docs/imagensDosProblemas/` (`read_file`) cruzando o título do arquivo com o componente visual exibido.
-  2. Rotear cada problema para o especialista do domínio (`mobile-ui-expert`, `android-apk-guardian`, `sync-offline-guardian`, `glitch-prompt-engineer`, `rpg-rules-expert`).
+  2. Rotear cada problema para o especialista do domínio (`mobile-ui-expert`, `android-apk-guardian`, `web-desktop-guardian`, `sync-offline-guardian`, `glitch-prompt-engineer`, `rpg-rules-expert`).
   3. Implementar as correções, validar com `npm run typecheck` e testes automatizados, **excluir as imagens já resolvidas da pasta** (mantendo a pasta pronta para o próximo lote) e atualizar a governança.
 * **Prompt Padrão (Direto)**:
   > `Processe e corrija todos os problemas da pasta docs/imagensDosProblemas seguindo a skill screenshot-bug-triage. Ao finalizar e validar nos testes, limpe as imagens processadas da pasta.`
 * **Prompt Padrão (Multi-Agente `/teamwork`)**:
-  > `/teamwork [skip-interview] Processe e resolva todos os problemas documentados nos prints em docs/imagensDosProblemas (onde o nome de cada arquivo descreve o erro). Inspecione as imagens, distribua para os agentes especializados (mobile-ui-expert, android-apk-guardian, sync-offline-guardian, glitch-prompt-engineer, rpg-rules-expert), valide com npm run typecheck e testes automatizados, limpe as imagens da pasta após corrigir e atualize a governança.`
+  > `/teamwork [skip-interview] Processe e resolva todos os problemas documentados nos prints em docs/imagensDosProblemas (onde o nome de cada arquivo descreve o erro). Inspecione as imagens, distribua para os agentes especializados (mobile-ui-expert, android-apk-guardian, web-desktop-guardian, sync-offline-guardian, glitch-prompt-engineer, rpg-rules-expert), valide com npm run typecheck e testes automatizados, limpe as imagens da pasta após corrigir e atualize a governança.`
 
 #### ⚖️ Padrão 6: Central de Solicitações & Triagem Crítica (Discord e Chat Direto)
 * **Cenário**: O desenvolvedor pede para buscar novos erros/melhorias no Discord OU envia uma solicitação de melhoria/correção diretamente no chat.
@@ -175,7 +182,7 @@ Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução 
 * **Fluxo Automático**:
   1. Ler `data/request_triage_questions.json` e `docs/SOLICITACOES.md`.
   2. Se origem Discord, executar `npm run requests:fetch -- --json` para coletar mensagens novas separando estritamente **🐛 Erros (`SOL-ERR-XXX`)** e **💡 Melhorias (`SOL-MEL-XXX`)**.
-  3. Inspecionar o código-fonte afetado e responder criticamente a todas as perguntas ativas da SSOT, emitindo veredito sem bajulação (`✅ Recomendado`, `⚠️ Com Ressalvas` ou `❌ Não Recomendado`), **Nível de Alteração** e parecer dos agentes (`rpg-rules-expert`, `mobile-ui-expert`, `android-apk-guardian`, etc.).
+  3. Inspecionar o código-fonte afetado e responder criticamente a todas as perguntas ativas da SSOT, emitindo veredito sem bajulação (`✅ Recomendado`, `⚠️ Com Ressalvas` ou `❌ Não Recomendado`), **Nível de Alteração** e parecer dos agentes (`rpg-rules-expert`, `mobile-ui-expert`, `android-apk-guardian`, `web-desktop-guardian`, etc.).
   4. Exibir o questionário interativo (`ask_question`) separando seleção de **Erros**, seleção de **Melhorias** e ação (**Executar agora** vs. **Salvar em `docs/SOLICITACOES.md`**), dando `ack` nos IDs do Discord após a decisão.
 
 ---
@@ -191,14 +198,14 @@ Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução 
   * Conferir pré-requisitos de poderes e requisitos de atributos para itens de prestígio.
   * Auditar consistência das 59 origens oficiais e poderes de classe.
 
-#### 📱 Agente Frontend & Mobile UX (`mobile-ui-expert`)
-* **Foco**: Interface tática, fluida e responsiva em React Native / Expo.
+#### 📱 Agente Frontend & UI/UX Multiplataforma (`mobile-ui-expert`)
+* **Foco**: Interface tática, fluida e responsiva em React Native / Expo para **Mobile, Tablet e Desktop (PC Web/PWA)**.
 * **Skill**: `mobile-ui-audit`
 * **Responsabilidades**:
-  * Desenvolver componentes seguindo o tema tático sombrio (paleta Ordo Realitas / Outro Lado).
-  * Garantir responsividade tanto em smartphones (iOS/Android) quanto na versão Web do Expo.
-  * Usar `SafeAreaView`, animações performáticas e feedback tátil/sonoro adequado.
-  * Evitar regressões visuais em modais complexos (`CreateAgentModal`, `OracleModal`).
+  * Desenvolver componentes seguindo o tema tático sombrio (paleta Ordo Realitas / Outro Lado) com contraste validado em Tema Escuro e Tema Claro.
+  * Garantir responsividade desde smartphones compactos (`360px` e modo paisagem) até tablets (`listingColumns: 2`) e monitores Desktop (`1024px–1920px+` com `maxWidth` legível e janelas redimensionáveis no PWA).
+  * Usar `SafeAreaView`, animações performáticas, ergonomia de mouse/teclado no PC e feedback tátil/sonoro adequado.
+  * Evitar regressões visuais em modais complexos (`CreateAgentModal`, `LevelUpModal`, `UserProfileModal`, `OracleModal`, `ThreatCreatorModal`).
 
 #### 🔄 Agente de Sincronização & Offline (`sync-offline-guardian`)
 * **Foco**: Resiliência Offline-First e sincronização híbrida sem conflito.
@@ -233,6 +240,15 @@ Quando uma tarefa envolver análise volumosa, pesquisa abrangente ou execução 
   * Garantir que rotinas de impressão, exportação de PDFs e geração de cards utilizem `expo-print`, `expo-sharing` e `react-native` `Share` com permissões adequadas no Android.
   * Auditar o comportamento do teclado virtual (`adjustPan`), Safe Area Insets e densidade de pixels no Android.
   * Validar consistência do `app.json`, `versionCode` e configurações nativas do `AndroidManifest.xml`.
+
+#### 💻 Agente Guardião de Web App & Desktop PWA (`web-desktop-guardian`)
+* **Foco**: Paridade funcional, instalação offline (PWA) e estabilidade no navegador Desktop e aplicativo para PC (Windows, macOS e Linux).
+* **Skill**: `web-desktop-audit`
+* **Responsabilidades**:
+  * Manter o manifesto PWA (`public/manifest.json`), ícones estáticos em `public/`, shell HTML (`src/app/+html.tsx`), `expo.web` standalone (`app.json`) e Service Worker offline (`public/sw.js` com `SKIP_WAITING` e bypass de `/pdfs/` e `version.json`).
+  * Proteger utilitários desktop em `src/utils/desktopPwa.ts` (instalador `beforeinstallprompt` e download/abertura `.json`), garantindo isolamento bilateral (`Platform.OS === 'web'`) sem vazar APIs DOM para o motor Hermes do APK.
+  * Auditar o leitor `PDF.js` (`<canvas>`), armazenamento de PDFs grandes em IndexedDB, impressão A4 via `iframe`, exportação PNG/JSON via `Blob`, OAuth Web, Ollama local (`localhost:11434`) e fluxo de atualização PC (`UpdateCheckerService.applyWebOrDesktopUpdate`).
+  * Validar ergonomia desktop (mouse, teclado físico, seleção de texto e janela PWA redimensionável) e o build estático (`npm run build:pc`).
 
 #### 🧪 Agente de QA & Integridade (`qa-reliability-engineer`)
 * **Foco**: Cobertura de testes, estabilidade de dados e prevenção de bugs.

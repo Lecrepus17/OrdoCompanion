@@ -12,6 +12,14 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ Especialista Web/Desktop (`web-desktop-guardian`) e UI/UX Multiplataforma (`mobile-ui-expert`) (2026-11-20):
+- **Título**: `docs(agents,ui): cria especialista web-desktop-guardian e atualiza mobile-ui-expert para mobile e pc`
+- **Resumo**: Cria a skill `.agents/skills/web-desktop-audit/SKILL.md` (`web-desktop-guardian`), evolui `.agents/skills/mobile-ui-audit/SKILL.md` para responsividade mobile (`360px`/paisagem), tablet e desktop (`1024px–1920px+`) com tema claro/escuro, integra ambos no `GEMINI.md`, `data/request_triage_questions.json`, `request-triage` e `screenshot-bug-triage`, e adiciona validação em `tests/desktopPwaSupport.test.ts`.
+
+### ✅ Aplicativo para PC (Web App + PWA Instalável Offline — `SOL-MEL-001`) (2026-11-20):
+- **Título**: `feat(web,pwa): disponibiliza aplicativo para pc instalavel offline e gestao de backup json`
+- **Resumo**: Configura manifesto PWA (`public/manifest.json`), Service Worker offline (`public/sw.js`), ícones em `public/`, shell HTML (`src/app/+html.tsx`, `app.json`), utilitário `src/utils/desktopPwa.ts` blindado para Android Hermes, atualizador PC (`UpdateCheckerService`, `UpdateNotificationModal`), opções desktop no `UserProfileModal`, scripts `build:web`/`build:pc`, instruções PC em `create_release.js` e suíte `tests/desktopPwaSupport.test.ts`.
+
 ### ✅ Central de Solicitações (Discord & Chat Direto), SSOT de Perguntas Críticas e Roteamento Separado no App/APK (2026-11-20):
 - **Título**: `feat(support,governance): implementa central de solicitacoes, leitor Discord, SSOT de perguntas e roteamento de erros vs melhorias`
 - **Resumo**: Cria `data/request_triage_questions.json` (SSOT), `scripts/discord_requests.js`, skill `request-triage`, `docs/SOLICITACOES.md`, Padrão 6 em `GEMINI.md`, roteamento separado em `SupportService`/`SupportCenterView`/`support-webhook` compatível com APK Android e suíte `tests/discordRequests.test.ts` (`npm run test:all` 951/951 aprovados).

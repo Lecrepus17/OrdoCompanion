@@ -1,7 +1,7 @@
 ---
 name: request-triage
 description: >-
-  Centraliza e audita criticamente solicitações de Erros e Melhorias vindas do Discord (via npm run requests:fetch) ou enviadas diretamente no chat pelo desenvolvedor. Separa Erros e Melhorias, lê dinamicamente as perguntas configuradas em data/request_triage_questions.json (SSOT), exige parecer dos agentes especializados (UI/UX, Regras Canônicas, Android APK, Sync/Offline, IA) e apresenta questionário interativo de aprovação antes de executar ou salvar em docs/SOLICITACOES.md.
+  Centraliza e audita criticamente solicitações de Erros e Melhorias vindas do Discord (via npm run requests:fetch) ou enviadas diretamente no chat pelo desenvolvedor. Separa Erros e Melhorias, lê dinamicamente as perguntas configuradas em data/request_triage_questions.json (SSOT), exige parecer dos agentes especializados (UI/UX Mobile + PC, Regras Canônicas, Android APK, Web/Desktop PWA, Sync/Offline, IA) e apresenta questionário interativo de aprovação antes de executar ou salvar em docs/SOLICITACOES.md.
 ---
 
 # ⚖️ Skill: Central de Solicitações & Triagem Crítica Multi-Agente (`request-triage`)
@@ -59,8 +59,8 @@ Antes de responder, **pesquise e leia os arquivos reais do projeto** afetados po
 > * **NÃO aprove todas as melhorias automaticamente.** Seu papel é atuar como um Tech Lead exigente protegendo a estabilidade do Ordo Companion.
 > * **Recomende `❌ Não Recomendado`** ou **`⚠️ Recomendado com Ressalvas`** sempre que identificar qualquer um destes problemas:
 >   1. **Violação Canônica**: Altera fórmulas de Ordem Paranormal RPG v1.1 sem base nos livros oficiais.
->   2. **Poluição Visual / Quebra Mobile**: Adiciona botões/campos redundantes que apertam telas de `360px` ou quebram modais.
->   3. **Risco de Android APK (Hermes)**: Introduz dependência web (`window`, `document`, `navigator`), consumo excessivo de RAM/heap ou fluxo sem `BackHandler`.
+>   2. **Poluição Visual / Quebra Mobile ou Desktop**: Adiciona botões/campos redundantes que apertam telas de `360px`, quebram modais ou estouram layouts no PC/Tablet.
+>   3. **Risco de Android APK (Hermes) ou Web/Desktop PWA**: Introduz dependência web (`window`, `document`, `navigator`) sem guarda no Hermes, consumo excessivo de RAM/heap, fluxo sem `BackHandler`, ou quebra o bundle Web/Service Worker/PWA no PC.
 >   4. **Risco de Dados / Sync**: Pode corromper fichas antigas já salvas no `AsyncStorage`, quebrar o `SmartMergeEngine` ou exigir migração pesada sem ganho proporcional.
 >   5. **Custo x Benefício Ruim**: Exige alteração arquitetural grande (`🔴 Arquitetural` / `🟠 Alto`) para resolver um desejo muito nichado ou já coberto por outro recurso do app.
 
@@ -85,8 +85,9 @@ Apresente o relatório claramente dividido em **2 blocos independentes** (`## �
 
 * **Parecer dos Agentes Especializados**:
   * 🛡️ **`rpg-rules-expert`**: Impacto nas regras canônicas v1.1 e suplementos.
-  * 📱 **`mobile-ui-expert`**: Impacto em UX/UI tática, tema claro/escuro, modais e largura 360px.
+  * 📱 **`mobile-ui-expert`**: Impacto em UX/UI tática, tema claro/escuro, modais, largura `360px`/paisagem e telas Desktop/Tablet.
   * 🤖 **`android-apk-guardian`**: Riscos no APK Android (Hermes, `BackHandler`, `expo-sharing`, `expo-file-system`, teclado).
+  * 💻 **`web-desktop-guardian`**: Impacto no Web App & Desktop PWA (`manifest.json`, `sw.js`, download/upload `.json`, IndexedDB/`PDF.js`, ergonomia mouse/teclado e build `build:pc`).
   * 🔄 **`sync-offline-guardian`** / 🔮 **`glitch-prompt-engineer`** / 📚 **`data-pipeline-architect`**: *(incluir sempre que tocar sync/dados, IA G.L.I.T.C.H. ou compêndio/PDFs)*.
 ```
 
@@ -124,7 +125,7 @@ Após o usuário responder ao `ask_question`:
    * Itens salvos para depois entram na **Fila 1 (Erros Validados)** ou **Fila 2 (Melhorias Aprovadas)**.
    * Itens recusados/não selecionados vão para o **Histórico de Solicitações Recusadas** com o motivo técnico resumido.
 3. **Se houver itens para Executar Agora**:
-   * Se estiver em modo de planejamento ou a implementação for complexa (`🟠 Alto` / `🔴 Arquitetural`), use o fluxo de plano ou execute com os agentes especializados do `GEMINI.md` (`rpg-rules-expert`, `mobile-ui-expert`, `android-apk-guardian`, etc.).
+   * Se estiver em modo de planejamento ou a implementação for complexa (`🟠 Alto` / `🔴 Arquitetural`), use o fluxo de plano ou execute com os agentes especializados do `GEMINI.md` (`rpg-rules-expert`, `mobile-ui-expert`, `android-apk-guardian`, `web-desktop-guardian`, etc.).
    * Valide obrigatoriamente com `qa-reliability-engineer` (`npm run typecheck` + Smart Testing Gates / `npm run test:all`).
    * Mova os itens executados para `✅ Histórico de Solicitações Implementadas` em `docs/SOLICITACOES.md`.
    * Atualize `docs/ATUALIZACOES_PENDENTES.md` (`update-recorder`) e `docs/COMMITS_PENDENTES.md` (`commit-generator`) respeitando o isolamento estrito de arquivos.
