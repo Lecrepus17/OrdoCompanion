@@ -30,6 +30,8 @@ pdfs/
 
 # Bug screenshots drop folder (local workflow)
 docs/imagensDosProblemas/
+# Discord request reader cursor state (local)
+docs/.discord_requests_state.json
 
 # Promotional video workspace (Remotion)
 video/node_modules/

@@ -129,7 +129,17 @@ if (typeof Deno !== 'undefined' && typeof Deno.serve === 'function') {
         });
       }
 
-      const discordWebhookUrl = Deno.env.get('DISCORD_SUPPORT_WEBHOOK_URL')?.trim();
+      const isErrorCategory = body?.category === 'bug' || body?.category === 'rule_error';
+      const isSuggestionCategory = body?.category === 'suggestion';
+      const bugsWebhookUrl = Deno.env.get('DISCORD_BUGS_WEBHOOK_URL')?.trim();
+      const suggestionsWebhookUrl = Deno.env.get('DISCORD_SUGGESTIONS_WEBHOOK_URL')?.trim();
+      const defaultWebhookUrl = Deno.env.get('DISCORD_SUPPORT_WEBHOOK_URL')?.trim();
+
+      const discordWebhookUrl =
+        (isErrorCategory && bugsWebhookUrl) ||
+        (isSuggestionCategory && suggestionsWebhookUrl) ||
+        defaultWebhookUrl;
+
       if (!discordWebhookUrl) {
         return new Response(
           JSON.stringify({ error: 'Webhook não configurado nos Secrets do servidor.' }),
@@ -148,9 +158,15 @@ if (typeof Deno !== 'undefined' && typeof Deno.serve === 'function') {
       };
 
       const catInfo = categoryMap[body?.category] || categoryMap.bug;
+      const triageQueueLabel = isErrorCategory
+        ? '🐛 ERROS'
+        : isSuggestionCategory
+        ? '💡 MELHORIAS'
+        : '💬 DÚVIDA / CONTATO';
       const fields: Array<{ name: string; value: string; inline?: boolean }> = [
         { name: '🔖 Protocolo', value: `\`#${protocol}\``, inline: true },
         { name: '📂 Categoria', value: `${catInfo.emoji} ${catInfo.label}`, inline: true },
+        { name: '🗂️ Fila de Triagem', value: triageQueueLabel, inline: true },
       ];
 
       if (body?.severity) {

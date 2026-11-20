@@ -109,15 +109,27 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   const [showDevSettings, setShowDevSettings] = useState(false);
   const [webhookInput, setWebhookInput] = useState('');
   const [activeWebhookUrl, setActiveWebhookUrl] = useState('');
+  const [bugsWebhookInput, setBugsWebhookInput] = useState('');
+  const [activeBugsWebhookUrl, setActiveBugsWebhookUrl] = useState('');
+  const [suggestionsWebhookInput, setSuggestionsWebhookInput] = useState('');
+  const [activeSuggestionsWebhookUrl, setActiveSuggestionsWebhookUrl] = useState('');
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const [isSavingWebhook, setIsSavingWebhook] = useState(false);
 
   const contactConfig = useMemo(() => supportService.getConfig(), []);
 
   useEffect(() => {
-    supportService.getEffectiveWebhookUrl().then((url) => {
-      setActiveWebhookUrl(url);
-      setWebhookInput(url);
+    Promise.all([
+      supportService.getEffectiveWebhookUrl(),
+      supportService.getCustomCategoryWebhookUrl('errors'),
+      supportService.getCustomCategoryWebhookUrl('improvements'),
+    ]).then(([generalUrl, bugsUrl, suggestionsUrl]) => {
+      setActiveWebhookUrl(generalUrl);
+      setWebhookInput(generalUrl);
+      setActiveBugsWebhookUrl(bugsUrl);
+      setBugsWebhookInput(bugsUrl);
+      setActiveSuggestionsWebhookUrl(suggestionsUrl);
+      setSuggestionsWebhookInput(suggestionsUrl);
     });
   }, []);
 
@@ -342,14 +354,25 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   const handleSaveWebhook = async () => {
     setIsSavingWebhook(true);
     try {
-      await supportService.setCustomWebhookUrl(webhookInput.trim());
-      const eff = await supportService.getEffectiveWebhookUrl();
-      setActiveWebhookUrl(eff);
+      await Promise.all([
+        supportService.setCustomWebhookUrl(webhookInput.trim()),
+        supportService.setCustomCategoryWebhookUrl('errors', bugsWebhookInput.trim()),
+        supportService.setCustomCategoryWebhookUrl('improvements', suggestionsWebhookInput.trim()),
+      ]);
+      const [effGeneral, effBugs, effSuggestions] = await Promise.all([
+        supportService.getEffectiveWebhookUrl(),
+        supportService.getCustomCategoryWebhookUrl('errors'),
+        supportService.getCustomCategoryWebhookUrl('improvements'),
+      ]);
+      setActiveWebhookUrl(effGeneral);
+      setActiveBugsWebhookUrl(effBugs);
+      setActiveSuggestionsWebhookUrl(effSuggestions);
+      const hasAnyWebhook = Boolean(effGeneral || effBugs || effSuggestions);
       showAlert(
         'Configuração Salva',
-        eff
-          ? 'URL do Discord Webhook salva com sucesso! Os novos relatos enviados pelos jogadores serão entregues no seu servidor em tempo real.'
-          : 'Webhook personalizado removido. O aplicativo agora opera no modo local.'
+        hasAnyWebhook
+          ? 'URL(s) de Discord Webhook salva(s) com sucesso! Os relatos serão roteados automaticamente para os canais configurados (Erros vs. Melhorias).'
+          : 'Webhooks personalizados removidos. O aplicativo agora opera no modo local.'
       );
     } catch (err: any) {
       showAlert('Erro ao Salvar', err?.message || 'Falha ao salvar a URL do Webhook.');
@@ -358,10 +381,11 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
     }
   };
 
-  const handleTestWebhook = async () => {
+  const handleTestWebhook = async (targetUrl?: string) => {
     setIsTestingWebhook(true);
     try {
-      const result = await supportService.testWebhook(webhookInput.trim());
+      const urlToTest = (targetUrl ?? webhookInput).trim();
+      const result = await supportService.testWebhook(urlToTest);
       showAlert(
         result.success ? 'Teste de Webhook com Sucesso!' : 'Falha no Teste do Webhook',
         result.message
@@ -375,9 +399,17 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
 
   const handleClearWebhook = async () => {
     setWebhookInput('');
-    await supportService.setCustomWebhookUrl('');
+    setBugsWebhookInput('');
+    setSuggestionsWebhookInput('');
+    await Promise.all([
+      supportService.setCustomWebhookUrl(''),
+      supportService.setCustomCategoryWebhookUrl('errors', ''),
+      supportService.setCustomCategoryWebhookUrl('improvements', ''),
+    ]);
     setActiveWebhookUrl('');
-    showAlert('Webhook Removido', 'A URL do Webhook foi desvinculada.');
+    setActiveBugsWebhookUrl('');
+    setActiveSuggestionsWebhookUrl('');
+    showAlert('Webhooks Removidos', 'As URLs dos Webhooks foram desvinculadas.');
   };
 
   const handleExportAllTicketsJson = async () => {
@@ -1010,7 +1042,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {activeWebhookUrl ? (
+            {activeWebhookUrl || activeBugsWebhookUrl || activeSuggestionsWebhookUrl ? (
               <View style={styles.onlinePill}>
                 <View style={styles.onlineDot} />
                 <Text style={styles.onlinePillText}>Webhook Ativo</Text>
@@ -1051,9 +1083,9 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
               </View>
             </View>
 
-            {/* Configuração do Webhook */}
+            {/* Configuração do Webhook Geral + Canais Separados */}
             <View style={styles.inputGroup}>
-              <Text style={styles.fieldLabel}>URL do Discord Webhook</Text>
+              <Text style={styles.fieldLabel}>URL do Discord Webhook Geral (Fallback / Contato)</Text>
               <TextInput
                 testID="dev-settings-webhook-input"
                 style={styles.input}
@@ -1066,9 +1098,61 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
               />
               <Text style={styles.fieldHint}>
                 {activeWebhookUrl
-                  ? `Webhook ativo salvo: ${activeWebhookUrl.slice(0, 45)}...`
-                  : 'Nenhum Webhook salvo. Cole a URL acima para começar a receber chamados no Discord.'}
+                  ? `Webhook geral ativo: ${activeWebhookUrl.slice(0, 45)}...`
+                  : 'Usado para dúvidas ou quando os canais específicos de Erros/Melhorias não estiverem preenchidos.'}
               </Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.fieldLabel}>URL Webhook de Erros (#erros • Opcional)</Text>
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <TextInput
+                  testID="dev-settings-bugs-webhook-input"
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="https://discord.com/api/webhooks/... (Bugs e Regras)"
+                  placeholderTextColor={colors.textMuted}
+                  value={bugsWebhookInput}
+                  onChangeText={setBugsWebhookInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  testID="dev-settings-test-bugs-webhook-btn"
+                  style={[styles.smallConfigBtn, { backgroundColor: '#EF4444' }]}
+                  onPress={() => handleTestWebhook(bugsWebhookInput)}
+                  disabled={isTestingWebhook || !bugsWebhookInput.trim()}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="bug-outline" size={14} color="#FFF" />
+                  <Text style={styles.smallConfigBtnText}>Testar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.fieldLabel}>URL Webhook de Melhorias (#melhorias • Opcional)</Text>
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <TextInput
+                  testID="dev-settings-suggestions-webhook-input"
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="https://discord.com/api/webhooks/... (Sugestões)"
+                  placeholderTextColor={colors.textMuted}
+                  value={suggestionsWebhookInput}
+                  onChangeText={setSuggestionsWebhookInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  testID="dev-settings-test-suggestions-webhook-btn"
+                  style={[styles.smallConfigBtn, { backgroundColor: '#3B82F6' }]}
+                  onPress={() => handleTestWebhook(suggestionsWebhookInput)}
+                  disabled={isTestingWebhook || !suggestionsWebhookInput.trim()}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="bulb-outline" size={14} color="#FFF" />
+                  <Text style={styles.smallConfigBtnText}>Testar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Botões de Ação do Webhook */}
@@ -1085,7 +1169,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
                 ) : (
                   <>
                     <Ionicons name="save-outline" size={15} color="#FFF" />
-                    <Text style={styles.smallConfigBtnText}>Salvar Webhook</Text>
+                    <Text style={styles.smallConfigBtnText}>Salvar Webhooks</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -1093,7 +1177,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
               <TouchableOpacity
                 testID="dev-settings-test-webhook-btn"
                 style={[styles.smallConfigBtn, { backgroundColor: '#10B981' }]}
-                onPress={handleTestWebhook}
+                onPress={() => handleTestWebhook(webhookInput)}
                 disabled={isTestingWebhook || !webhookInput.trim()}
                 activeOpacity={0.8}
               >
@@ -1102,12 +1186,12 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
                 ) : (
                   <>
                     <Ionicons name="paper-plane-outline" size={15} color="#FFF" />
-                    <Text style={styles.smallConfigBtnText}>Testar Conexão</Text>
+                    <Text style={styles.smallConfigBtnText}>Testar Geral</Text>
                   </>
                 )}
               </TouchableOpacity>
 
-              {activeWebhookUrl ? (
+              {activeWebhookUrl || activeBugsWebhookUrl || activeSuggestionsWebhookUrl ? (
                 <TouchableOpacity
                   testID="dev-settings-clear-webhook-btn"
                   style={[styles.smallConfigBtn, { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border }]}

@@ -12,6 +12,10 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ Central de Solicitações (Discord & Chat Direto), SSOT de Perguntas Críticas e Roteamento Separado no App/APK (2026-11-20):
+- **Título**: `feat(support,governance): implementa central de solicitacoes, leitor Discord, SSOT de perguntas e roteamento de erros vs melhorias`
+- **Resumo**: Cria `data/request_triage_questions.json` (SSOT), `scripts/discord_requests.js`, skill `request-triage`, `docs/SOLICITACOES.md`, Padrão 6 em `GEMINI.md`, roteamento separado em `SupportService`/`SupportCenterView`/`support-webhook` compatível com APK Android e suíte `tests/discordRequests.test.ts` (`npm run test:all` 951/951 aprovados).
+
 ### ✅ 1. Preparação da Release v1.6.0-beta.1 (versionCode 12):
 ```bash
 git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md

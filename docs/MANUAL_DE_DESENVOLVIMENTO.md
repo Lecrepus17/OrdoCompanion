@@ -20,11 +20,10 @@ Você **NUNCA** precisa se preocupar em:
 
 No dia a dia de desenvolvimento, suas interações são simples e diretas:
 
-### A. Solicitar Funcionalidades ou Correções
-Basta pedir em linguagem natural. Exemplos:
-* *"Adicione suporte a mais armas de fogo da comunidade na Armaria."*
-* *"O cálculo de Sanidade do Combatente com NEX 35% está dando 1 ponto a menos, corrija isso."*
-* *"Crie uma nova tela para visualizar as relíquias do Outro Lado."*
+### A. Solicitar Funcionalidades ou Correções (Discord ou Chat Direto)
+1. **Pelo Discord (Triagem em Lote)**: Peça *"Veja os novos erros e melhorias do Discord"*. O leitor busca apenas mensagens novas nos canais `#erros` e `#melhorias`, separa os dois grupos, faz a análise crítica (respondendo às perguntas de [`data/request_triage_questions.json`](../data/request_triage_questions.json) + parecer dos agentes especializados) e abre um questionário para você escolher o que aprovar.
+2. **Direto no Chat (Avaliação Crítica antes de Alterar)**: Peça *"Avalie essa melhoria: ..."* ou *"Avalie esse erro: ..."* para passar pelo mesmo crivo crítico e questionário antes de executar no código ou salvar em [`docs/SOLICITACOES.md`](./SOLICITACOES.md).
+3. **Execução Direta**: Para demandas diretas já decididas, basta pedir em linguagem natural (ex.: *"Corrija o cálculo de Sanidade..."*).
 
 ### B. Efetuar Commits das Alterações Prontas
 Sempre que uma alteração for finalizada e validada pelos testes, o assistente atualizará automaticamente o arquivo [`docs/COMMITS_PENDENTES.md`](./COMMITS_PENDENTES.md). Para efetivar o commit, você tem duas opções:

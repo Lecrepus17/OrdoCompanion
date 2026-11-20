@@ -22,7 +22,11 @@
     "test:all": "npm run typecheck && npm run test && npm run test:db",
     "typecheck": "tsc --noEmit",
     "release": "node scripts/create_release.js",
-    "build:apk": "node scripts/build_and_upload_apk.js"
+    "build:apk": "node scripts/build_and_upload_apk.js",
+    "requests:fetch": "node scripts/discord_requests.js fetch",
+    "requests:ack": "node scripts/discord_requests.js ack",
+    "requests:test": "node scripts/discord_requests.js test",
+    "requests:questions": "node scripts/discord_requests.js questions"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

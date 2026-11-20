@@ -11,6 +11,7 @@ import {
 import {
   SupportCategory,
   SupportContactConfig,
+  SupportRequestGroup,
   SupportSeverity,
   SupportSubmitResult,
   SupportTicketPayload,
@@ -20,6 +21,13 @@ import {
 
 export const SUPPORT_TICKETS_STORAGE_KEY = '@ordo_support_tickets_history';
 export const SUPPORT_CUSTOM_WEBHOOK_KEY = '@ordo_support_custom_webhook_url';
+export const SUPPORT_CUSTOM_BUGS_WEBHOOK_KEY = '@ordo_support_custom_bugs_webhook_url';
+export const SUPPORT_CUSTOM_SUGGESTIONS_WEBHOOK_KEY = '@ordo_support_custom_suggestions_webhook_url';
+
+const GROUP_WEBHOOK_STORAGE_KEYS: Record<SupportRequestGroup, string> = {
+  errors: SUPPORT_CUSTOM_BUGS_WEBHOOK_KEY,
+  improvements: SUPPORT_CUSTOM_SUGGESTIONS_WEBHOOK_KEY,
+};
 
 export const DEFAULT_SUPPORT_CONFIG: SupportContactConfig = {
   githubRepoUrl: 'https://github.com/Lecrepus17/OrdoCompanion',
@@ -34,6 +42,12 @@ export const DEFAULT_SUPPORT_CONFIG: SupportContactConfig = {
     process.env.EXPO_PUBLIC_SUPPORT_DISCORD_HANDLE || 'lecrepus17',
   discordWebhookUrl: resolveEnvSecret(
     process.env.EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL
+  ),
+  discordBugsWebhookUrl: resolveEnvSecret(
+    process.env.EXPO_PUBLIC_SUPPORT_DISCORD_BUGS_WEBHOOK_URL
+  ),
+  discordSuggestionsWebhookUrl: resolveEnvSecret(
+    process.env.EXPO_PUBLIC_SUPPORT_DISCORD_SUGGESTIONS_WEBHOOK_URL
   ),
   customEndpointUrl: resolveEnvSecret(
     process.env.EXPO_PUBLIC_SUPPORT_ENDPOINT_URL
@@ -107,28 +121,76 @@ export class SupportService {
   }
 
   /**
-   * Permite salvar ou ler um Webhook de suporte personalizado no armazenamento local.
-   * O valor é armazenado ofuscado (obf:v1:...) e revertido em memória ao ler.
+   * Mapeia a categoria do chamado para a fila de triagem separada (Erros vs. Melhorias).
    */
-  public async getEffectiveWebhookUrl(): Promise<string> {
+  public getRequestGroup(category: SupportCategory): SupportRequestGroup {
+    return category === 'bug' || category === 'rule_error' ? 'errors' : 'improvements';
+  }
+
+  private async readStoredWebhook(storageKey: string, fallbackEnvValue?: string): Promise<string> {
     try {
-      const saved = await AsyncStorage.getItem(SUPPORT_CUSTOM_WEBHOOK_KEY);
+      const saved = await AsyncStorage.getItem(storageKey);
       if (saved && saved.trim().length > 0) {
         return deobfuscateSecret(saved.trim());
       }
     } catch {}
-    return deobfuscateSecret((this._config.discordWebhookUrl || '').trim());
+    return deobfuscateSecret((fallbackEnvValue || '').trim());
   }
 
-  public async setCustomWebhookUrl(url: string): Promise<void> {
+  private async writeStoredWebhook(storageKey: string, url: string): Promise<void> {
     const clean = deobfuscateSecret((url || '').trim());
     try {
       if (!clean) {
-        await AsyncStorage.removeItem(SUPPORT_CUSTOM_WEBHOOK_KEY);
+        await AsyncStorage.removeItem(storageKey);
       } else {
-        await AsyncStorage.setItem(SUPPORT_CUSTOM_WEBHOOK_KEY, obfuscateSecret(clean));
+        await AsyncStorage.setItem(storageKey, obfuscateSecret(clean));
       }
     } catch {}
+  }
+
+  /**
+   * Permite salvar ou ler um Webhook de suporte personalizado no armazenamento local.
+   * O valor é armazenado ofuscado (obf:v1:...) e revertido em memória ao ler.
+   */
+  public async getEffectiveWebhookUrl(): Promise<string> {
+    return this.readStoredWebhook(SUPPORT_CUSTOM_WEBHOOK_KEY, this._config.discordWebhookUrl);
+  }
+
+  public async setCustomWebhookUrl(url: string): Promise<void> {
+    await this.writeStoredWebhook(SUPPORT_CUSTOM_WEBHOOK_KEY, url);
+  }
+
+  /**
+   * Lê o Webhook específico de uma fila (Erros ou Melhorias), retornando vazio se não configurado.
+   */
+  public async getCustomCategoryWebhookUrl(group: SupportRequestGroup): Promise<string> {
+    const fallback =
+      group === 'errors'
+        ? this._config.discordBugsWebhookUrl
+        : this._config.discordSuggestionsWebhookUrl;
+    return this.readStoredWebhook(GROUP_WEBHOOK_STORAGE_KEYS[group], fallback);
+  }
+
+  /**
+   * Salva ou remove o Webhook específico da fila (Erros ou Melhorias) ofuscado no AsyncStorage.
+   */
+  public async setCustomCategoryWebhookUrl(group: SupportRequestGroup, url: string): Promise<void> {
+    await this.writeStoredWebhook(GROUP_WEBHOOK_STORAGE_KEYS[group], url);
+  }
+
+  /**
+   * Resolve a URL efetiva de Webhook para uma categoria, priorizando o canal dedicado
+   * (#erros para bug/rule_error, #melhorias para suggestion) com fallback para o Webhook geral.
+   */
+  public async getEffectiveWebhookUrlForCategory(category?: SupportCategory): Promise<string> {
+    if (category === 'bug' || category === 'rule_error') {
+      const bugsUrl = await this.getCustomCategoryWebhookUrl('errors');
+      if (bugsUrl) return bugsUrl;
+    } else if (category === 'suggestion') {
+      const suggestionsUrl = await this.getCustomCategoryWebhookUrl('improvements');
+      if (suggestionsUrl) return suggestionsUrl;
+    }
+    return this.getEffectiveWebhookUrl();
   }
 
   /**
@@ -344,9 +406,10 @@ export class SupportService {
     let deliveredRemotely = false;
     let channelUsed: 'supabase_proxy' | 'discord_webhook' | 'custom_endpoint' | 'local_fallback' = 'local_fallback';
 
+    const requestGroup = payload.requestGroup || this.getRequestGroup(payload.category);
     const supabaseProxy = deobfuscateSecret((this._config.supabaseProxyUrl || '').trim());
     const supabaseAnonKey = deobfuscateSecret((this._config.supabaseAnonKey || '').trim());
-    const webhookUrl = await this.getEffectiveWebhookUrl();
+    const webhookUrl = await this.getEffectiveWebhookUrlForCategory(payload.category);
     const customEndpoint = deobfuscateSecret((this._config.customEndpointUrl || '').trim());
 
     // Sanitiza todos os campos contra menções (@everyone / @here / cargos) e links de spam
@@ -378,6 +441,7 @@ export class SupportService {
           body: JSON.stringify({
             protocol,
             ...payload,
+            requestGroup,
             title: safeTitle,
             description: safeDescription,
             senderName: safeSender || undefined,
@@ -409,6 +473,16 @@ export class SupportService {
           {
             name: '📂 Categoria',
             value: `${catInfo.emoji} ${catInfo.label}`,
+            inline: true,
+          },
+          {
+            name: '🗂️ Fila de Triagem',
+            value:
+              payload.category === 'contact'
+                ? '💬 DÚVIDA / CONTATO'
+                : requestGroup === 'errors'
+                ? '🐛 ERROS'
+                : '💡 MELHORIAS',
             inline: true,
           },
         ];
@@ -500,6 +574,7 @@ export class SupportService {
           body: JSON.stringify({
             protocol,
             ...payload,
+            requestGroup,
             title: safeTitle,
             description: safeDescription,
             senderName: safeSender || undefined,

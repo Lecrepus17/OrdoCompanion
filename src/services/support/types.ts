@@ -1,5 +1,7 @@
 export type SupportCategory = 'bug' | 'rule_error' | 'suggestion' | 'contact';
 
+export type SupportRequestGroup = 'errors' | 'improvements';
+
 export type SupportSeverity = 'low' | 'medium' | 'high';
 
 export interface SystemDiagnostics {
@@ -18,6 +20,7 @@ export interface SystemDiagnostics {
 
 export interface SupportTicketPayload {
   category: SupportCategory;
+  requestGroup?: SupportRequestGroup;
   severity?: SupportSeverity;
   title: string;
   description: string;
@@ -62,6 +65,8 @@ export interface SupportContactConfig {
   discordInviteUrl: string;
   discordHandle: string;
   discordWebhookUrl: string;
+  discordBugsWebhookUrl?: string;
+  discordSuggestionsWebhookUrl?: string;
   customEndpointUrl: string;
   supabaseProxyUrl?: string;
   supabaseAnonKey?: string;

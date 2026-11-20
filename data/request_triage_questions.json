@@ -1,0 +1,73 @@
+{
+  "version": "1.0.0",
+  "description": "Fonte Única da Verdade (SSOT) das perguntas de avaliação crítica de solicitações (Erros e Melhorias). Para adicionar, modificar ou remover uma pergunta em todo o sistema (triagem do Discord e solicitações diretas no chat), edite apenas a lista 'questions' abaixo.",
+  "questions": [
+    {
+      "id": "what_is_it",
+      "number": 1,
+      "title": "O que é?",
+      "promptHint": "Explicação técnica objetiva do erro relatado ou da melhoria proposta, origem (Discord #erros/#melhorias, App #ORD-XXXX ou Chat Direto) e classificação exata.",
+      "active": true
+    },
+    {
+      "id": "is_it_valid",
+      "number": 2,
+      "title": "É algo válido de fazer?",
+      "promptHint": "Veredito crítico e cético (✅ Sim / ⚠️ Parcialmente com Ressalvas / ❌ Não): tem mérito técnico real, faz sentido para o público do app, respeita as regras canônicas de Ordem Paranormal v1.1 ou já existe no aplicativo?",
+      "active": true
+    },
+    {
+      "id": "will_it_cause_problems",
+      "number": 3,
+      "title": "Vai gerar algum problema?",
+      "promptHint": "Mapeamento sincero de riscos e efeitos colaterais no resto do sistema: regressão em fichas salvas, quebra de layout em telas pequenas (360px), runtime Android APK (Hermes), sincronização offline (SmartMergeEngine) ou queda de performance.",
+      "active": true
+    },
+    {
+      "id": "what_needs_to_be_done",
+      "number": 4,
+      "title": "O que teria que ser feito?",
+      "promptHint": "Escopo técnico exato: Nível de Alteração (🟢 Baixo / 🟡 Médio / 🟠 Alto / 🔴 Arquitetural), arquivos/componentes/serviços impactados e resumo objetivo do plano de implementação.",
+      "active": true
+    },
+    {
+      "id": "is_it_necessary",
+      "number": 5,
+      "title": "É necessário?",
+      "promptHint": "Classificação de prioridade e necessidade real (🚨 Crítico / Obrigatório, ⭐ Recomendado de Alto Valor, 🔹 Opcional / Cosmético ou 🛑 Desnecessário / Contra-indicado).",
+      "active": true
+    }
+  ],
+  "specialists": [
+    {
+      "id": "rpg-rules-expert",
+      "label": "🛡️ Auditor de Regras Canônicas",
+      "focus": "Conformidade estrita com Ordem Paranormal RPG v1.1 e suplementos (PV/PE/SAN, NEX, CD/DT, patentes, origens, armas e maldições)."
+    },
+    {
+      "id": "mobile-ui-expert",
+      "label": "📱 Frontend & UI/UX Mobile",
+      "focus": "Paleta tática sombria, responsividade em telas de 360px, SafeAreaView, modais e ergonomia sem poluição visual."
+    },
+    {
+      "id": "android-apk-guardian",
+      "label": "🤖 Guardião de Android APK (Hermes)",
+      "focus": "Paridade absoluta no APK compilado: ausência de window/document/navigator sem guarda, BackHandler, Scoped Storage, expo-sharing e teclado."
+    },
+    {
+      "id": "sync-offline-guardian",
+      "label": "🔄 Guardião Offline-First & Sync",
+      "focus": "Resiliência offline, SmartMergeEngine, retrocompatibilidade de fichas salvas e propagação de tombstones."
+    },
+    {
+      "id": "glitch-prompt-engineer",
+      "label": "🔮 Engenheiro de IA G.L.I.T.C.H.",
+      "focus": "Prompts, RAG compacto, cotas de tokens e fallback offline (quando envolver IA)."
+    },
+    {
+      "id": "data-pipeline-architect",
+      "label": "📚 Arquiteto de Compêndio & Dados",
+      "focus": "Integridade dos 10 livros/1.367+ entidades e busca sem acentos (quando envolver compêndio/PDFs)."
+    }
+  ]
+}
