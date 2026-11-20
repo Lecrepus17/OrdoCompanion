@@ -1,6 +1,7 @@
 import './setup';
 import React from 'react';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -318,5 +319,47 @@ describe('Desktop PC & PWA Support (SOL-MEL-001)', () => {
     assert.ok(specialistIds.includes('mobile-ui-expert'));
     const uiSpec = triage.specialists.find((s: any) => s.id === 'mobile-ui-expert');
     assert.ok(uiSpec.label.includes('PC'));
+  });
+
+  it('scripts/build_web_pc.js deve remover dist/pdfs/ e validar artefatos obrigatórios PWA/OAuth', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { sanitizeDistForHosting, verifyWebDistArtifacts } = require('../scripts/build_web_pc.js');
+    const tmpDist = fs.mkdtempSync(path.join(os.tmpdir(), 'ordo_dist_test_'));
+
+    try {
+      fs.mkdirSync(path.join(tmpDist, 'pdfs'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDist, 'pdfs', 'fake.pdf'), 'PDF');
+      fs.mkdirSync(path.join(tmpDist, 'oauthredirect'), { recursive: true });
+
+      fs.writeFileSync(
+        path.join(tmpDist, 'index.html'),
+        '<link rel="manifest" href="/manifest.json" /><script>beforeinstallprompt;serviceWorker.register("/sw.js")</script>'
+      );
+      fs.writeFileSync(path.join(tmpDist, 'manifest.json'), '{}');
+      fs.writeFileSync(path.join(tmpDist, 'sw.js'), '');
+      fs.writeFileSync(path.join(tmpDist, 'favicon.png'), '');
+      fs.writeFileSync(path.join(tmpDist, 'icon-512.png'), '');
+      fs.writeFileSync(path.join(tmpDist, 'icon.png'), '');
+      fs.writeFileSync(path.join(tmpDist, 'oauthredirect.html'), '<html></html>');
+      fs.writeFileSync(path.join(tmpDist, 'oauthredirect', 'index.html'), '<html></html>');
+
+      const sanitized = sanitizeDistForHosting(tmpDist);
+      assert.equal(sanitized.removedPdfsDir, true);
+      assert.equal(fs.existsSync(path.join(tmpDist, 'pdfs')), false);
+
+      const okRes = verifyWebDistArtifacts(tmpDist);
+      assert.equal(okRes.ok, true);
+      assert.deepEqual(okRes.missing, []);
+      assert.deepEqual(okRes.invalid, []);
+
+      fs.unlinkSync(path.join(tmpDist, 'oauthredirect.html'));
+      fs.unlinkSync(path.join(tmpDist, 'manifest.json'));
+      const failRes = verifyWebDistArtifacts(tmpDist);
+      assert.equal(failRes.ok, false);
+      assert.ok(failRes.missing.includes('oauthredirect.html'));
+      assert.ok(failRes.missing.includes('manifest.json'));
+    } finally {
+      fs.rmSync(tmpDist, { recursive: true, force: true });
+    }
   });
 });

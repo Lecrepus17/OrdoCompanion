@@ -6,28 +6,19 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-### 1. Diagnóstico e Compatibilidade do Login Google OAuth no Android (`SOL-ERR-001`):
-- **Título**: `fix(sync,android): adiciona scheme reverso oauth, traducao de erros e diagnostico de login google`
-- **Descrição**:
-  - Registra o scheme reverso do Client ID Android (`com.googleusercontent.apps.556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos`) em `android/app/src/main/AndroidManifest.xml` e `app.json` (`intentFilters`).
-  - Implementa alternância persistida entre `custom_scheme` e `reverse_client_id` e parâmetro `{ showInRecents: true }` no `GoogleDriveService`.
-  - Adiciona `formatGoogleOAuthError` (traduzindo `access_denied` 403, `redirect_uri_mismatch`/`invalid_request` 400, `disallowed_useragent` e `org_internal`) e `getOAuthDiagnostics`.
-  - Adiciona painel colapsável de solução (Erro 403 / Erro 400 / Chrome), seleção de redirecionamento e botão `Copiar Diagnóstico OAuth` na aba Nuvem do `UserProfileModal`.
-  - Amplia `tests/googleDriveService.test.ts` e atualiza `docs/SOLICITACOES.md`, `docs/ATUALIZACOES_PENDENTES.md` e `docs/COMMITS_PENDENTES.md`.
-- **Comando Git Pronto**:
-```bash
-git add app.json android/app/src/main/AndroidManifest.xml src/services/sync/GoogleDriveService.ts src/components/UserProfileModal.tsx tests/googleDriveService.test.ts docs/SOLICITACOES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
-git commit -m "fix(sync,android): adiciona scheme reverso oauth, traducao de erros e diagnostico de login google" \
-  -m "- Registra scheme reverso do Client ID Android em AndroidManifest.xml e app.json (intentFilters)" \
-  -m "- Implementa alternancia persistida entre custom_scheme e reverse_client_id no GoogleDriveService" \
-  -m "- Adiciona formatGoogleOAuthError (Erro 403 access_denied, Erro 400 redirect_uri_mismatch, disallowed_useragent, org_internal) e getOAuthDiagnostics" \
-  -m "- Adiciona painel colapsavel de solucao, selecao de redirecionamento e copia de diagnostico OAuth na aba Nuvem do UserProfileModal" \
-  -m "- Amplia cobertura em tests/googleDriveService.test.ts e atualiza SOLICITACOES.md / ATUALIZACOES_PENDENTES.md"
-```
+*(Nenhum commit pendente no momento)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ Blindagem Pré-Release, SemVer Beta, Build Web/PC Seguro e CI (`v1.7.0-beta.1`) (2026-11-20):
+- **Título**: `fix(release,web,ci): corrige semver beta, higieniza dist/pdfs no build:pc e blinda pipeline de release`
+- **Resumo**: Corrige `compareSemVer` em `UpdateCheckerService.ts` para sufixos `-beta.N`/`-rc.N` e amplia `tests/updateChecker.test.ts`; cria `scripts/build_web_pc.js` removendo `dist/pdfs/` e validando artefatos PWA/OAuth em `package.json` e `tests/desktopPwaSupport.test.ts`; ajusta `public/index.html` (`viewport-fit=cover`, `http-equiv`, safe-area, scrollbars desktop); torna determinístico `tests/frontendOracle.test.tsx`; adiciona trava de working tree limpa em `scripts/create_release.js`, preserva `docs/RELEASE_NOTES.md` no `.github/workflows/release-apk.yml` e atualiza governança para `v1.7.0-beta.1`.
+
+### ✅ Diagnóstico e Compatibilidade do Login Google OAuth no Android & Callback Web Estático (`SOL-ERR-001`) (2026-11-20):
+- **Título**: `fix(sync,android,web): adiciona scheme reverso oauth, callback estatico e diagnostico de login google`
+- **Resumo**: Registra scheme reverso do Client ID Android e `usesCleartextTraffic` em `AndroidManifest.xml` e `app.json`; implementa alternância persistida entre `custom_scheme` e `reverse_client_id` no `GoogleDriveService`; adiciona `formatGoogleOAuthError`, `getOAuthDiagnostics`, painel colapsável adaptado por plataforma e cópia de diagnóstico OAuth no `UserProfileModal`; cria `public/oauthredirect.html` e `public/oauthredirect/index.html` + bypass/fallback em `public/sw.js`; amplia `tests/googleDriveService.test.ts` e atualiza `docs/SOLICITACOES.md`.
 
 ### ✅ Correção de Instalação PWA no Build Estático Web/PC (`public/index.html`, Ícone `512x512` e Manifesto) (2026-11-20):
 - **Título**: `fix(web,pwa): adiciona public/index.html para output single, icone 512x512 real e manifesto pwa estrito`

@@ -256,6 +256,57 @@ function copyFileToClipboard(filePath) {
   }
 }
 
+const RELEASE_MANAGED_FILES = [
+  'package.json',
+  'app.json',
+  'android/app/build.gradle',
+  'version.json',
+  'docs/RELEASE_NOTES.md',
+  'docs/HISTORICO_RELEASES.md',
+  'docs/ATUALIZACOES_PENDENTES.md',
+  'docs/COMMITS_PENDENTES.md',
+];
+
+function extractGitStatusFilePath(porcelainLine) {
+  const rawPath = porcelainLine.slice(3).trim();
+  const arrowIdx = rawPath.indexOf(' -> ');
+  const finalPath = arrowIdx >= 0 ? rawPath.slice(arrowIdx + 4).trim() : rawPath;
+  return finalPath.replace(/^"+|"+$/g, '').replace(/\\/g, '/');
+}
+
+function assertCleanWorkingTreeForRelease(managedFiles) {
+  const statusRes = spawnSync('git', ['status', '--porcelain'], {
+    cwd: rootDir,
+    encoding: 'utf8',
+  });
+  if (statusRes.status !== 0) return;
+
+  const managedSet = new Set(managedFiles.map((f) => f.replace(/\\/g, '/')));
+  const lines = (statusRes.stdout || '').split(/\r?\n/).filter((l) => l.trim().length > 0);
+  const dirtyFiles = [];
+
+  for (const line of lines) {
+    const filePath = extractGitStatusFilePath(line);
+    if (!filePath) continue;
+    // Ignora apenas arquivos já gerenciados pela própria release
+    if (!managedSet.has(filePath)) {
+      dirtyFiles.push(filePath);
+    }
+  }
+
+  if (dirtyFiles.length > 0) {
+    console.error('\n❌ [Release] Existem alterações não commitadas fora dos arquivos da release:');
+    for (const f of dirtyFiles) {
+      console.error(`   - ${f}`);
+    }
+    console.error(
+      '\n   Faça o commit das suas alterações antes de gerar a release para evitar uma tag incompleta\n' +
+        '   (ou passe `--allow-dirty` caso queira prosseguir conscientemente).\n'
+    );
+    process.exit(1);
+  }
+}
+
 const parsedDoc = parsePendingUpdatesMarkdown();
 const newVersionRaw = positionalArgs[0] || parsedDoc.suggestedVersion;
 const changelogArg = positionalArgs[1];
@@ -268,6 +319,10 @@ if (!newVersionRaw) {
 }
 
 const cleanVersion = newVersionRaw.replace(/^v/i, '').trim();
+
+if (!flags.has('--no-git') && !flags.has('--allow-dirty')) {
+  assertCleanWorkingTreeForRelease(RELEASE_MANAGED_FILES);
+}
 
 // 1. Atualiza package.json
 const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -472,16 +527,7 @@ function publishGitHubReleaseApi(version, releaseBody) {
 (async () => {
   recordReleaseCommitInGovernance(cleanVersion, currentVersionCode);
 
-  const releaseFiles = [
-    'package.json',
-    'app.json',
-    'android/app/build.gradle',
-    'version.json',
-    'docs/RELEASE_NOTES.md',
-    'docs/HISTORICO_RELEASES.md',
-    'docs/ATUALIZACOES_PENDENTES.md',
-    'docs/COMMITS_PENDENTES.md',
-  ];
+  const releaseFiles = RELEASE_MANAGED_FILES;
 
   let pushSucceeded = false;
 

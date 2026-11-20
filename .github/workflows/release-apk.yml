@@ -47,34 +47,42 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Extrair informações de versão do version.json
+      - name: Extrair informações de versão e notas do release
         id: release_info
         run: |
           VERSION=$(node -p "require('./version.json').version || 'latest'")
           NAME=$(node -p "require('./version.json').releaseName || 'Ordo Companion v' + require('./version.json').version")
           NOTES=$(node -p "Array.isArray(require('./version.json').changelog) ? require('./version.json').changelog.map(c => '• ' + c).join('\n') : (require('./version.json').changelog || '')")
+          NOTES_PATH="/tmp/ordo_release_notes.md"
           echo "tag_name=v$VERSION" >> $GITHUB_OUTPUT
           echo "release_name=$NAME" >> $GITHUB_OUTPUT
-          {
-            echo "notes<<EOF"
-            echo "## 👁️ O que há de novo nesta versão:"
-            echo ""
-            echo "$NOTES"
-            echo ""
-            echo "---"
-            echo "### 📱 Instalação no Celular (Android):"
-            echo "1. Baixe o arquivo **OrdoCompanion.apk** anexado abaixo."
-            echo "2. Abra a notificação de download do celular e toque em **Instalar**."
-            echo "3. Suas fichas e dados locais serão preservados!"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+          echo "notes_path=$NOTES_PATH" >> $GITHUB_OUTPUT
+          if [ -f "docs/RELEASE_NOTES.md" ] && grep -q "# 🩸 Ordo Companion v$VERSION" "docs/RELEASE_NOTES.md"; then
+            cp "docs/RELEASE_NOTES.md" "$NOTES_PATH"
+          else
+            cat <<EOF > "$NOTES_PATH"
+          ## 👁️ O que há de novo nesta versão:
+
+          $NOTES
+
+          ---
+          ### 📱 Instalação no Celular (Android):
+          1. Baixe o arquivo **OrdoCompanion.apk** anexado abaixo.
+          2. Abra a notificação de download do celular e toque em **Instalar**.
+          3. Suas fichas e dados locais serão preservados!
+
+          ### 💻 Instalação e Uso no PC (Windows, macOS e Linux):
+          1. Acesse a versão Web do **Ordo Companion** no **Google Chrome** ou **Microsoft Edge** (ou gere localmente com \`npm run build:pc\`).
+          2. Clique no ícone de **Instalar Aplicativo** na barra de endereços (ou em **Perfil ➔ Instalar Aplicativo no PC**) para usar em janela standalone e offline (PWA).
+          EOF
+          fi
 
       - name: Publicar Release no GitHub
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_info.outputs.tag_name }}
           name: ${{ steps.release_info.outputs.release_name }}
-          body: ${{ steps.release_info.outputs.notes }}
+          body_path: ${{ steps.release_info.outputs.notes_path }}
           draft: false
           prerelease: false
           files: |

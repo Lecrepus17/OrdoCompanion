@@ -29,6 +29,13 @@ test('Sistema de Notificação e Verificação de Atualizações (UpdateCheckerS
     assert.equal(compareSemVer('1.0.0', '1.1.0'), -1);
     assert.equal(compareSemVer('1.9.9', '2.0.0'), -1);
     assert.equal(compareSemVer('0.5.0', 'v1.0.0'), -1);
+
+    // Pré-lançamentos (-beta.N / -rc.N)
+    assert.equal(compareSemVer('1.6.0-beta.2', '1.6.0-beta.1'), 1);
+    assert.equal(compareSemVer('1.6.0-beta.1', '1.6.0-beta.2'), -1);
+    assert.equal(compareSemVer('1.6.0-beta.10', '1.6.0-beta.2'), 1);
+    assert.equal(compareSemVer('1.6.0-rc.1', '1.6.0-beta.9'), 1);
+    assert.equal(compareSemVer('1.6.0-beta.2', '1.6.0-beta.2'), 0);
   });
 
   await t.test('normalizeChangelog - Tratamento de Notas de Atualização', () => {

@@ -318,6 +318,7 @@ $$\\text{Dano Final Brutal: } 9d8+6$$ [Aba: dice]`,
   test('OracleScreen deve ativar microfone nativo no Android e preencher o texto ditado', async () => {
     const origNative = (globalThis as any).ExpoSpeechRecognitionModule;
     const listeners = new Map<string, Set<(ev: any) => void>>();
+    let emitDictationResult: (() => void) | null = null;
 
     (globalThis as any).ExpoSpeechRecognitionModule = {
       isRecognitionAvailable: () => true,
@@ -333,12 +334,12 @@ $$\\text{Dano Final Brutal: } 9d8+6$$ [Aba: dice]`,
       },
       start: () => {
         listeners.get('start')?.forEach((fn) => fn(null));
-        setTimeout(() => {
+        emitDictationResult = () => {
           listeners.get('result')?.forEach((fn) =>
             fn({ isFinal: true, results: [{ transcript: 'Como conjurar Cicatrização?' }] })
           );
           listeners.get('end')?.forEach((fn) => fn(null));
-        }, 35);
+        };
       },
       stop: () => {
         listeners.get('end')?.forEach((fn) => fn(null));
@@ -356,10 +357,11 @@ $$\\text{Dano Final Brutal: } 9d8+6$$ [Aba: dice]`,
 
       await fireClick(micBtn!);
 
+      assert.ok(emitDictationResult, 'Reconhecimento de voz nativo deve ter sido iniciado');
       assert.ok(queryByText(/Ouvindo comando de voz/i));
 
       await act(async () => {
-        await new Promise((r) => setTimeout(r, 55));
+        emitDictationResult?.();
       });
 
       const textarea = container.querySelector('textarea, input') as HTMLTextAreaElement | HTMLInputElement | null;

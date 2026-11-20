@@ -21,7 +21,7 @@ export const GITHUB_RELEASES_LATEST_URL =
   'https://github.com/Lecrepus17/OrdoCompanion/releases/latest';
 
 /**
- * Compara duas versões semânticas (ex: '1.0.0' vs '1.1.0' ou 'v1.0.1' vs '1.0.0').
+ * Compara duas versões semânticas (ex: '1.0.0' vs '1.1.0', 'v1.0.1' vs '1.0.0', '1.6.0-beta.2' vs '1.6.0-beta.1').
  * Retorna:
  *  - 1 se v1 > v2
  *  - -1 se v1 < v2
@@ -31,8 +31,15 @@ export function compareSemVer(v1: string, v2: string): number {
   const clean1 = (v1 || '').trim().replace(/^v/i, '');
   const clean2 = (v2 || '').trim().replace(/^v/i, '');
 
-  const parts1 = clean1.split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
-  const parts2 = clean2.split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
+  const dashIdx1 = clean1.indexOf('-');
+  const dashIdx2 = clean2.indexOf('-');
+  const core1 = dashIdx1 >= 0 ? clean1.slice(0, dashIdx1) : clean1;
+  const core2 = dashIdx2 >= 0 ? clean2.slice(0, dashIdx2) : clean2;
+  const pre1 = dashIdx1 >= 0 ? clean1.slice(dashIdx1 + 1).trim() : '';
+  const pre2 = dashIdx2 >= 0 ? clean2.slice(dashIdx2 + 1).trim() : '';
+
+  const parts1 = core1.split('.').map((n) => parseInt(n, 10) || 0);
+  const parts2 = core2.split('.').map((n) => parseInt(n, 10) || 0);
 
   const maxLength = Math.max(parts1.length, parts2.length, 3);
 
@@ -41,6 +48,35 @@ export function compareSemVer(v1: string, v2: string): number {
     const num2 = parts2[i] ?? 0;
     if (num1 > num2) return 1;
     if (num1 < num2) return -1;
+  }
+
+  // Compara sufixos de pré-lançamento quando ambos existem (ex: beta.2 > beta.1, rc.1 > beta.9)
+  // Mantém 0 quando apenas um lado tem sufixo para preservar compatibilidade com releases legadas
+  if (pre1 && pre2) {
+    const preParts1 = pre1.split('.');
+    const preParts2 = pre2.split('.');
+    const maxPreLength = Math.max(preParts1.length, preParts2.length);
+
+    for (let i = 0; i < maxPreLength; i++) {
+      const seg1 = preParts1[i];
+      const seg2 = preParts2[i];
+      if (seg1 === undefined) return -1;
+      if (seg2 === undefined) return 1;
+
+      const isNum1 = /^\d+$/.test(seg1);
+      const isNum2 = /^\d+$/.test(seg2);
+      if (isNum1 && isNum2) {
+        const n1 = Number(seg1);
+        const n2 = Number(seg2);
+        if (n1 > n2) return 1;
+        if (n1 < n2) return -1;
+      } else {
+        const lower1 = seg1.toLowerCase();
+        const lower2 = seg2.toLowerCase();
+        if (lower1 > lower2) return 1;
+        if (lower1 < lower2) return -1;
+      }
+    }
   }
 
   return 0;
