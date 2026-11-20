@@ -8,14 +8,51 @@ export default function Root({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+        <title>Ordo Companion — Ordem Paranormal RPG</title>
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, shrink-to-fit=no, viewport-fit=cover, user-scalable=no"
         />
+        <meta name="application-name" content="Ordo Companion" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#121216" />
+        <meta name="theme-color" content="#0A0A0C" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/icon.png" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                if (typeof window === 'undefined') return;
+                window.__ordoDeferredPwaPrompt = window.__ordoDeferredPwaPrompt || null;
+                window.addEventListener('beforeinstallprompt', function (event) {
+                  event.preventDefault();
+                  window.__ordoDeferredPwaPrompt = event;
+                  try {
+                    window.dispatchEvent(new CustomEvent('ordo:pwa-install-ready'));
+                  } catch (e) {}
+                });
+                window.addEventListener('appinstalled', function () {
+                  window.__ordoDeferredPwaPrompt = null;
+                  try {
+                    window.dispatchEvent(new CustomEvent('ordo:pwa-installed'));
+                  } catch (e) {}
+                });
+                if (
+                  typeof navigator !== 'undefined' &&
+                  'serviceWorker' in navigator &&
+                  (window.location.protocol === 'http:' || window.location.protocol === 'https:')
+                ) {
+                  window.addEventListener('load', function () {
+                    navigator.serviceWorker.register('/sw.js').catch(function () {});
+                  });
+                }
+              })();
+            `,
+          }}
+        />
         <ScrollViewStyleReset />
         <style
           dangerouslySetInnerHTML={{

@@ -58,14 +58,24 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
     changelog,
     downloadUrl,
     apkUrl,
+    webUrl,
     isMandatory,
   } = updateInfo;
+
+  const isWeb = Platform.OS === 'web';
 
   const handleDownload = async () => {
     if (onDownload) {
       onDownload();
     }
     await updateCheckerService.openResilientApkDownload(apkUrl, downloadUrl);
+  };
+
+  const handlePcUpdate = async () => {
+    if (onDownload) {
+      onDownload();
+    }
+    await updateCheckerService.applyWebOrDesktopUpdate(webUrl || downloadUrl);
   };
 
   const handleOpenGitHub = async () => {
@@ -179,23 +189,46 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
             )}
           </ScrollView>
 
-          {/* Dica para Instalação de APK no Android */}
+          {/* Dica para Instalação de APK no Android e Atualização no PC */}
           <View style={styles.apkTipBox}>
             <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
             <Text style={styles.apkTipText}>
-              No Android, toque no arquivo baixado para atualizar. Todas as suas fichas, campanhas e configurações são preservadas!
+              No Android, toque no arquivo baixado para atualizar. No PC / Web, você também pode atualizar o aplicativo instantaneamente. Todas as suas fichas, campanhas e configurações são preservadas!
             </Text>
           </View>
 
           {/* Ações */}
           <View style={styles.actions}>
+            {isWeb && (
+              <TouchableOpacity
+                testID="update-pc-app-button"
+                style={[styles.downloadButton, { backgroundColor: colors.primary }]}
+                onPress={handlePcUpdate}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="desktop-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.downloadButtonText}>Atualizar Aplicativo no PC</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              style={[styles.downloadButton, { backgroundColor: colors.primary }]}
+              style={[
+                styles.downloadButton,
+                {
+                  backgroundColor: isWeb ? colors.surfaceElevated : colors.primary,
+                  borderWidth: isWeb ? 1 : 0,
+                  borderColor: isWeb ? colors.primary : undefined,
+                },
+              ]}
               onPress={handleDownload}
               activeOpacity={0.8}
             >
-              <Ionicons name={apkUrl ? 'logo-android' : 'download-outline'} size={18} color="#FFFFFF" />
-              <Text style={styles.downloadButtonText}>
+              <Ionicons
+                name={apkUrl ? 'logo-android' : 'download-outline'}
+                size={18}
+                color={isWeb ? colors.primary : '#FFFFFF'}
+              />
+              <Text style={[styles.downloadButtonText, isWeb && { color: colors.primary }]}>
                 {apkUrl ? 'Baixar Nova Versão (APK)' : 'Baixar Nova Versão'}
               </Text>
             </TouchableOpacity>

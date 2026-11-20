@@ -21,6 +21,12 @@ import { ThemeColors, useTheme, useThemedStyles } from '../theme';
 import { useApp } from '../context/AppContext';
 import { showAlert } from '../utils/alert';
 import { copyToClipboard, readFromClipboard } from '../utils/clipboard';
+import {
+  downloadTextFileOnWeb,
+  isRunningAsStandalonePwa,
+  pickJsonFileOnWeb,
+  triggerPwaInstallPrompt,
+} from '../utils/desktopPwa';
 import { normalizeCriticalDamageMode } from '../utils/dice';
 import { GoogleDriveService } from '../services/sync/GoogleDriveService';
 
@@ -105,6 +111,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   // Estados locais para importação manual de backup (sem depender de window.prompt)
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
+
+  // Estado PWA Desktop (exclusivo do ambiente Web/PC)
+  const isWeb = Platform.OS === 'web';
+  const [pwaInstalled, setPwaInstalled] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isWeb || typeof window === 'undefined') return;
+    setPwaInstalled(isRunningAsStandalonePwa());
+    const onInstalled = () => setPwaInstalled(true);
+    window.addEventListener('ordo:pwa-installed', onInstalled);
+    return () => {
+      window.removeEventListener('ordo:pwa-installed', onInstalled);
+    };
+  }, [isWeb, visible]);
 
   // Interceptação de hardware back no Android
   useEffect(() => {
@@ -334,6 +354,41 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       }
     } catch {
       showAlert('Erro', 'Não foi possível exportar os dados.');
+    }
+  };
+
+  const handleInstallPcApp = async () => {
+    const res = await triggerPwaInstallPrompt();
+    if (res.outcome === 'accepted' || res.outcome === 'already_installed') {
+      setPwaInstalled(true);
+    }
+    showAlert('Aplicativo para PC (Desktop PWA)', res.message);
+  };
+
+  const handleDownloadBackupFile = async () => {
+    try {
+      const json = await exportBackupJson();
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filename = `ordo_companion_backup_${dateStr}.json`;
+      const ok = downloadTextFileOnWeb(filename, json);
+      if (ok) {
+        showAlert('Backup Baixado', `Arquivo ${filename} salvo na pasta de Downloads do seu computador.`);
+      } else {
+        await handleExportBackup();
+      }
+    } catch {
+      showAlert('Erro', 'Não foi possível gerar o arquivo de backup JSON.');
+    }
+  };
+
+  const handleImportBackupFile = async () => {
+    const picked = await pickJsonFileOnWeb();
+    if (!picked) return;
+    try {
+      await importBackupJson(picked.content);
+      showAlert('Backup Restaurado', `Arquivo "${picked.fileName}" restaurado com sucesso!`);
+    } catch {
+      showAlert('Erro no JSON', `O arquivo "${picked.fileName}" não contém um backup JSON válido do Ordo Companion.`);
     }
   };
 
@@ -927,6 +982,51 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                             Reportar Erro ou Falar com o Suporte
                           </Text>
                         </TouchableOpacity>
+
+                        {isWeb ? (
+                          <TouchableOpacity
+                            testID="profile-install-pc-pwa-btn"
+                            style={[
+                              styles.checkUpdateButton,
+                              {
+                                borderColor: pwaInstalled ? '#10B981' : colors.primary,
+                                backgroundColor: pwaInstalled ? 'rgba(16, 185, 129, 0.12)' : colors.primarySoft,
+                                marginTop: 6,
+                              },
+                            ]}
+                            onPress={handleInstallPcApp}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons
+                              name={pwaInstalled ? 'checkmark-circle-outline' : 'desktop-outline'}
+                              size={18}
+                              color={pwaInstalled ? '#10B981' : colors.primary}
+                            />
+                            <Text
+                              style={[
+                                styles.checkUpdateButtonText,
+                                { color: pwaInstalled ? '#10B981' : colors.primary },
+                              ]}
+                            >
+                              {pwaInstalled
+                                ? 'Aplicativo Instalado no PC (Modo App)'
+                                : 'Instalar Aplicativo no PC (Modo App)'}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <View
+                            testID="profile-pc-pwa-info-card"
+                            style={[
+                              styles.infoBanner,
+                              { marginTop: 6, marginBottom: 0 },
+                            ]}
+                          >
+                            <Ionicons name="desktop-outline" size={16} color={colors.primary} />
+                            <Text style={styles.infoBannerText}>
+                              Aplicativo para PC (Desktop PWA): abra o Ordo Companion no Google Chrome ou Microsoft Edge no computador para instalar como app standalone e sincronizar via Google Drive ou arquivo JSON.
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     </View>
                   </>
@@ -1449,6 +1549,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                             <Text style={styles.importQuickBtnText}>Restaurar JSON</Text>
                           </TouchableOpacity>
                         </View>
+                        {isWeb && (
+                          <View style={styles.backupButtonsRow}>
+                            <TouchableOpacity
+                              testID="backup-download-json-pc-btn"
+                              style={[styles.exportQuickBtn, { flex: 1 }]}
+                              onPress={handleDownloadBackupFile}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons name="save-outline" size={16} color={colors.primary} />
+                              <Text style={styles.exportQuickBtnText}>Baixar .JSON no PC</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              testID="backup-upload-json-pc-btn"
+                              style={[styles.importQuickBtn, { flex: 1 }]}
+                              onPress={handleImportBackupFile}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons name="folder-open-outline" size={16} color="#10B981" />
+                              <Text style={styles.importQuickBtnText}>Abrir Arquivo .JSON do PC</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
                         <Text style={styles.fieldHint}>
                           Transfira suas fichas, armas e dados entre dispositivos copiando e colando o arquivo JSON de backup de forma simples e direta.
                         </Text>

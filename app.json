@@ -39,7 +39,14 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Ordo Companion",
+      "shortName": "Ordo Companion",
+      "lang": "pt-BR",
+      "scope": "/",
+      "themeColor": "#0A0A0C",
+      "backgroundColor": "#0A0A0C",
+      "display": "standalone"
     },
     "plugins": [
       "expo-router",

@@ -1,0 +1,37 @@
+{
+  "id": "/",
+  "name": "Ordo Companion — Ordem Paranormal RPG",
+  "short_name": "Ordo Companion",
+  "description": "Assistente tático, grimório, fichas de agentes, campanhas e mesa virtual para Ordem Paranormal RPG.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#0A0A0C",
+  "theme_color": "#0A0A0C",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "categories": [
+    "games",
+    "entertainment",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

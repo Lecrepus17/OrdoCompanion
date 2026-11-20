@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import {
   GitHubReleaseResponse,
   RemoteVersionManifest,
@@ -219,6 +219,7 @@ export class UpdateCheckerService {
       changelog: normalizeChangelog(manifest.changelog),
       downloadUrl: manifest.downloadUrl,
       apkUrl: manifest.apkUrl,
+      webUrl: manifest.webUrl,
       isMandatory,
       isDismissed,
     };
@@ -321,6 +322,46 @@ export class UpdateCheckerService {
       return this.openDownloadUrl(downloadUrl.trim());
     }
     return this.openDownloadUrl(GITHUB_RELEASES_PAGE_URL);
+  }
+
+  /**
+   * Aplica atualização no ambiente PC / Web PWA (Service Worker SKIP_WAITING + limpeza de cache + recarregamento).
+   * Fora do ambiente Web (Android/iOS), faz fallback seguro para abrir a URL da release.
+   */
+  public async applyWebOrDesktopUpdate(downloadUrl?: string): Promise<boolean> {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      try {
+        if (typeof navigator !== 'undefined' && navigator.serviceWorker?.getRegistration) {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (registration) {
+            await registration.update().catch(() => {});
+            if (registration.waiting) {
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          }
+        }
+      } catch {}
+
+      try {
+        if (typeof caches !== 'undefined' && typeof caches.keys === 'function') {
+          const cacheKeys = await caches.keys();
+          await Promise.all(
+            cacheKeys
+              .filter((key) => key.startsWith('ordo-companion-pwa-'))
+              .map((key) => caches.delete(key))
+          );
+        }
+      } catch {}
+
+      try {
+        if (window.location && typeof window.location.reload === 'function') {
+          window.location.reload();
+          return true;
+        }
+      } catch {}
+    }
+
+    return this.openDownloadUrl(downloadUrl || GITHUB_RELEASES_PAGE_URL);
   }
 }
 

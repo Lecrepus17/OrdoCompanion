@@ -5,6 +5,7 @@ export interface RemoteVersionManifest {
   releaseDate?: string;
   downloadUrl: string;
   apkUrl?: string;
+  webUrl?: string;
   changelog: string[] | string;
   forceUpdate?: boolean;
 }
@@ -18,6 +19,7 @@ export interface UpdateCheckResult {
   changelog: string[];
   downloadUrl: string;
   apkUrl?: string;
+  webUrl?: string;
   isMandatory: boolean;
   isDismissed: boolean;
 }

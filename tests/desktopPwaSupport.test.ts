@@ -1,0 +1,268 @@
+import './setup';
+import React from 'react';
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { cleanup, renderWithProviders, fireClick } from './frontendTestUtils';
+import { setMobilePlatform } from './setup';
+import {
+  isDesktopWebEnvironment,
+  isRunningAsStandalonePwa,
+  canTriggerNativePwaInstall,
+  triggerPwaInstallPrompt,
+  downloadTextFileOnWeb,
+  pickJsonFileOnWeb,
+} from '../src/utils/desktopPwa';
+import { UpdateCheckerService } from '../src/services/updates/UpdateCheckerService';
+import { UpdateNotificationModal } from '../src/components/UpdateNotificationModal';
+import { UserProfileModal } from '../src/components/UserProfileModal';
+
+describe('Desktop PC & PWA Support (SOL-MEL-001)', () => {
+  const rootDir = process.cwd();
+  const originalMatchMedia = (globalThis.window as any)?.matchMedia;
+  const originalCreateObjectURL = globalThis.URL?.createObjectURL;
+  const originalRevokeObjectURL = globalThis.URL?.revokeObjectURL;
+  const originalCaches = (globalThis as any).caches;
+  const originalServiceWorker = (globalThis.navigator as any)?.serviceWorker;
+
+  beforeEach(async () => {
+    await cleanup();
+    setMobilePlatform('web');
+    if (typeof globalThis.window !== 'undefined') {
+      (globalThis.window as any).__ordoDeferredPwaPrompt = null;
+    }
+  });
+
+  afterEach(async () => {
+    await cleanup();
+    setMobilePlatform('web');
+    if (typeof globalThis.window !== 'undefined') {
+      (globalThis.window as any).__ordoDeferredPwaPrompt = null;
+      (globalThis.window as any).matchMedia = originalMatchMedia;
+    }
+    if (globalThis.URL) {
+      globalThis.URL.createObjectURL = originalCreateObjectURL;
+      globalThis.URL.revokeObjectURL = originalRevokeObjectURL;
+    }
+    (globalThis as any).caches = originalCaches;
+    if (typeof globalThis.navigator !== 'undefined') {
+      try {
+        Object.defineProperty(globalThis.navigator, 'serviceWorker', {
+          value: originalServiceWorker,
+          configurable: true,
+        });
+      } catch {}
+    }
+  });
+
+  it('deve possuir public/manifest.json válido, ícones em public/ e Service Worker offline (public/sw.js)', () => {
+    const manifestPath = path.join(rootDir, 'public', 'manifest.json');
+    const swPath = path.join(rootDir, 'public', 'sw.js');
+    const faviconPath = path.join(rootDir, 'public', 'favicon.png');
+    const iconPath = path.join(rootDir, 'public', 'icon.png');
+
+    assert.ok(fs.existsSync(manifestPath), 'public/manifest.json deve existir');
+    assert.ok(fs.existsSync(swPath), 'public/sw.js deve existir');
+    assert.ok(fs.existsSync(faviconPath), 'public/favicon.png deve existir');
+    assert.ok(fs.existsSync(iconPath), 'public/icon.png deve existir');
+
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    assert.equal(manifest.display, 'standalone');
+    assert.equal(manifest.theme_color, '#0A0A0C');
+    assert.equal(manifest.background_color, '#0A0A0C');
+    assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 2);
+    assert.ok(manifest.icons.some((i: any) => i.src === '/favicon.png'));
+    assert.ok(manifest.icons.some((i: any) => i.src === '/icon.png'));
+
+    const swContent = fs.readFileSync(swPath, 'utf8');
+    assert.ok(swContent.includes('SKIP_WAITING'));
+    assert.ok(swContent.includes('/manifest.json'));
+    assert.ok(swContent.includes('/pdfs/'), 'SW deve ignorar PDFs gigantes armazenados no IndexedDB');
+  });
+
+  it('deve configurar tags PWA no src/app/+html.tsx e expo.web standalone no app.json sem afetar Android', () => {
+    const htmlContent = fs.readFileSync(path.join(rootDir, 'src', 'app', '+html.tsx'), 'utf8');
+    assert.ok(htmlContent.includes('href="/manifest.json"'));
+    assert.ok(htmlContent.includes('href="/favicon.png"'));
+    assert.ok(htmlContent.includes('beforeinstallprompt'));
+    assert.ok(htmlContent.includes("serviceWorker.register('/sw.js')"));
+
+    const appJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'app.json'), 'utf8'));
+    assert.equal(appJson.expo.web.display, 'standalone');
+    assert.equal(appJson.expo.web.themeColor, '#0A0A0C');
+    assert.equal(appJson.expo.web.output, 'single');
+    assert.equal(appJson.expo.android.package, 'com.ordemparanormal.ordo');
+
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+    assert.ok(pkg.scripts['build:web']);
+    assert.ok(pkg.scripts['build:pc']);
+
+    const releaseScript = fs.readFileSync(path.join(rootDir, 'scripts', 'create_release.js'), 'utf8');
+    assert.ok(releaseScript.includes('Instalação e Uso no PC'));
+  });
+
+  it('deve blindar utilitários Desktop PWA no runtime mobile Android/Hermes', async () => {
+    setMobilePlatform('android');
+
+    assert.equal(isDesktopWebEnvironment(), false);
+    assert.equal(isRunningAsStandalonePwa(), false);
+    assert.equal(canTriggerNativePwaInstall(), false);
+    assert.equal(downloadTextFileOnWeb('backup.json', '{}'), false);
+    assert.equal(await pickJsonFileOnWeb(), null);
+
+    const promptRes = await triggerPwaInstallPrompt();
+    assert.equal(promptRes.outcome, 'manual_instructions');
+  });
+
+  it('deve disparar instalador PWA nativo e download de arquivo .json no PC/Web', async () => {
+    setMobilePlatform('web');
+    assert.equal(isDesktopWebEnvironment(), true);
+
+    let prompted = false;
+    (globalThis.window as any).__ordoDeferredPwaPrompt = {
+      prompt: async () => {
+        prompted = true;
+      },
+      userChoice: Promise.resolve({ outcome: 'accepted', platform: 'web' }),
+    };
+
+    assert.equal(canTriggerNativePwaInstall(), true);
+    const installRes = await triggerPwaInstallPrompt();
+    assert.equal(prompted, true);
+    assert.equal(installRes.outcome, 'accepted');
+    assert.equal(canTriggerNativePwaInstall(), false);
+
+    // Simula modo já instalado em janela standalone
+    (globalThis.window as any).matchMedia = (q: string) => ({
+      matches: q.includes('standalone'),
+      media: q,
+      addListener: () => {},
+      removeListener: () => {},
+    });
+    assert.equal(isRunningAsStandalonePwa(), true);
+    const alreadyRes = await triggerPwaInstallPrompt();
+    assert.equal(alreadyRes.outcome, 'already_installed');
+
+    // Simula download de backup .json no PC
+    let createdBlobUrl = '';
+    globalThis.URL.createObjectURL = () => {
+      createdBlobUrl = 'blob:http://localhost:8081/ordo-backup';
+      return createdBlobUrl;
+    };
+    globalThis.URL.revokeObjectURL = () => {};
+
+    const downloaded = downloadTextFileOnWeb('ordo_backup.json', '{"version":1}');
+    assert.equal(downloaded, true);
+    assert.ok(createdBlobUrl.startsWith('blob:'));
+  });
+
+  it('UpdateCheckerService.applyWebOrDesktopUpdate deve ativar Service Worker pendente e limpar cache PWA no Web', async () => {
+    const checker = new UpdateCheckerService();
+    let skipWaitingSent = false;
+    let deletedCacheKey = '';
+
+    setMobilePlatform('web');
+    Object.defineProperty(globalThis.navigator, 'serviceWorker', {
+      value: {
+        getRegistration: async () => ({
+          update: async () => {},
+          waiting: {
+            postMessage: (msg: any) => {
+              if (msg?.type === 'SKIP_WAITING') skipWaitingSent = true;
+            },
+          },
+        }),
+      },
+      configurable: true,
+    });
+    (globalThis as any).caches = {
+      keys: async () => ['ordo-companion-pwa-v1', 'unrelated-cache'],
+      delete: async (key: string) => {
+        deletedCacheKey = key;
+        return true;
+      },
+    };
+
+    const result = await checker.applyWebOrDesktopUpdate('https://github.com/Lecrepus17/OrdoCompanion/releases/latest');
+    assert.equal(typeof result, 'boolean');
+    assert.equal(skipWaitingSent, true);
+    assert.equal(deletedCacheKey, 'ordo-companion-pwa-v1');
+  });
+
+  it('UpdateNotificationModal deve exibir botão "Atualizar Aplicativo no PC" na Web preservando Android', async () => {
+    const mockInfo = {
+      hasUpdate: true,
+      currentVersion: '1.6.0-beta.1',
+      latestVersion: '1.6.0-beta.2',
+      releaseName: 'Ordo Companion v1.6.0-beta.2',
+      changelog: ['Suporte oficial a aplicativo para PC (PWA)'],
+      downloadUrl: 'https://github.com/Lecrepus17/OrdoCompanion/releases/latest',
+      apkUrl: 'https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.6.0-beta.2/OrdoCompanion.apk',
+      isMandatory: false,
+      isDismissed: false,
+    };
+
+    const webRender = await renderWithProviders(
+      React.createElement(UpdateNotificationModal, {
+        visible: true,
+        updateInfo: mockInfo,
+        onDismiss: () => {},
+      })
+    );
+    assert.ok(webRender.getByTestId('update-pc-app-button'));
+    assert.ok(webRender.getByText(/Atualizar Aplicativo no PC/i));
+
+    await cleanup();
+
+    const androidRender = await renderWithProviders(
+      React.createElement(UpdateNotificationModal, {
+        visible: true,
+        updateInfo: mockInfo,
+        onDismiss: () => {},
+      }),
+      { mobile: 'android' }
+    );
+    assert.equal(androidRender.queryByTestId('update-pc-app-button'), null);
+    assert.ok(androidRender.getByText(/Baixar Nova Versão \(APK\)/i));
+  });
+
+  it('UserProfileModal deve oferecer instalação PWA e backup .json no PC/Web, e card informativo no Android', async () => {
+    const webIdentity = await renderWithProviders(
+      React.createElement(UserProfileModal, {
+        visible: true,
+        onClose: () => {},
+        initialTab: 'identidade',
+      })
+    );
+    const installBtn = webIdentity.getByTestId('profile-install-pc-pwa-btn');
+    assert.ok(installBtn);
+    await fireClick(installBtn);
+
+    await cleanup();
+
+    const webCloud = await renderWithProviders(
+      React.createElement(UserProfileModal, {
+        visible: true,
+        onClose: () => {},
+        initialTab: 'nuvem',
+      })
+    );
+    assert.ok(webCloud.getByTestId('backup-download-json-pc-btn'));
+    assert.ok(webCloud.getByTestId('backup-upload-json-pc-btn'));
+
+    await cleanup();
+
+    const androidIdentity = await renderWithProviders(
+      React.createElement(UserProfileModal, {
+        visible: true,
+        onClose: () => {},
+        initialTab: 'identidade',
+      }),
+      { mobile: 'android' }
+    );
+    assert.equal(androidIdentity.queryByTestId('profile-install-pc-pwa-btn'), null);
+    assert.ok(androidIdentity.getByTestId('profile-pc-pwa-info-card'));
+  });
+
+});

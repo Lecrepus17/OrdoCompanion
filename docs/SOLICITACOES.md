@@ -86,6 +86,7 @@ npm run requests:questions
 | `SOL-MEL-HIST-02` | 💡 Melhoria | Discord `#erros` (`#ORD-4662K3`) | Importar itens do Compêndio na aba Inventário do Agente | `2026-11-14` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-03` | 💡 Melhoria | Discord `#erros` (`#ORD-4017YV`) | Armaria para proteções, vestimentas e itens com maldições | `2026-11-18` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-04` | 💡 Melhoria | Discord `#erros` (`#ORD-913969`) | Criador completo de Ameaças estilo C.R.I.S. (VD 20–400) | `2026-11-18` / `v1.6.0-beta.1` |
+| `SOL-MEL-HIST-05` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Aplicativo para PC (Web App + PWA Instalável Offline) com backup `.json` em disco e atualizador PC | `2026-11-20` / `v1.6.0-beta.2` |
 
 ---
 

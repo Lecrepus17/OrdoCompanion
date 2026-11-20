@@ -131,6 +131,11 @@ function buildGitHubReleaseNotes(version, summaryMarkdown, changelogList) {
     '1. Baixe o arquivo **`OrdoCompanion.apk`** anexado abaixo na seção **Assets**.',
     '2. Abra o arquivo no seu smartphone ou tablet Android para instalar ou atualizar mantendo todas as suas fichas, anotações e campanhas salvas.',
     '',
+    '## 💻 Instalação e Uso no PC (Windows, macOS e Linux)',
+    '1. Acesse a versão Web do **Ordo Companion** no navegador **Google Chrome** ou **Microsoft Edge** (ou gere localmente com `npm run build:pc`).',
+    '2. Clique no ícone de **Instalar Aplicativo** na barra de endereços (ou em **Perfil ➔ Instalar Aplicativo no PC**) para usar em janela dedicada e offline como aplicativo desktop (PWA).',
+    '3. Sincronize suas fichas, campanhas e PDFs entre o celular e o PC pelo **Google Drive** ou exportando/importando o arquivo **`.json`** na aba **Nuvem**.',
+    '',
   ].join('\n');
 }
 
