@@ -1,18 +1,14 @@
 {
-  "version": "1.6.0-beta.1",
+  "version": "1.7.0-beta.1",
   "minVersion": "1.0.0-beta.1",
-  "releaseName": "Ordo Companion v1.6.0-beta.1",
+  "releaseName": "Ordo Companion v1.7.0-beta.1",
   "releaseDate": "2026-11-20",
-  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.6.0-beta.1",
-  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.6.0-beta.1/OrdoCompanion.apk",
+  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.7.0-beta.1",
+  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.7.0-beta.1/OrdoCompanion.apk",
   "changelog": [
-    "Criador Completo de Ameaças Estilo C.R.I.S. (`#ORD-913969`)",
-    "Mascarados & Forma Suprema (`#ORD-33762V` — Arquivos Secretos #02 p. 47, 94-97)",
-    "Maldições para Proteções & Acessórios, Armaria Expandida & Compêndio (`#ORD-5322T7`, `#ORD-4017YV`, `#ORD-4662K3`)",
-    "Correções de Regras na Evolução Assistida & Auditoria Mobile/APK (`#ORD-5322T7`)",
-    "Depósito de Itens & Importação do Compêndio na Ficha e na Armaria",
-    "Editor Unificado e Modificações Oficiais de Acessórios",
-    "Mecânicas Interativas de Itens & Status Temporários"
+    "Aplicativo para PC (Web App + PWA Instalável Offline — `SOL-MEL-001`)",
+    "Central de Suporte com Filas Separadas (Erros vs. Melhorias)",
+    "Login Google Drive OAuth (Android & PC/Web) + Política de Privacidade & Termos (`SOL-ERR-001`)"
   ],
   "forceUpdate": false
 }

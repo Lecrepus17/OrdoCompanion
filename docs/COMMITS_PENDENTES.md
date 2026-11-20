@@ -12,6 +12,17 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ 1. Preparação da Release v1.7.0-beta.1 (versionCode 13):
+```bash
+git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "chore(release): prepara versao v1.7.0-beta.1 (versionCode 13)" \
+  -m "- Atualiza versao em package.json, app.json e version.json para 1.7.0-beta.1" \
+  -m "- Incrementa android.versionCode para 13 em app.json" \
+  -m "- Gera docs/RELEASE_NOTES.md e arquiva notas da v1.7.0-beta.1 em docs/HISTORICO_RELEASES.md" \
+  -m "- Reseta docs/ATUALIZACOES_PENDENTES.md para o proximo ciclo e atualiza docs/COMMITS_PENDENTES.md"
+git tag v1.7.0-beta.1
+```
+
 ### ✅ Blindagem Pré-Release, SemVer Beta, Build Web/PC Seguro e CI (`v1.7.0-beta.1`) (2026-11-20):
 - **Título**: `fix(release,web,ci): corrige semver beta, higieniza dist/pdfs no build:pc e blinda pipeline de release`
 - **Resumo**: Corrige `compareSemVer` em `UpdateCheckerService.ts` para sufixos `-beta.N`/`-rc.N` e amplia `tests/updateChecker.test.ts`; cria `scripts/build_web_pc.js` removendo `dist/pdfs/` e validando artefatos PWA/OAuth em `package.json` e `tests/desktopPwaSupport.test.ts`; ajusta `public/index.html` (`viewport-fit=cover`, `http-equiv`, safe-area, scrollbars desktop); torna determinístico `tests/frontendOracle.test.tsx`; adiciona trava de working tree limpa em `scripts/create_release.js`, preserva `docs/RELEASE_NOTES.md` no `.github/workflows/release-apk.yml` e atualiza governança para `v1.7.0-beta.1`.
