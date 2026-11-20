@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
-  Alert,
   BackHandler,
   FlatList,
   Modal,
@@ -32,10 +31,18 @@ import {
 import { confirmAction, showAlert } from '../../utils/alert';
 import { parseAgentShareCode } from '../../utils/agentSharing';
 import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
+import { ThreatCreatorModal, ThreatCreatorSavePayload } from '../../components/ThreatCreatorModal';
 
 type MasterSubTab = 'stories' | 'monsters' | 'agents' | 'combat';
 
 const THREAT_LEVELS = ['Iniciante', 'Veterano', 'Especialista', 'Elite', 'Extremo'] as const;
+
+const formatSignedSave = (raw: string | number) => {
+  const s = String(raw ?? '').trim();
+  if (!s) return '+0';
+  if (s.startsWith('+') || s.startsWith('-')) return s;
+  return `+${s}`;
+};
 
 export default function MasterScreen() {
   const router = useRouter();
@@ -92,18 +99,9 @@ export default function MasterScreen() {
   const [sceneClues, setSceneClues] = useState<CampaignClue[]>([]);
   const [newClueText, setNewClueText] = useState('');
 
-  // Modais de Monstro
+  // Modais de Monstro (Criador Completo Estilo C.R.I.S.)
   const [monsterModalVisible, setMonsterModalVisible] = useState(false);
-  const [editingMonsterId, setEditingMonsterId] = useState<string | null>(null);
-  const [monName, setMonName] = useState('');
-  const [monVD, setMonVD] = useState('20');
-  const [monPV, setMonPV] = useState('40');
-  const [monDef, setMonDef] = useState('15');
-  const [monElement, setMonElement] = useState<string>('Sangue');
-  const [monPresence, setMonPresence] = useState('DT 13 • 1d6 mental');
-  const [monAttacks, setMonAttacks] = useState('');
-  const [monAbilities, setMonAbilities] = useState('');
-  const [monNotes, setMonNotes] = useState('');
+  const [editingMonster, setEditingMonster] = useState<CampaignMonster | null>(null);
 
   // Modal de Importar Monstro do Compêndio
   const [importCompendiumMonsterModal, setImportCompendiumMonsterModal] = useState(false);
@@ -129,67 +127,54 @@ export default function MasterScreen() {
   // Modal de Rolagem Rápida de Perícia para Agente
   const [skillRollAgent, setSkillRollAgent] = useState<CampaignAgentLink | null>(null);
 
-  // Intercepta botão de retorno físico no Android e botão Voltar do navegador na Web
+  const hasOpenModalRef = useRef(false);
+  hasOpenModalRef.current = Boolean(
+    campaignModalVisible ||
+      sceneModalVisible ||
+      monsterModalVisible ||
+      importCompendiumMonsterModal ||
+      agentModalVisible ||
+      skillRollAgent !== null
+  );
+
+  // Intercepta botão de retorno físico no Android
   useEffect(() => {
-    let sub: any;
-    if (Platform.OS !== 'web' && typeof document === 'undefined') {
-      const onBackPress = () => {
-        if (campaignModalVisible) {
-          setCampaignModalVisible(false);
-          return true;
-        }
-        if (sceneModalVisible) {
-          setSceneModalVisible(false);
-          return true;
-        }
-        if (monsterModalVisible) {
-          setMonsterModalVisible(false);
-          return true;
-        }
-        if (importCompendiumMonsterModal) {
-          setImportCompendiumMonsterModal(false);
-          return true;
-        }
-        if (agentModalVisible) {
-          setAgentModalVisible(false);
-          return true;
-        }
-        if (skillRollAgent !== null) {
-          setSkillRollAgent(null);
-          return true;
-        }
-        if (activeCampaignId !== null) {
-          setActiveCampaignId(null);
-          return true;
-        }
-        return false;
-      };
-      sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    }
-
-    let popActive = true;
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && activeCampaignId) {
-      try {
-        window.history.pushState({ screen: 'master-campaign', id: activeCampaignId }, '');
-      } catch {}
-      const handlePop = () => {
-        if (popActive) {
-          setActiveCampaignId(null);
-        }
-      };
-      window.addEventListener('popstate', handlePop);
-      return () => {
-        popActive = false;
-        sub?.remove();
-        window.removeEventListener('popstate', handlePop);
-        if (window.history.state?.screen === 'master-campaign') {
-          window.history.back();
-        }
-      };
-    }
-
+    if (Platform.OS !== 'android') return;
+    const onBackPress = () => {
+      if (campaignModalVisible) {
+        setCampaignModalVisible(false);
+        return true;
+      }
+      if (sceneModalVisible) {
+        setSceneModalVisible(false);
+        return true;
+      }
+      if (monsterModalVisible) {
+        setMonsterModalVisible(false);
+        setEditingMonster(null);
+        return true;
+      }
+      if (importCompendiumMonsterModal) {
+        setImportCompendiumMonsterModal(false);
+        return true;
+      }
+      if (agentModalVisible) {
+        setAgentModalVisible(false);
+        return true;
+      }
+      if (skillRollAgent !== null) {
+        setSkillRollAgent(null);
+        return true;
+      }
+      if (activeCampaignId !== null) {
+        setActiveCampaignId(null);
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => {
-      sub?.remove();
+      sub.remove();
     };
   }, [
     activeCampaignId,
@@ -200,6 +185,28 @@ export default function MasterScreen() {
     agentModalVisible,
     skillRollAgent,
   ]);
+
+  // Intercepta botão Voltar do navegador na Web apenas ao sair da campanha sem modais abertos
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !activeCampaignId) return;
+    let popActive = true;
+    try {
+      window.history.pushState({ screen: 'master-campaign', id: activeCampaignId }, '');
+    } catch {}
+    const handlePop = () => {
+      if (popActive && !hasOpenModalRef.current) {
+        setActiveCampaignId(null);
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => {
+      popActive = false;
+      window.removeEventListener('popstate', handlePop);
+      if (window.history.state?.screen === 'master-campaign') {
+        window.history.back();
+      }
+    };
+  }, [activeCampaignId]);
 
   // Lista de criaturas do compêndio para importação
   const compendiumCreatures = useMemo(() => {
@@ -377,76 +384,29 @@ export default function MasterScreen() {
     setSceneModalVisible(false);
   };
 
-  // Handlers de Monstros
+  // Handlers de Monstros (C.R.I.S.)
   const handleOpenCreateMonster = () => {
-    setEditingMonsterId(null);
-    setMonName('');
-    setMonVD('20');
-    setMonPV('40');
-    setMonDef('15');
-    setMonElement('Sangue');
-    setMonPresence('DT 13 • 1d6 mental');
-    setMonAttacks('Garras (2d20+5, dano 1d8+3)');
-    setMonAbilities('Resistência a Balístico 5');
-    setMonNotes('');
+    setEditingMonster(null);
     setMonsterModalVisible(true);
   };
 
   const handleOpenEditMonster = (mon: CampaignMonster) => {
-    setEditingMonsterId(mon.id);
-    setMonName(mon.name);
-    setMonVD(String(mon.vd));
-    setMonPV(String(mon.pvMax));
-    setMonDef(String(mon.defense));
-    setMonElement(mon.element || 'Sangue');
-    setMonPresence(mon.disturbingPresence || '');
-    setMonAttacks(mon.attacks || '');
-    setMonAbilities(mon.abilities || '');
-    setMonNotes(mon.notes || '');
+    setEditingMonster(mon);
     setMonsterModalVisible(true);
   };
 
-  const handleSaveMonster = async () => {
+  const handleSaveThreatFromCreator = async (payload: ThreatCreatorSavePayload) => {
     if (!activeCampaign) return;
-    if (!monName.trim()) {
-      showAlert('Atenção', 'Informe o nome do monstro.');
-      return;
-    }
-
-    const pvParsed = parseInt(monPV, 10) || 40;
-    const vdParsed = parseInt(monVD, 10) || 20;
-    const defParsed = parseInt(monDef, 10) || 15;
-
-    if (editingMonsterId) {
-      await updateMonsterInCampaign(activeCampaign.id, editingMonsterId, {
-        name: monName.trim(),
-        vd: vdParsed,
-        pvMax: pvParsed,
-        defense: defParsed,
-        element: monElement,
-        disturbingPresence: monPresence.trim(),
-        attacks: monAttacks.trim(),
-        abilities: monAbilities.trim(),
-        notes: monNotes.trim(),
-      });
+    if (editingMonster) {
+      await updateMonsterInCampaign(activeCampaign.id, editingMonster.id, payload.monster);
     } else {
-      const newMonster: CampaignMonster = {
-        id: `mon_${Date.now()}`,
-        name: monName.trim(),
-        vd: vdParsed,
-        pvCurrent: pvParsed,
-        pvMax: pvParsed,
-        defense: defParsed,
-        element: monElement,
-        disturbingPresence: monPresence.trim(),
-        attacks: monAttacks.trim(),
-        abilities: monAbilities.trim(),
-        notes: monNotes.trim(),
-      };
-      await addMonsterToCampaign(activeCampaign.id, newMonster);
+      await addMonsterToCampaign(activeCampaign.id, payload.monster);
     }
-
+    if (payload.alsoSaveToCompendium) {
+      await saveMonsterToCompendium(payload.monster);
+    }
     setMonsterModalVisible(false);
+    setEditingMonster(null);
   };
 
   const handleImportCompendiumCreature = async (ent: CompendiumEntity) => {
@@ -466,6 +426,20 @@ export default function MasterScreen() {
       defense: def,
       disturbingPresence: ent.disturbingPresence || '',
       element: ent.element || 'Nenhum',
+      secondaryElements: ent.secondaryElements,
+      size: ent.size,
+      creatureType: ent.creatureType,
+      senses: ent.senses,
+      displacement: ent.displacement,
+      attributes: ent.attributes,
+      saves: ent.saves,
+      resistancesText: ent.resistancesText,
+      immunitiesText: ent.immunitiesText,
+      vulnerabilitiesText: ent.vulnerabilitiesText,
+      skillsText: ent.skillsText,
+      fearEnigma: ent.fearEnigma,
+      structuredAttacks: ent.structuredAttacks,
+      structuredAbilities: ent.structuredAbilities,
       attacks: ent.summary || '',
       abilities: ent.description || '',
       notes: `Importado do livro ${ent.bookTitle || 'Compêndio'}.`,
@@ -1032,13 +1006,20 @@ export default function MasterScreen() {
                             </View>
                           </View>
                           <Text style={styles.monsterMeta}>
-                            VD {mon.vd} • Defesa {mon.defense} • Presença: {mon.disturbingPresence || 'Nenhuma'}
+                            VD {mon.vd}{mon.size ? ` (${mon.size})` : ''} • Defesa {mon.defense} • Presença: {mon.disturbingPresence || 'Nenhuma'}
                           </Text>
+                          {mon.saves && (
+                            <Text style={styles.monsterMeta}>
+                              Resistências: Fort {formatSignedSave(mon.saves.fortitude)} • Ref {formatSignedSave(mon.saves.reflexos)} • Von {formatSignedSave(mon.saves.vontade)}
+                              {mon.displacement ? ` • Desl. ${mon.displacement}` : ''}
+                            </Text>
+                          )}
                         </View>
 
                         <View style={{ flexDirection: 'row', gap: 6 }}>
                           <TouchableOpacity
                             style={styles.iconCircleBtnSmall}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             onPress={(e) => {
                               e.stopPropagation?.();
                               openMonsterPreview();
@@ -1050,16 +1031,22 @@ export default function MasterScreen() {
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.iconCircleBtnSmall}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             onPress={() => handleSaveMonsterToGeneralCompendium(mon)}
                             accessibilityLabel="Salvar no Compêndio Geral"
                           >
                             <Ionicons name="bookmark-outline" size={14} color={colors.primary} />
                           </TouchableOpacity>
-                          <TouchableOpacity style={styles.iconCircleBtnSmall} onPress={() => handleOpenEditMonster(mon)}>
+                          <TouchableOpacity
+                            style={styles.iconCircleBtnSmall}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            onPress={() => handleOpenEditMonster(mon)}
+                          >
                             <Ionicons name="pencil" size={14} color={colors.text} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.iconCircleBtnSmall}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             onPress={() => deleteMonsterFromCampaign(activeCampaign.id, mon.id)}
                           >
                             <Ionicons name="trash-outline" size={14} color="#EF4444" />
@@ -1111,17 +1098,84 @@ export default function MasterScreen() {
                         ))}
                       </View>
 
-                      {/* Ataques e Habilidades */}
-                      {mon.attacks ? (
+                      {/* Ataques Estruturados com Rolagem 1-Toque */}
+                      {mon.structuredAttacks && mon.structuredAttacks.length > 0 ? (
+                        <View style={styles.detailBox}>
+                          <Text style={styles.detailBoxTitle}>Ataques Rápidos (1 Toque):</Text>
+                          {mon.structuredAttacks.map((atk) => (
+                            <View key={atk.id} style={styles.threatAttackRow}>
+                              <View style={{ flex: 1, minWidth: 140 }}>
+                                <Text style={styles.threatAttackName}>{atk.name}</Text>
+                                <Text style={styles.detailBoxContent}>
+                                  {atk.actionType || 'Padrão'} • {atk.damageType || 'Dano'} ({atk.critical || '20/x2'})
+                                </Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                                <TouchableOpacity
+                                  style={styles.threatRollChip}
+                                  onPress={() =>
+                                    rollFormula(atk.testFormula, `${mon.name}: ${atk.name} (Teste)`, {
+                                      weaponName: `${mon.name}: ${atk.name}`,
+                                      damage: atk.damageFormula,
+                                      critical: atk.critical || '20/x2',
+                                      damageType: atk.damageType,
+                                    })
+                                  }
+                                  testID={`btn-monster-roll-test-${atk.id}`}
+                                >
+                                  <Ionicons name="dice-outline" size={12} color={colors.elements.Medo.text} />
+                                  <Text style={styles.threatRollChipText}>{atk.testFormula}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={[styles.threatRollChip, styles.threatDamageChip]}
+                                  onPress={() => rollFormula(atk.damageFormula, `${mon.name}: ${atk.name} (Dano)`)}
+                                  testID={`btn-monster-roll-dmg-${atk.id}`}
+                                >
+                                  <Ionicons name="flame-outline" size={12} color={colors.elements.Sangue.text} />
+                                  <Text style={[styles.threatRollChipText, { color: colors.elements.Sangue.text }]}>
+                                    {atk.damageFormula}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      ) : mon.attacks ? (
                         <View style={styles.detailBox}>
                           <Text style={styles.detailBoxTitle}>Ataques & Ações:</Text>
                           <Text style={styles.detailBoxContent}>{mon.attacks}</Text>
                         </View>
                       ) : null}
 
+                      {mon.structuredAbilities &&
+                      mon.structuredAbilities.some((ab) => /\d+d\d+/i.test(ab.description || '')) ? (
+                        <View style={[styles.detailBox, { gap: 6 }]}>
+                          <Text style={styles.detailBoxTitle}>Rolagens de Habilidades:</Text>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                            {mon.structuredAbilities.map((ab) => {
+                              const match = (ab.description || '').match(/\d+d\d+(?:\s*[+\-]\s*\d+)?/i);
+                              if (!match) return null;
+                              const formula = match[0].replace(/\s+/g, '');
+                              return (
+                                <TouchableOpacity
+                                  key={ab.id}
+                                  style={styles.threatRollChip}
+                                  onPress={() => rollFormula(formula, `${mon.name}: ${ab.name}`)}
+                                >
+                                  <Ionicons name="dice-outline" size={12} color={colors.elements.Medo.text} />
+                                  <Text style={styles.threatRollChipText}>
+                                    {ab.name} ({formula})
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      ) : null}
+
                       {mon.abilities ? (
                         <View style={styles.detailBox}>
-                          <Text style={styles.detailBoxTitle}>Habilidades Especiais:</Text>
+                          <Text style={styles.detailBoxTitle}>Habilidades, RD & Detalhes:</Text>
                           <Text style={styles.detailBoxContent}>{mon.abilities}</Text>
                         </View>
                       ) : null}
@@ -1403,19 +1457,36 @@ export default function MasterScreen() {
       )}
 
       {/* MODAL: Nova / Editar Campanha */}
-      <Modal visible={campaignModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal
+        visible={campaignModalVisible}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setCampaignModalVisible(false)}
+      >
+        <View
+          style={[
+            styles.modalOverlay,
+            {
+              paddingTop: Math.max(insets.top, 16),
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+              <Text style={styles.modalTitle} numberOfLines={1}>
                 {editingCampaignId ? 'Editar Campanha' : 'Nova Campanha'}
               </Text>
-              <TouchableOpacity onPress={() => setCampaignModalVisible(false)}>
+              <TouchableOpacity
+                onPress={() => setCampaignModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalBody}>
+            <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
               <Text style={styles.fieldLabel}>Título da Campanha *</Text>
               <TextInput
                 style={styles.input}
@@ -1485,19 +1556,36 @@ export default function MasterScreen() {
       </Modal>
 
       {/* MODAL: Nova / Editar Cena de História */}
-      <Modal visible={sceneModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal
+        visible={sceneModalVisible}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setSceneModalVisible(false)}
+      >
+        <View
+          style={[
+            styles.modalOverlay,
+            {
+              paddingTop: Math.max(insets.top, 16),
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+              <Text style={styles.modalTitle} numberOfLines={1}>
                 {editingSceneId ? 'Editar Cena' : 'Nova Cena Investigativa'}
               </Text>
-              <TouchableOpacity onPress={() => setSceneModalVisible(false)}>
+              <TouchableOpacity
+                onPress={() => setSceneModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalBody}>
+            <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
               <Text style={styles.fieldLabel}>Título da Cena *</Text>
               <TextInput
                 style={styles.input}
@@ -1576,122 +1664,42 @@ export default function MasterScreen() {
       </Modal>
 
       {/* MODAL: Nova / Editar Ameaça */}
-      <Modal visible={monsterModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingMonsterId ? 'Editar Ameaça' : 'Cadastrar Ameaça'}
-              </Text>
-              <TouchableOpacity onPress={() => setMonsterModalVisible(false)}>
-                <Ionicons name="close" size={22} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.modalBody}>
-              <Text style={styles.fieldLabel}>Nome do Monstro / Ameaça *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Aberração de Sangue, Zumbi Ocultista..."
-                placeholderTextColor={colors.textMuted}
-                value={monName}
-                onChangeText={setMonName}
-              />
-
-              <View style={styles.multiFieldsRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>VD *</Text>
-                  <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={monVD}
-                    onChangeText={setMonVD}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>PV Máximo *</Text>
-                  <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={monPV}
-                    onChangeText={setMonPV}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>Defesa *</Text>
-                  <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={monDef}
-                    onChangeText={setMonDef}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.fieldLabel}>Elemento Paranormal</Text>
-              <View style={styles.threatLevelsRow}>
-                {['Sangue', 'Morte', 'Conhecimento', 'Energia', 'Medo', 'Nenhum'].map((elem) => (
-                  <TouchableOpacity
-                    key={elem}
-                    style={[styles.threatPill, monElement === elem && styles.threatPillActive]}
-                    onPress={() => setMonElement(elem)}
-                  >
-                    <Text style={[styles.threatPillText, monElement === elem && styles.threatPillTextActive]}>
-                      {elem}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.fieldLabel}>Presença Perturbadora</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: DT 13 • 1d6 mental"
-                placeholderTextColor={colors.textMuted}
-                value={monPresence}
-                onChangeText={setMonPresence}
-              />
-
-              <Text style={styles.fieldLabel}>Ataques & Ações de Combate</Text>
-              <TextInput
-                style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
-                multiline
-                placeholder="Ex: Mordida 2d20+10 (2d8+5 corte) • Presas Venenosas"
-                placeholderTextColor={colors.textMuted}
-                value={monAttacks}
-                onChangeText={setMonAttacks}
-              />
-
-              <Text style={styles.fieldLabel}>Habilidades & Resistências</Text>
-              <TextInput
-                style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]}
-                multiline
-                placeholder="Ex: Resistência a Balístico 5, Vulnerabilidade a Fogo..."
-                placeholderTextColor={colors.textMuted}
-                value={monAbilities}
-                onChangeText={setMonAbilities}
-              />
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setMonsterModalVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveMonster}>
-                <Text style={styles.confirmBtnText}>Salvar Monstro</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* MODAL: Criador / Editor Completo de Ameaças (Estilo C.R.I.S.) */}
+      <ThreatCreatorModal
+        visible={monsterModalVisible}
+        onClose={() => {
+          setMonsterModalVisible(false);
+          setEditingMonster(null);
+        }}
+        onSave={handleSaveThreatFromCreator}
+        initialMonster={editingMonster}
+        mode="campaign"
+      />
 
       {/* MODAL: Importar Criatura Oficial do Compêndio */}
-      <Modal visible={importCompendiumMonsterModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal
+        visible={importCompendiumMonsterModal}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setImportCompendiumMonsterModal(false)}
+      >
+        <View
+          style={[
+            styles.modalOverlay,
+            {
+              paddingTop: Math.max(insets.top, 16),
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Importar Criatura do Compêndio</Text>
-              <TouchableOpacity onPress={() => setImportCompendiumMonsterModal(false)}>
+              <Text style={styles.modalTitle} numberOfLines={1}>Importar Criatura do Compêndio</Text>
+              <TouchableOpacity
+                onPress={() => setImportCompendiumMonsterModal(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -1709,6 +1717,7 @@ export default function MasterScreen() {
             <FlatList
               data={filteredCompendiumCreatures}
               keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ padding: 16, gap: 10 }}
               renderItem={({ item }) => {
                 const openCreaturePreview = () =>
@@ -1755,12 +1764,29 @@ export default function MasterScreen() {
       </Modal>
 
       {/* MODAL: Adicionar Agente (Manual / Local / Código) */}
-      <Modal visible={agentModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal
+        visible={agentModalVisible}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setAgentModalVisible(false)}
+      >
+        <View
+          style={[
+            styles.modalOverlay,
+            {
+              paddingTop: Math.max(insets.top, 16),
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Adicionar Agente à Mesa</Text>
-              <TouchableOpacity onPress={() => setAgentModalVisible(false)}>
+              <Text style={styles.modalTitle} numberOfLines={1}>Adicionar Agente à Mesa</Text>
+              <TouchableOpacity
+                onPress={() => setAgentModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -1789,7 +1815,7 @@ export default function MasterScreen() {
               ))}
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalBody}>
+            <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
               {agentAddMode === 'manual' && (
                 <>
                   <Text style={styles.fieldLabel}>Nome do Agente ou NPC *</Text>
@@ -1938,19 +1964,36 @@ export default function MasterScreen() {
       </Modal>
 
       {/* MODAL: Rolador Rápido de Testes para Agente */}
-      <Modal visible={Boolean(skillRollAgent)} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal
+        visible={Boolean(skillRollAgent)}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setSkillRollAgent(null)}
+      >
+        <View
+          style={[
+            styles.modalOverlay,
+            {
+              paddingTop: Math.max(insets.top, 16),
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+              <Text style={styles.modalTitle} numberOfLines={1}>
                 Testes: {skillRollAgent?.characterSheet.name}
               </Text>
-              <TouchableOpacity onPress={() => setSkillRollAgent(null)}>
+              <TouchableOpacity
+                onPress={() => setSkillRollAgent(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalBody}>
+            <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
               <Text style={styles.fieldLabel}>Rolar Teste de Atributo:</Text>
               <View style={styles.attrsRollGrid}>
                 {['AGI', 'FOR', 'INT', 'PRE', 'VIG'].map((attr) => {
@@ -2365,8 +2408,11 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
+      flexWrap: 'wrap',
+      gap: 8,
     },
     monsterName: {
+      flexShrink: 1,
       fontSize: 16,
       fontWeight: '900',
       color: colors.text,
@@ -2669,6 +2715,8 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
     },
     modalTitle: {
+      flex: 1,
+      marginRight: 8,
       fontSize: 17,
       fontWeight: '900',
       color: colors.text,
@@ -2890,6 +2938,40 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 13,
       fontWeight: '900',
       color: colors.primary,
+    },
+    threatAttackRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      paddingTop: 4,
+      flexWrap: 'wrap',
+    },
+    threatAttackName: {
+      flexShrink: 1,
+      fontSize: 12,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    threatRollChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.elements.Medo.bg,
+      borderWidth: 1,
+      borderColor: colors.elements.Medo.border,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    threatDamageChip: {
+      backgroundColor: colors.elements.Sangue.bg,
+      borderColor: colors.elements.Sangue.border,
+    },
+    threatRollChipText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: colors.elements.Medo.text,
     },
   });
 

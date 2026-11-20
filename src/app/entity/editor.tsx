@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CATEGORY_LABELS, ThemeColors, useTheme, useThemedStyles } from '../../theme';
 import { EntityCategory } from '../../types/compendium';
+import { ThreatCreatorModal } from '../../components/ThreatCreatorModal';
 
 const EDITABLE_CATEGORIES: EntityCategory[] = [
   'ritual',
@@ -43,6 +46,7 @@ export default function EntityEditorScreen() {
   const { getEntityById, createEntity, updateEntity, openManual } = useApp();
 
   const existing = editId ? getEntityById(editId) : undefined;
+  const [threatCreatorVisible, setThreatCreatorVisible] = useState(false);
 
   const [category, setCategory] = useState<EntityCategory>(
     existing?.category || (defaultCategory as EntityCategory) || 'ritual'
@@ -200,12 +204,38 @@ export default function EntityEditorScreen() {
     }
   };
 
+  const initialThreatEntity = useMemo(
+    () =>
+      existing || {
+        id: '',
+        name: name.trim(),
+        category: 'creature' as const,
+        subCategory,
+        bookId: 'custom',
+        bookTitle,
+        pageNumber: parseInt(pageNumber, 10) || 1,
+        element,
+        summary,
+        description,
+        tags: [] as string[],
+        vd: parseInt(vd, 10) || 20,
+        pv: parseInt(pv, 10) || 40,
+        defense: parseInt(defense, 10) || 15,
+      },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [existing, threatCreatorVisible]
+  );
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: 60 + bottomInset }]}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingBottom: 60 + bottomInset }]}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <TouchableOpacity
           onPress={() => {
@@ -373,6 +403,16 @@ export default function EntityEditorScreen() {
               <TextInput style={styles.input} value={defense} onChangeText={setDefense} keyboardType="numeric" />
             </View>
           </View>
+          <TouchableOpacity
+            style={styles.threatBuilderBtn}
+            onPress={() => setThreatCreatorVisible(true)}
+            testID="btn-editor-open-threat-creator"
+          >
+            <Ionicons name="sparkles-outline" size={16} color="#FFF" />
+            <Text style={styles.threatBuilderBtnText}>
+              Abrir Construtor Completo de Ameaças (Estilo C.R.I.S.)
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -536,7 +576,25 @@ export default function EntityEditorScreen() {
           {existing ? 'Salvar Alterações' : 'Criar Registro no Compêndio'}
         </Text>
       </TouchableOpacity>
-    </ScrollView>
+
+      <ThreatCreatorModal
+        visible={threatCreatorVisible}
+        onClose={() => setThreatCreatorVisible(false)}
+        mode="compendium"
+        initialEntity={initialThreatEntity}
+        onSave={async (payload) => {
+          setThreatCreatorVisible(false);
+          if (existing) {
+            await updateEntity(existing.id, payload.compendiumEntity);
+            router.back();
+          } else {
+            const created = await createEntity(payload.compendiumEntity);
+            router.replace({ pathname: '/entity/[id]', params: { id: created.id } });
+          }
+        }}
+      />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -647,5 +705,23 @@ const createStyles = (colors: ThemeColors) =>
       color: '#FFF',
       fontSize: 15,
       fontWeight: '800',
+    },
+    threatBuilderBtn: {
+      marginTop: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: '#7C3AED',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+    },
+    threatBuilderBtnText: {
+      color: '#FFF',
+      fontSize: 12,
+      fontWeight: '800',
+      flexShrink: 1,
+      textAlign: 'center',
     },
   });

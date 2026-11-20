@@ -229,7 +229,7 @@ NEX 99% - Máquina de Matar. Redução em IV, +2 margem de ameaça e passo de da
       const m35Combatente = getNexMilestone('Combatente', 35, undefined, baseAttrs);
       assert.strictEqual(m35Combatente.needsSkillTrainingIncrease, true);
       assert.strictEqual(m35Combatente.skillTrainingTargetDegree, 10);
-      assert.strictEqual(m35Combatente.skillTrainingQuota, 1 + baseAttrs.INT); // 1 + 2 = 3
+      assert.strictEqual(m35Combatente.skillTrainingQuota, 2 + baseAttrs.INT); // 2 + 2 = 4 (Livro Base v1.2 p. 35)
 
       const m35Especialista = getNexMilestone('Especialista', 35, undefined, baseAttrs);
       assert.strictEqual(m35Especialista.skillTrainingQuota, 5 + baseAttrs.INT); // 5 + 2 = 7

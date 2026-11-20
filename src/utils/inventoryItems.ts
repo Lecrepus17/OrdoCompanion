@@ -9,6 +9,10 @@ import {
   ItemMechanic,
   ParanormalElement,
 } from '../types/compendium';
+import {
+  OFFICIAL_PROTECTION_CURSES,
+  OFFICIAL_PROTECTION_MODIFICATIONS,
+} from './protections';
 
 export const ITEM_CATEGORIES_ORDER: ReadonlyArray<'0' | 'I' | 'II' | 'III' | 'IV'> = [
   '0',
@@ -26,6 +30,7 @@ export const OFFICIAL_ACCESSORY_MODS: AccessoryModificationDef[] = [
     description:
       'O bônus em perícia concedido pelo acessório aumenta de +2 para +5. Se tiver Função Adicional, pode ser aplicado novamente na segunda perícia.',
     source: 'Livro Base',
+    appliesTo: ['vestimenta', 'utensilio'],
   },
   {
     id: 'mod_acc_discreto',
@@ -35,6 +40,7 @@ export const OFFICIAL_ACCESSORY_MODS: AccessoryModificationDef[] = [
     description:
       'Miniaturizado ou disfarçado. Reduz os espaços ocupados em -1 e concede +5 em testes de Crime para ocultar (mesmo sem treinamento).',
     source: 'Livro Base',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
   },
   {
     id: 'mod_acc_funcao_adicional',
@@ -43,6 +49,7 @@ export const OFFICIAL_ACCESSORY_MODS: AccessoryModificationDef[] = [
     description:
       'O acessório também fornece +2 em uma perícia adicional à sua escolha (sujeito à aprovação do mestre).',
     source: 'Livro Base',
+    appliesTo: ['vestimenta', 'utensilio'],
   },
   {
     id: 'mod_acc_instrumental',
@@ -51,11 +58,191 @@ export const OFFICIAL_ACCESSORY_MODS: AccessoryModificationDef[] = [
     description:
       'O acessório passa a funcionar também como um Kit de Perícia específico (evitando a penalidade de -5).',
     source: 'Livro Base',
+    appliesTo: ['vestimenta', 'utensilio'],
   },
 ];
 
+/**
+ * Maldições oficiais para Acessórios (Utensílios e Vestimentas) - Livro Base p. 157.
+ * Regra canônica (p. 154): 1ª maldição aumenta categoria em +II; subsequentes em +I.
+ */
+export const OFFICIAL_ACCESSORY_CURSES: AccessoryModificationDef[] = [
+  {
+    id: 'curse_acc_carisma',
+    name: 'Maldição: Carisma',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Conhecimento',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description: 'Você recebe +1 em Presença (este aumento não fornece PE adicionais).',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_conjuracao',
+    name: 'Maldição: Conjuração',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Conhecimento',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description:
+      'Armazena um ritual de 1º círculo. Empunhando/vestindo, você pode conjurá-lo como se conhecesse (ou com -1 PE se já conhecer).',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_escudo_mental',
+    name: 'Maldição: Escudo Mental',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Conhecimento',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    rdText: 'Mental 10',
+    description: 'Barreira psíquica que concede resistência mental 10.',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_reflexao',
+    name: 'Maldição: Reflexão',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Conhecimento',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description:
+      '1x por rodada, ao ser alvo de um ritual, gaste PE igual ao custo dele para refleti-lo de volta ao conjurador.',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_sagacidade',
+    name: 'Maldição: Sagacidade',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Conhecimento',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description: 'Você recebe +1 em Intelecto (não fornece perícias adicionais).',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_defesa',
+    name: 'Maldição: Defesa',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Energia',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    defenseBonus: 5,
+    description: 'Barreira invisível de Energia que fornece +5 de Defesa.',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_destreza',
+    name: 'Maldição: Destreza',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Energia',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description: 'Aprimora coordenação e velocidade, fornecendo +1 em Agilidade.',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_potencia',
+    name: 'Maldição: Potência',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Energia',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description: 'Aumenta a DT contra suas habilidades, poderes e rituais em +1.',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_esforco_adicional',
+    name: 'Maldição: Esforço Adicional',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Morte',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description: 'Fornece +5 PE (efeito se ativa após um dia contínuo de uso).',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_disposicao',
+    name: 'Maldição: Disposição',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Sangue',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description: 'Você recebe +1 em Vigor.',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_pujanca',
+    name: 'Maldição: Pujança',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Sangue',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description: 'Fornece +1 em Força.',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_vitalidade',
+    name: 'Maldição: Vitalidade',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Sangue',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    description: 'Fornece +15 PV (efeito se ativa após um dia contínuo de uso).',
+    source: 'Livro Base',
+  },
+  {
+    id: 'curse_acc_protecao_elemental',
+    name: 'Maldição: Proteção Elemental',
+    categoryIncrease: 1,
+    isCurse: true,
+    element: 'Variável',
+    appliesTo: ['vestimenta', 'utensilio', 'geral'],
+    rdText: '10 (Elemento escolhido)',
+    description: 'Concede resistência 10 contra um elemento escolhido ao criar o item.',
+    source: 'Livro Base',
+  },
+];
+
+export const OFFICIAL_PROTECTION_MODS_FOR_CATALOG: AccessoryModificationDef[] =
+  OFFICIAL_PROTECTION_MODIFICATIONS.map((m) => ({
+    id: m.id,
+    name: m.name,
+    categoryIncrease: m.categoryIncrease,
+    spacesChange: m.spacesChange,
+    defenseBonus: m.defenseBonus,
+    description: m.description,
+    source: 'Livro Base',
+    appliesTo: ['protecao', 'escudo'],
+  }));
+
+export const OFFICIAL_PROTECTION_CURSES_FOR_CATALOG: AccessoryModificationDef[] =
+  OFFICIAL_PROTECTION_CURSES.map((c) => ({
+    id: c.id,
+    name: `Maldição: ${c.name}`,
+    categoryIncrease: 1,
+    isCurse: true,
+    element: c.element,
+    defenseBonus: c.defenseBonus,
+    rdText: c.rdElement
+      ? `${c.rdElement.element} ${c.rdElement.value}`
+      : c.rdGeneralHeavy
+      ? `Geral ${c.rdGeneralLightOrShield || 2} (leve/escudo) ou ${c.rdGeneralHeavy} (pesada)`
+      : undefined,
+    description: c.description,
+    source: 'Livro Base',
+    appliesTo: ['protecao', 'escudo'],
+  }));
+
+export const ALL_CATALOG_MODS_AND_CURSES: AccessoryModificationDef[] = [
+  ...OFFICIAL_ACCESSORY_MODS,
+  ...OFFICIAL_ACCESSORY_CURSES,
+  ...OFFICIAL_PROTECTION_MODS_FOR_CATALOG,
+  ...OFFICIAL_PROTECTION_CURSES_FOR_CATALOG,
+];
+
 export const OFFICIAL_ACCESSORY_MODS_MAP = new Map<string, AccessoryModificationDef>(
-  OFFICIAL_ACCESSORY_MODS.map((m) => [m.id, m])
+  ALL_CATALOG_MODS_AND_CURSES.map((m) => [m.id, m])
 );
 
 export function normalizeItemCategory(raw?: string | null): '0' | 'I' | 'II' | 'III' | 'IV' {
@@ -119,11 +306,18 @@ export function calculateCatalogItemStats(params: {
 
   let categoryDelta = 0;
   let spacesDelta = 0;
+  let curseCount = 0;
 
   for (const modId of mods) {
     const def = OFFICIAL_ACCESSORY_MODS_MAP.get(modId);
     if (def) {
-      categoryDelta += def.categoryIncrease || 0;
+      if (def.isCurse) {
+        curseCount += 1;
+        // Regra canônica (Livro Base p. 154): 1ª maldição aumenta categoria em +II; subsequentes em +I.
+        categoryDelta += curseCount === 1 ? 2 : 1;
+      } else {
+        categoryDelta += def.categoryIncrease || 0;
+      }
       spacesDelta += def.spacesChange || 0;
     }
   }
@@ -135,7 +329,8 @@ export function calculateCatalogItemStats(params: {
 
   const finalCategory = increaseItemCategory(params.baseCategory, categoryDelta);
   const baseSp = Number.isFinite(params.baseSpaces) && params.baseSpaces >= 0 ? params.baseSpaces : 1;
-  const finalSpaces = roundSpaces(Math.max(0, baseSp + spacesDelta));
+  const minSpaces = params.itemType === 'protecao' || params.itemType === 'escudo' ? 1 : 0;
+  const finalSpaces = roundSpaces(Math.max(minSpaces, baseSp + spacesDelta));
 
   const isAccessory = params.itemType === 'vestimenta' || params.itemType === 'utensilio';
   let effectiveSkillBonus = params.skillBonus ?? (isAccessory ? 2 : 0);
@@ -3060,17 +3255,49 @@ export function buildInventoryItemFromCatalogItem(
   };
 }
 
+export function resolveCatalogModOrCurseId(raw: string): string {
+  if (!raw) return raw;
+  if (OFFICIAL_ACCESSORY_MODS_MAP.has(raw)) return raw;
+  const clean = (raw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/^maldicao\s*:\s*/i, '')
+    .trim()
+    .toLowerCase();
+  const match = ALL_CATALOG_MODS_AND_CURSES.find((entry) => {
+    const entryName = entry.name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/^maldicao\s*:\s*/i, '')
+      .trim()
+      .toLowerCase();
+    return entry.id.toLowerCase() === clean || entryName === clean;
+  });
+  return match ? match.id : raw;
+}
+
 export function buildCatalogItemFromInventoryItem(
   inv: CharacterInventoryItem,
   idOverride?: string
 ): CustomCatalogItem {
   const now = new Date().toISOString();
   const itemType = inv.itemType || (inv.isVestimenta ? 'vestimenta' : inv.isUtensilio ? 'utensilio' : 'geral');
-  const modIds = inv.modifications || [];
+  const modIds = (inv.modifications || []).map((m) => resolveCatalogModOrCurseId(m));
   const customMods = inv.customModifications || [];
+  let modCatSteps = 0;
+  let curseCnt = 0;
+  for (const m of modIds) {
+    const def = OFFICIAL_ACCESSORY_MODS_MAP.get(m);
+    if (!def) continue;
+    if (def.isCurse) {
+      curseCnt += 1;
+      modCatSteps += curseCnt === 1 ? 2 : 1;
+    } else {
+      modCatSteps += def.categoryIncrease || 0;
+    }
+  }
   const catSteps =
-    modIds.reduce((acc, m) => acc + (OFFICIAL_ACCESSORY_MODS_MAP.get(m)?.categoryIncrease || 0), 0) +
-    customMods.reduce((acc, m) => acc + (m.categoryIncrease || 0), 0);
+    modCatSteps + customMods.reduce((acc, m) => acc + (m.categoryIncrease || 0), 0);
   const spaceDelta =
     modIds.reduce((acc, m) => acc + (OFFICIAL_ACCESSORY_MODS_MAP.get(m)?.spacesChange || 0), 0) +
     customMods.reduce((acc, m) => acc + (m.spacesChange || 0), 0);
@@ -3078,7 +3305,8 @@ export function buildCatalogItemFromInventoryItem(
   const finalCat = normalizeItemCategory(inv.category);
   const baseCatIdx = Math.max(0, ITEM_CATEGORIES_ORDER.indexOf(finalCat) - catSteps);
   const baseCategory = ITEM_CATEGORIES_ORDER[baseCatIdx] || '0';
-  const baseSpaces = roundSpaces(Math.max(0, (inv.spaces ?? 1) - spaceDelta));
+  const minSpaces = itemType === 'protecao' || itemType === 'escudo' ? 1 : 0;
+  const baseSpaces = roundSpaces(Math.max(minSpaces, (inv.spaces ?? 1) - spaceDelta));
 
   return {
     id: idOverride || inv.customItemId || `citem_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,

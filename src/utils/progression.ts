@@ -684,8 +684,8 @@ export function getNexMilestone(
   const recRank = getRecommendedRank(targetNex);
   const intVal = currentAttrs ? currentAttrs.INT : 2;
 
-  // Cota de perícias para promoção de grau (Regras Oficiais: Combatente 1 + Int, Especialista 5 + Int, Ocultista 3 + Int)
-  let veteranoQuota = 1 + Math.max(0, intVal);
+  // Cota de perícias para promoção de grau (Livro Base v1.2: Combatente 2 + Int, Especialista 5 + Int, Ocultista 3 + Int)
+  let veteranoQuota = 2 + Math.max(0, intVal);
   if (norm.includes('especialista')) {
     veteranoQuota = 5 + Math.max(0, intVal);
   } else if (norm.includes('ocultista')) {

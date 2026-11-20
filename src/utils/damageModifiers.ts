@@ -227,6 +227,15 @@ export function detectAgentDamageModifiers(
     else ataqueFurtivoDice = '1d6';
   }
 
+  const maskCfg = character.maskConfig;
+  const hasActiveSupremeMask = Boolean(maskCfg?.enabled && maskCfg?.isActive);
+  const maskBonusTests =
+    hasActiveSupremeMask && maskCfg?.grantBonusTests !== false ? 5 : 0;
+  const maskBonusDt =
+    hasActiveSupremeMask && maskCfg?.grantBonusDt !== false ? 5 : 0;
+  const maskExtraDamageDice =
+    hasActiveSupremeMask && maskCfg?.grantBonusDiceDamage !== false ? 2 : 0;
+
   return {
     forValue: attrs.FOR ?? 1,
     agiValue: attrs.AGI ?? 1,
@@ -259,6 +268,11 @@ export function detectAgentDamageModifiers(
     hasCatalisadorPotencializador,
     hasCatalisadorPerturbador,
     hasParareligiosidade,
+
+    hasActiveSupremeMask,
+    maskBonusTests,
+    maskBonusDt,
+    maskExtraDamageDice,
   };
 }
 
@@ -962,6 +976,21 @@ export function resolveAgentAttackDamage(options: {
     });
   }
 
+  if (profile.hasActiveSupremeMask && (profile.maskExtraDamageDice ?? 0) > 0) {
+    const maskDice = profile.maskExtraDamageDice || 2;
+    extraDiceGroups.push({
+      count: maskDice,
+      faces: baseFaces,
+      multipliesOnCrit: false,
+    });
+    breakdown.push({
+      source: 'Forma Suprema: Máscara',
+      type: 'extra_dice',
+      expression: `+${maskDice}d${baseFaces}`,
+      multipliesOnCrit: false,
+    });
+  }
+
   // Passo 8: Crítico e Montagem das Fórmulas
   const critRaw = customWeapon?.finalCritical || attack.critical || '20/x2';
   const parsedCrit = parseCritical(critRaw);
@@ -1114,9 +1143,19 @@ export function resolveAgentRitualDamage(options: {
   const peRound = character.peRound || getPeRoundLimit(character.nex ?? 5);
   const dtCatalystBonus =
     toggles.catalisadorPerturbadorActive || profile.hasCatalisadorPerturbador ? 2 : 0;
-  const dtResistance = 10 + peRound + profile.preValue + dtCatalystBonus;
+  const maskDtBonus = profile.maskBonusDt || 0;
+  const dtResistance = 10 + peRound + profile.preValue + dtCatalystBonus + maskDtBonus;
 
-  const { formula: baseFormula, peCost } = extractRitualDiceFormula(ritual, tier);
+  const { formula: baseFormula, peCost: extractedPeCost } = extractRitualDiceFormula(ritual, tier);
+  const useFreeAdvanced = Boolean(
+    character.maskConfig?.enabled &&
+      character.maskConfig?.isActive &&
+      character.maskConfig?.freeAdvancedRituals &&
+      tier !== 'padrao'
+  );
+  const peCost = useFreeAdvanced
+    ? extractRitualDiceFormula(ritual, 'padrao').peCost
+    : extractedPeCost;
   const totalPeCost = peCost + (toggles.parareligiosidadeActive ? 2 : 0);
   const peCostExceedsLimit = totalPeCost > peRound;
   const peCostExceedsCurrent = totalPeCost > (character.peCurrent ?? 0);
@@ -1179,6 +1218,17 @@ export function resolveAgentRitualDamage(options: {
       expression: `+1d${faces}`,
       multipliesOnCrit: false,
       element: 'Sangue',
+    });
+  }
+
+  if (profile.hasActiveSupremeMask && (profile.maskExtraDamageDice ?? 0) > 0) {
+    const maskDice = profile.maskExtraDamageDice || 2;
+    totalCount += maskDice;
+    breakdown.push({
+      source: 'Forma Suprema: Máscara',
+      type: 'extra_dice',
+      expression: `+${maskDice}d${faces}`,
+      multipliesOnCrit: false,
     });
   }
 

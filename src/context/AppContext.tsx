@@ -171,7 +171,7 @@ interface AppContextValue {
   dismissLatestRoll: () => void;
   rollSkillTest: (attributeDice: number, bonus: number, label?: string, criticalThreat?: number, attackContext?: WeaponAttackContext) => DiceRollResult;
   rollOrdemTest: (attributeDice: number, bonus: number, label?: string, criticalThreat?: number, attackContext?: WeaponAttackContext) => DiceRollResult;
-  rollFormula: (formula: string, label?: string) => DiceRollResult;
+  rollFormula: (formula: string, label?: string, attackContext?: WeaponAttackContext) => DiceRollResult;
   rollWeaponDamage: (options: WeaponDamageRollOptions) => DiceRollResult;
   clearRollHistory: () => void;
 
@@ -687,21 +687,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const saveMonsterToCompendium = useCallback(async (monster: CampaignMonster): Promise<CompendiumEntity> => {
+    const abilityFormulas = (monster.structuredAbilities || []).flatMap((ab) => {
+      const m = (ab.description || '').match(/\d+d\d+(?:\s*[+\-]\s*\d+)?/gi);
+      return m ? m.map((s) => s.replace(/\s+/g, '')) : [];
+    });
+    const diceFormulas = Array.from(
+      new Set([
+        ...(monster.structuredAttacks || []).flatMap((a) =>
+          [a.testFormula, a.damageFormula].filter(Boolean)
+        ),
+        ...abilityFormulas,
+      ])
+    );
     const newEntity: Omit<CompendiumEntity, 'id'> = {
       name: monster.name,
       category: 'creature',
-      subCategory: 'Ameaça da Campanha',
+      subCategory: `${monster.creatureType || 'Ameaça da Campanha'}${monster.size ? ` • ${monster.size}` : ''}`,
       bookId: 'custom',
       bookTitle: 'Homebrew do Mestre',
       pageNumber: 1,
       element: monster.element || 'Nenhum',
-      summary: `VD ${monster.vd} • Defesa ${monster.defense} • PV ${monster.pvMax}`,
+      secondaryElements: monster.secondaryElements,
+      size: monster.size,
+      creatureType: monster.creatureType,
+      summary: `VD ${monster.vd}${monster.size ? ` • ${monster.size}` : ''} • Defesa ${monster.defense} • PV ${monster.pvMax}`,
       description: `${monster.attacks ? `Ataques:\n${monster.attacks}\n\n` : ''}${monster.abilities ? `Habilidades:\n${monster.abilities}\n\n` : ''}${monster.notes || ''}`.trim(),
-      tags: ['Ameaça', 'Mestre', monster.element || 'Nenhum'],
+      tags: ['Ameaça', 'Mestre', monster.element || 'Nenhum', ...(monster.secondaryElements || [])],
       vd: monster.vd,
       defense: monster.defense,
       pv: monster.pvMax,
       disturbingPresence: monster.disturbingPresence,
+      attributes: monster.attributes,
+      senses: monster.senses,
+      saves: monster.saves,
+      resistancesText: monster.resistancesText,
+      immunitiesText: monster.immunitiesText,
+      vulnerabilitiesText: monster.vulnerabilitiesText,
+      displacement: monster.displacement,
+      skillsText: monster.skillsText,
+      structuredAttacks: monster.structuredAttacks,
+      structuredAbilities: monster.structuredAbilities,
+      fearEnigma: monster.fearEnigma,
+      diceFormulas: diceFormulas.length > 0 ? diceFormulas : undefined,
       isCustom: true,
       updatedAt: new Date().toISOString(),
     };
@@ -1177,8 +1204,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const rollFormula = useCallback(
-    (formula: string, label?: string) => {
-      const res = rollDiceFormula(formula, label);
+    (formula: string, label?: string, attackContext?: WeaponAttackContext) => {
+      const res = rollDiceFormula(formula, label, attackContext);
       setLatestRoll(res);
       setRollHistory((prev) => [res, ...prev.slice(0, 49)]);
       if (virtualTableManager.getStatus() === 'connected') {

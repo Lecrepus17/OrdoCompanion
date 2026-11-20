@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BackHandler,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -82,54 +83,24 @@ export default function LevelUpModal({
   const styles = useThemedStyles(createStyles);
   const { openEntityPreview, openSkillPreview, getEntityById } = useApp();
 
-  if (!character) return null;
-
-  const currentNex = character.nex;
+  const currentNex = character?.nex ?? 5;
   const targetNex = Math.min(99, currentNex + 5);
+  const isAttributeMilestone = [20, 50, 80, 95].includes(targetNex);
 
   // Escolha de Atributo (+1)
   const [selectedAttrToBoost, setSelectedAttrToBoost] = useState<keyof CharacterAttributes | null>(
     null
   );
 
-  // Atributos efetivos considerando o aumento de atributo selecionado
-  const effectiveAttrs = useMemo(() => {
-    const a = { ...character.attributes };
-    if (selectedAttrToBoost) {
-      a[selectedAttrToBoost] = Math.min(5, a[selectedAttrToBoost] + 1);
-    }
-    return a;
-  }, [character.attributes, selectedAttrToBoost]);
-
-  // Ganhos vitais calculados com base nos atributos do avanço
-  const statIncreases = useMemo(() => {
-    return calculateStatIncreases(classEntity?.name || 'Especialista', effectiveAttrs);
-  }, [classEntity, effectiveAttrs]);
-
-  // Ganhos retroativos de Vigor e Presença (Regra Oficial: +1 PV/PE por patamar de NEX anterior)
-  const priorAdvances = Math.max(0, Math.floor(currentNex / 5));
-  const retroactivePv = selectedAttrToBoost === 'VIG' ? priorAdvances : 0;
-  const retroactivePe = selectedAttrToBoost === 'PRE' ? priorAdvances : 0;
-
   // Estados de escolhas do usuário
   const [applyToCurrent, setApplyToCurrent] = useState(true);
 
   // Escolha de Trilha (se aplicável)
-  const [selectedTrackId, setSelectedTrackId] = useState<string>(character.trackId || '');
-
-  // Trilha efetiva (seja a que o personagem já tinha ou a que selecionou neste modal)
-  const effectiveTrack = useMemo(() => {
-    const tid = selectedTrackId || character?.trackId;
-    if (tid) {
-      const match = allTracksList.find((t) => t.id === tid);
-      if (match) return match;
-    }
-    return trackEntity;
-  }, [selectedTrackId, character?.trackId, allTracksList, trackEntity]);
+  const [selectedTrackId, setSelectedTrackId] = useState<string>(character?.trackId || '');
 
   // Regra Caseira de Transcender a cada 5% de NEX (configuração do agente ou do perfil geral, editável no modal)
   const [isTranscendEvery5Enabled, setIsTranscendEvery5Enabled] = useState(
-    Boolean(character.transcendEvery5Nex ?? userProfile?.transcendEvery5Nex)
+    Boolean(character?.transcendEvery5Nex ?? userProfile?.transcendEvery5Nex)
   );
 
   // Ativação explícita do item opcional Transcender neste avanço
@@ -140,6 +111,39 @@ export default function LevelUpModal({
 
   // Tab de categoria de poder no modal
   const [powerCategoryTab, setPowerCategoryTab] = useState<'all' | 'class' | 'paranormal' | 'general'>('all');
+
+  // Atributos efetivos considerando o aumento de atributo selecionado (apenas em patamares oficiais de atributo)
+  const effectiveAttrs = useMemo(() => {
+    const a: CharacterAttributes = {
+      ...(character?.attributes || { AGI: 1, FOR: 1, INT: 1, PRE: 1, VIG: 1 }),
+    };
+    if (isAttributeMilestone && !doNotIncreaseNex && selectedAttrToBoost) {
+      a[selectedAttrToBoost] = Math.min(5, a[selectedAttrToBoost] + 1);
+    }
+    return a;
+  }, [character?.attributes, isAttributeMilestone, doNotIncreaseNex, selectedAttrToBoost]);
+
+  // Ganhos vitais calculados com base nos atributos do avanço
+  const statIncreases = useMemo(() => {
+    return calculateStatIncreases(classEntity?.name || 'Especialista', effectiveAttrs);
+  }, [classEntity, effectiveAttrs]);
+
+  // Ganhos retroativos de Vigor e Presença (Regra Oficial: +1 PV/PE por patamar de NEX anterior)
+  const priorAdvances = Math.max(0, Math.floor(currentNex / 5));
+  const retroactivePv =
+    isAttributeMilestone && !doNotIncreaseNex && selectedAttrToBoost === 'VIG' ? priorAdvances : 0;
+  const retroactivePe =
+    isAttributeMilestone && !doNotIncreaseNex && selectedAttrToBoost === 'PRE' ? priorAdvances : 0;
+
+  // Trilha efetiva (seja a que o personagem já tinha ou a que selecionou neste modal)
+  const effectiveTrack = useMemo(() => {
+    const tid = selectedTrackId || character?.trackId;
+    if (tid) {
+      const match = allTracksList.find((t) => t.id === tid);
+      if (match) return match;
+    }
+    return trackEntity;
+  }, [selectedTrackId, character?.trackId, allTracksList, trackEntity]);
 
   // Regras e marcos do NEX alvo
   const milestone = useMemo(() => {
@@ -167,7 +171,7 @@ export default function LevelUpModal({
 
   // Escolha de Afinidade Elemental
   const [selectedAffinity, setSelectedAffinity] = useState<ParanormalElement>(
-    character.affinity || 'Nenhum'
+    character?.affinity || 'Nenhum'
   );
 
   // Escolha de Novo Ritual (se ocultista)
@@ -201,10 +205,43 @@ export default function LevelUpModal({
 
   // Sugestão de Patente
   const [promoteRank, setPromoteRank] = useState(
-    !!milestone.recommendedRank && milestone.recommendedRank !== character.rank
+    Boolean(milestone.recommendedRank && character && milestone.recommendedRank !== character.rank)
   );
 
+  // Resetar escolhas sempre que o modal abrir ou o personagem/NEX mudar
+  useEffect(() => {
+    if (!visible) return;
+    setSelectedAttrToBoost(null);
+    setSelectedPowerId(null);
+    setSelectedClassPowerId(null);
+    setSelectedParanormalPowerId(null);
+    setSelectedSkillPromotions([]);
+    setSelectedRitualId(null);
+    setWantToTranscendExtra(false);
+    setDoNotIncreaseNex(false);
+    setPowerCategoryTab('all');
+    setPowerSearch('');
+    setClassPowerSearch('');
+    setParanormalPowerSearch('');
+    setRitualSearch('');
+    setPrereqAlertData(null);
+    setApplyToCurrent(true);
+    setSelectedTrackId(character?.trackId || '');
+    setSelectedAffinity(character?.affinity || 'Nenhum');
+    setIsTranscendEvery5Enabled(
+      Boolean(character?.transcendEvery5Nex ?? userProfile?.transcendEvery5Nex)
+    );
+    setPromoteRank(
+      Boolean(milestone.recommendedRank && character && milestone.recommendedRank !== character.rank)
+    );
+  }, [visible, character?.id, character?.nex, character?.rank, userProfile?.transcendEvery5Nex]);
+
   const handleModalClose = () => {
+    if (prereqAlertData) {
+      setPrereqAlertData(null);
+      return;
+    }
+
     const hasSelections =
       selectedAttrToBoost !== null ||
       selectedPowerId !== null ||
@@ -228,7 +265,7 @@ export default function LevelUpModal({
   };
 
   useEffect(() => {
-    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    if (Platform.OS !== 'android' || !visible) return;
     const onBackPress = () => {
       handleModalClose();
       return true;
@@ -237,6 +274,7 @@ export default function LevelUpModal({
     return () => sub.remove();
   }, [
     visible,
+    prereqAlertData,
     selectedAttrToBoost,
     selectedPowerId,
     selectedClassPowerId,
@@ -395,19 +433,29 @@ export default function LevelUpModal({
         if (p) {
           const sub = (p.subCategory || '').toLowerCase();
           const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
-          classSlotIsParanormal = Boolean(sub.includes('paranormal') || (!isClass && p.element && p.element !== 'Nenhum'));
+          const isTranscender = p.name.toLowerCase().includes('transcender');
+          classSlotIsParanormal = Boolean(
+            sub.includes('paranormal') ||
+              isTranscender ||
+              (!isClass && p.element && p.element !== 'Nenhum')
+          );
         }
       }
       return extraActive || classSlotIsParanormal;
     }
 
-    // Regra oficial desativada: apenas se o poder escolhido no slot oficial for paranormal
+    // Regra oficial desativada: apenas se o poder escolhido no slot oficial for paranormal (ou Transcender)
     if (!selectedPowerId) return false;
     const p = allPowersList.find((item) => item.id === selectedPowerId);
     if (!p) return false;
     const sub = (p.subCategory || '').toLowerCase();
     const isClass = sub.includes('combatente') || sub.includes('especialista') || sub.includes('ocultista');
-    return sub.includes('paranormal') || (!isClass && p.element && p.element !== 'Nenhum');
+    const isTranscender = p.name.toLowerCase().includes('transcender');
+    return Boolean(
+      sub.includes('paranormal') ||
+        isTranscender ||
+        (!isClass && p.element && p.element !== 'Nenhum')
+    );
   }, [isTranscendEvery5Enabled, wantToTranscendExtra, selectedParanormalPowerId, selectedClassPowerId, selectedPowerId, allPowersList]);
 
   // Rituais: todos os círculos ficam acessíveis (validação permissiva); o círculo máximo canônico é checado ao selecionar
@@ -416,6 +464,7 @@ export default function LevelUpModal({
   }, [allRitualsList]);
 
   const handleSelectRitual = (rit: CompendiumEntity) => {
+    if (!character) return;
     if (selectedRitualId === rit.id) {
       setSelectedRitualId(null);
       return;
@@ -448,8 +497,36 @@ export default function LevelUpModal({
 
   // Passos e vitais atuais e projetados para o avanço
   const currentVitals = useMemo(() => {
+    if (!character) {
+      return calculateCharacterVitals(
+        {
+          id: 'fallback',
+          name: 'Agente',
+          player: '',
+          nex: 5,
+          rank: 'Recruta',
+          originId: '',
+          classId: classEntity?.id || '',
+          trackId: '',
+          affinity: 'Nenhum',
+          attributes: { AGI: 1, FOR: 1, INT: 1, PRE: 1, VIG: 1 },
+          pvCurrent: 10,
+          pvMax: 10,
+          peCurrent: 2,
+          peMax: 2,
+          sanCurrent: 12,
+          sanMax: 12,
+          defenseBonus: 0,
+          skills: {},
+          entityIds: [],
+          notes: '',
+          updatedAt: '',
+        },
+        getEntityById
+      );
+    }
     return calculateCharacterVitals(character, getEntityById);
-  }, [character, getEntityById]);
+  }, [character, classEntity?.id, getEntityById]);
 
   // IDs dos poderes escolhidos neste avanço
   const chosenPowerIds = useMemo(() => {
@@ -464,7 +541,7 @@ export default function LevelUpModal({
   }, [isTranscendEvery5Enabled, selectedClassPowerId, wantToTranscendExtra, selectedParanormalPowerId, selectedPowerId]);
 
   const targetVitals = useMemo(() => {
-    if (doNotIncreaseNex) {
+    if (!character || doNotIncreaseNex) {
       return currentVitals;
     }
     const hypotheticalChar: CharacterSheet = {
@@ -488,8 +565,9 @@ export default function LevelUpModal({
 
   // Confirmar e aplicar a evolução
   const handleConfirmLevelUp = async () => {
+    if (!character) return;
     const updatedAttrs = { ...character.attributes };
-    if (selectedAttrToBoost) {
+    if (milestone.needsAttributeIncrease && !doNotIncreaseNex && selectedAttrToBoost) {
       updatedAttrs[selectedAttrToBoost] = Math.min(5, updatedAttrs[selectedAttrToBoost] + 1);
     }
 
@@ -511,19 +589,21 @@ export default function LevelUpModal({
       ? Math.min(nextSanMax, character.sanCurrent + sanDelta)
       : character.sanCurrent;
 
-    // Perícias atualizadas
+    // Perícias atualizadas (apenas quando o patamar concede grau de treinamento e o NEX avança)
     const updatedSkills = { ...character.skills };
-    const targetDegree = milestone.skillTrainingTargetDegree || 10;
-    selectedSkillPromotions.forEach((skName) => {
-      const existing = updatedSkills[skName] || { degree: 0, bonus: 0 };
-      updatedSkills[skName] = {
-        ...existing,
-        degree: targetDegree as TrainingDegree,
-      };
-    });
+    if (milestone.needsSkillTrainingIncrease && !doNotIncreaseNex) {
+      selectedSkillPromotions.forEach((skName) => {
+        const existing = updatedSkills[skName] || { degree: 0, bonus: 0 };
+        const nextDegree = Math.min(15, (existing.degree || 0) + 5);
+        updatedSkills[skName] = {
+          ...existing,
+          degree: nextDegree as TrainingDegree,
+        };
+      });
+    }
 
-    // Atualiza bônus de perícias concedidos por vitais (Fortitude, Vontade)
-    if (targetVitals.skillBonuses) {
+    // Atualiza bônus de perícias concedidos por vitais (Fortitude, Vontade) somente se NEX avançar
+    if (!doNotIncreaseNex && targetVitals.skillBonuses) {
       for (const [skName, bVal] of Object.entries(targetVitals.skillBonuses)) {
         if (bVal !== undefined) {
           const curBonus = currentVitals.skillBonuses[skName] || 0;
@@ -548,7 +628,7 @@ export default function LevelUpModal({
         grantSources.push({ name: pow.name, desc: pow.description || pow.summary });
       }
     });
-    if (milestone.trackAbility) {
+    if (!doNotIncreaseNex && milestone.trackAbility) {
       grantSources.push({
         name: milestone.trackAbility.title,
         desc: milestone.trackAbility.description,
@@ -576,7 +656,7 @@ export default function LevelUpModal({
         nextEntityIds.push(selectedPowerId);
       }
     }
-    if (selectedRitualId && !nextEntityIds.includes(selectedRitualId)) {
+    if (!doNotIncreaseNex && selectedRitualId && !nextEntityIds.includes(selectedRitualId)) {
       nextEntityIds.push(selectedRitualId);
     }
 
@@ -584,7 +664,7 @@ export default function LevelUpModal({
     const nextAbilities: CharacterAbility[] = [...(character.abilities || [])];
 
     // Habilidade de trilha automática
-    if (milestone.trackAbility) {
+    if (!doNotIncreaseNex && milestone.trackAbility) {
       nextAbilities.push({
         id: `ab_track_${targetNex}_${Date.now()}`,
         name: `${milestone.trackAbility.title} (NEX ${targetNex}%)`,
@@ -596,7 +676,7 @@ export default function LevelUpModal({
     }
 
     // Melhoria de habilidade de classe
-    if (milestone.classAbilityUpgrade) {
+    if (!doNotIncreaseNex && milestone.classAbilityUpgrade) {
       nextAbilities.push({
         id: `ab_upgrade_${targetNex}_${Date.now()}`,
         name: `${milestone.classAbilityUpgrade} (NEX ${targetNex}%)`,
@@ -612,7 +692,7 @@ export default function LevelUpModal({
     let nextItemLimits = character.itemLimits;
     let nextCreditLimit = character.creditLimit;
 
-    if (promoteRank && milestone.recommendedRank) {
+    if (!doNotIncreaseNex && promoteRank && milestone.recommendedRank) {
       nextRank = milestone.recommendedRank;
       const limits = RANK_ITEM_LIMITS[milestone.recommendedRank];
       nextCreditLimit = limits.credit;
@@ -640,8 +720,8 @@ export default function LevelUpModal({
       skills: updatedSkills,
       entityIds: nextEntityIds,
       abilities: nextAbilities,
-      trackId: selectedTrackId || character.trackId,
-      affinity: selectedAffinity,
+      trackId: !doNotIncreaseNex ? selectedTrackId || character.trackId : character.trackId,
+      affinity: !doNotIncreaseNex ? selectedAffinity : character.affinity,
       rank: nextRank,
       creditLimit: nextCreditLimit,
       itemLimits: nextItemLimits,
@@ -652,25 +732,44 @@ export default function LevelUpModal({
     onClose();
   };
 
-  if (!visible) return null;
+  if (!visible || !character) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleModalClose}>
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 14 : 10) }]}>
-          <TouchableOpacity style={styles.closeBtn} onPress={handleModalClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Fechar">
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Avanço de NEX Assistido</Text>
-            <Text style={styles.headerSubtitle}>
-              {character.name} • NEX {currentNex}% ➔ {targetNex}%
-            </Text>
-          </View>
-        </View>
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent={false}
+        statusBarTranslucent
+        onRequestClose={handleModalClose}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            {/* Header */}
+            <View
+              style={[
+                styles.header,
+                { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 24 : 12) },
+              ]}
+            >
+              <TouchableOpacity style={styles.closeBtn} onPress={handleModalClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Fechar">
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.headerTitle} numberOfLines={1}>Avanço de NEX Assistido</Text>
+                <Text style={styles.headerSubtitle} numberOfLines={1}>
+                  {character.name} • NEX {currentNex}% {doNotIncreaseNex ? '(Mantido)' : `➔ ${targetNex}%`}
+                </Text>
+              </View>
+            </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
           {/* BANNER DE TRANSIÇÃO DE NÍVEL */}
           <View style={styles.levelBanner}>
             <View style={styles.levelBadge}>
@@ -824,7 +923,7 @@ export default function LevelUpModal({
           </View>
 
           {/* 2. ESCOLHA DE TRILHA (NEX 10%) */}
-          {milestone.needsTrackChoice && (
+          {!doNotIncreaseNex && milestone.needsTrackChoice && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="git-branch-outline" size={20} color={colors.accent} />
@@ -899,7 +998,7 @@ export default function LevelUpModal({
           )}
 
           {/* HABILIDADE DE TRILHA CONCEDIDA AUTOMATICAMENTE (NEX 40%, 65%, 99%) */}
-          {milestone.trackAbility && !milestone.needsTrackChoice && (
+          {!doNotIncreaseNex && milestone.trackAbility && !milestone.needsTrackChoice && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="sparkles" size={20} color="#F59E0B" />
@@ -934,7 +1033,7 @@ export default function LevelUpModal({
           )}
 
           {/* APRIMORAMENTO DE CLASSE AUTOMÁTICO (NEX 25%, 40%, 55%, 75%, 85%) */}
-          {milestone.classAbilityUpgrade && (
+          {!doNotIncreaseNex && milestone.classAbilityUpgrade && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
@@ -969,7 +1068,7 @@ export default function LevelUpModal({
           )}
 
                     {/* 3A. PODER DE CLASSE OFICIAL (Quando a regra 5% está ativada e o patamar oficial concede poder de classe) */}
-          {isTranscendEvery5Enabled && milestone.needsClassPower && (
+          {isTranscendEvery5Enabled && (milestone.needsClassPower || doNotIncreaseNex) && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="shield-outline" size={20} color={colors.primary} />
@@ -1314,7 +1413,7 @@ export default function LevelUpModal({
           )}
 
           {/* 3C. ESCOLHA DE PODER DE CLASSE OU PARANORMAL (Regra canônica oficial: 1 escolha com regra 5% desativada) */}
-          {!isTranscendEvery5Enabled && milestone.needsClassPower && (
+          {!isTranscendEvery5Enabled && (milestone.needsClassPower || doNotIncreaseNex) && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="flash-outline" size={20} color="#F59E0B" />
@@ -1517,7 +1616,7 @@ export default function LevelUpModal({
           )}
 
           {/* 4. AUMENTO DE ATRIBUTO (+1) (NEX 20, 50, 80%) */}
-          {milestone.needsAttributeIncrease && (
+          {!doNotIncreaseNex && milestone.needsAttributeIncrease && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="trending-up-outline" size={20} color={colors.primary} />
@@ -1558,7 +1657,7 @@ export default function LevelUpModal({
           )}
 
           {/* 5. GRAU DE TREINAMENTO (VETERANO +10 OU EXPERT +15) */}
-          {milestone.needsSkillTrainingIncrease && (
+          {!doNotIncreaseNex && milestone.needsSkillTrainingIncrease && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="ribbon-outline" size={20} color={colors.accent} />
@@ -1567,57 +1666,74 @@ export default function LevelUpModal({
                 </Text>
               </View>
               <Text style={styles.sectionSubtitle}>
-                Promova até {milestone.skillTrainingQuota || 2} perícias treinadas para o próximo grau.
+                Promova até {milestone.skillTrainingQuota || 2} perícias treinadas para o próximo grau (+5).
                 ({selectedSkillPromotions.length} / {milestone.skillTrainingQuota || 2} selecionadas)
               </Text>
 
               <View style={styles.skillsGrid}>
-                {OFFICIAL_SKILLS_LIST.map((sk) => {
-                  const currentDeg = character.skills[sk.name]?.degree || 0;
-                  const isSel = selectedSkillPromotions.includes(sk.name);
-                  const openSkillInfo = () =>
-                    openSkillPreview(sk, {
-                      primaryAction: {
-                        label: isSel ? 'Promoção Selecionada' : `Promover ${sk.name}`,
-                        isSelected: isSel,
-                        onPress: () => toggleSkillPromotion(sk.name),
-                      },
-                    });
-
-                  return (
-                    <TouchableOpacity
-                      key={sk.name}
-                      style={[styles.skillItem, isSel && styles.skillItemActive]}
-                      onPress={() => toggleSkillPromotion(sk.name)}
-                      onLongPress={openSkillInfo}
-                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
-                    >
-                      <Ionicons
-                        name={isSel ? 'checkbox' : 'square-outline'}
-                        size={18}
-                        color={isSel ? colors.primary : colors.textSecondary}
-                      />
-                      <Text style={[styles.skillItemName, { flex: 1 }, isSel && { color: colors.primary, fontWeight: '700' }]}>
-                        {sk.name} (+{currentDeg} ➔ +{milestone.skillTrainingTargetDegree})
+                {(() => {
+                  const targetDeg = milestone.skillTrainingTargetDegree || 10;
+                  const eligibleSkills = OFFICIAL_SKILLS_LIST.filter((sk) => {
+                    const currentDeg = character.skills[sk.name]?.degree || 0;
+                    return targetDeg === 10
+                      ? currentDeg === 5
+                      : currentDeg === 5 || currentDeg === 10;
+                  });
+                  if (eligibleSkills.length === 0) {
+                    return (
+                      <Text style={styles.sectionSubtitle}>
+                        Nenhuma perícia elegível (Treinada) encontrada na ficha para promover neste patamar.
                       </Text>
+                    );
+                  }
+                  return eligibleSkills.map((sk) => {
+                    const currentDeg = character.skills[sk.name]?.degree || 0;
+                    const nextDeg = Math.min(15, currentDeg + 5);
+                    const isSel = selectedSkillPromotions.includes(sk.name);
+                    const openSkillInfo = () =>
+                      openSkillPreview(sk, {
+                        primaryAction: {
+                          label: isSel ? 'Promoção Selecionada' : `Promover ${sk.name}`,
+                          isSelected: isSel,
+                          onPress: () => toggleSkillPromotion(sk.name),
+                        },
+                      });
+
+                    return (
                       <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation?.();
-                          openSkillInfo();
-                        }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        key={sk.name}
+                        style={[styles.skillItem, isSel && styles.skillItemActive]}
+                        onPress={() => toggleSkillPromotion(sk.name)}
+                        onLongPress={openSkillInfo}
+                        delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                       >
-                        <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+                        <Ionicons
+                          name={isSel ? 'checkbox' : 'square-outline'}
+                          size={18}
+                          color={isSel ? colors.primary : colors.textSecondary}
+                        />
+                        <Text style={[styles.skillItemName, { flex: 1 }, isSel && { color: colors.primary, fontWeight: '700' }]}>
+                          {sk.name} (+{currentDeg} ➔ +{nextDeg})
+                        </Text>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            openSkillInfo();
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+                        </TouchableOpacity>
                       </TouchableOpacity>
-                    </TouchableOpacity>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </View>
             </View>
           )}
 
           {/* 6. AFINIDADE PARANORMAL (NEX 50%) */}
-          {milestone.needsAffinityChoice && (
+          {!doNotIncreaseNex && milestone.needsAffinityChoice && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="bonfire-outline" size={20} color="#EF4444" />
@@ -1647,7 +1763,7 @@ export default function LevelUpModal({
           )}
 
           {/* 7. NOVO RITUAL (OCULTISTA 25%, 55%, 85%) */}
-          {milestone.needsRitualChoice && (
+          {!doNotIncreaseNex && milestone.needsRitualChoice && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
@@ -1724,7 +1840,7 @@ export default function LevelUpModal({
           )}
 
           {/* 8. SUGESTÃO DE PATENTE */}
-          {milestone.recommendedRank && milestone.recommendedRank !== character.rank && (
+          {!doNotIncreaseNex && milestone.recommendedRank && milestone.recommendedRank !== character.rank && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
                 <Ionicons name="medal-outline" size={20} color="#F59E0B" />
@@ -1757,7 +1873,7 @@ export default function LevelUpModal({
 
         {/* Footer */}
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={handleModalClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.cancelBtnText}>Cancelar</Text>
           </TouchableOpacity>
 
@@ -1766,31 +1882,39 @@ export default function LevelUpModal({
             <Text style={styles.confirmBtnText}>{doNotIncreaseNex ? `Confirmar Poder (NEX ${currentNex}%)` : `Confirmar Evolução (${targetNex}%)`}</Text>
           </TouchableOpacity>
         </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
-        <PrerequisiteAlertModal
-          visible={!!prereqAlertData}
-          entityName={prereqAlertData?.entityName || ''}
-          unmetDetails={prereqAlertData?.unmetDetails || []}
-          category={prereqAlertData?.category}
-          onConfirm={() => prereqAlertData?.onConfirm()}
-          onCancel={() => setPrereqAlertData(null)}
-        />
-      </View>
-    </Modal>
+      <PrerequisiteAlertModal
+        visible={!!prereqAlertData}
+        entityName={prereqAlertData?.entityName || ''}
+        unmetDetails={prereqAlertData?.unmetDetails || []}
+        category={prereqAlertData?.category}
+        onConfirm={() => prereqAlertData?.onConfirm()}
+        onCancel={() => setPrereqAlertData(null)}
+      />
+    </>
   );
 }
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: Platform.OS === 'web' ? 'rgba(0, 0, 0, 0.72)' : colors.background,
+      ...(Platform.OS === 'web' ? { alignItems: 'center' as const } : {}),
+    },
     container: {
       flex: 1,
+      width: '100%',
+      ...(Platform.OS === 'web' ? { maxWidth: 640 } : {}),
       backgroundColor: colors.background,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingTop: Platform.OS === 'ios' ? 48 : 16,
       paddingBottom: 12,
       borderBottomWidth: 1,
       borderColor: colors.border,
@@ -1950,6 +2074,8 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: 4,
     },
     sectionTitle: {
+      flex: 1,
+      flexShrink: 1,
       fontSize: 14,
       fontWeight: '800',
       color: colors.text,
@@ -2032,6 +2158,8 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surfaceHighlight,
     },
     choiceCardTitle: {
+      flex: 1,
+      flexShrink: 1,
       fontSize: 13,
       fontWeight: '700',
       color: colors.text,
@@ -2104,12 +2232,13 @@ const createStyles = (colors: ThemeColors) =>
     },
     attrBoostGrid: {
       flexDirection: 'row',
-      gap: 8,
+      gap: 6,
       marginTop: 8,
     },
     attrBoostCard: {
       flex: 1,
-      padding: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
       borderRadius: 8,
       backgroundColor: colors.surfaceElevated,
       borderWidth: 1,
@@ -2289,7 +2418,7 @@ const createStyles = (colors: ThemeColors) =>
     onlyParanormalNoticeText: {
       fontSize: 12,
       fontWeight: '700',
-      color: '#A78BFA',
+      color: colors.accent,
       flex: 1,
     },
   });

@@ -76,7 +76,8 @@ export function rollDiceFormula(
   if (skillMatch) {
     const numD20 = parseInt(skillMatch[1], 10);
     const mod = skillMatch[2] ? parseInt(skillMatch[2], 10) : 0;
-    return rollOrdemTest(numD20, mod, label, 20, attackContext);
+    const threat = attackContext?.critical ? parseCritical(attackContext.critical).threat : 20;
+    return rollOrdemTest(numD20, mod, label, threat, attackContext);
   }
 
   const tokenRegex = /([+\-]?)(\d*)d(\d+)|([+\-]?\d+)/g;

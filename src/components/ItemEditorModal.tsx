@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BackHandler,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -25,15 +26,20 @@ import {
 } from '../types/compendium';
 import { showAlert } from '../utils/alert';
 import {
+  ALL_CATALOG_MODS_AND_CURSES,
   buildCatalogItemFromInventoryItem,
   calculateCatalogItemStats,
   CuratedCompendiumItem,
   formatSpacesLabel,
   getCuratedCompendiumItems,
   ITEM_CATEGORIES_ORDER,
+  OFFICIAL_ACCESSORY_CURSES,
   OFFICIAL_ACCESSORY_MODS,
+  OFFICIAL_PROTECTION_CURSES_FOR_CATALOG,
+  OFFICIAL_PROTECTION_MODS_FOR_CATALOG,
   parseSpacesInput,
 } from '../utils/inventoryItems';
+import { areElementsIncompatible } from '../utils/protections';
 import { BANNED_ITEM_SKILLS } from '../utils/inventorySkills';
 import { OFFICIAL_SKILLS_LIST } from '../utils/progression';
 
@@ -92,6 +98,7 @@ export interface ItemEditorModalProps {
   onClose: () => void;
   mode: 'depot' | 'character';
   initialCatalogItem?: CustomCatalogItem | null;
+  draftCatalogItem?: CustomCatalogItem | null;
   initialInventoryItem?: CharacterInventoryItem | null;
   onSave: (result: ItemEditorSaveResult) => void | Promise<void>;
   linkedAgentNames?: string[];
@@ -104,6 +111,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
   onClose,
   mode,
   initialCatalogItem,
+  draftCatalogItem,
   initialInventoryItem,
   onSave,
   linkedAgentNames,
@@ -184,13 +192,19 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
 
     const sourceCatalog: CustomCatalogItem | null = initialCatalogItem
       ? initialCatalogItem
+      : draftCatalogItem
+      ? draftCatalogItem
       : initialInventoryItem
       ? buildCatalogItemFromInventoryItem(initialInventoryItem)
       : null;
 
     if (sourceCatalog) {
       setEditingCatalogId(
-        initialCatalogItem ? initialCatalogItem.id : initialInventoryItem?.customItemId || null
+        initialCatalogItem
+          ? initialCatalogItem.id
+          : draftCatalogItem
+          ? null
+          : initialInventoryItem?.customItemId || null
       );
       setCreatedAt(sourceCatalog.createdAt);
       setName(sourceCatalog.name);
@@ -259,22 +273,27 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
       setMechanics([]);
       setAlsoSaveToDepot(mode === 'depot');
     }
-  }, [visible, mode, initialCatalogItem, initialInventoryItem]);
+  }, [visible, mode, initialCatalogItem, draftCatalogItem, initialInventoryItem]);
+
+  const handleBackPress = useCallback(() => {
+    if (baseItemPickerVisible) {
+      setBaseItemPickerVisible(false);
+      return true;
+    }
+    onClose();
+    return true;
+  }, [baseItemPickerVisible, onClose]);
+
+  const handleBackPressRef = useRef(handleBackPress);
+  handleBackPressRef.current = handleBackPress;
 
   useEffect(() => {
     if (!visible) return;
-    const handleBack = () => {
-      if (baseItemPickerVisible) {
-        setBaseItemPickerVisible(false);
-        return true;
-      }
-      onClose();
-      return true;
-    };
+    const onHardwareBack = () => handleBackPressRef.current();
 
     let sub: any;
-    if (Platform.OS !== 'web' && typeof document === 'undefined') {
-      sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+    if (Platform.OS === 'android') {
+      sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
     }
 
     let popActive = true;
@@ -283,7 +302,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
         window.history.pushState({ modal: 'item-editor-modal' }, '');
       } catch {}
       const handlePop = () => {
-        if (popActive) handleBack();
+        if (popActive) handleBackPressRef.current();
       };
       window.addEventListener('popstate', handlePop);
       return () => {
@@ -299,7 +318,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
     return () => {
       sub?.remove();
     };
-  }, [visible, baseItemPickerVisible, onClose]);
+  }, [visible]);
 
   const curatedItems = useMemo(() => getCuratedCompendiumItems(entities), [entities]);
 
@@ -317,7 +336,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
   }, [curatedItems, baseItemSearch, baseItemFilter]);
 
   const calculated = useMemo(() => {
-    return calculateCatalogItemStats({
+    const baseStats = calculateCatalogItemStats({
       baseCategory,
       baseSpaces: parseSpacesInput(baseSpaces, 1),
       itemType,
@@ -325,7 +344,21 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
       modifications: selectedMods,
       customModifications: customMods,
     });
-  }, [baseCategory, baseSpaces, itemType, skillBonus, selectedMods, customMods]);
+    // Livro Base p. 74: Aprimorado pode ser aplicado uma segunda vez à perícia de Função Adicional (+1 Cat)
+    const hasSecondAprimorado =
+      (itemType === 'vestimenta' || itemType === 'utensilio') &&
+      selectedMods.includes('mod_acc_funcao_adicional') &&
+      secondaryBonus === '5';
+    if (!hasSecondAprimorado) return baseStats;
+    const curIdx = ITEM_CATEGORIES_ORDER.indexOf(baseStats.finalCategory);
+    const nextCategory =
+      ITEM_CATEGORIES_ORDER[Math.min(ITEM_CATEGORIES_ORDER.length - 1, curIdx + 1)] ||
+      baseStats.finalCategory;
+    return {
+      ...baseStats,
+      finalCategory: nextCategory,
+    };
+  }, [baseCategory, baseSpaces, itemType, skillBonus, secondaryBonus, selectedMods, customMods]);
 
   const handleSelectBaseItem = (item: CuratedCompendiumItem) => {
     setBaseItemPickerVisible(false);
@@ -349,9 +382,67 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
   };
 
   const toggleMod = (modId: string) => {
-    setSelectedMods((prev) =>
-      prev.includes(modId) ? prev.filter((m) => m !== modId) : [...prev, modId]
-    );
+    const isRemoving = selectedMods.includes(modId);
+    if (isRemoving) {
+      setSelectedMods((prev) => prev.filter((m) => m !== modId));
+      return;
+    }
+
+    const modDef = ALL_CATALOG_MODS_AND_CURSES.find((m) => m.id === modId);
+    const incompatibleModPair: Record<string, { otherId: string; label: string }> = {
+      mod__reforcada: { otherId: 'mod__discreta', label: 'Discreta' },
+      mod__discreta: { otherId: 'mod__reforcada', label: 'Reforçada' },
+    };
+    const conflictPair = incompatibleModPair[modId];
+    if (conflictPair && selectedMods.includes(conflictPair.otherId)) {
+      showAlert(
+        'Modificações Incompatíveis',
+        `"${modDef?.name || modId}" não pode ser combinada com "${conflictPair.label}" (Livro Base p. 72).`
+      );
+      return;
+    }
+
+    if (modDef?.isCurse && modDef.element) {
+      if (
+        element !== 'Nenhum' &&
+        element !== 'Variável' &&
+        areElementsIncompatible(element, modDef.element)
+      ) {
+        showAlert(
+          'Elementos Opressivos',
+          `A maldição "${modDef.name}" (${modDef.element}) é incompatível com o elemento base do item (${element}) segundo a regra canônica (Livro Base p. 111 / p. 154).`
+        );
+        return;
+      }
+      const conflictingId = selectedMods.find((otherId) => {
+        const otherDef = ALL_CATALOG_MODS_AND_CURSES.find((m) => m.id === otherId);
+        return (
+          otherDef?.isCurse &&
+          otherDef.element &&
+          areElementsIncompatible(otherDef.element, modDef.element)
+        );
+      });
+      if (conflictingId) {
+        const otherDef = ALL_CATALOG_MODS_AND_CURSES.find((m) => m.id === conflictingId);
+        showAlert(
+          'Elementos Opressivos',
+          `A maldição "${modDef.name}" (${modDef.element}) é incompatível com "${otherDef?.name}" (${otherDef?.element}) segundo a regra canônica (Livro Base p. 111 / p. 154).`
+        );
+        return;
+      }
+      if (
+        element === 'Nenhum' &&
+        (modDef.element === 'Sangue' ||
+          modDef.element === 'Morte' ||
+          modDef.element === 'Conhecimento' ||
+          modDef.element === 'Energia' ||
+          modDef.element === 'Medo')
+      ) {
+        setElement(modDef.element);
+      }
+    }
+
+    setSelectedMods((prev) => [...prev, modId]);
   };
 
   const handleAddCustomMod = () => {
@@ -484,38 +575,69 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.headerBtn} testID="btn-close-item-editor">
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {title || (editingCatalogId || initialInventoryItem ? 'Editar Item' : 'Novo Item / Equipamento')}
-            </Text>
-            <Text style={styles.headerSub}>
-              Cat {calculated.finalCategory} • {formatSpacesLabel(calculated.finalSpaces)} esp.
-            </Text>
-          </View>
-          <TouchableOpacity onPress={handleSavePress} style={styles.saveBtn} testID="btn-save-item-editor">
-            <Ionicons name="checkmark" size={18} color="#FFF" />
-            <Text style={styles.saveBtnText}>{saveButtonLabel || 'Salvar'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {baseItemPickerVisible ? (
-          <View style={{ flex: 1 }}>
-            <View style={styles.pickerTopBar}>
-              <TouchableOpacity
-                style={styles.pickerBackBtn}
-                onPress={() => setBaseItemPickerVisible(false)}
-              >
-                <Ionicons name="arrow-back" size={18} color={colors.text} />
-                <Text style={styles.pickerBackText}>Voltar</Text>
-              </TouchableOpacity>
-              <Text style={styles.pickerTitle}>Escolher Modelo do Compêndio</Text>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={() => {
+        handleBackPress();
+      }}
+    >
+      <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View
+            style={[
+              styles.header,
+              { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 24 : 12) },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                handleBackPress();
+              }}
+              style={styles.headerBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              testID="btn-close-item-editor"
+            >
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {title || (editingCatalogId || initialInventoryItem ? 'Editar Item' : 'Novo Item / Equipamento')}
+              </Text>
+              <Text style={styles.headerSub} numberOfLines={1}>
+                Cat {calculated.finalCategory} • {formatSpacesLabel(calculated.finalSpaces)} esp.
+              </Text>
             </View>
+            <TouchableOpacity
+              onPress={handleSavePress}
+              style={styles.saveBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              testID="btn-save-item-editor"
+            >
+              <Ionicons name="checkmark" size={18} color="#FFF" />
+              <Text style={styles.saveBtnText} numberOfLines={1}>
+                {saveButtonLabel || 'Salvar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {baseItemPickerVisible ? (
+            <View style={{ flex: 1 }}>
+              <View style={styles.pickerTopBar}>
+                <TouchableOpacity
+                  style={styles.pickerBackBtn}
+                  onPress={() => setBaseItemPickerVisible(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="arrow-back" size={18} color={colors.text} />
+                  <Text style={styles.pickerBackText} numberOfLines={1}>Voltar</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerTitle} numberOfLines={1}>Escolher Modelo do Compêndio</Text>
+              </View>
             <View style={styles.pickerSearchWrap}>
               <Ionicons name="search" size={16} color={colors.textMuted} />
               <TextInput
@@ -585,7 +707,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {linkedAgentNames && linkedAgentNames.length > 0 ? (
               <View style={styles.sharedBanner}>
-                <Ionicons name="link" size={16} color="#38BDF8" />
+                <Ionicons name="link" size={16} color={colors.elements.Medo.text} />
                 <Text style={styles.sharedBannerText}>
                   Compartilhado com {linkedAgentNames.join(', ')}. Alterações aqui sincronizam com esses agentes.
                 </Text>
@@ -780,17 +902,17 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                     placeholderTextColor={colors.textMuted}
                   />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>RD ao Bloqueio (+)</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={blockRdBonus}
-                    onChangeText={setBlockRdBonus}
-                    keyboardType="number-pad"
-                    placeholder="Ex: 2"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                </View>
+              </View>
+              <View>
+                <Text style={styles.fieldLabel}>RD ao Bloqueio (+)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={blockRdBonus}
+                  onChangeText={setBlockRdBonus}
+                  keyboardType="number-pad"
+                  placeholder="Ex: 2"
+                  placeholderTextColor={colors.textMuted}
+                />
               </View>
             </View>
 
@@ -839,37 +961,108 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                 </View>
               ) : null}
 
-              <Text style={styles.sectionSub}>
-                Modificações Oficiais de Acessórios (Livro Base p. 74):
-              </Text>
-              <View style={styles.modsList}>
-                {OFFICIAL_ACCESSORY_MODS.map((mod) => {
-                  const active = selectedMods.includes(mod.id);
-                  return (
-                    <TouchableOpacity
-                      key={mod.id}
-                      style={[styles.modCard, active && styles.modCardActive]}
-                      onPress={() => toggleMod(mod.id)}
-                      testID={`toggle-item-mod-${mod.id}`}
-                    >
-                      <View style={styles.modCardHeader}>
-                        <Ionicons
-                          name={active ? 'checkmark-circle' : 'ellipse-outline'}
-                          size={18}
-                          color={active ? colors.primary : colors.textMuted}
-                        />
-                        <Text style={[styles.modCardTitle, active && { color: colors.text }]}>
-                          {mod.name}
-                        </Text>
-                        <View style={styles.modCatTag}>
-                          <Text style={styles.modCatTagText}>+{mod.categoryIncrease} Cat</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.modCardDesc}>{mod.description}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              {(() => {
+                const isProtType = itemType === 'protecao' || itemType === 'escudo';
+                const modsList = isProtType
+                  ? OFFICIAL_PROTECTION_MODS_FOR_CATALOG
+                  : OFFICIAL_ACCESSORY_MODS.filter(
+                      (m) => !m.appliesTo || m.appliesTo.includes(itemType)
+                    );
+                const cursesList = (
+                  isProtType ? OFFICIAL_PROTECTION_CURSES_FOR_CATALOG : OFFICIAL_ACCESSORY_CURSES
+                ).filter((m) => (isProtType ? true : !m.appliesTo || m.appliesTo.includes(itemType)));
+                return (
+                  <>
+                    <Text style={styles.sectionSub}>
+                      {isProtType
+                        ? 'Modificações Oficiais de Proteção (Livro Base p. 72):'
+                        : itemType === 'geral'
+                        ? 'Itens Gerais (Discreto e Maldições; Aprimorado/Função/Instrumental exigem Vestimenta ou Utensílio):'
+                        : 'Modificações Oficiais de Acessórios (Livro Base p. 74):'}
+                    </Text>
+                    <View style={styles.modsList}>
+                      {modsList.map((mod) => {
+                        const active = selectedMods.includes(mod.id);
+                        return (
+                          <TouchableOpacity
+                            key={mod.id}
+                            style={[styles.modCard, active && styles.modCardActive]}
+                            onPress={() => toggleMod(mod.id)}
+                            testID={`toggle-item-mod-${mod.id}`}
+                          >
+                            <View style={styles.modCardHeader}>
+                              <Ionicons
+                                name={active ? 'checkmark-circle' : 'ellipse-outline'}
+                                size={18}
+                                color={active ? colors.primary : colors.textMuted}
+                              />
+                              <Text style={[styles.modCardTitle, active && { color: colors.text }]}>
+                                {mod.name}
+                              </Text>
+                              <View style={styles.modCatTag}>
+                                <Text style={styles.modCatTagText}>+{mod.categoryIncrease} Cat</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.modCardDesc}>{mod.description}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    <Text style={[styles.sectionSub, { marginTop: 12 }]}>
+                      {isProtType
+                        ? 'Maldições Paranormais de Proteções & Escudos (Livro Base p. 156-157):'
+                        : 'Maldições Paranormais de Acessórios & Utensílios (Livro Base p. 157):'}
+                    </Text>
+                    <Text style={[styles.modCardDesc, { marginBottom: 8 }]}>
+                      1ª maldição soma +II Categoria; cada maldição extra +I. Elementos opostos não coexistem.
+                    </Text>
+                    <View style={styles.modsList}>
+                      {cursesList.map((curse) => {
+                        const active = selectedMods.includes(curse.id);
+                        const elColors =
+                          (curse.element && colors.elements[curse.element]) || colors.elements.Energia;
+                        return (
+                          <TouchableOpacity
+                            key={curse.id}
+                            style={[styles.modCard, active && styles.modCardActive]}
+                            onPress={() => toggleMod(curse.id)}
+                            testID={`toggle-item-mod-${curse.id}`}
+                          >
+                            <View style={styles.modCardHeader}>
+                              <Ionicons
+                                name={active ? 'flame' : 'flame-outline'}
+                                size={18}
+                                color={active ? elColors.border : colors.textMuted}
+                              />
+                              <Text style={[styles.modCardTitle, active && { color: colors.text }]}>
+                                {curse.name}
+                              </Text>
+                              {curse.element && (
+                                <View
+                                  style={[
+                                    styles.modCatTag,
+                                    {
+                                      borderColor: elColors.border,
+                                      backgroundColor: elColors.bg,
+                                      borderWidth: 1,
+                                    },
+                                  ]}
+                                >
+                                  <Text style={[styles.modCatTagText, { color: elColors.text }]}>
+                                    {curse.element}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={styles.modCardDesc}>{curse.description}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </>
+                );
+              })()}
 
               {selectedMods.includes('mod_acc_funcao_adicional') ? (
                 <View style={styles.nestedCard}>
@@ -905,7 +1098,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                             secondaryBonus === val && styles.smallPillTextActive,
                           ]}
                         >
-                          +{val} {val === '5' ? '(com Aprimorado)' : '(Padrão)'}
+                          +{val} {val === '5' ? '(+1 Cat • Aprimorado 2x)' : '(Padrão)'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -963,30 +1156,34 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
 
               <View style={styles.nestedCard}>
                 <Text style={styles.fieldLabel}>Adicionar Melhoria / Maldição Personalizada</Text>
+                <TextInput
+                  style={styles.input}
+                  value={customModName}
+                  onChangeText={setCustomModName}
+                  placeholder="Nome (ex: Reforçado)"
+                  placeholderTextColor={colors.textMuted}
+                />
                 <View style={styles.row}>
-                  <TextInput
-                    style={[styles.input, { flex: 2 }]}
-                    value={customModName}
-                    onChangeText={setCustomModName}
-                    placeholder="Nome (ex: Reforçado)"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    value={customModCatDelta}
-                    onChangeText={setCustomModCatDelta}
-                    keyboardType="number-pad"
-                    placeholder="+Cat"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    value={customModSpacesDelta}
-                    onChangeText={setCustomModSpacesDelta}
-                    keyboardType="numbers-and-punctuation"
-                    placeholder="Esp"
-                    placeholderTextColor={colors.textMuted}
-                  />
+                  <View style={{ flex: 1 }}>
+                    <TextInput
+                      style={styles.input}
+                      value={customModCatDelta}
+                      onChangeText={setCustomModCatDelta}
+                      keyboardType="number-pad"
+                      placeholder="+Cat"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <TextInput
+                      style={styles.input}
+                      value={customModSpacesDelta}
+                      onChangeText={setCustomModSpacesDelta}
+                      keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                      placeholder="Esp (ex: -1)"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                  </View>
                 </View>
                 <View style={styles.row}>
                   <TextInput
@@ -1115,7 +1312,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                   </View>
                 </View>
 
-                <View style={styles.row}>
+                <View style={[styles.row, { flexWrap: 'wrap' }]}>
                   <TextInput
                     style={[styles.input, { flex: 1 }]}
                     value={newMechAction}
@@ -1153,7 +1350,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                 <Ionicons
                   name={alsoSaveToDepot ? 'checkbox' : 'square-outline'}
                   size={20}
-                  color={alsoSaveToDepot ? '#38BDF8' : colors.textMuted}
+                  color={alsoSaveToDepot ? colors.elements.Medo.border : colors.textMuted}
                 />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.depotToggleTitle}>
@@ -1169,6 +1366,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
             <View style={{ height: 32 }} />
           </ScrollView>
         )}
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -1176,8 +1374,15 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: Platform.OS === 'web' ? 'rgba(0, 0, 0, 0.72)' : colors.background,
+      ...(Platform.OS === 'web' ? { alignItems: 'center' as const } : {}),
+    },
     container: {
       flex: 1,
+      width: '100%',
+      ...(Platform.OS === 'web' ? { maxWidth: 620 } : {}),
       backgroundColor: colors.background,
     },
     header: {
@@ -1185,7 +1390,7 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       gap: 10,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingBottom: 12,
       backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
@@ -1225,9 +1430,9 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      backgroundColor: 'rgba(56, 189, 248, 0.12)',
+      backgroundColor: colors.elements.Medo.bg,
       borderWidth: 1,
-      borderColor: '#38BDF8',
+      borderColor: colors.elements.Medo.border,
       borderRadius: 12,
       padding: 11,
     },

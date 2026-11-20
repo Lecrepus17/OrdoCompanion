@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   BackHandler,
   Modal,
   Platform,
@@ -22,6 +21,7 @@ import {
   CharacterAttack,
   CharacterAttributes,
   CharacterInventoryItem,
+  CharacterMaskConfig,
   CharacterSheet,
   CompendiumEntity,
   CriticalDamageMode,
@@ -85,6 +85,13 @@ import {
   getProtectionDicePenalty,
   WeaponProficiencyCheckInput,
 } from '../../utils/proficiencies';
+import {
+  calculateEquippedProtections,
+  findProtectionByName,
+  findProtectionCurse,
+  OFFICIAL_PROTECTION_MODIFICATIONS,
+  ProtectionItem,
+} from '../../utils/protections';
 import {
   calculateActiveItemSkillBonuses,
   BANNED_ITEM_SKILLS,
@@ -158,8 +165,9 @@ export default function CharactersScreen() {
     if (!activeCharId) return;
 
     let sub: any;
-    if (Platform.OS !== 'web' && typeof document === 'undefined') {
+    if (Platform.OS === 'android') {
       const onBackPress = () => {
+        if (hasOpenModalRef.current) return false;
         setActiveCharId(null);
         return true;
       };
@@ -172,7 +180,7 @@ export default function CharactersScreen() {
         window.history.pushState({ screen: 'character-sheet' }, '');
       } catch {}
       const handlePop = () => {
-        if (popActive) {
+        if (popActive && !hasOpenModalRef.current) {
           setActiveCharId(null);
         }
       };
@@ -235,11 +243,12 @@ export default function CharactersScreen() {
   const [abType, setAbType] = useState<'habilidade' | 'ritual' | 'poder'>('habilidade');
   const [abSubCategory, setAbSubCategory] = useState<'classe' | 'paranormal' | 'trilha' | 'geral' | 'ritual'>('geral');
   const [abElement, setAbElement] = useState<string>('Nenhum');
-  const [compendiumFilterTab, setCompendiumFilterTab] = useState<'all' | 'class_powers' | 'paranormal_powers' | 'rituals' | 'items'>('all');
+  const [compendiumFilterTab, setCompendiumFilterTab] = useState<'all' | 'class_powers' | 'paranormal_powers' | 'rituals' | 'items' | 'mascarados'>('all');
 
   // Unified Item Editor & Item Mechanics Modals
   const [itemEditorVisible, setItemEditorVisible] = useState(false);
   const [editingInventoryItem, setEditingInventoryItem] = useState<CharacterInventoryItem | null>(null);
+  const [draftCompendiumCatalogItem, setDraftCompendiumCatalogItem] = useState<CustomCatalogItem | null>(null);
   const [importChoiceItem, setImportChoiceItem] = useState<CustomCatalogItem | null>(null);
   const [healChoiceModal, setHealChoiceModal] = useState<{
     item: CharacterInventoryItem;
@@ -259,6 +268,18 @@ export default function CharactersScreen() {
   const [createAgentModalVisible, setCreateAgentModalVisible] = useState(false);
   const [levelUpModalVisible, setLevelUpModalVisible] = useState(false);
   const [protectionModalVisible, setProtectionModalVisible] = useState(false);
+
+  const hasOpenModalRef = useRef(false);
+  hasOpenModalRef.current = Boolean(
+    pickerModalType ||
+      protectionModalVisible ||
+      itemEditorVisible ||
+      levelUpModalVisible ||
+      abilityModalVisible ||
+      shareModalVisible ||
+      printModalVisible ||
+      createAgentModalVisible
+  );
 
   const activeChar = useMemo(
     () => characters.find((c) => c.id === activeCharId) || null,
@@ -377,12 +398,129 @@ export default function CharactersScreen() {
 
   const handleToggleEquipItem = async (itemId: string) => {
     if (!activeChar?.inventory) return;
+    const toggledItem = activeChar.inventory.find((it) => it.id === itemId);
     const updated = activeChar.inventory.map((it) => {
       if (it.id === itemId) {
         return { ...it, equipped: !it.equipped };
       }
       return it;
     });
+
+    const isProtectionInventoryEntry = (it: CharacterInventoryItem) => {
+      const low = it.name.toLowerCase();
+      return (
+        it.itemType === 'protecao' ||
+        it.itemType === 'escudo' ||
+        (it.id && it.id.startsWith('inv_prot_')) ||
+        low.includes('proteção leve') ||
+        low.includes('proteção pesada') ||
+        low.includes('escudo')
+      );
+    };
+
+    if (toggledItem && isProtectionInventoryEntry(toggledItem)) {
+      const resolveProtEntry = (
+        it: CharacterInventoryItem
+      ): { prot: ProtectionItem; mods: string[]; curses: string[]; isShield: boolean } => {
+        const baseName = it.name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        const found = findProtectionByName(baseName) || findProtectionByName(it.name);
+        const mods: string[] = [];
+        const curses: string[] = [];
+        let extraDef = 0;
+
+        for (const raw of it.modifications || []) {
+          const clean = raw.trim().toLowerCase();
+          const modDef = OFFICIAL_PROTECTION_MODIFICATIONS.find(
+            (m) => m.id.toLowerCase() === clean || m.name.toLowerCase() === clean
+          );
+          if (modDef) {
+            mods.push(modDef.name);
+            extraDef += modDef.defenseBonus || 0;
+            continue;
+          }
+          const curseDef = findProtectionCurse(raw);
+          if (curseDef) {
+            curses.push(curseDef.name);
+            extraDef += curseDef.defenseBonus || 0;
+          }
+        }
+
+        const isShield =
+          found?.type === 'Escudo' ||
+          it.itemType === 'escudo' ||
+          baseName.toLowerCase().includes('escudo');
+        if (found) {
+          return { prot: found, mods, curses, isShield };
+        }
+
+        const isPesada = baseName.toLowerCase().includes('pesada');
+        const detailsMatch = (it.details || '').match(/(?:defesa\s*\+?|\+)(\d+)\s*(?:def)?/i);
+        const parsedTotalDef = detailsMatch
+          ? parseInt(detailsMatch[1], 10)
+          : isShield
+          ? 2
+          : isPesada
+          ? 10
+          : 5;
+        const baseDef = Math.max(0, parsedTotalDef - extraDef);
+
+        return {
+          prot: {
+            id: `custom_${it.id}`,
+            name: baseName || it.name,
+            type: isShield ? 'Escudo' : isPesada ? 'Pesada' : 'Leve',
+            defenseBonus: baseDef,
+            spaces: it.spaces || 1,
+            category: it.category || '0',
+            armorPenalty: isPesada ? -5 : 0,
+            requiredProficiency: isPesada || isShield ? 'Proteções Pesadas' : 'Proteções Leves',
+          },
+          mods,
+          curses,
+          isShield,
+        };
+      };
+
+      const equippedProts = updated.filter(
+        (it) => it.equipped && isProtectionInventoryEntry(it)
+      );
+      let bodyArmor: ProtectionItem | null = null;
+      let shield: ProtectionItem | null = null;
+      const allMods: string[] = [];
+      const bodyCurses: string[] = [];
+      const shieldCurses: string[] = [];
+
+      for (const it of equippedProts) {
+        const parsed = resolveProtEntry(it);
+        if (parsed.isShield && !shield) {
+          shield = parsed.prot;
+          allMods.push(...parsed.mods);
+          shieldCurses.push(...parsed.curses);
+        } else if (!parsed.isShield && !bodyArmor) {
+          bodyArmor = parsed.prot;
+          allMods.push(...parsed.mods);
+          bodyCurses.push(...parsed.curses);
+        }
+      }
+
+      const calc = calculateEquippedProtections(
+        bodyArmor,
+        shield,
+        Array.from(new Set(allMods)),
+        Array.from(new Set(bodyCurses)),
+        Array.from(new Set(shieldCurses))
+      );
+
+      await updateActiveChar({
+        inventory: updated,
+        defenseEquip: calc.totalDefenseEquip,
+        defenseBonus: calc.totalDefenseEquip + (activeChar.defenseOther || 0),
+        protection: calc.protectionText,
+        resistances: calc.resistancesText,
+      });
+      return;
+    }
+
     await updateActiveChar({ inventory: updated });
   };
 
@@ -540,11 +678,15 @@ export default function CharactersScreen() {
       }
     }
 
+    const hasActiveMask = Boolean(activeChar.maskConfig?.enabled && activeChar.maskConfig?.isActive);
+    const maskPv = hasActiveMask ? 20 : 0;
+    const maskPe = hasActiveMask ? 10 : 0;
+
     await updateActiveChar({
-      pvMax: calc.pvMax,
-      pvCurrent: calc.pvMax,
-      peMax: calc.peMax,
-      peCurrent: calc.peMax,
+      pvMax: calc.pvMax + maskPv,
+      pvCurrent: calc.pvMax + maskPv,
+      peMax: calc.peMax + maskPe,
+      peCurrent: calc.peMax + maskPe,
       sanMax: calc.sanMax,
       sanCurrent: calc.sanMax,
       peRound: calc.peRound,
@@ -704,11 +846,18 @@ export default function CharactersScreen() {
     const attrKey = skillDef?.attr || (attack.range === 'Corpo a corpo' ? 'FOR' : 'AGI');
     const attrVal = activeChar.attributes[attrKey];
     const skillEntry = activeChar.skills[skillName] || { degree: 0, bonus: 0 };
+    const maskTestBonus =
+      activeChar.maskConfig?.enabled &&
+      activeChar.maskConfig?.isActive &&
+      activeChar.maskConfig?.grantBonusTests !== false
+        ? 5
+        : 0;
     const totalBonus =
       (skillEntry.degree || 0) +
       (skillEntry.bonus || 0) +
       (attack.attackBonus || 0) +
-      (resolved?.attackBonusFromToggles || 0);
+      (resolved?.attackBonusFromToggles || 0) +
+      maskTestBonus;
 
     const weaponInfo = getAttackWeaponInfo(attack);
     const profCheck = characterProficiencies
@@ -732,10 +881,11 @@ export default function CharactersScreen() {
     const effectiveDamage = resolved?.displayDamage || attack.damage;
     const effectiveCritical = resolved?.formattedCritical || attack.critical;
     const parsedCrit = parseCritical(effectiveCritical);
+    const maskRollNote = maskTestBonus > 0 ? ' [Forma Suprema: +5]' : '';
     rollSkillTest(
       effectiveDice,
       totalBonus,
-      `Ataque: ${attack.name} (${skillName})${penaltySuffix}`,
+      `Ataque: ${attack.name} (${skillName})${penaltySuffix}${maskRollNote}`,
       parsedCrit.threat,
       {
         weaponName: attack.name,
@@ -851,7 +1001,7 @@ export default function CharactersScreen() {
     const peCost = match ? parseInt(match[1], 10) : 1;
     const nextPE = Math.max(0, activeChar.peCurrent - peCost);
     await updateActiveChar({ peCurrent: nextPE });
-    Alert.alert('PE Gasto', `-${peCost} PE usado em "${abilityName}". PE restante: ${nextPE}/${activeChar.peMax}`);
+    showAlert('PE Gasto', `-${peCost} PE usado em "${abilityName}". PE restante: ${nextPE}/${activeChar.peMax}`);
   };
 
   // Inventory actions
@@ -944,6 +1094,7 @@ export default function CharactersScreen() {
 
     setItemEditorVisible(false);
     setEditingInventoryItem(null);
+    setDraftCompendiumCatalogItem(null);
   };
 
   const handleConfirmImportDepotItem = async (mode: 'shared' | 'duplicate') => {
@@ -1135,36 +1286,48 @@ export default function CharactersScreen() {
   const handleApplyProtections = async (payload: ProtectionApplyPayload) => {
     if (!activeChar) return;
 
-    // 1. Filtrar do inventário anterior quaisquer itens de proteção/escudo gerenciados pelo assistente
+    const isProtectionItem = (item: CharacterInventoryItem) =>
+      item.itemType === 'protecao' ||
+      item.itemType === 'escudo' ||
+      (item.id && item.id.startsWith('inv_prot_')) ||
+      (item.equipped &&
+        (item.name.toLowerCase().includes('proteção leve') ||
+          item.name.toLowerCase().includes('proteção pesada') ||
+          item.name.toLowerCase().includes('escudo') ||
+          item.name.toLowerCase().includes('capacete tático') ||
+          item.name.toLowerCase().includes('elmo do colosso')));
+
     const existingInventory = activeChar.inventory || [];
-    const cleanInventory = existingInventory.filter(
-      (item) =>
-        !(
-          item.itemType === 'protecao' ||
-          item.itemType === 'escudo' ||
-          (item.id && item.id.startsWith('inv_prot_')) ||
-          (item.equipped &&
-            (item.name.toLowerCase().includes('proteção leve') ||
-              item.name.toLowerCase().includes('proteção pesada') ||
-              item.name.toLowerCase().includes('escudo') ||
-              item.name.toLowerCase().includes('capacete tático')))
-        )
-    );
+    const shouldReplace = payload.replaceExisting !== false;
 
-    // 2. Criar novos itens de inventário para as proteções equipadas
+    // 1. Substituir apenas proteções anteriormente equipadas ou preservá-las na mochila como desequipadas
+    const baseInventory = shouldReplace
+      ? existingInventory.filter((item) => !(isProtectionItem(item) && item.equipped !== false))
+      : existingInventory.map((item) =>
+          isProtectionItem(item) ? { ...item, equipped: false } : item
+        );
+
+    // 2. Criar novos itens de inventário para as proteções equipadas (incluindo mods e maldições)
     const newInventoryItems: CharacterInventoryItem[] = payload.equippedItems.map(
-      (item, idx) => ({
-        id: `inv_prot_${Date.now()}_${idx}`,
-        name: item.name,
-        category: item.category,
-        spaces: item.spaces,
-        details: item.details,
-        equipped: true,
-        itemType: item.itemType,
-      })
+      (item, idx) => {
+        const modsAndCurses = [
+          ...(item.modifications || []),
+          ...(item.curses || []),
+        ];
+        return {
+          id: `inv_prot_${Date.now()}_${idx}`,
+          name: item.name,
+          category: item.category,
+          spaces: item.spaces,
+          details: item.details,
+          equipped: true,
+          itemType: item.itemType,
+          ...(modsAndCurses.length > 0 ? { modifications: modsAndCurses } : {}),
+        };
+      }
     );
 
-    const updatedInventory = [...cleanInventory, ...newInventoryItems];
+    const updatedInventory = [...baseInventory, ...newInventoryItems];
 
     // 3. Atualizar ficha do personagem
     await updateActiveChar({
@@ -1176,6 +1339,128 @@ export default function CharactersScreen() {
     });
 
     setProtectionModalVisible(false);
+  };
+
+  // Mascarados • Forma Suprema (Arquivos Secretos #02 p. 96-97)
+  const buildFullMaskConfig = (
+    prev?: CharacterMaskConfig | null,
+    patch: Partial<CharacterMaskConfig> = {}
+  ): CharacterMaskConfig => ({
+    enabled: prev?.enabled ?? false,
+    maskName: prev?.maskName || 'Máscara da Seita',
+    isActive: prev?.isActive ?? false,
+    activeRounds: prev?.activeRounds ?? 0,
+    grantBonusDiceDamage: prev?.grantBonusDiceDamage ?? true,
+    grantBonusTests: prev?.grantBonusTests ?? true,
+    grantBonusDt: prev?.grantBonusDt ?? true,
+    freeAdvancedRituals: prev?.freeAdvancedRituals ?? false,
+    ...(prev?.customUltimateAbility ? { customUltimateAbility: prev.customUltimateAbility } : {}),
+    ...patch,
+  });
+
+  const handleToggleMaskSupport = async () => {
+    if (!activeChar) return;
+    const prev = activeChar.maskConfig;
+    const nextEnabled = !prev?.enabled;
+    if (!nextEnabled && prev?.isActive) {
+      const nextDefenseOther = (activeChar.defenseOther || 0) - 10;
+      await updateActiveChar({
+        pvMax: Math.max(1, (activeChar.pvMax || 20) - 20),
+        pvCurrent: Math.max(0, (activeChar.pvCurrent || 0) - 20),
+        peMax: Math.max(1, (activeChar.peMax || 10) - 10),
+        peCurrent: Math.max(0, (activeChar.peCurrent || 0) - 10),
+        defenseOther: nextDefenseOther,
+        defenseBonus: (activeChar.defenseEquip || 0) + nextDefenseOther,
+        maskConfig: buildFullMaskConfig(prev, {
+          enabled: false,
+          isActive: false,
+          activeRounds: 0,
+        }),
+      });
+      return;
+    }
+    await updateActiveChar({
+      maskConfig: buildFullMaskConfig(prev, {
+        enabled: nextEnabled,
+        isActive: nextEnabled ? Boolean(prev?.isActive) : false,
+      }),
+    });
+  };
+
+  const handleToggleMaskOption = async (
+    key: 'grantBonusTests' | 'grantBonusDt' | 'grantBonusDiceDamage' | 'freeAdvancedRituals'
+  ) => {
+    if (!activeChar) return;
+    const base = buildFullMaskConfig(activeChar.maskConfig, { enabled: true });
+    await updateActiveChar({
+      maskConfig: {
+        ...base,
+        [key]: !base[key],
+      },
+    });
+  };
+
+  const handleActivateSupremeMask = async () => {
+    if (!activeChar) return;
+    if (activeChar.maskConfig?.isActive) return;
+    const nextSan = Math.max(0, (activeChar.sanCurrent || 0) - 6);
+    const nextDefenseOther = (activeChar.defenseOther || 0) + 10;
+    await updateActiveChar({
+      sanCurrent: nextSan,
+      pvMax: (activeChar.pvMax || 0) + 20,
+      pvCurrent: (activeChar.pvCurrent || 0) + 20,
+      peMax: (activeChar.peMax || 0) + 10,
+      peCurrent: (activeChar.peCurrent || 0) + 10,
+      defenseOther: nextDefenseOther,
+      defenseBonus: (activeChar.defenseEquip || 0) + nextDefenseOther,
+      maskConfig: buildFullMaskConfig(activeChar.maskConfig, {
+        enabled: true,
+        isActive: true,
+        activeRounds: 1,
+      }),
+    });
+    if (nextSan === 0) {
+      showAlert('Sanidade Zerada!', 'Ativar a Forma Suprema (-6 SAN) reduziu a Sanidade para 0.');
+    }
+  };
+
+  const handleMaskRoundUpkeep = async () => {
+    if (!activeChar || !activeChar.maskConfig?.isActive) return;
+    const nextSan = Math.max(0, (activeChar.sanCurrent || 0) - 2);
+    await updateActiveChar({
+      sanCurrent: nextSan,
+      maskConfig: buildFullMaskConfig(activeChar.maskConfig, {
+        activeRounds: (activeChar.maskConfig.activeRounds || 0) + 1,
+      }),
+    });
+    if (nextSan === 0) {
+      showAlert('Sanidade Zerada!', 'O custo de -2 SAN por rodada da Máscara reduziu a Sanidade para 0.');
+    }
+  };
+
+  const handleDeactivateSupremeMask = async () => {
+    if (!activeChar || !activeChar.maskConfig?.isActive) return;
+    const nextPvCurrentRaw = (activeChar.pvCurrent || 0) - 20;
+    const nextPvCurrent = Math.max(0, nextPvCurrentRaw);
+    const nextDefenseOther = (activeChar.defenseOther || 0) - 10;
+    await updateActiveChar({
+      pvMax: Math.max(1, (activeChar.pvMax || 20) - 20),
+      pvCurrent: nextPvCurrent,
+      peMax: Math.max(1, (activeChar.peMax || 10) - 10),
+      peCurrent: Math.max(0, (activeChar.peCurrent || 0) - 10),
+      defenseOther: nextDefenseOther,
+      defenseBonus: (activeChar.defenseEquip || 0) + nextDefenseOther,
+      maskConfig: buildFullMaskConfig(activeChar.maskConfig, {
+        isActive: false,
+        activeRounds: 0,
+      }),
+    });
+    if (nextPvCurrentRaw <= 0) {
+      showAlert(
+        'Agente Morrendo!',
+        'Ao desativar a Forma Suprema e perder os +20 PV máximos e atuais da Máscara, o agente caiu a 0 PV e entrou em estado Morrendo.'
+      );
+    }
   };
 
   // Carga Calculation
@@ -1198,9 +1483,16 @@ export default function CharactersScreen() {
     );
   }, [activeChar]);
 
+  const activeMaskTestBonus =
+    activeChar?.maskConfig?.enabled &&
+    activeChar?.maskConfig?.isActive &&
+    activeChar?.maskConfig?.grantBonusTests !== false
+      ? 5
+      : 0;
+
   // Reações de Defesa de Ordem Paranormal (Esquiva = Defesa + Reflexos; Bloqueio RD = Fortitude; Contra-ataque = Luta)
   const reflexosEntry = activeChar?.skills?.['Reflexos'] || { degree: 0, bonus: 0 };
-  const reflexosBonus = (reflexosEntry.degree || 0) + (reflexosEntry.bonus || 0);
+  const reflexosBonus = (reflexosEntry.degree || 0) + (reflexosEntry.bonus || 0) + activeMaskTestBonus;
   const esquivaTotal = totalDefense + reflexosBonus;
 
   const fortitudeEntry = activeChar?.skills?.['Fortitude'] || { degree: 0, bonus: 0 };
@@ -1208,7 +1500,7 @@ export default function CharactersScreen() {
     (fortitudeEntry.degree || 0) + (fortitudeEntry.bonus || 0) + inventorySummary.totalBlockRdBonus;
 
   const lutaEntry = activeChar?.skills?.['Luta'] || { degree: 0, bonus: 0 };
-  const contraAtaqueBonus = (lutaEntry.degree || 0) + (lutaEntry.bonus || 0);
+  const contraAtaqueBonus = (lutaEntry.degree || 0) + (lutaEntry.bonus || 0) + activeMaskTestBonus;
 
   if (!activeChar) {
     return (
@@ -1430,7 +1722,13 @@ export default function CharactersScreen() {
         />
 
         {/* Modal de Compartilhamento de Ficha de Agente */}
-        <Modal visible={shareModalVisible} animationType="slide" transparent>
+        <Modal
+          visible={shareModalVisible}
+          animationType="slide"
+          transparent
+          statusBarTranslucent
+          onRequestClose={() => setShareModalVisible(false)}
+        >
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 16 }}>
             <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18, gap: 12, maxHeight: '85%' }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1659,7 +1957,11 @@ export default function CharactersScreen() {
                     const agi = activeChar.attributes.AGI || 1;
                     const initEntry = activeChar.skills['Iniciativa'] || { degree: 0, bonus: 0 };
                     const itemInitBonus = itemSkillBonuses.effectiveBonuses['Iniciativa']?.bonus || 0;
-                    const bonus = (initEntry.degree || 0) + (initEntry.bonus || 0) + itemInitBonus;
+                    const bonus =
+                      (initEntry.degree || 0) +
+                      (initEntry.bonus || 0) +
+                      itemInitBonus +
+                      activeMaskTestBonus;
                     const protPen = getProtectionDicePenalty(activeChar, 'AGI');
                     const effectiveAgi = protPen !== 0 ? Math.max(-5, agi + protPen) : agi;
                     let label = `Iniciativa: ${activeChar.name}`;
@@ -1668,6 +1970,9 @@ export default function CharactersScreen() {
                     }
                     if (protPen !== 0) {
                       label += ' [Penalidade de Proteção: -2d20]';
+                    }
+                    if (activeMaskTestBonus > 0) {
+                      label += ' [Forma Suprema: +5]';
                     }
                     const roll = rollSkillTest(effectiveAgi, bonus, label);
                     rollTableInitiative(roll.total, activeChar.name);
@@ -1734,7 +2039,7 @@ export default function CharactersScreen() {
                       value={String(activeChar.nex)}
                       onChangeText={(v) => {
                         const n = Math.min(99, Math.max(0, parseInt(v, 10) || 0));
-                        const peR = Math.max(1, Math.floor(n / 5));
+                        const peR = getPeRoundLimit(n);
                         const dt = 10 + peR + activeChar.attributes.PRE;
                         updateActiveChar({ nex: n, peRound: peR, dtRituals: dt });
                       }}
@@ -1952,10 +2257,14 @@ export default function CharactersScreen() {
                           const attrKey = attr as 'FOR' | 'AGI' | 'INT' | 'PRE' | 'VIG';
                           const protPen = activeChar ? getProtectionDicePenalty(activeChar, attrKey) : 0;
                           const effectiveAttrDice = protPen !== 0 ? Math.max(-5, val + protPen) : val;
-                          const label = protPen !== 0
+                          const baseLabel = protPen !== 0
                             ? `Atributo ${attr} [Penalidade de Proteção: -2d20]`
                             : `Atributo ${attr}`;
-                          rollSkillTest(effectiveAttrDice, 0, label);
+                          const label =
+                            activeMaskTestBonus > 0
+                              ? `${baseLabel} [Forma Suprema: +5]`
+                              : baseLabel;
+                          rollSkillTest(effectiveAttrDice, activeMaskTestBonus, label);
                         }}
                       >
                         <Ionicons name="dice-outline" size={13} color="#FCA5A5" />
@@ -2121,11 +2430,16 @@ export default function CharactersScreen() {
                     }}
                     onPress={() => {
                       const fortitudeEntry = activeChar.skills['Fortitude'] || { degree: 0, bonus: 0 };
-                      const fortitudeBonus = (fortitudeEntry.degree || 0) + (fortitudeEntry.bonus || 0);
+                      const fortitudeBonus =
+                        (fortitudeEntry.degree || 0) +
+                        (fortitudeEntry.bonus || 0) +
+                        activeMaskTestBonus;
                       rollSkillTest(
                         activeChar.attributes.VIG,
                         fortitudeBonus,
-                        'Teste de Fortitude (Estabilizar / Morrendo)'
+                        `Teste de Fortitude (Estabilizar / Morrendo)${
+                          activeMaskTestBonus > 0 ? ' [Forma Suprema: +5]' : ''
+                        }`
                       );
                     }}
                   >
@@ -2194,11 +2508,16 @@ export default function CharactersScreen() {
                     }}
                     onPress={() => {
                       const vontadeEntry = activeChar.skills['Vontade'] || { degree: 0, bonus: 0 };
-                      const vontadeBonus = (vontadeEntry.degree || 0) + (vontadeEntry.bonus || 0);
+                      const vontadeBonus =
+                        (vontadeEntry.degree || 0) +
+                        (vontadeEntry.bonus || 0) +
+                        activeMaskTestBonus;
                       rollSkillTest(
                         activeChar.attributes.PRE,
                         vontadeBonus,
-                        'Teste de Vontade (Resistir à Loucura)'
+                        `Teste de Vontade (Resistir à Loucura)${
+                          activeMaskTestBonus > 0 ? ' [Forma Suprema: +5]' : ''
+                        }`
                       );
                     }}
                   >
@@ -2229,21 +2548,25 @@ export default function CharactersScreen() {
                   <Text style={styles.fieldLabel}>Bônus Equipamento</Text>
                   <View style={styles.stepperRow}>
                     <TouchableOpacity
-                      onPress={() =>
+                      onPress={() => {
+                        const next = Math.max(-5, (activeChar.defenseEquip || 0) - 1);
                         updateActiveChar({
-                          defenseEquip: Math.max(-5, (activeChar.defenseEquip || 0) - 1),
-                        })
-                      }
+                          defenseEquip: next,
+                          defenseBonus: next + (activeChar.defenseOther || 0),
+                        });
+                      }}
                     >
                       <Ionicons name="remove-circle-outline" size={20} color={colors.textSecondary} />
                     </TouchableOpacity>
                     <Text style={styles.defenseBonusNum}>+{activeChar.defenseEquip || 0}</Text>
                     <TouchableOpacity
-                      onPress={() =>
+                      onPress={() => {
+                        const next = Math.min(30, (activeChar.defenseEquip || 0) + 1);
                         updateActiveChar({
-                          defenseEquip: Math.min(30, (activeChar.defenseEquip || 0) + 1),
-                        })
-                      }
+                          defenseEquip: next,
+                          defenseBonus: next + (activeChar.defenseOther || 0),
+                        });
+                      }}
                     >
                       <Ionicons name="add-circle-outline" size={20} color={colors.textSecondary} />
                     </TouchableOpacity>
@@ -2254,21 +2577,25 @@ export default function CharactersScreen() {
                   <Text style={styles.fieldLabel}>Bônus Outros</Text>
                   <View style={styles.stepperRow}>
                     <TouchableOpacity
-                      onPress={() =>
+                      onPress={() => {
+                        const next = Math.max(-5, (activeChar.defenseOther || 0) - 1);
                         updateActiveChar({
-                          defenseOther: Math.max(-5, (activeChar.defenseOther || 0) - 1),
-                        })
-                      }
+                          defenseOther: next,
+                          defenseBonus: (activeChar.defenseEquip || 0) + next,
+                        });
+                      }}
                     >
                       <Ionicons name="remove-circle-outline" size={20} color={colors.textSecondary} />
                     </TouchableOpacity>
                     <Text style={styles.defenseBonusNum}>+{activeChar.defenseOther || 0}</Text>
                     <TouchableOpacity
-                      onPress={() =>
+                      onPress={() => {
+                        const next = Math.min(30, (activeChar.defenseOther || 0) + 1);
                         updateActiveChar({
-                          defenseOther: Math.min(30, (activeChar.defenseOther || 0) + 1),
-                        })
-                      }
+                          defenseOther: next,
+                          defenseBonus: (activeChar.defenseEquip || 0) + next,
+                        });
+                      }}
                     >
                       <Ionicons name="add-circle-outline" size={20} color={colors.textSecondary} />
                     </TouchableOpacity>
@@ -2308,9 +2635,12 @@ export default function CharactersScreen() {
                   onPress={() => {
                     const protPen = activeChar ? getProtectionDicePenalty(activeChar, 'AGI') : 0;
                     const effectiveAgi = protPen !== 0 ? Math.max(-5, activeChar.attributes.AGI + protPen) : activeChar.attributes.AGI;
-                    const label = protPen !== 0
+                    let label = protPen !== 0
                       ? 'Teste de Reflexos (Esquiva) [Penalidade de Proteção: -2d20]'
                       : 'Teste de Reflexos (Esquiva)';
+                    if (activeMaskTestBonus > 0) {
+                      label += ' [Forma Suprema: +5]';
+                    }
                     rollSkillTest(
                       effectiveAgi,
                       reflexosBonus,
@@ -2344,8 +2674,10 @@ export default function CharactersScreen() {
                   onPress={() =>
                     rollSkillTest(
                       activeChar.attributes.VIG,
-                      bloqueioRD,
-                      'Teste de Fortitude (Bloqueio / RD)'
+                      bloqueioRD + activeMaskTestBonus,
+                      `Teste de Fortitude (Bloqueio / RD)${
+                        activeMaskTestBonus > 0 ? ' [Forma Suprema: +5]' : ''
+                      }`
                     )
                   }
                 >
@@ -2375,9 +2707,12 @@ export default function CharactersScreen() {
                   onPress={() => {
                     const protPen = activeChar ? getProtectionDicePenalty(activeChar, 'FOR') : 0;
                     const effectiveFor = protPen !== 0 ? Math.max(-5, activeChar.attributes.FOR + protPen) : activeChar.attributes.FOR;
-                    const label = protPen !== 0
+                    let label = protPen !== 0
                       ? 'Teste de Luta (Contra-ataque) [Penalidade de Proteção: -2d20]'
                       : 'Teste de Luta (Contra-ataque)';
+                    if (activeMaskTestBonus > 0) {
+                      label += ' [Forma Suprema: +5]';
+                    }
                     rollSkillTest(
                       effectiveFor,
                       contraAtaqueBonus,
@@ -2438,8 +2773,7 @@ export default function CharactersScreen() {
 
               {Boolean(
                 activeChar.protection &&
-                  (activeChar.protection.toLowerCase().includes('pesada') ||
-                    activeChar.protection.toLowerCase().includes('capacete'))
+                  activeChar.protection.toLowerCase().includes('pesada')
               ) && (
                 <View
                   style={{
@@ -2458,6 +2792,116 @@ export default function CharactersScreen() {
                   </Text>
                 </View>
               )}
+            </View>
+
+            {/* MASCARADOS & FORMA SUPREMA (ARQUIVOS SECRETOS #02) */}
+            <View style={styles.maskCard} testID="mask-supreme-card">
+              <View style={styles.cardHeaderRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Máscara & Forma Suprema (Mascarados)</Text>
+                  <Text style={styles.subHeading}>
+                    AS#02 p. 96-97 • -6 SAN ativar (+20 PV, +10 PE, +10 Def, +5 Testes/DT, +2d Dano)
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.maskToggleBtn,
+                    activeChar.maskConfig?.enabled && styles.maskToggleBtnActive,
+                  ]}
+                  onPress={handleToggleMaskSupport}
+                  testID="btn-toggle-mask-enabled"
+                >
+                  <Text
+                    style={[
+                      styles.maskToggleBtnText,
+                      activeChar.maskConfig?.enabled && styles.maskToggleBtnTextActive,
+                    ]}
+                  >
+                    {activeChar.maskConfig?.enabled ? 'Habilitada' : 'Habilitar'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {activeChar.maskConfig?.enabled ? (
+                <View style={{ gap: 10 }}>
+                  <View style={styles.maskPillRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.maskOptionPill,
+                        activeChar.maskConfig?.grantBonusTests !== false && styles.maskOptionPillActive,
+                      ]}
+                      onPress={() => handleToggleMaskOption('grantBonusTests')}
+                      testID="mask-toggle-tests"
+                    >
+                      <Text style={styles.maskOptionPillText}>+5 em Testes</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.maskOptionPill,
+                        activeChar.maskConfig?.grantBonusDt !== false && styles.maskOptionPillActive,
+                      ]}
+                      onPress={() => handleToggleMaskOption('grantBonusDt')}
+                      testID="mask-toggle-dt"
+                    >
+                      <Text style={styles.maskOptionPillText}>+5 DT Rituais</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.maskOptionPill,
+                        activeChar.maskConfig?.grantBonusDiceDamage !== false && styles.maskOptionPillActive,
+                      ]}
+                      onPress={() => handleToggleMaskOption('grantBonusDiceDamage')}
+                      testID="mask-toggle-damage"
+                    >
+                      <Text style={styles.maskOptionPillText}>+2d Dano (Arma/Ritual)</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.maskOptionPill,
+                        Boolean(activeChar.maskConfig?.freeAdvancedRituals) && styles.maskOptionPillActive,
+                      ]}
+                      onPress={() => handleToggleMaskOption('freeAdvancedRituals')}
+                      testID="mask-toggle-free-rituals"
+                    >
+                      <Text style={styles.maskOptionPillText}>Discente/Verdadeiro Livre</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {!activeChar.maskConfig?.isActive ? (
+                    <TouchableOpacity
+                      style={styles.maskActivateBtn}
+                      onPress={handleActivateSupremeMask}
+                      testID="btn-mask-activate"
+                    >
+                      <Ionicons name="flash" size={16} color="#FFF" />
+                      <Text style={styles.maskActivateBtnText}>
+                        Vestir Máscara (-6 SAN • +20 PV • +10 PE • +10 Def)
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.maskActiveActionsRow}>
+                      <TouchableOpacity
+                        style={styles.maskRoundBtn}
+                        onPress={handleMaskRoundUpkeep}
+                        testID="btn-mask-round"
+                      >
+                        <Ionicons name="time-outline" size={15} color={colors.elements.Conhecimento.text} />
+                        <Text style={styles.maskRoundBtnText}>
+                          Rodada {activeChar.maskConfig?.activeRounds || 1} (+1 / -2 SAN)
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.maskDeactivateBtn}
+                        onPress={handleDeactivateSupremeMask}
+                        testID="btn-mask-deactivate"
+                      >
+                        <Ionicons name="close-circle-outline" size={15} color="#FFF" />
+                        <Text style={styles.maskDeactivateBtnText}>Desativar Máscara</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              ) : null}
             </View>
           </>
         )}
@@ -2767,7 +3211,13 @@ export default function CharactersScreen() {
               const bonus = entry.bonus || 0;
               const itemBonusInfo = itemSkillBonuses.effectiveBonuses[sk.name];
               const itemBonus = itemBonusInfo ? itemBonusInfo.bonus : 0;
-              const totalBonus = degree + bonus + itemBonus;
+              const maskTestBonus =
+                activeChar.maskConfig?.enabled &&
+                activeChar.maskConfig?.isActive &&
+                activeChar.maskConfig?.grantBonusTests !== false
+                  ? 5
+                  : 0;
+              const totalBonus = degree + bonus + itemBonus + maskTestBonus;
               const attrVal = activeChar.attributes[sk.attr];
 
               const protPen = activeChar ? getProtectionDicePenalty(activeChar, sk.attr) : 0;
@@ -2877,6 +3327,9 @@ export default function CharactersScreen() {
                     if (itemBonusInfo) {
                       rollLabel += ` [Item: +${itemBonusInfo.bonus} ${itemBonusInfo.sourceItemName}]`;
                     }
+                    if (maskTestBonus > 0) {
+                      rollLabel += ` [Forma Suprema: +5]`;
+                    }
                     if (protPen !== 0) {
                       rollLabel += ` [Penalidade de Proteção: -2d20]`;
                     }
@@ -2937,8 +3390,18 @@ export default function CharactersScreen() {
               <View style={styles.dtRitualBadge}>
                 <Text style={styles.dtRitualBadgeLabel}>DT RITUAL</Text>
                 <Text style={styles.dtRitualBadgeVal}>
-                  {activeChar.dtRituals || 10 + (activeChar.peRound || 1) + activeChar.attributes.PRE}
+                  {(activeChar.dtRituals || 10 + (activeChar.peRound || 1) + activeChar.attributes.PRE) +
+                    (activeChar.maskConfig?.enabled &&
+                    activeChar.maskConfig?.isActive &&
+                    activeChar.maskConfig?.grantBonusDt !== false
+                      ? 5
+                      : 0)}
                 </Text>
+                {activeChar.maskConfig?.enabled &&
+                activeChar.maskConfig?.isActive &&
+                activeChar.maskConfig?.grantBonusDt !== false ? (
+                  <Text style={styles.dtRitualMaskSub}>+5 Máscara</Text>
+                ) : null}
               </View>
             </View>
 
@@ -3269,7 +3732,7 @@ export default function CharactersScreen() {
                                 `${item.name} (${tierLabel})`
                               );
                             } else {
-                              Alert.alert(
+                              showAlert(
                                 'Ritual Conjurado',
                                 `"${item.name}" (${tierLabel}) conjurado! -${resolvedRitual.totalPeCost} PE (DT ${resolvedRitual.dtResistance}). PE restante: ${nextPe}/${activeChar.peMax}`
                               );
@@ -4090,17 +4553,26 @@ export default function CharactersScreen() {
       <Modal
         visible={abilityModalVisible}
         animationType="slide"
+        statusBarTranslucent
         onRequestClose={() => setAbilityModalVisible(false)}
       >
         <View style={styles.modalWrap}>
-          <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 14) }]}>
-            <Text style={styles.modalTitle}>Nova Habilidade ou Ritual</Text>
+          <View
+            style={[
+              styles.modalHeader,
+              { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 24 : 14) },
+            ]}
+          >
+            <Text style={styles.modalTitle} numberOfLines={1}>Nova Habilidade ou Ritual</Text>
             <TouchableOpacity onPress={() => setAbilityModalVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom + 24, 34), gap: 12 }}>
+          <ScrollView
+            contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom + 24, 34), gap: 12 }}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Seletor de Categoria */}
             <View>
               <Text style={styles.fieldLabel}>Tipo de Habilidade</Text>
@@ -4256,9 +4728,11 @@ export default function CharactersScreen() {
         onClose={() => {
           setItemEditorVisible(false);
           setEditingInventoryItem(null);
+          setDraftCompendiumCatalogItem(null);
         }}
         mode="character"
         initialInventoryItem={editingInventoryItem}
+        draftCatalogItem={draftCompendiumCatalogItem}
         onSave={handleSaveUnifiedItem}
       />
 
@@ -4410,11 +4884,17 @@ export default function CharactersScreen() {
       <Modal
         visible={pickerModalType !== null}
         animationType="slide"
+        statusBarTranslucent
         onRequestClose={() => setPickerModalType(null)}
       >
         <View style={styles.modalWrap}>
-          <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 14) }]}>
-            <Text style={styles.modalTitle}>
+          <View
+            style={[
+              styles.modalHeader,
+              { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 24 : 14) },
+            ]}
+          >
+            <Text style={styles.modalTitle} numberOfLines={1}>
               {pickerModalType === 'origin'
                 ? 'Selecionar Origem'
                 : pickerModalType === 'class'
@@ -4511,6 +4991,7 @@ export default function CharactersScreen() {
                 { id: 'paranormal_powers', label: 'Poderes Paranormais' },
                 { id: 'rituals', label: 'Rituais' },
                 { id: 'items', label: 'Itens & Armas' },
+                { id: 'mascarados', label: 'Mascarados & Aliados' },
               ].map((tab) => {
                 const active = compendiumFilterTab === tab.id;
                 return (
@@ -4531,7 +5012,10 @@ export default function CharactersScreen() {
             </ScrollView>
           )}
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: Math.max(insets.bottom + 24, 40), gap: 8 }}>
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: Math.max(insets.bottom + 24, 40), gap: 8 }}
+            keyboardShouldPersistTaps="handled"
+          >
             {pickerModalType === 'add_weapon_armaria' ? (
               customWeapons.length === 0 ? (
                 <View style={styles.emptyCard}>
@@ -4678,7 +5162,10 @@ export default function CharactersScreen() {
                 .map((it: CuratedCompendiumItem) => (
                   <TouchableOpacity
                     key={it.id}
-                    style={styles.pickerItem}
+                    style={[
+                      styles.pickerItem,
+                      { flexDirection: 'column', alignItems: 'stretch', gap: 8 },
+                    ]}
                     onPress={async () => {
                       const invItem = buildInventoryItemFromCuratedItem(it);
                       await updateActiveChar({
@@ -4694,7 +5181,7 @@ export default function CharactersScreen() {
                     delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                     testID={`picker-comp-item-${it.id}`}
                   >
-                    <View style={{ flex: 1 }}>
+                    <View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <Text style={styles.pickerItemTitle}>{it.name}</Text>
                         <View style={styles.invSpacesBadge}>
@@ -4708,7 +5195,7 @@ export default function CharactersScreen() {
                         {it.pageNumber ? ` p. ${it.pageNumber}` : ''} • {it.subCategoryGroup.toUpperCase()}
                       </Text>
                       {it.mechanics.length > 0 ? (
-                        <Text style={[styles.pickerItemSub, { color: '#34D399', marginTop: 2 }]}>
+                        <Text style={[styles.pickerItemSub, { color: colors.success, marginTop: 2 }]}>
                           ⚡ {it.mechanics.map((m) => `${m.label}${m.formula ? ` (${m.formula})` : ''}`).join(' • ')}
                         </Text>
                       ) : null}
@@ -4718,7 +5205,38 @@ export default function CharactersScreen() {
                         </Text>
                       ) : null}
                     </View>
-                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                        gap: 6,
+                      }}
+                    >
+                      <TouchableOpacity
+                        style={[
+                          styles.depotMiniBtn,
+                          {
+                            borderColor: colors.elements.Energia.border,
+                            backgroundColor: colors.elements.Energia.bg,
+                          },
+                        ]}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          const catalogItem = buildCatalogItemFromCuratedItem(it);
+                          setEditingInventoryItem(null);
+                          setDraftCompendiumCatalogItem(catalogItem);
+                          setPickerModalType(null);
+                          setItemEditorVisible(true);
+                        }}
+                        testID={`picker-comp-item-customize-${it.id}`}
+                      >
+                        <Ionicons name="sparkles-outline" size={12} color={colors.elements.Energia.text} />
+                        <Text style={[styles.depotMiniBtnText, { color: colors.elements.Energia.text }]}>
+                          Personalizar
+                        </Text>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.depotMiniBtn}
                         onPress={async (e) => {
@@ -4736,7 +5254,7 @@ export default function CharactersScreen() {
                         }}
                         testID={`picker-comp-item-depot-${it.id}`}
                       >
-                        <Ionicons name="briefcase-outline" size={12} color="#38BDF8" />
+                        <Ionicons name="briefcase-outline" size={12} color={colors.elements.Medo.text} />
                         <Text style={styles.depotMiniBtnText}>+ Depósito</Text>
                       </TouchableOpacity>
                       <Ionicons name="add-circle" size={22} color={colors.primary} />
@@ -4778,6 +5296,20 @@ export default function CharactersScreen() {
                     baseList = baseList.filter((e) => e.category === 'ritual');
                   } else if (compendiumFilterTab === 'items') {
                     baseList = baseList.filter((e) => e.category === 'item' || e.category === 'weapon');
+                  } else if (compendiumFilterTab === 'mascarados') {
+                    baseList = baseList.filter((e) => {
+                      const sub = (e.subCategory || '').toLowerCase();
+                      const nm = (e.name || '').toLowerCase();
+                      return (
+                        sub.includes('intenção') ||
+                        sub.includes('intencao') ||
+                        sub.includes('aliado') ||
+                        e.bookId === 'arquivos_secretos_02' ||
+                        nm.includes('máscara') ||
+                        nm.includes('mascara') ||
+                        nm.includes('colosso')
+                      );
+                    });
                   }
                 }
 
@@ -4985,7 +5517,13 @@ export default function CharactersScreen() {
       />
 
       {/* Modal de Compartilhamento de Ficha de Agente */}
-      <Modal visible={shareModalVisible} animationType="slide" transparent>
+      <Modal
+        visible={shareModalVisible}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setShareModalVisible(false)}
+      >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18, gap: 12, maxHeight: '85%' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -5994,14 +6532,14 @@ export const createStyles = (colors: ThemeColors) =>
   dtRitualBadge: {
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#A855F7',
+    borderColor: colors.elements.Energia.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 6,
     alignItems: 'center',
   },
   dtRitualBadgeLabel: {
-    color: '#A855F7',
+    color: colors.elements.Energia.text,
     fontSize: 9,
     fontWeight: '900',
   },
@@ -6009,6 +6547,12 @@ export const createStyles = (colors: ThemeColors) =>
     color: colors.text,
     fontSize: 18,
     fontWeight: '900',
+  },
+  dtRitualMaskSub: {
+    color: colors.elements.Energia.text,
+    fontSize: 9,
+    fontWeight: '800',
+    marginTop: 1,
   },
   emptyHint: {
     color: colors.textMuted,
@@ -6150,6 +6694,8 @@ export const createStyles = (colors: ThemeColors) =>
   },
   modalWrap: {
     flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { maxWidth: 640, alignSelf: 'center' as const } : {}),
     backgroundColor: colors.background,
   },
   modalHeader: {
@@ -6162,6 +6708,8 @@ export const createStyles = (colors: ThemeColors) =>
     borderBottomColor: colors.border,
   },
   modalTitle: {
+    flex: 1,
+    marginRight: 8,
     color: colors.text,
     fontSize: 16,
     fontWeight: '800',
@@ -6687,16 +7235,123 @@ export const createStyles = (colors: ThemeColors) =>
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: colors.elements.Medo.bg,
     borderWidth: 1,
-    borderColor: '#38BDF8',
+    borderColor: colors.elements.Medo.border,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   depotMiniBtnText: {
-    color: '#38BDF8',
+    color: colors.elements.Medo.text,
     fontSize: 10,
+    fontWeight: '800',
+  },
+  maskCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.elements.Energia.border,
+    padding: 14,
+    gap: 10,
+  },
+  maskToggleBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.elements.Energia.border,
+    backgroundColor: colors.elements.Energia.bg,
+  },
+  maskToggleBtnActive: {
+    backgroundColor: colors.elements.Energia.border,
+  },
+  maskToggleBtnText: {
+    color: colors.elements.Energia.text,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  maskToggleBtnTextActive: {
+    color: '#FFF',
+  },
+  maskPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  maskOptionPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+  },
+  maskOptionPillActive: {
+    borderColor: colors.elements.Energia.border,
+    backgroundColor: colors.elements.Energia.bg,
+  },
+  maskOptionPillText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  maskActivateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#7C3AED',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  maskActivateBtnText: {
+    flexShrink: 1,
+    textAlign: 'center',
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  maskActiveActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  maskRoundBtn: {
+    flex: 1,
+    minWidth: 130,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.elements.Conhecimento.bg,
+    borderWidth: 1,
+    borderColor: colors.elements.Conhecimento.border,
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  maskRoundBtnText: {
+    color: colors.elements.Conhecimento.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  maskDeactivateBtn: {
+    flex: 1,
+    minWidth: 130,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#991B1B',
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  maskDeactivateBtnText: {
+    color: '#FFF',
+    fontSize: 12,
     fontWeight: '800',
   },
 });

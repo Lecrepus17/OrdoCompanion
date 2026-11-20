@@ -574,6 +574,19 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
                   label="Presença Perturbadora"
                   value={ent.disturbingPresence || 'Nenhuma'}
                 />
+                {ent.creatureType && <PreviewStat label="Tipo" value={ent.creatureType} />}
+                {ent.size && <PreviewStat label="Tamanho" value={ent.size} />}
+                {ent.displacement && <PreviewStat label="Deslocamento" value={ent.displacement} />}
+                {ent.saves && (
+                  <PreviewStat
+                    label="Resistências"
+                    value={`Fort ${/^[+-]/.test(String(ent.saves.fortitude)) ? ent.saves.fortitude : `+${ent.saves.fortitude}`} • Ref ${/^[+-]/.test(String(ent.saves.reflexos)) ? ent.saves.reflexos : `+${ent.saves.reflexos}`} • Von ${/^[+-]/.test(String(ent.saves.vontade)) ? ent.saves.vontade : `+${ent.saves.vontade}`}`}
+                  />
+                )}
+                {ent.resistancesText && <PreviewStat label="RD" value={ent.resistancesText} />}
+                {ent.vulnerabilitiesText && (
+                  <PreviewStat label="Vulnerabilidades" value={ent.vulnerabilitiesText} />
+                )}
               </View>
               {ent.attributes && Object.keys(ent.attributes).length > 0 && (
                 <View style={styles.attrsRow}>
@@ -586,6 +599,12 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
                 </View>
               )}
             </View>
+            {ent.fearEnigma ? (
+              <View style={styles.infoBox}>
+                <Text style={styles.infoBoxLabel}>Enigma de Medo:</Text>
+                <Text style={styles.descText}>{ent.fearEnigma}</Text>
+              </View>
+            ) : null}
             <View style={styles.descBox}>
               <Text style={styles.sectionTitle}>Ficha Completa, Ações e Enigma</Text>
               <Text style={styles.descText}>{ent.description || ent.summary}</Text>
@@ -985,12 +1004,11 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
                 const trainedSkills = OFFICIAL_SKILLS_LIST.filter(
                   (sk) => (c.skills?.[sk.name]?.degree || 0) > 0
                 );
-                const totalDef =
-                  10 +
-                  (c.attributes?.AGI || 0) +
-                  (c.defenseEquip || 0) +
-                  (c.defenseBonus || 0) +
-                  (c.defenseOther || 0);
+                const equipAndOtherDef =
+                  c.defenseEquip !== undefined || c.defenseOther !== undefined
+                    ? (c.defenseEquip || 0) + (c.defenseOther || 0)
+                    : c.defenseBonus || 0;
+                const totalDef = 10 + (c.attributes?.AGI || 0) + equipAndOtherDef;
 
                 return (
                   <>
@@ -1217,8 +1235,26 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
                           label="Presença Perturbadora"
                           value={m.disturbingPresence || 'Nenhuma'}
                         />
+                        {m.size && <PreviewStat label="Tamanho" value={m.size} />}
+                        {m.displacement && <PreviewStat label="Deslocamento" value={m.displacement} />}
+                        {m.saves && (
+                          <PreviewStat
+                            label="Resistências"
+                            value={`Fort ${/^[+-]/.test(String(m.saves.fortitude)) ? m.saves.fortitude : `+${m.saves.fortitude}`} • Ref ${/^[+-]/.test(String(m.saves.reflexos)) ? m.saves.reflexos : `+${m.saves.reflexos}`} • Von ${/^[+-]/.test(String(m.saves.vontade)) ? m.saves.vontade : `+${m.saves.vontade}`}`}
+                          />
+                        )}
+                        {m.resistancesText && <PreviewStat label="RD" value={m.resistancesText} />}
+                        {m.vulnerabilitiesText && (
+                          <PreviewStat label="Vulnerabilidades" value={m.vulnerabilitiesText} />
+                        )}
                       </View>
                     </View>
+                    {!!m.fearEnigma && (
+                      <View style={styles.infoBox}>
+                        <Text style={styles.infoBoxLabel}>Enigma de Medo:</Text>
+                        <Text style={styles.descText}>{m.fearEnigma}</Text>
+                      </View>
+                    )}
                     {!!m.attacks && (
                       <View style={styles.descBox}>
                         <Text style={styles.sectionTitle}>Ações e Ataques</Text>

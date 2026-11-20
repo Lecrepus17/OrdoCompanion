@@ -21,6 +21,7 @@ import { CATEGORY_LABELS, ThemeColors, useTheme, useThemedStyles } from '../../t
 import { BookInfo, CompendiumEntity, EntityCategory, EntityClassFilter, ExcludableType } from '../../types/compendium';
 import { EntityCard } from '../../components/EntityCard';
 import { PdfViewerModal } from '../../components/PdfViewerModal';
+import { ThreatCreatorModal } from '../../components/ThreatCreatorModal';
 
 const CATEGORIES_ORDER: Array<EntityCategory | 'all'> = [
   'all',
@@ -177,6 +178,7 @@ export default function CompendiumScreen() {
     favoriteIds,
     toggleFavorite,
     rollFormula,
+    createEntity,
   } = useApp();
   const { width: windowWidth } = useWindowDimensions();
   const cardWidth = listingColumns === 2 ? Math.floor((windowWidth - 28 - 10) / 2) : undefined;
@@ -184,6 +186,7 @@ export default function CompendiumScreen() {
   const styles = useThemedStyles(createStyles);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [threatCreatorVisible, setThreatCreatorVisible] = useState(false);
   const [activePdfBook, setActivePdfBook] = useState<BookInfo | null>(null);
   const [activePdfPage, setActivePdfPage] = useState<number>(1);
   const [activePdfTerm, setActivePdfTerm] = useState<string>('');
@@ -627,6 +630,25 @@ export default function CompendiumScreen() {
             </Text>
           </TouchableOpacity>
 
+          {filters.category === 'creature' && (
+            <TouchableOpacity
+              style={[
+                styles.columnsToggleBtn,
+                {
+                  borderColor: colors.elements.Energia.border,
+                  backgroundColor: colors.elements.Energia.bg,
+                },
+              ]}
+              onPress={() => setThreatCreatorVisible(true)}
+              testID="btn-compendium-create-threat"
+            >
+              <Ionicons name="skull-outline" size={13} color={colors.elements.Energia.text} />
+              <Text style={[styles.columnsToggleBtnText, { color: colors.elements.Energia.text }]}>
+                Criar Ameaça (C.R.I.S.)
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {hasActiveFilters && (
             <TouchableOpacity onPress={resetFilters}>
               <Text style={styles.clearFiltersText}>Limpar tudo</Text>
@@ -1024,6 +1046,17 @@ export default function CompendiumScreen() {
         initialPage={activePdfPage}
         highlightTerm={activePdfTerm}
         initialMode="pdf_scroll"
+      />
+
+      <ThreatCreatorModal
+        visible={threatCreatorVisible}
+        onClose={() => setThreatCreatorVisible(false)}
+        mode="compendium"
+        onSave={async (payload) => {
+          const created = await createEntity(payload.compendiumEntity);
+          setThreatCreatorVisible(false);
+          router.push({ pathname: '/entity/[id]', params: { id: created.id } });
+        }}
       />
     </View>
   );

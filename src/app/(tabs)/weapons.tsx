@@ -80,6 +80,7 @@ export default function WeaponsScreen() {
 
   const [itemEditorVisible, setItemEditorVisible] = useState(false);
   const [editingCatalogItem, setEditingCatalogItem] = useState<CustomCatalogItem | null>(null);
+  const [draftCatalogItem, setDraftCatalogItem] = useState<CustomCatalogItem | null>(null);
   const [equipModalItem, setEquipModalItem] = useState<CustomCatalogItem | null>(null);
   const [equipItemMode, setEquipItemMode] = useState<'shared' | 'duplicate'>('shared');
   const [equipItemQuantity, setEquipItemQuantity] = useState(1);
@@ -223,6 +224,34 @@ export default function WeaponsScreen() {
 
   const openNewItemEditor = () => {
     setEditingCatalogItem(null);
+    setDraftCatalogItem(null);
+    setItemEditorVisible(true);
+  };
+
+  const openNewCatalogItemByType = (
+    itemType: 'protecao' | 'vestimenta' | 'utensilio' | 'geral',
+    subCategoryGroup: InventoryItemCategoryGroup,
+    defaultName: string
+  ) => {
+    const baseCategory = itemType === 'protecao' ? 'I' : '0';
+    const baseSpaces = itemType === 'protecao' ? 2 : 1;
+    setEditingCatalogItem(null);
+    setDraftCatalogItem({
+      id: '',
+      name: defaultName,
+      baseItemName: defaultName,
+      itemType,
+      subCategoryGroup,
+      baseCategory,
+      baseSpaces,
+      finalCategory: baseCategory,
+      finalSpaces: baseSpaces,
+      details: '',
+      element: 'Nenhum',
+      modifications: [],
+      createdAt: '',
+      updatedAt: '',
+    });
     setItemEditorVisible(true);
   };
 
@@ -236,10 +265,8 @@ export default function WeaponsScreen() {
     const catalogItem = buildCatalogItemFromCuratedItem(curated);
     if (openEditor) {
       setCompItemPickerVisible(false);
-      setEditingCatalogItem({
-        ...catalogItem,
-        id: `citem_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      });
+      setEditingCatalogItem(null);
+      setDraftCatalogItem(catalogItem);
       setItemEditorVisible(true);
       return;
     }
@@ -252,6 +279,7 @@ export default function WeaponsScreen() {
   };
 
   const openEditCatalogItem = (item: CustomCatalogItem) => {
+    setDraftCatalogItem(null);
     setEditingCatalogItem(item);
     setItemEditorVisible(true);
   };
@@ -260,6 +288,7 @@ export default function WeaponsScreen() {
     await upsertCustomItem(result.catalogItem);
     setItemEditorVisible(false);
     setEditingCatalogItem(null);
+    setDraftCatalogItem(null);
   };
 
   const handleEquipCatalogItemToAgent = async (charId: string) => {
@@ -319,10 +348,10 @@ export default function WeaponsScreen() {
         <View style={{ flex: 1, minWidth: 160, marginRight: 8 }}>
           <Text style={styles.heading}>Armaria & Modificações</Text>
           <Text style={styles.subHeading}>
-            Crie, customize e modifique armas do Livro Base e Sobrevivendo ao Horror.
+            Crie, customize e modifique armas, proteções, vestimentas e itens com maldições.
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <TouchableOpacity
             style={[
               styles.createBtn,
@@ -387,6 +416,7 @@ export default function WeaponsScreen() {
               styles.sectionSwitcherText,
               activeSection === 'weapons' && styles.sectionSwitcherTextActive,
             ]}
+            numberOfLines={1}
           >
             Armas ({customWeapons.length})
           </Text>
@@ -409,8 +439,9 @@ export default function WeaponsScreen() {
               styles.sectionSwitcherText,
               activeSection === 'items' && styles.sectionSwitcherTextActive,
             ]}
+            numberOfLines={1}
           >
-            Itens & Acessórios ({customItems.length})
+            Proteções & Itens ({customItems.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -452,7 +483,38 @@ export default function WeaponsScreen() {
             ))}
           </ScrollView>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeFilterRow}>
+          <View style={{ gap: 6 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeFilterRow}>
+              <TouchableOpacity
+                style={[styles.typePill, { borderColor: colors.elements.Medo.border, backgroundColor: colors.elements.Medo.bg }]}
+                onPress={() => openNewCatalogItemByType('protecao', 'protecao', 'Nova Proteção')}
+                testID="btn-quick-new-protecao"
+              >
+                <Text style={[styles.typePillText, { color: colors.elements.Medo.text }]}>+ Proteção</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typePill, { borderColor: colors.elements.Energia.border, backgroundColor: colors.elements.Energia.bg }]}
+                onPress={() => openNewCatalogItemByType('vestimenta', 'acessorio', 'Nova Vestimenta')}
+                testID="btn-quick-new-vestimenta"
+              >
+                <Text style={[styles.typePillText, { color: colors.elements.Energia.text }]}>+ Vestimenta</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typePill, { borderColor: colors.elements.Variável.border, backgroundColor: colors.elements.Variável.bg }]}
+                onPress={() => openNewCatalogItemByType('utensilio', 'acessorio', 'Novo Utensílio')}
+                testID="btn-quick-new-utensilio"
+              >
+                <Text style={[styles.typePillText, { color: colors.elements.Variável.text }]}>+ Utensílio</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typePill, { borderColor: colors.primary, backgroundColor: colors.primarySoft }]}
+                onPress={() => openNewCatalogItemByType('geral', 'operacional', 'Novo Item')}
+                testID="btn-quick-new-geral"
+              >
+                <Text style={[styles.typePillText, { color: colors.primary }]}>+ Item Geral</Text>
+              </TouchableOpacity>
+            </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeFilterRow}>
             {(
               [
                 { value: 'all', label: 'Todos os Itens' },
@@ -480,13 +542,14 @@ export default function WeaponsScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+            </ScrollView>
+          </View>
         )}
       </View>
 
       {/* Weapons or Items List */}
       {activeSection === 'items' ? (
-        <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}>
+        <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]} keyboardShouldPersistTaps="handled">
           {filteredItems.length === 0 ? (
             <View style={styles.emptyCard}>
               <Ionicons name="briefcase-outline" size={48} color={colors.textMuted} />
@@ -959,9 +1022,11 @@ export default function WeaponsScreen() {
         onClose={() => {
           setItemEditorVisible(false);
           setEditingCatalogItem(null);
+          setDraftCatalogItem(null);
         }}
         mode="depot"
         initialCatalogItem={editingCatalogItem}
+        draftCatalogItem={draftCatalogItem}
         onSave={handleSaveCatalogItem}
         linkedAgentNames={
           editingCatalogItem
@@ -1289,9 +1354,18 @@ export default function WeaponsScreen() {
         visible={compItemPickerVisible}
         animationType="slide"
         transparent
+        statusBarTranslucent
         onRequestClose={() => setCompItemPickerVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View
+          style={[
+            styles.modalOverlay,
+            {
+              paddingTop: Math.max(insets.top, 16),
+              paddingBottom: Math.max(insets.bottom + 16, 20),
+            },
+          ]}
+        >
           <View style={[styles.equipDialogCard, { maxHeight: '88%', padding: 16 }]}>
             <View style={styles.equipDialogHeader}>
               <Text style={styles.equipDialogTitle}>Importar do Compêndio ({filteredCompendiumItems.length})</Text>
@@ -1355,7 +1429,7 @@ export default function WeaponsScreen() {
               ))}
             </ScrollView>
 
-            <ScrollView style={{ marginTop: 8 }} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
+            <ScrollView style={{ marginTop: 8 }} contentContainerStyle={{ gap: 8, paddingBottom: 12 }} keyboardShouldPersistTaps="handled">
               {filteredCompendiumItems.map((it) => {
                 const alreadyInDepot = customItems.some(
                   (ci) =>
@@ -1452,10 +1526,10 @@ const createStyles = (colors: ThemeColors) =>
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
     borderRadius: 12,
   },
   createBtnText: {
@@ -2407,6 +2481,8 @@ const createStyles = (colors: ThemeColors) =>
     borderColor: colors.primary,
   },
   sectionSwitcherText: {
+    flexShrink: 1,
+    textAlign: 'center',
     color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '800',

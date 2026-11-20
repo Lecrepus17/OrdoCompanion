@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BackHandler,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -12,11 +13,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useApp } from '../context/AppContext';
 import { ThemeColors, useTheme, useThemedStyles } from '../theme';
-import { CharacterSheet, CharacterInventoryItem } from '../types/compendium';
+import { CharacterSheet, CustomCatalogItem } from '../types/compendium';
+import { showAlert } from '../utils/alert';
 import {
+  areElementsIncompatible,
+  calculateCurseCategoryIncrease,
+  OFFICIAL_PROTECTION_CURSES,
   OFFICIAL_PROTECTIONS,
-  OFFICIAL_PROTECTION_MODIFICATIONS,
   ProtectionItem,
   calculateEquippedProtections,
 } from '../utils/protections';
@@ -29,6 +34,8 @@ export interface EquippedProtectionItemPayload {
   itemType: 'protecao' | 'escudo';
   isBodyArmor?: boolean;
   isShield?: boolean;
+  modifications?: string[];
+  curses?: string[];
 }
 
 export interface ProtectionApplyPayload {
@@ -38,6 +45,7 @@ export interface ProtectionApplyPayload {
   equippedItems: EquippedProtectionItemPayload[];
   armorPenalty: number;
   totalSpaces: number;
+  replaceExisting?: boolean;
 }
 
 interface ProtectionModalProps {
@@ -58,6 +66,21 @@ function increaseCategory(
   return CATEGORY_ORDER[nextIdx];
 }
 
+function getCurseElementColor(element: string, colors: ThemeColors): string {
+  switch (element) {
+    case 'Sangue':
+      return colors.elements.Sangue.text;
+    case 'Morte':
+      return colors.elements.Morte.text;
+    case 'Conhecimento':
+      return colors.elements.Conhecimento.text;
+    case 'Energia':
+      return colors.elements.Energia.text;
+    default:
+      return colors.elements.Medo.text;
+  }
+}
+
 export default function ProtectionModal({
   visible,
   onClose,
@@ -67,11 +90,14 @@ export default function ProtectionModal({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const { customItems, upsertCustomItem } = useApp();
 
   // Estados de seleção
   const [bodyArmorSelection, setBodyArmorSelection] = useState<string>('none');
   const [shieldSelection, setShieldSelection] = useState<string>('none');
   const [selectedMods, setSelectedMods] = useState<string[]>([]);
+  const [selectedCurses, setSelectedCurses] = useState<string[]>([]);
+  const [replaceExisting, setReplaceExisting] = useState<boolean>(true);
 
   // Campos para Armadura Customizada
   const [customArmorName, setCustomArmorName] = useState('Colete Customizado');
@@ -90,7 +116,7 @@ export default function ProtectionModal({
 
   // Intercepta botão de retorno físico no Android
   useEffect(() => {
-    if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
+    if (Platform.OS !== 'android' || typeof document !== 'undefined' || !visible) return;
     const onBackPress = () => {
       onClose();
       return true;
@@ -161,17 +187,95 @@ export default function ProtectionModal({
       }
     }
 
-    // Detectar modificações
+    // Detectar modificações e maldições
     const initialMods: string[] = [];
-    if (protectionText.includes('reforçada') || protectionText.includes('reforcada')) initialMods.push('Reforçada');
-    if (protectionText.includes('blindada')) initialMods.push('Blindada');
-    if (protectionText.includes('antibombas')) initialMods.push('Antibombas');
-    if (protectionText.includes('discreta')) initialMods.push('Discreta');
+    const armorMods = (equippedArmor?.modifications || []).map((m) => m.toLowerCase());
+    const shieldMods = (equippedShield?.modifications || []).map((m) => m.toLowerCase());
+    const allModNames = [...armorMods, ...shieldMods];
+
+    if (protectionText.includes('reforçada') || protectionText.includes('reforcada') || allModNames.some((m) => m.includes('reforç'))) initialMods.push('Reforçada');
+    if (protectionText.includes('blindada') || allModNames.some((m) => m.includes('blindad'))) initialMods.push('Blindada');
+    if (protectionText.includes('antibombas') || allModNames.some((m) => m.includes('antibomba'))) initialMods.push('Antibombas');
+    if (protectionText.includes('discreta') || allModNames.some((m) => m.includes('discret'))) initialMods.push('Discreta');
+
+    const initialCurses: string[] = [];
+    for (const curse of OFFICIAL_PROTECTION_CURSES) {
+      const lowerName = curse.name.toLowerCase();
+      if (
+        protectionText.includes(lowerName) ||
+        allModNames.some((m) => m.includes(lowerName))
+      ) {
+        initialCurses.push(curse.name);
+      }
+    }
 
     setBodyArmorSelection(initialArmor);
     setShieldSelection(initialShield);
     setSelectedMods(initialMods);
+    setSelectedCurses(initialCurses);
+    setReplaceExisting(true);
   }, [visible, character]);
+
+  const depotProtections = useMemo(
+    () =>
+      (customItems || []).filter(
+        (item) => item.itemType === 'protecao' || item.itemType === 'escudo'
+      ),
+    [customItems]
+  );
+
+  const handleImportFromDepot = (depotItem: CustomCatalogItem) => {
+    const modLabels: string[] = [];
+    const curseLabels: string[] = [];
+    for (const rawMod of depotItem.modifications || []) {
+      const lower = rawMod.toLowerCase();
+      if (lower.includes('reforç') || lower.includes('reforc')) modLabels.push('Reforçada');
+      if (lower.includes('blindad')) modLabels.push('Blindada');
+      if (lower.includes('antibomba')) modLabels.push('Antibombas');
+      if (lower.includes('discret')) modLabels.push('Discreta');
+      for (const curse of OFFICIAL_PROTECTION_CURSES) {
+        if (lower === curse.id.toLowerCase() || lower.includes(curse.name.toLowerCase())) {
+          if (!curseLabels.includes(curse.name)) curseLabels.push(curse.name);
+        }
+      }
+    }
+
+    const officialMatch = depotItem.baseItemId
+      ? OFFICIAL_PROTECTIONS.find((p) => p.id === depotItem.baseItemId)
+      : undefined;
+
+    if (officialMatch) {
+      if (officialMatch.type === 'Escudo') {
+        setShieldSelection(officialMatch.id);
+      } else {
+        setBodyArmorSelection(officialMatch.id);
+      }
+    } else if (depotItem.itemType === 'escudo') {
+      const defMatch = (depotItem.details || '').match(/Defesa\s*\+?(\d+)/i);
+      const rdMatch = (depotItem.details || '').match(/RD\s*(?:Bal[íi]stico\s*)?(\d+)/i);
+      setShieldSelection('custom');
+      setCustomShieldName(depotItem.baseItemName || depotItem.name);
+      setCustomShieldSpaces(String(depotItem.baseSpaces || depotItem.finalSpaces || 2));
+      setCustomShieldCategory(depotItem.baseCategory || depotItem.finalCategory || '0');
+      setCustomShieldDefense(defMatch ? defMatch[1] : '2');
+      setCustomShieldRd(rdMatch ? rdMatch[1] : '0');
+    } else {
+      const lowerName = (depotItem.baseItemName || depotItem.name).toLowerCase();
+      const isHeavy = lowerName.includes('pesad');
+      const defMatch = (depotItem.details || '').match(/Defesa\s*\+?(\d+)/i);
+      const rdMatch = (depotItem.details || '').match(/RD(?:\s*F[íi]sica)?\s*:?\s*(\d+)/i);
+      setBodyArmorSelection('custom');
+      setCustomArmorName(depotItem.baseItemName || depotItem.name);
+      setCustomArmorType(isHeavy ? 'Pesada' : 'Leve');
+      setCustomArmorDefense(defMatch ? defMatch[1] : isHeavy ? '10' : '5');
+      setCustomArmorRd(rdMatch ? rdMatch[1] : isHeavy ? '2' : '0');
+      setCustomArmorSpaces(String(depotItem.baseSpaces || depotItem.finalSpaces || (isHeavy ? 5 : 2)));
+      setCustomArmorCategory(depotItem.baseCategory || depotItem.finalCategory || 'I');
+    }
+
+    setSelectedMods(modLabels);
+    setSelectedCurses(curseLabels);
+  };
 
   // Resolver armadura corporal ativa
   const effectiveBodyArmor: ProtectionItem | null = useMemo(() => {
@@ -220,7 +324,7 @@ export default function ProtectionModal({
         category: customShieldCategory,
         damageReduction:
           rdNum > 0
-            ? { ballistic: rdNum, physical: rdNum, description: `RD ${rdNum}` }
+            ? { ballistic: rdNum, description: `RD Balístico ${rdNum}` }
             : undefined,
         requiredProficiency: 'Proteções Pesadas',
         description: 'Escudo customizado.',
@@ -258,9 +362,10 @@ export default function ProtectionModal({
     return calculateEquippedProtections(
       effectiveBodyArmor,
       effectiveShield,
-      activeCompatibleMods
+      activeCompatibleMods,
+      selectedCurses
     );
-  }, [effectiveBodyArmor, effectiveShield, activeCompatibleMods]);
+  }, [effectiveBodyArmor, effectiveShield, activeCompatibleMods, selectedCurses]);
 
   // Alternar modificações
   const toggleModification = (modName: string) => {
@@ -278,20 +383,101 @@ export default function ProtectionModal({
     }
   };
 
+  // Alternar maldições validando elementos opressivos
+  const toggleCurse = (curseName: string) => {
+    if (selectedCurses.includes(curseName)) {
+      setSelectedCurses((prev) => prev.filter((c) => c !== curseName));
+      return;
+    }
+    const targetCurse = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === curseName);
+    if (!targetCurse) return;
+
+    const conflictingName = selectedCurses.find((existingName) => {
+      const existing = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === existingName);
+      return existing ? areElementsIncompatible(existing.element, targetCurse.element) : false;
+    });
+
+    if (conflictingName) {
+      const existing = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === conflictingName);
+      showAlert(
+        'Elementos Opressivos',
+        `A maldição "${targetCurse.name}" (${targetCurse.element}) não pode coexistir com "${conflictingName}" (${existing?.element}) segundo o Livro Base (p. 111 / p. 154).`
+      );
+      return;
+    }
+
+    setSelectedCurses((prev) => [...prev, curseName]);
+  };
+
+  // Salvar configuração atual no Depósito da Armaria
+  const handleSaveToDepot = async () => {
+    const primaryItem = effectiveBodyArmor || effectiveShield;
+    if (!primaryItem) {
+      showAlert('Selecione uma Proteção', 'Escolha uma proteção corporal ou escudo para salvar no Depósito.');
+      return;
+    }
+    const isShieldOnly = !effectiveBodyArmor && Boolean(effectiveShield);
+    const modsForArmor = isShieldOnly ? [] : activeCompatibleMods;
+    const curseIncrease = calculateCurseCategoryIncrease(selectedCurses.length);
+    let modSpacesDelta = 0;
+    if (!isShieldOnly) {
+      if (modsForArmor.includes('Reforçada')) modSpacesDelta += 1;
+      if (modsForArmor.includes('Blindada')) modSpacesDelta += 1;
+      if (modsForArmor.includes('Discreta')) modSpacesDelta -= 1;
+    }
+    const finalSpaces = Math.max(1, primaryItem.spaces + modSpacesDelta);
+    const finalCat = increaseCategory(primaryItem.category, modsForArmor.length + curseIncrease);
+    const suffixParts = [...modsForArmor, ...selectedCurses];
+    const displayName =
+      suffixParts.length > 0 ? `${primaryItem.name} (${suffixParts.join(', ')})` : primaryItem.name;
+
+    const modIds = [
+      ...modsForArmor.map((m) => `mod__${m.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}`),
+      ...selectedCurses
+        .map((cName) => OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName)?.id)
+        .filter((id): id is string => Boolean(id)),
+    ];
+
+    const firstCurseObj = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === selectedCurses[0]);
+    const now = new Date().toISOString();
+    const depotItem: CustomCatalogItem = {
+      id: `citem_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: displayName,
+      baseItemId: primaryItem.id,
+      baseItemName: primaryItem.name,
+      itemType: isShieldOnly ? 'escudo' : 'protecao',
+      subCategoryGroup: selectedCurses.length > 0 ? 'amaldicoado' : 'protecao',
+      baseCategory: primaryItem.category,
+      baseSpaces: primaryItem.spaces,
+      finalCategory: finalCat,
+      finalSpaces,
+      details: calculation.protectionText || primaryItem.description || '',
+      element: firstCurseObj?.element || 'Nenhum',
+      modifications: modIds,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await upsertCustomItem(depotItem);
+    showAlert('Salvo no Depósito', `"${displayName}" foi salvo no Depósito da Armaria.`);
+  };
+
   // Desequipar tudo
   const handleClearAll = () => {
     setBodyArmorSelection('none');
     setShieldSelection('none');
     setSelectedMods([]);
+    setSelectedCurses([]);
   };
 
   // Equipar e aplicar alterações na ficha
   const handleConfirm = () => {
     const equippedItems: EquippedProtectionItemPayload[] = [];
+    const curseCatIncrease = calculateCurseCategoryIncrease(selectedCurses.length);
 
     // Armadura corporal
     if (effectiveBodyArmor) {
-      let catIncrease = 0;
+      let catIncrease = curseCatIncrease;
       if (activeCompatibleMods.includes('Reforçada')) catIncrease += 1;
       if (activeCompatibleMods.includes('Blindada')) catIncrease += 1;
       if (activeCompatibleMods.includes('Antibombas')) catIncrease += 1;
@@ -305,8 +491,32 @@ export default function ProtectionModal({
       if (activeCompatibleMods.includes('Blindada')) armorSpaces += 1;
       if (activeCompatibleMods.includes('Discreta')) armorSpaces = Math.max(1, armorSpaces - 1);
 
-      const modsSuffix =
-        activeCompatibleMods.length > 0 ? ` (${activeCompatibleMods.join(', ')})` : '';
+      const allSuffixes = [...activeCompatibleMods, ...selectedCurses];
+      const modsSuffix = allSuffixes.length > 0 ? ` (${allSuffixes.join(', ')})` : '';
+      const curseDefenseDelta = selectedCurses.reduce((acc, cName) => {
+        const curseDef = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName);
+        return acc + (curseDef?.defenseBonus || 0);
+      }, 0);
+
+      const bodyPhysRd =
+        activeCompatibleMods.includes('Blindada') && effectiveBodyArmor.type === 'Pesada'
+          ? 5
+          : effectiveBodyArmor.damageReduction?.physical || 0;
+      const bodyCurseRdParts = selectedCurses
+        .map((cName) => {
+          const curseDef = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName);
+          if (!curseDef) return '';
+          if (curseDef.rdElement) return `${curseDef.rdElement.element} ${curseDef.rdElement.value}`;
+          if (curseDef.rdGeneralHeavy || curseDef.rdGeneralLightOrShield) {
+            return `Geral ${effectiveBodyArmor.type === 'Pesada' ? curseDef.rdGeneralHeavy || 5 : curseDef.rdGeneralLightOrShield || 2}`;
+          }
+          return '';
+        })
+        .filter(Boolean);
+      const bodyRdParts = [
+        bodyPhysRd > 0 ? `Física ${bodyPhysRd}` : '',
+        ...bodyCurseRdParts,
+      ].filter(Boolean);
 
       equippedItems.push({
         name: `${effectiveBodyArmor.name}${modsSuffix}`,
@@ -314,26 +524,41 @@ export default function ProtectionModal({
         spaces: armorSpaces,
         details: `Proteção Corporal (${effectiveBodyArmor.type}) • Defesa +${
           effectiveBodyArmor.defenseBonus +
-          (activeCompatibleMods.includes('Reforçada') ? 2 : 0)
-        }${calculation.resistancesText ? ` • RD: ${calculation.resistancesText}` : ''}`,
+          (activeCompatibleMods.includes('Reforçada') ? 2 : 0) +
+          curseDefenseDelta
+        }${bodyRdParts.length > 0 ? ` • RD: ${bodyRdParts.join(', ')}` : ''}`,
         itemType: 'protecao',
         isBodyArmor: true,
+        ...(activeCompatibleMods.length > 0 ? { modifications: activeCompatibleMods } : {}),
+        ...(selectedCurses.length > 0 ? { curses: selectedCurses } : {}),
       });
     }
 
     // Escudo
     if (effectiveShield) {
+      const cursesOnShield = !effectiveBodyArmor ? selectedCurses : [];
+      const shieldFinalCat =
+        cursesOnShield.length > 0
+          ? increaseCategory(effectiveShield.category, curseCatIncrease)
+          : effectiveShield.category;
+      const shieldCurseDefense = cursesOnShield.reduce((acc, cName) => {
+        const curseDef = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName);
+        return acc + (curseDef?.defenseBonus || 0);
+      }, 0);
+      const shieldSuffix = cursesOnShield.length > 0 ? ` (${cursesOnShield.join(', ')})` : '';
+
       equippedItems.push({
-        name: effectiveShield.name,
-        category: effectiveShield.category,
+        name: `${effectiveShield.name}${shieldSuffix}`,
+        category: shieldFinalCat,
         spaces: effectiveShield.spaces,
-        details: `Escudo • Defesa +${effectiveShield.defenseBonus}${
+        details: `Escudo • Defesa +${effectiveShield.defenseBonus + shieldCurseDefense}${
           effectiveShield.damageReduction?.ballistic
             ? ` • RD Balístico ${effectiveShield.damageReduction.ballistic}`
             : ''
         }`,
         itemType: 'escudo',
         isShield: true,
+        ...(cursesOnShield.length > 0 ? { curses: cursesOnShield } : {}),
       });
     }
 
@@ -344,6 +569,7 @@ export default function ProtectionModal({
       equippedItems,
       armorPenalty: calculation.armorPenalty,
       totalSpaces: calculation.totalSpaces,
+      ...(replaceExisting === false ? { replaceExisting: false } : {}),
     });
   };
 
@@ -353,17 +579,24 @@ export default function ProtectionModal({
   const isPesadaSelected = effectiveBodyArmor?.type === 'Pesada';
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer} testID="protection-modal">
           {/* Cabeçalho Fixo */}
-          <View style={styles.header}>
+          <View
+            style={[
+              styles.header,
+              Platform.OS !== 'web' && {
+                paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 24 : 14),
+              },
+            ]}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
               <View style={styles.headerIconBadge}>
                 <Ionicons name="shield-checkmark" size={20} color="#38BDF8" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.headerTitle}>Assistente de Proteções</Text>
+                <Text style={styles.headerTitle} numberOfLines={1}>Assistente de Proteções</Text>
                 <Text style={styles.headerSubtitle}>
                   Selecione armaduras, escudos e modificações táticas oficiais
                 </Text>
@@ -374,17 +607,53 @@ export default function ProtectionModal({
               style={styles.closeBtn}
               testID="btn-close-modal"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Fechar"
             >
               <Ionicons name="close" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          {/* Conteúdo com Scroll */}
-          <ScrollView
-            style={styles.scrollArea}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
+            {/* Conteúdo com Scroll */}
+            <ScrollView
+              style={styles.scrollArea}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+            {/* IMPORTAÇÃO DO DEPÓSITO DA ARMARIA */}
+            {depotProtections.length > 0 && (
+              <View style={styles.sectionBox}>
+                <View style={styles.sectionHeaderRow}>
+                  <Ionicons name="archive-outline" size={16} color={colors.warning} />
+                  <Text style={styles.sectionTitle}>Importar do Depósito ({depotProtections.length})</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8, paddingTop: 4 }}
+                >
+                  {depotProtections.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.depotImportChip}
+                      onPress={() => handleImportFromDepot(item)}
+                      testID={`btn-import-depot-${item.id}`}
+                    >
+                      <Text style={styles.depotImportTitle} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.depotImportMeta}>
+                        Cat {item.finalCategory} • {item.finalSpaces} esp.
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             {/* SEÇÃO 1: PROTEÇÃO CORPORAL */}
             <View style={styles.sectionBox}>
               <View style={styles.sectionHeaderRow}>
@@ -524,8 +793,8 @@ export default function ProtectionModal({
               {bodyArmorSelection === 'custom' && (
                 <View style={styles.customFormContainer}>
                   <Text style={styles.customFormHeading}>Configurar Armadura Customizada</Text>
-                  <View style={styles.formRow}>
-                    <View style={{ flex: 2 }}>
+                  <View style={{ gap: 8 }}>
+                    <View>
                       <Text style={styles.inputLabel}>Nome da Proteção</Text>
                       <TextInput
                         style={styles.input}
@@ -536,9 +805,9 @@ export default function ProtectionModal({
                         testID="input-custom-armor-name"
                       />
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View>
                       <Text style={styles.inputLabel}>Tipo</Text>
-                      <View style={{ flexDirection: 'row', gap: 4 }}>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
                         <TouchableOpacity
                           style={[
                             styles.typeChip,
@@ -600,6 +869,9 @@ export default function ProtectionModal({
                         testID="input-custom-armor-rd"
                       />
                     </View>
+                  </View>
+
+                  <View style={[styles.formRow, { marginTop: 8 }]}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.inputLabel}>Espaços</Text>
                       <TextInput
@@ -950,6 +1222,81 @@ export default function ProtectionModal({
               )}
             </View>
 
+            {/* SEÇÃO 2B: MALDIÇÕES PARANORMAIS PARA PROTEÇÕES & ESCUDOS */}
+            {(effectiveBodyArmor || effectiveShield) && (
+              <View style={styles.sectionBox}>
+                <View style={styles.sectionHeaderRow}>
+                  <Ionicons name="flame-outline" size={16} color="#A855F7" />
+                  <Text style={styles.sectionTitle}>
+                    Maldições Paranormais ({effectiveBodyArmor ? effectiveBodyArmor.name : effectiveShield?.name})
+                  </Text>
+                </View>
+                <Text style={styles.sectionSubtitle}>
+                  Livro Base p. 154/156-157: +II Cat na 1ª maldição, +I Cat nas seguintes. Elementos opressores não coexistem.
+                </Text>
+
+                <View style={styles.modsGrid}>
+                  {OFFICIAL_PROTECTION_CURSES.map((curse) => {
+                    const active = selectedCurses.includes(curse.name);
+                    const incompatible =
+                      !active &&
+                      selectedCurses.some((existingName) => {
+                        const existing = OFFICIAL_PROTECTION_CURSES.find(
+                          (c) => c.name === existingName
+                        );
+                        return existing
+                          ? areElementsIncompatible(existing.element, curse.element)
+                          : false;
+                      });
+                    const elColor = getCurseElementColor(curse.element, colors);
+                    return (
+                      <TouchableOpacity
+                        key={curse.id}
+                        style={[
+                          styles.modPill,
+                          active && {
+                            borderColor: elColor,
+                            backgroundColor: 'rgba(168, 85, 247, 0.08)',
+                          },
+                          incompatible && styles.modPillDisabled,
+                        ]}
+                        onPress={() => toggleCurse(curse.name)}
+                        testID={`curse-${curse.id}`}
+                      >
+                        <View style={styles.modCheckbox}>
+                          {active && <Ionicons name="checkmark" size={14} color={elColor} />}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Text
+                              style={[
+                                styles.modTitle,
+                                { flexShrink: 1 },
+                                active && { color: elColor },
+                              ]}
+                            >
+                              {curse.name}
+                            </Text>
+                            <View
+                              style={[
+                                styles.catBadge,
+                                { borderWidth: 1, borderColor: elColor },
+                              ]}
+                            >
+                              <Text style={[styles.catBadgeText, { color: elColor }]}>
+                                {curse.element}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.modDesc}>{curse.description}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             {/* SEÇÃO 4: RESUMO DOS CÁLCULOS TÁTICOS */}
             <View style={styles.previewBox}>
               <View style={styles.previewHeaderRow}>
@@ -995,11 +1342,37 @@ export default function ProtectionModal({
                   </Text>
                 </View>
               )}
+
+              <TouchableOpacity
+                style={styles.replaceToggleRow}
+                onPress={() => setReplaceExisting((prev) => !prev)}
+                testID="toggle-replace-protection"
+              >
+                <Ionicons
+                  name={replaceExisting ? 'checkbox' : 'square-outline'}
+                  size={18}
+                  color={replaceExisting ? colors.elements.Medo.text : colors.textSecondary}
+                />
+                <Text style={styles.replaceToggleText}>
+                  Substituir proteção equipada anteriormente (desmarque p/ guardar extras no inventário)
+                </Text>
+              </TouchableOpacity>
+
+              {(effectiveBodyArmor || effectiveShield) && (
+                <TouchableOpacity
+                  style={styles.saveDepotBtn}
+                  onPress={handleSaveToDepot}
+                  testID="btn-save-protection-depot"
+                >
+                  <Ionicons name="archive-outline" size={14} color={colors.warning} />
+                  <Text style={styles.saveDepotBtnText}>Salvar Configuração no Depósito</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </ScrollView>
 
           {/* Rodapé Fixo com Ações */}
-          <View style={[styles.footer, { paddingBottom: Math.max(12, insets.bottom) }]}>
+          <View style={[styles.footer, { paddingBottom: Platform.OS === 'web' ? 12 : Math.max(12, insets.bottom) }]}>
             <TouchableOpacity
               style={styles.clearBtn}
               onPress={handleClearAll}
@@ -1021,11 +1394,12 @@ export default function ProtectionModal({
                 onPress={handleConfirm}
                 testID="btn-apply-protections"
               >
-                <Ionicons name="checkmark-sharp" size={16} color="#FFF" />
+                <Ionicons name="checkmark-sharp" size={16} color="#0B1120" />
                 <Text style={styles.applyBtnText}>Equipar e Salvar</Text>
               </TouchableOpacity>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </View>
     </Modal>
@@ -1117,6 +1491,8 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.text,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
+      flex: 1,
+      flexShrink: 1,
     },
     sectionSubtitle: {
       fontSize: 11,
@@ -1141,11 +1517,14 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 8,
     },
     optionTitle: {
       fontSize: 13,
       fontWeight: '700',
       color: colors.text,
+      flex: 1,
+      flexShrink: 1,
     },
     optionTitleActive: {
       color: '#38BDF8',
@@ -1182,6 +1561,7 @@ const createStyles = (colors: ThemeColors) =>
     formRow: {
       flexDirection: 'row',
       gap: 8,
+      alignItems: 'flex-end',
     },
     inputLabel: {
       fontSize: 10,
@@ -1265,10 +1645,10 @@ const createStyles = (colors: ThemeColors) =>
       marginTop: 1,
     },
     previewBox: {
-      backgroundColor: 'rgba(15, 23, 42, 0.8)',
+      backgroundColor: colors.surfaceElevated,
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: '#38BDF8',
+      borderColor: colors.elements.Medo.border,
       padding: 14,
     },
     previewHeaderRow: {
@@ -1277,13 +1657,13 @@ const createStyles = (colors: ThemeColors) =>
       gap: 8,
       marginBottom: 10,
       borderBottomWidth: 1,
-      borderBottomColor: 'rgba(56, 189, 248, 0.2)',
+      borderBottomColor: colors.elements.Medo.border,
       paddingBottom: 6,
     },
     previewTitle: {
       fontSize: 12,
       fontWeight: '800',
-      color: '#38BDF8',
+      color: colors.elements.Medo.text,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
@@ -1305,7 +1685,7 @@ const createStyles = (colors: ThemeColors) =>
     previewValueDefense: {
       fontSize: 20,
       fontWeight: '900',
-      color: '#38BDF8',
+      color: colors.elements.Medo.text,
     },
     previewValue: {
       fontSize: 16,
@@ -1339,35 +1719,37 @@ const createStyles = (colors: ThemeColors) =>
     },
     footer: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
       borderTopWidth: 1,
       borderTopColor: colors.border,
       backgroundColor: colors.surfaceElevated,
-      gap: 10,
+      gap: 8,
     },
     clearBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 10,
+      gap: 4,
+      paddingHorizontal: 8,
       paddingVertical: 8,
       borderRadius: 6,
     },
     clearBtnText: {
-      fontSize: 12,
+      fontSize: 11,
       color: colors.textSecondary,
       fontWeight: '600',
     },
     footerRight: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
+      flexShrink: 1,
     },
     cancelBtn: {
-      paddingHorizontal: 12,
+      paddingHorizontal: 10,
       paddingVertical: 8,
       borderRadius: 6,
       backgroundColor: colors.surfaceHighlight,
@@ -1380,16 +1762,68 @@ const createStyles = (colors: ThemeColors) =>
     applyBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 16,
+      gap: 5,
+      paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 6,
       backgroundColor: '#38BDF8',
+      flexShrink: 1,
     },
     applyBtnText: {
-      fontSize: 12,
+      fontSize: 11,
       color: '#0B1120',
       fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    depotImportChip: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.warning,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      maxWidth: 180,
+    },
+    depotImportTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    depotImportMeta: {
+      fontSize: 10,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    replaceToggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.elements.Medo.border,
+    },
+    replaceToggleText: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      flex: 1,
+    },
+    saveDepotBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 10,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.warning,
+      backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    },
+    saveDepotBtnText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.warning,
       textTransform: 'uppercase',
     },
   });

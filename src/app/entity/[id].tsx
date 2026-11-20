@@ -299,7 +299,42 @@ export default function EntityDetailScreen() {
               <StatItem
                 label="Presença Perturbadora"
                 value={entity.disturbingPresence || 'Nenhuma'}
+                fullWidth
               />
+              {entity.creatureType && <StatItem label="Tipo" value={entity.creatureType} />}
+              {entity.size && <StatItem label="Tamanho" value={entity.size} />}
+              {entity.displacement && <StatItem label="Deslocamento" value={entity.displacement} />}
+              {entity.senses && (
+                <StatItem
+                  label="Sentidos"
+                  fullWidth
+                  value={
+                    typeof entity.senses === 'string'
+                      ? entity.senses
+                      : `Perc. ${entity.senses.perception} • Inic. ${entity.senses.initiative}${
+                          entity.senses.vision ? ` • ${entity.senses.vision}` : ''
+                        }`
+                  }
+                />
+              )}
+              {entity.saves && (() => {
+                const fmtSave = (v: unknown) => {
+                  const s = String(v ?? 0).trim();
+                  return /^[+-]/.test(s) ? s : `+${s}`;
+                };
+                return (
+                  <StatItem
+                    label="Testes de Resistência"
+                    fullWidth
+                    value={`Fort ${fmtSave(entity.saves.fortitude)} • Ref ${fmtSave(entity.saves.reflexos)} • Von ${fmtSave(entity.saves.vontade)}`}
+                  />
+                );
+              })()}
+              {entity.resistancesText && <StatItem label="RD" value={entity.resistancesText} fullWidth />}
+              {entity.immunitiesText && <StatItem label="Imunidades" value={entity.immunitiesText} fullWidth />}
+              {entity.vulnerabilitiesText && (
+                <StatItem label="Vulnerabilidades" value={entity.vulnerabilitiesText} fullWidth />
+              )}
             </View>
             {entity.attributes && Object.keys(entity.attributes).length > 0 && (
               <View style={styles.attrsRow}>
@@ -311,6 +346,56 @@ export default function EntityDetailScreen() {
                 ))}
               </View>
             )}
+            {entity.structuredAttacks && entity.structuredAttacks.length > 0 && (
+              <View style={{ marginTop: 10, gap: 8 }}>
+                <Text style={styles.sectionTitle}>Ataques Estruturados</Text>
+                {entity.structuredAttacks.map((atk) => (
+                  <View key={atk.id} style={styles.upgradeBox}>
+                    <Text style={styles.upgradeLabel}>
+                      [{atk.actionType || 'Ataque'}] {atk.name}
+                    </Text>
+                    <Text style={styles.upgradeText}>
+                      Dano {atk.damageFormula} {atk.damageType || ''} ({atk.critical || '20/x2'})
+                    </Text>
+                    <View style={[styles.diceButtonsWrap, { marginTop: 6 }]}>
+                      <TouchableOpacity
+                        style={styles.rollBigBtn}
+                        onPress={() => rollFormula(atk.testFormula, `${entity.name}: ${atk.name} (Teste)`)}
+                      >
+                        <Ionicons name="dice" size={16} color="#FFF" />
+                        <Text style={styles.rollBigBtnText}>Teste {atk.testFormula}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.rollBigBtn, { backgroundColor: '#991B1B' }]}
+                        onPress={() => rollFormula(atk.damageFormula, `${entity.name}: ${atk.name} (Dano)`)}
+                      >
+                        <Ionicons name="flame" size={16} color="#FFF" />
+                        <Text style={styles.rollBigBtnText}>Dano {atk.damageFormula}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+            {entity.structuredAbilities && entity.structuredAbilities.length > 0 && (
+              <View style={{ marginTop: 10, gap: 6 }}>
+                <Text style={styles.sectionTitle}>Habilidades da Ameaça</Text>
+                {entity.structuredAbilities.map((ab) => (
+                  <View key={ab.id} style={styles.upgradeBox}>
+                    <Text style={styles.upgradeLabel}>
+                      [{ab.actionType || 'Passiva'}] {ab.name}
+                    </Text>
+                    <Text style={styles.upgradeText}>{ab.description}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            {entity.fearEnigma ? (
+              <View style={[styles.upgradeBox, { borderColor: colors.accent, marginTop: 10 }]}>
+                <Text style={[styles.upgradeLabel, { color: colors.accent }]}>ENIGMA DE MEDO</Text>
+                <Text style={styles.upgradeText}>{entity.fearEnigma}</Text>
+              </View>
+            ) : null}
           </View>
         )}
 
@@ -594,23 +679,25 @@ export default function EntityDetailScreen() {
                 Você ainda não criou listas personalizadas. Crie listas na aba "Salvos".
               </Text>
             ) : (
-              savedLists.map((list) => {
-                const inList = list.entityIds.includes(entity.id);
-                return (
-                  <TouchableOpacity
-                    key={list.id}
-                    style={styles.listOptionRow}
-                    onPress={() => toggleEntityInList(list.id, entity.id)}
-                  >
-                    <Ionicons
-                      name={inList ? 'checkbox' : 'square-outline'}
-                      size={20}
-                      color={inList ? colors.primary : colors.textSecondary}
-                    />
-                    <Text style={styles.listOptionName}>{list.name}</Text>
-                  </TouchableOpacity>
-                );
-              })
+              <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
+                {savedLists.map((list) => {
+                  const inList = list.entityIds.includes(entity.id);
+                  return (
+                    <TouchableOpacity
+                      key={list.id}
+                      style={styles.listOptionRow}
+                      onPress={() => toggleEntityInList(list.id, entity.id)}
+                    >
+                      <Ionicons
+                        name={inList ? 'checkbox' : 'square-outline'}
+                        size={20}
+                        color={inList ? colors.primary : colors.textSecondary}
+                      />
+                      <Text style={styles.listOptionName}>{list.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             )}
             <TouchableOpacity
               style={styles.closeModalBtn}
@@ -625,15 +712,16 @@ export default function EntityDetailScreen() {
   );
 }
 
-const StatItem: React.FC<{ label: string; value: string; highlight?: boolean }> = ({
-  label,
-  value,
-  highlight,
-}) => {
+const StatItem: React.FC<{
+  label: string;
+  value: string;
+  highlight?: boolean;
+  fullWidth?: boolean;
+}> = ({ label, value, highlight, fullWidth }) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   return (
-    <View style={styles.statBox}>
+    <View style={[styles.statBox, fullWidth && { minWidth: '100%', width: '100%', flex: undefined }]}>
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={[styles.statValue, highlight && { color: colors.primary, fontWeight: '900' }]}>
         {value}
@@ -844,11 +932,13 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 14,
       paddingVertical: 10,
       borderRadius: 10,
+      maxWidth: '100%',
     },
     rollBigBtnText: {
       color: '#FFF',
       fontWeight: '800',
       fontSize: 13,
+      flexShrink: 1,
     },
     descCard: {
       backgroundColor: colors.surface,

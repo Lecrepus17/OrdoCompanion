@@ -6,11 +6,15 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento.)*
+*(Nenhum commit pendente no momento)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ Tickets de Suporte (#ORD-33762V, #ORD-4662K3, #ORD-5322T7, #ORD-4017YV, #ORD-913969) & Auditoria Geral (2026-11-20):
+- **Título**: `feat(characters,master,armory): implementa Mascarados, maldições de proteções/itens, criador de ameaças C.R.I.S. e auditoria geral`
+- **Resumo**: Forma Suprema dos Mascarados, 10 maldições de proteções/escudos + 13 de acessórios com elementos opressores, `ThreatCreatorModal` estilo C.R.I.S. (VD 20–400), correções no `LevelUpModal`, Armaria ampliada e auditoria completa de UI 360px/tema claro e Android APK (946 testes aprovados).
 
 ### ✅ Depósito de Itens, Importação Curada do Compêndio & Mecânicas Interativas (2026-11-15):
 - **Título**: `feat(inventory): adicionar depósito de itens, compêndio curado e mecânicas interativas`

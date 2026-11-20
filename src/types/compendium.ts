@@ -93,6 +93,19 @@ export interface CompendiumEntity {
   pv?: number;
   attributes?: Record<string, string>;
   disturbingPresence?: string;
+  size?: 'Minúsculo' | 'Pequeno' | 'Médio' | 'Grande' | 'Enorme' | 'Colossal';
+  creatureType?: 'Criatura' | 'Pessoa' | 'Animal' | 'Relíquia';
+  secondaryElements?: string[];
+  senses?: { perception: string; initiative: string; vision?: string };
+  saves?: { fortitude: string; reflexos: string; vontade: string };
+  resistancesText?: string;
+  immunitiesText?: string;
+  vulnerabilitiesText?: string;
+  displacement?: string;
+  skillsText?: string;
+  structuredAttacks?: ThreatAttackAction[];
+  structuredAbilities?: ThreatAbilityEntry[];
+  fearEnigma?: string;
 
   // User customization & PDF origin tracking flags
   sourcePdf?: string;
@@ -315,6 +328,23 @@ export interface AccessoryModificationDef {
   spacesChange?: number;
   description: string;
   source: 'Livro Base' | 'Sobrevivendo ao Horror' | 'Homebrew';
+  isCurse?: boolean;
+  element?: ParanormalElement;
+  appliesTo?: ('vestimenta' | 'utensilio' | 'protecao' | 'escudo' | 'geral')[];
+  defenseBonus?: number;
+  rdText?: string;
+}
+
+export interface CharacterMaskConfig {
+  enabled: boolean;
+  maskName: string; // Ex: "Máscara do Mutilador Noturno", "Elmo do Colosso"
+  isActive: boolean; // Forma Suprema (Ultimate) ativa na cena
+  activeRounds: number;
+  grantBonusDiceDamage: boolean; // +2 dados do mesmo tipo nos ataques (AS#02 p. 97)
+  grantBonusTests: boolean; // +5 em testes de qualquer tipo (AS#02 p. 97)
+  grantBonusDt: boolean; // +5 na DT de habilidades/rituais (AS#02 p. 97)
+  freeAdvancedRituals: boolean; // Conjurar rituais avançados sem PE extra (AS#02 p. 97)
+  customUltimateAbility?: string;
 }
 
 export interface CustomItemModEntry {
@@ -480,6 +510,7 @@ export interface CharacterSheet {
   entityIds: string[]; // Linked rituals, powers, weapons, items from compendium
   transcendEvery5Nex?: boolean; // Permite escolher poder paranormal a cada subida de NEX (a cada 5)
   criticalDamageMode?: 'default' | CriticalDamageMode;
+  maskConfig?: CharacterMaskConfig;
   notes: string;
   updatedAt: string;
 }
@@ -745,6 +776,24 @@ export interface CampaignStoryScene {
   order?: number;
 }
 
+export interface ThreatAttackAction {
+  id: string;
+  name: string;
+  actionType: 'Padrão' | 'Movimento' | 'Livre' | 'Reação' | 'Completa';
+  testFormula: string;
+  damageFormula: string;
+  damageType?: string;
+  critical?: string;
+  description?: string;
+}
+
+export interface ThreatAbilityEntry {
+  id: string;
+  name: string;
+  actionType?: string;
+  description: string;
+}
+
 export interface CampaignMonster {
   id: string;
   name: string;
@@ -759,6 +808,20 @@ export interface CampaignMonster {
   abilities?: string;
   notes?: string;
   isSavedToCompendium?: boolean;
+  size?: 'Minúsculo' | 'Pequeno' | 'Médio' | 'Grande' | 'Enorme' | 'Colossal';
+  creatureType?: 'Criatura' | 'Pessoa' | 'Animal' | 'Relíquia';
+  secondaryElements?: string[];
+  attributes?: Record<string, string>;
+  senses?: { perception: string; initiative: string; vision?: string };
+  saves?: { fortitude: string; reflexos: string; vontade: string };
+  resistancesText?: string;
+  immunitiesText?: string;
+  vulnerabilitiesText?: string;
+  displacement?: string;
+  skillsText?: string;
+  structuredAttacks?: ThreatAttackAction[];
+  structuredAbilities?: ThreatAbilityEntry[];
+  fearEnigma?: string;
 }
 
 export interface CampaignAgentLink {
@@ -842,6 +905,12 @@ export interface AgentDamageProfile {
   hasCatalisadorPotencializador: boolean; // +1 dado do mesmo tipo em rituais
   hasCatalisadorPerturbador: boolean; // +2 na DT de rituais
   hasParareligiosidade: boolean; // +2 PE para emular catalisador
+
+  // Mascarados / Forma Suprema (Arquivos Secretos #02 p. 97)
+  hasActiveSupremeMask?: boolean;
+  maskBonusTests?: number;
+  maskBonusDt?: number;
+  maskExtraDamageDice?: number;
 }
 
 /**

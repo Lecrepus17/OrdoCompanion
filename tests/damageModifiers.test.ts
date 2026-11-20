@@ -606,4 +606,67 @@ describe('Motor de Modificadores Dinâmicos de Dano e Crítico (Regras Canônica
     const prof = detectAgentDamageModifiers(arremessador);
     assert.equal(prof.forValue, 4);
   });
+
+  it('17. Mascarados Forma Suprema: +2d sem multiplicar no crítico, +2d/+5 DT em rituais e Discente/Verdadeiro livre', () => {
+    const maskedAgent = makeCharacter({
+      nex: 50,
+      peRound: 10,
+      attributes: { AGI: 3, FOR: 2, INT: 3, PRE: 4, VIG: 2 },
+      maskConfig: {
+        enabled: true,
+        maskName: 'Máscara da Seita',
+        isActive: true,
+        activeRounds: 1,
+        grantBonusDiceDamage: true,
+        grantBonusTests: true,
+        grantBonusDt: true,
+        freeAdvancedRituals: false,
+      },
+    });
+
+    const prof = detectAgentDamageModifiers(maskedAgent);
+    assert.equal(prof.hasActiveSupremeMask, true);
+    assert.equal(prof.maskBonusTests, 5);
+    assert.equal(prof.maskBonusDt, 5);
+    assert.equal(prof.maskExtraDamageDice, 2);
+
+    const machete = makeAttack({ name: 'Machete', damage: '1d6', critical: '19/x2', range: 'Corpo a corpo' });
+    const resAtk = resolveAgentAttackDamage({ attack: machete, character: maskedAgent });
+    // 1d6 base + 2d6 Forma Suprema (não multiplica no crítico) + FOR(2)
+    assert.equal(resAtk.normalFormula, '1d6+2d6+2');
+    assert.equal(resAtk.criticalFormula, '2d6+2d6+2');
+    assert.ok(resAtk.breakdown.some((b) => b.source === 'Forma Suprema: Máscara'));
+
+    const ritual: Partial<CompendiumEntity> & { name: string } = {
+      id: 'rit_teste_mask',
+      name: 'Decadência',
+      category: 'ritual',
+      element: 'Morte',
+      circle: 1,
+      description: 'Causa 2d8+2 pontos de dano.',
+      discente: '+2 PE: muda o dano para 4d8+4.',
+      verdadeiro: '+5 PE: muda o dano para 6d8+6.',
+    };
+    const resRitual = resolveAgentRitualDamage({ ritual, character: maskedAgent, tier: 'padrao' });
+    // DT = 10 + 10 (peRound) + 4 (PRE) + 5 (Máscara) = 29; Dano = 2d8 + 2d8 (Máscara) + 2 = 4d8+2
+    assert.equal(resRitual.dtResistance, 29);
+    assert.equal(resRitual.rollFormula, '4d8+2');
+    assert.equal(resRitual.peCost, 1);
+
+    const maskedFreeAgent = makeCharacter({
+      ...maskedAgent,
+      maskConfig: {
+        ...maskedAgent.maskConfig!,
+        freeAdvancedRituals: true,
+      },
+    });
+    const resDiscenteFree = resolveAgentRitualDamage({
+      ritual,
+      character: maskedFreeAgent,
+      tier: 'discente',
+    });
+    // Custo de Discente (+2 PE) é dispensado quando freeAdvancedRituals está ativo -> paga apenas 1 PE base
+    assert.equal(resDiscenteFree.peCost, 1);
+    assert.equal(resDiscenteFree.rollFormula, '6d8+4');
+  });
 });
