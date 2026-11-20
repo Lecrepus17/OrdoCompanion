@@ -115,13 +115,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   // Estado PWA Desktop (exclusivo do ambiente Web/PC)
   const isWeb = Platform.OS === 'web';
   const [pwaInstalled, setPwaInstalled] = useState<boolean>(false);
+  const [pwaPromptReady, setPwaPromptReady] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isWeb || typeof window === 'undefined') return;
     setPwaInstalled(isRunningAsStandalonePwa());
-    const onInstalled = () => setPwaInstalled(true);
+    setPwaPromptReady(Boolean((window as any).__ordoDeferredPwaPrompt));
+    const onPromptReady = () => setPwaPromptReady(true);
+    const onInstalled = () => {
+      setPwaInstalled(true);
+      setPwaPromptReady(false);
+    };
+    window.addEventListener('ordo:pwa-install-ready', onPromptReady);
     window.addEventListener('ordo:pwa-installed', onInstalled);
     return () => {
+      window.removeEventListener('ordo:pwa-install-ready', onPromptReady);
       window.removeEventListener('ordo:pwa-installed', onInstalled);
     };
   }, [isWeb, visible]);

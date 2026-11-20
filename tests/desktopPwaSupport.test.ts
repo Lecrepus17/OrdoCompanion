@@ -56,28 +56,49 @@ describe('Desktop PC & PWA Support (SOL-MEL-001)', () => {
     }
   });
 
-  it('deve possuir public/manifest.json válido, ícones em public/ e Service Worker offline (public/sw.js)', () => {
+  it('deve possuir public/index.html, public/manifest.json válido com dimensões exatas e Service Worker offline (public/sw.js)', () => {
+    const indexHtmlPath = path.join(rootDir, 'public', 'index.html');
     const manifestPath = path.join(rootDir, 'public', 'manifest.json');
     const swPath = path.join(rootDir, 'public', 'sw.js');
     const faviconPath = path.join(rootDir, 'public', 'favicon.png');
+    const icon512Path = path.join(rootDir, 'public', 'icon-512.png');
     const iconPath = path.join(rootDir, 'public', 'icon.png');
 
+    assert.ok(fs.existsSync(indexHtmlPath), 'public/index.html deve existir para o template single-page do Expo');
     assert.ok(fs.existsSync(manifestPath), 'public/manifest.json deve existir');
     assert.ok(fs.existsSync(swPath), 'public/sw.js deve existir');
     assert.ok(fs.existsSync(faviconPath), 'public/favicon.png deve existir');
+    assert.ok(fs.existsSync(icon512Path), 'public/icon-512.png deve existir');
     assert.ok(fs.existsSync(iconPath), 'public/icon.png deve existir');
+
+    const indexHtml = fs.readFileSync(indexHtmlPath, 'utf8');
+    assert.ok(indexHtml.includes('href="/manifest.json"'));
+    assert.ok(indexHtml.includes('beforeinstallprompt'));
+    assert.ok(indexHtml.includes("serviceWorker.register('/sw.js')"));
+    assert.ok(indexHtml.includes('%WEB_TITLE%'));
+
+    const readPngDims = (file: string) => {
+      const buf = fs.readFileSync(file);
+      return `${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)}`;
+    };
+    assert.equal(readPngDims(faviconPath), '192x192');
+    assert.equal(readPngDims(icon512Path), '512x512');
+    assert.equal(readPngDims(iconPath), '1024x1024');
 
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     assert.equal(manifest.display, 'standalone');
     assert.equal(manifest.theme_color, '#0A0A0C');
     assert.equal(manifest.background_color, '#0A0A0C');
-    assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 2);
-    assert.ok(manifest.icons.some((i: any) => i.src === '/favicon.png'));
-    assert.ok(manifest.icons.some((i: any) => i.src === '/icon.png'));
+    assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 3);
+    assert.ok(manifest.icons.some((i: any) => i.src === '/favicon.png' && i.sizes === '192x192' && i.purpose === 'any'));
+    assert.ok(manifest.icons.some((i: any) => i.src === '/icon-512.png' && i.sizes === '512x512' && i.purpose === 'any'));
+    assert.ok(manifest.icons.some((i: any) => i.src === '/icon-512.png' && i.sizes === '512x512' && i.purpose === 'maskable'));
+    assert.ok(manifest.icons.some((i: any) => i.src === '/icon.png' && i.sizes === '1024x1024'));
 
     const swContent = fs.readFileSync(swPath, 'utf8');
     assert.ok(swContent.includes('SKIP_WAITING'));
     assert.ok(swContent.includes('/manifest.json'));
+    assert.ok(swContent.includes('/icon-512.png'));
     assert.ok(swContent.includes('/pdfs/'), 'SW deve ignorar PDFs gigantes armazenados no IndexedDB');
   });
 

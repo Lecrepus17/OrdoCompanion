@@ -29,6 +29,10 @@ git commit -m "fix(sync,android): adiciona scheme reverso oauth, traducao de err
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ Correção de Instalação PWA no Build Estático Web/PC (`public/index.html`, Ícone `512x512` e Manifesto) (2026-11-20):
+- **Título**: `fix(web,pwa): adiciona public/index.html para output single, icone 512x512 real e manifesto pwa estrito`
+- **Resumo**: Cria `public/index.html` com placeholders Expo (`%LANG_ISO_CODE%`, `%WEB_TITLE%`) injetando manifesto, `beforeinstallprompt` e `/sw.js` no modo `single`; gera `public/icon-512.png` (`512x512`) real separando `any`/`maskable` em `public/manifest.json`; inclui `/icon-512.png` em `public/sw.js` e `+html.tsx`; atualiza instruções Chrome/Edge em `desktopPwa.ts` e listener `ordo:pwa-install-ready` no `UserProfileModal`; amplia `tests/desktopPwaSupport.test.ts` e recompila `dist/`.
+
 ### ✅ Especialista Web/Desktop (`web-desktop-guardian`) e UI/UX Multiplataforma (`mobile-ui-expert`) (2026-11-20):
 - **Título**: `docs(agents,ui): cria especialista web-desktop-guardian e atualiza mobile-ui-expert para mobile e pc`
 - **Resumo**: Cria a skill `.agents/skills/web-desktop-audit/SKILL.md` (`web-desktop-guardian`), evolui `.agents/skills/mobile-ui-audit/SKILL.md` para responsividade mobile (`360px`/paisagem), tablet e desktop (`1024px–1920px+`) com tema claro/escuro, integra ambos no `GEMINI.md`, `data/request_triage_questions.json`, `request-triage` e `screenshot-bug-triage`, e adiciona validação em `tests/desktopPwaSupport.test.ts`.

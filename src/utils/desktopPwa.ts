@@ -11,7 +11,7 @@ export interface PwaInstallPromptResult {
 }
 
 const PWA_MANUAL_INSTALL_INSTRUCTIONS =
-  'Para instalar no PC: abra o Ordo Companion no Google Chrome ou Microsoft Edge e clique no ícone de instalação (computador com seta) na barra de endereços, ou acesse o menu ⋮ ➔ Aplicativos ➔ Instalar Ordo Companion.';
+  'Para instalar no PC: clique no ícone de instalação (computador com seta) na barra de endereços do navegador. No Google Chrome, você também pode abrir o menu ⋮ ➔ Transmitir, salvar e compartilhar ➔ Instalar página como app... (ou no Edge: ⋯ ➔ Aplicativos ➔ Instalar este site como um aplicativo).';
 
 /**
  * Indica se a execução atual está no ambiente Desktop/Web.

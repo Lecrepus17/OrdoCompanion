@@ -2,7 +2,7 @@
 
 > **Versão Atual Publicada**: `1.6.0-beta.1` (Android `versionCode: 12`)  
 > **Versão Sugerida**: `1.6.0-beta.2` (Motivo: [Minor/Beta] Aplicativo para PC via Web App + PWA Instalável Offline, Especialista Web/Desktop & UI/UX Multiplataforma, Centralização de Solicitações Discord/Chat e Roteamento Separado)  
-> **Última Atualização**: 2026-11-20 14:22
+> **Última Atualização**: 2026-11-20 14:53
 
 > [!IMPORTANT]
 > **Isolamento Estrito de Ciclo**: Este arquivo acumula **exclusivamente** o que for desenvolvido a partir de agora para a futura versão (`1.6.0-beta.2`). Tudo o que pertenceu à `v1.6.0-beta.1` e versões anteriores já foi exportado para `docs/RELEASE_NOTES.md` e arquivado em `docs/HISTORICO_RELEASES.md`.
@@ -36,12 +36,14 @@
   - Adicionado suporte a Webhooks específicos por fila (`errors` vs. `improvements`) em `SupportService` (com persistência ofuscada `obf:v1:...` no `AsyncStorage` compatível com Hermes Android APK), no Proxy Seguro do Supabase (`DISCORD_BUGS_WEBHOOK_URL`, `DISCORD_SUGGESTIONS_WEBHOOK_URL`) e no painel de desenvolvedor do `SupportCenterView.tsx`.
 
 ### 🐛 Correções de Bugs (Fixes)
-- *(Nenhuma correção registrada neste ciclo ainda)*
+- **Instalação PWA Desktop no Build Estático Web/PC (`public/index.html`, `public/icon-512.png`, `public/manifest.json`, `public/sw.js`, `desktopPwa.ts`)**:
+  - Criado template `public/index.html` com placeholders Expo (`output: "single"`), já que o `expo export -p web` em modo `single` ignorava `src/app/+html.tsx`, garantindo que `dist/index.html` inclua `<link rel="manifest">`, listener `beforeinstallprompt` e registro de `/sw.js`.
+  - Gerado ícone real `public/icon-512.png` (`512x512`) e separadas as entradas `"any"` e `"maskable"` com dimensões exatas em `public/manifest.json`, além de instruções atualizadas para Chrome (`⋮ ➔ Transmitir, salvar e compartilhar ➔ Instalar página como app...`) e Edge.
 
 ### 🧪 Testes Automatizados
 - Adicionada suíte `tests/desktopPwaSupport.test.ts` (8 testes validando manifesto PWA, Service Worker offline, tags HTML/`app.json`, blindagem no runtime Android Hermes, instalação PWA, download de backup `.json`, `applyWebOrDesktopUpdate`, `UpdateNotificationModal`, `UserProfileModal` e registro dos especialistas `web-desktop-guardian` e `mobile-ui-expert`).
 - Adicionada suíte `tests/discordRequests.test.ts` (5 testes cobrindo SSOT em `data/request_triage_questions.json`, classificação separada Erros vs. Melhorias, cursor incremental com BigInt Snowflake e roteamento de webhooks com compatibilidade Hermes APK).
-- Validadas as execuções pós-edição: `tsc --noEmit` (0 erros), `13/13` testes em `tests/desktopPwaSupport.test.ts` + `tests/discordRequests.test.ts`, e `npm run test:db` aprovado (`10` livros, `1708` entidades), além da suíte completa `npm run test:all` (`962/962` testes em 220 suítes) após a entrega do suporte PC/PWA.
+- Validadas as execuções pós-edição: `npm run build:pc` (`dist/` exportado com `manifest.json`, `sw.js` e `beforeinstallprompt` em `dist/index.html`), `tsc --noEmit` (0 erros), `8/8` testes em `tests/desktopPwaSupport.test.ts` (além de `13/13` com `tests/discordRequests.test.ts`, `npm run test:db` com `10` livros / `1708` entidades e `npm run test:all` `962/962`).
 
 ---
 

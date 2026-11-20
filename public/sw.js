@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 const CACHE_NAME = 'ordo-companion-pwa-v1';
-const SHELL_ASSETS = ['/', '/manifest.json', '/favicon.png', '/icon.png'];
+const SHELL_ASSETS = ['/', '/manifest.json', '/favicon.png', '/icon-512.png', '/icon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -53,6 +53,7 @@ function isStaticAsset(pathname) {
     pathname.startsWith('/pdfjs/') ||
     pathname.startsWith('/assets/') ||
     pathname === '/favicon.png' ||
+    pathname === '/icon-512.png' ||
     pathname === '/icon.png' ||
     pathname === '/manifest.json'
   );
