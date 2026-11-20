@@ -5,6 +5,7 @@
   "releaseDate": "2026-11-20",
   "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.7.0-beta.1",
   "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.7.0-beta.1/OrdoCompanion.apk",
+  "webUrl": "https://ordo-companion.expo.app",
   "changelog": [
     "Aplicativo para PC (Web App + PWA Instalável Offline — `SOL-MEL-001`)",
     "Central de Suporte com Filas Separadas (Erros vs. Melhorias)",
