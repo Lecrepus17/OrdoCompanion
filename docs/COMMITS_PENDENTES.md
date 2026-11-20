@@ -6,7 +6,24 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento)*
+### 1. Diagnóstico e Compatibilidade do Login Google OAuth no Android (`SOL-ERR-001`):
+- **Título**: `fix(sync,android): adiciona scheme reverso oauth, traducao de erros e diagnostico de login google`
+- **Descrição**:
+  - Registra o scheme reverso do Client ID Android (`com.googleusercontent.apps.556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos`) em `android/app/src/main/AndroidManifest.xml` e `app.json` (`intentFilters`).
+  - Implementa alternância persistida entre `custom_scheme` e `reverse_client_id` e parâmetro `{ showInRecents: true }` no `GoogleDriveService`.
+  - Adiciona `formatGoogleOAuthError` (traduzindo `access_denied` 403, `redirect_uri_mismatch`/`invalid_request` 400, `disallowed_useragent` e `org_internal`) e `getOAuthDiagnostics`.
+  - Adiciona painel colapsável de solução (Erro 403 / Erro 400 / Chrome), seleção de redirecionamento e botão `Copiar Diagnóstico OAuth` na aba Nuvem do `UserProfileModal`.
+  - Amplia `tests/googleDriveService.test.ts` e atualiza `docs/SOLICITACOES.md`, `docs/ATUALIZACOES_PENDENTES.md` e `docs/COMMITS_PENDENTES.md`.
+- **Comando Git Pronto**:
+```bash
+git add app.json android/app/src/main/AndroidManifest.xml src/services/sync/GoogleDriveService.ts src/components/UserProfileModal.tsx tests/googleDriveService.test.ts docs/SOLICITACOES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "fix(sync,android): adiciona scheme reverso oauth, traducao de erros e diagnostico de login google" \
+  -m "- Registra scheme reverso do Client ID Android em AndroidManifest.xml e app.json (intentFilters)" \
+  -m "- Implementa alternancia persistida entre custom_scheme e reverse_client_id no GoogleDriveService" \
+  -m "- Adiciona formatGoogleOAuthError (Erro 403 access_denied, Erro 400 redirect_uri_mismatch, disallowed_useragent, org_internal) e getOAuthDiagnostics" \
+  -m "- Adiciona painel colapsavel de solucao, selecao de redirecionamento e copia de diagnostico OAuth na aba Nuvem do UserProfileModal" \
+  -m "- Amplia cobertura em tests/googleDriveService.test.ts e atualiza SOLICITACOES.md / ATUALIZACOES_PENDENTES.md"
+```
 
 ---
 
