@@ -82,6 +82,7 @@ npm run requests:questions
 | :--- | :--- | :--- | :--- | :--- |
 | `SOL-ERR-HIST-01` | 🐛 Erro | Discord `#erros` (`#ORD-9386DK`, `#ORD-5040KS`) | OutOfMemoryError no upload de PDF no Android | `2026-11-09` / `v1.5.1-beta.1` |
 | `SOL-ERR-HIST-02` | 🐛 Erro | Discord `#erros` (`#ORD-5322T7`) | Maldições em proteções e salto de atributo na ficha assistida | `2026-11-18` / `v1.6.0-beta.1` |
+| `SOL-ERR-HIST-03` | 🐛 Erro | Chat Direto (`SOL-ERR-001`) | Falha no login Google OAuth em celulares de outros usuários (`access_denied`, scheme reverso Android e diagnóstico OAuth) | `2026-11-20` / `v1.6.0-beta.2` |
 | `SOL-MEL-HIST-01` | 💡 Melhoria | Discord `#erros` (`#ORD-33762V`) | Mecânica dos Mascarados & Forma Suprema | `2026-11-13` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-02` | 💡 Melhoria | Discord `#erros` (`#ORD-4662K3`) | Importar itens do Compêndio na aba Inventário do Agente | `2026-11-14` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-03` | 💡 Melhoria | Discord `#erros` (`#ORD-4017YV`) | Armaria para proteções, vestimentas e itens com maldições | `2026-11-18` / `v1.6.0-beta.1` |

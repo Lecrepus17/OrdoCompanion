@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0A0A0C" />
+    <title>Autenticação em Andamento — Ordo Companion</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #0a0a0c;
+        color: #f3f4f6;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .card {
+        width: 90%;
+        max-width: 420px;
+        background-color: #121316;
+        border: 1px solid #2a2e39;
+        border-radius: 16px;
+        padding: 32px 20px;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+      }
+      .badge {
+        width: 80px;
+        height: 80px;
+        border-radius: 40px;
+        margin: 0 auto 20px;
+        background-color: rgba(239, 68, 68, 0.1);
+        border: 1px solid #ef4444;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        color: #ef4444;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        color: #f3f4f6;
+      }
+      p {
+        margin: 0 0 20px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #9ca3af;
+      }
+      .spinner {
+        width: 34px;
+        height: 34px;
+        margin: 0 auto 20px;
+        border: 3px solid rgba(239, 68, 68, 0.2);
+        border-top-color: #ef4444;
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .hint {
+        font-size: 12px;
+        color: #6b7280;
+        font-style: italic;
+        margin-bottom: 22px;
+      }
+      .btn {
+        display: inline-block;
+        padding: 12px 20px;
+        border-radius: 8px;
+        background-color: #1e222b;
+        border: 1px solid #374151;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .btn:hover {
+        border-color: #ef4444;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="badge" aria-hidden="true">&#10003;</div>
+      <h1>Autenticação em Andamento</h1>
+      <p>
+        Processando credenciais seguras do Google e sincronizando com a base da Ordo Realitas...
+      </p>
+      <div class="spinner" aria-label="Carregando"></div>
+      <p class="hint">Esta janela será fechada automaticamente em instantes.</p>
+      <a class="btn" href="/">Voltar ao Ordo Companion</a>
+    </main>
+
+    <script>
+      (function () {
+        try {
+          var href = window.location.href;
+          var storedHandle = null;
+          try {
+            storedHandle = window.localStorage.getItem('ExpoWebBrowserRedirectHandle');
+          } catch (e) {}
+
+          var handle = storedHandle;
+          if (!handle) {
+            var rawParams = '';
+            if (window.location.hash && window.location.hash.length > 1) {
+              rawParams = window.location.hash.slice(1);
+            } else if (window.location.search && window.location.search.length > 1) {
+              rawParams = window.location.search.slice(1);
+            }
+            if (rawParams) {
+              try {
+                var sp = new URLSearchParams(rawParams);
+                handle = sp.get('state');
+              } catch (e) {}
+            }
+          }
+
+          var parentWin = null;
+          try {
+            parentWin =
+              window.opener ||
+              (window.parent && window.parent !== window ? window.parent : null);
+          } catch (e) {}
+
+          if (handle) {
+            try {
+              window.localStorage.setItem('ExpoWebBrowser_OriginUrl_' + handle, href);
+            } catch (e) {}
+
+            if (parentWin) {
+              try {
+                parentWin.postMessage(
+                  { url: href, expoSender: handle },
+                  window.location.origin
+                );
+              } catch (e) {}
+              setTimeout(function () {
+                try {
+                  window.close();
+                } catch (e) {}
+              }, 400);
+              return;
+            }
+          }
+
+          if (!parentWin && !storedHandle) {
+            setTimeout(function () {
+              try {
+                window.location.replace('/');
+              } catch (e) {}
+            }, 1200);
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </body>
+</html>

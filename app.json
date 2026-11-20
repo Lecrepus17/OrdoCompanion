@@ -28,6 +28,17 @@
         "android.permission.INTERNET",
         "android.permission.RECORD_AUDIO"
       ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "com.googleusercontent.apps.556485656355-grsjjk5ol3keimcnn905f5vrd7lk0jos"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"

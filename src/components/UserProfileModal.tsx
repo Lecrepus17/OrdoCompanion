@@ -28,7 +28,7 @@ import {
   triggerPwaInstallPrompt,
 } from '../utils/desktopPwa';
 import { normalizeCriticalDamageMode } from '../utils/dice';
-import { GoogleDriveService } from '../services/sync/GoogleDriveService';
+import { GoogleDriveService, GoogleOAuthRedirectMode } from '../services/sync/GoogleDriveService';
 
 import {
   CriticalDamageMode,
@@ -107,6 +107,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
   // Estados locais da sincronização com Google Drive
   const [isConnectingDrive, setIsConnectingDrive] = useState(false);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [redirectMode, setRedirectMode] = useState<GoogleOAuthRedirectMode>(() =>
+    GoogleDriveService.getInstance().getRedirectMode()
+  );
+  const [showOAuthTroubleshoot, setShowOAuthTroubleshoot] = useState(false);
 
   // Estados locais para importação manual de backup (sem depender de window.prompt)
   const [importModalVisible, setImportModalVisible] = useState(false);
@@ -167,6 +171,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       setListingColumnsChoice(userProfile.listingColumns === 2 ? 2 : 1);
       setTranscendEvery5Nex(!!userProfile.transcendEvery5Nex);
       setCriticalDamageModeChoice(normalizeCriticalDamageMode(userProfile.criticalDamageMode));
+      setRedirectMode(GoogleDriveService.getInstance().getRedirectMode());
 
 
       const navConfig = userProfile.navigationConfig;
@@ -239,14 +244,36 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
       const res = await connectGoogleDrive();
       if (res.isAuthenticated) {
         setCloudSyncEnabled(true);
+        setShowOAuthTroubleshoot(false);
         showAlert('Google Drive Conectado!', `Conta conectada com sucesso: ${res.userName || res.userEmail || 'Jogador'}.`);
       } else if (res.error) {
+        setShowOAuthTroubleshoot(true);
         showAlert('Aviso de Conexão', res.error);
       }
     } catch (err: any) {
+      setShowOAuthTroubleshoot(true);
       showAlert('Erro de Conexão', err?.message || 'Falha ao autenticar com o Google Drive.');
     } finally {
       setIsConnectingDrive(false);
+    }
+  };
+
+  const handleChangeRedirectMode = async (mode: GoogleOAuthRedirectMode) => {
+    await GoogleDriveService.getInstance().setRedirectMode(mode);
+    setRedirectMode(mode);
+  };
+
+  const handleCopyOAuthDiagnostics = async () => {
+    const diag = GoogleDriveService.getInstance().getOAuthDiagnostics();
+    const diagText = JSON.stringify(diag, null, 2);
+    const ok = await copyToClipboard(diagText, 'Diagnóstico OAuth Google');
+    if (ok) {
+      showAlert(
+        'Diagnóstico Copiado',
+        'Os dados técnicos de login OAuth foram copiados. Envie ao desenvolvedor se o erro persistir.'
+      );
+    } else {
+      showAlert('Diagnóstico OAuth', diagText);
     }
   };
 
@@ -1456,6 +1483,121 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                             <View style={styles.errorMessageBox}>
                               <Ionicons name="alert-circle" size={16} color={colors.danger} />
                               <Text style={styles.errorMessageText}>{syncAuthState.error}</Text>
+                            </View>
+                          )}
+
+                          <TouchableOpacity
+                            testID="oauth-troubleshoot-toggle"
+                            style={styles.oauthTroubleshootToggle}
+                            onPress={() => setShowOAuthTroubleshoot((prev) => !prev)}
+                            activeOpacity={0.75}
+                            accessibilityRole="button"
+                            accessibilityLabel="Erro ao conectar com Google? Ver solução e diagnóstico"
+                          >
+                            <Ionicons name="help-circle-outline" size={15} color={colors.primary} />
+                            <Text style={styles.oauthTroubleshootToggleText}>
+                              Erro ao conectar com Google? (Erro 403 / Solução & Diagnóstico)
+                            </Text>
+                            <Ionicons
+                              name={showOAuthTroubleshoot ? 'chevron-up' : 'chevron-down'}
+                              size={15}
+                              color={colors.textSecondary}
+                            />
+                          </TouchableOpacity>
+
+                          {showOAuthTroubleshoot && (
+                            <View testID="oauth-troubleshoot-panel" style={styles.oauthTroubleshootPanel}>
+                              <Text style={styles.oauthTroubleshootTitle}>
+                                Soluções para Erro no Login Google
+                              </Text>
+
+                              <Text style={styles.oauthTroubleshootStep}>
+                                <Text style={styles.oauthTroubleshootBold}>1. Erro 403 (access_denied / App em fase de testes): </Text>
+                                Enquanto o OAuth estiver em modo Teste no Google Cloud, apenas contas autorizadas pelo desenvolvedor conseguem conectar. Você pode enviar seu e-mail (@gmail.com) na aba Suporte para liberação ou usar o <Text style={styles.oauthTroubleshootBold}>Backup JSON (Sem Nuvem)</Text> logo abaixo.
+                              </Text>
+
+                              {isWeb ? (
+                                <Text style={styles.oauthTroubleshootStep}>
+                                  <Text style={styles.oauthTroubleshootBold}>2. Erro 400 (redirect_uri_mismatch): </Text>
+                                  A URI de callback (<Text style={styles.oauthTroubleshootBold}>.../oauthredirect</Text>) deste domínio precisa estar autorizada no Google Cloud Console. Use o botão "Copiar Diagnóstico OAuth" abaixo para conferir a URI exata.
+                                </Text>
+                              ) : (
+                                <Text style={styles.oauthTroubleshootStep}>
+                                  <Text style={styles.oauthTroubleshootBold}>2. Erro 400 (redirect_uri / Solicitação inválida): </Text>
+                                  Alterne o modo de redirecionamento Android abaixo para Compatibilidade e tente conectar novamente.
+                                </Text>
+                              )}
+
+                              {isWeb ? (
+                                <Text style={styles.oauthTroubleshootStep}>
+                                  <Text style={styles.oauthTroubleshootBold}>3. Pop-up bloqueado no navegador: </Text>
+                                  Permita janelas pop-up para este site no Chrome/Edge e tente conectar novamente.
+                                </Text>
+                              ) : (
+                                <Text style={styles.oauthTroubleshootStep}>
+                                  <Text style={styles.oauthTroubleshootBold}>3. Navegador bloqueando o retorno: </Text>
+                                  Defina o <Text style={styles.oauthTroubleshootBold}>Google Chrome</Text> como navegador padrão do celular (evite navegadores internos/Mini).
+                                </Text>
+                              )}
+
+                              {!isWeb && (
+                                <View style={styles.oauthModeBlock}>
+                                  <Text style={styles.oauthModeLabel}>
+                                    Modo de Redirecionamento Android:
+                                  </Text>
+                                  <View style={styles.oauthModeRow}>
+                                    <TouchableOpacity
+                                      testID="oauth-redirect-mode-custom"
+                                      style={[
+                                        styles.oauthModeBtn,
+                                        redirectMode === 'custom_scheme' && styles.oauthModeBtnActive,
+                                      ]}
+                                      onPress={() => handleChangeRedirectMode('custom_scheme')}
+                                      activeOpacity={0.8}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.oauthModeBtnText,
+                                          redirectMode === 'custom_scheme' && styles.oauthModeBtnTextActive,
+                                        ]}
+                                        numberOfLines={2}
+                                      >
+                                        Padrão (com.ordemparanormal.ordo)
+                                      </Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                      testID="oauth-redirect-mode-reverse"
+                                      style={[
+                                        styles.oauthModeBtn,
+                                        redirectMode === 'reverse_client_id' && styles.oauthModeBtnActive,
+                                      ]}
+                                      onPress={() => handleChangeRedirectMode('reverse_client_id')}
+                                      activeOpacity={0.8}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.oauthModeBtnText,
+                                          redirectMode === 'reverse_client_id' && styles.oauthModeBtnTextActive,
+                                        ]}
+                                        numberOfLines={2}
+                                      >
+                                        Compatibilidade (Scheme Reverso)
+                                      </Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+                              )}
+
+                              <TouchableOpacity
+                                testID="oauth-copy-diagnostics-btn"
+                                style={styles.oauthDiagBtn}
+                                onPress={handleCopyOAuthDiagnostics}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="copy-outline" size={14} color={colors.primary} />
+                                <Text style={styles.oauthDiagBtnText}>Copiar Diagnóstico OAuth</Text>
+                              </TouchableOpacity>
                             </View>
                           )}
                         </View>
@@ -2723,6 +2865,103 @@ function createStyles(colors: ThemeColors) {
       color: '#FFF',
       fontSize: 13,
       fontWeight: '800',
+    },
+    oauthTroubleshootToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceHighlight,
+    },
+    oauthTroubleshootToggleText: {
+      flex: 1,
+      fontSize: 11.5,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    oauthTroubleshootPanel: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      padding: 12,
+      gap: 8,
+    },
+    oauthTroubleshootTitle: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    oauthTroubleshootStep: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      lineHeight: 16,
+    },
+    oauthTroubleshootBold: {
+      fontWeight: '800',
+      color: colors.text,
+    },
+    oauthModeBlock: {
+      gap: 6,
+      marginTop: 2,
+    },
+    oauthModeLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    oauthModeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    oauthModeBtn: {
+      flex: 1,
+      minWidth: 130,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceHighlight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    oauthModeBtnActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primarySoft,
+    },
+    oauthModeBtnText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    oauthModeBtnTextActive: {
+      color: colors.primary,
+      fontWeight: '800',
+    },
+    oauthDiagBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.primarySoft,
+      marginTop: 2,
+    },
+    oauthDiagBtnText: {
+      fontSize: 11.5,
+      fontWeight: '800',
+      color: colors.primary,
     },
   });
 }

@@ -44,6 +44,13 @@ function shouldBypassCache(url) {
   if (url.origin !== self.location.origin) return true;
   if (url.pathname.endsWith('/version.json') || url.pathname === '/version.json') return true;
   if (url.pathname.startsWith('/pdfs/')) return true;
+  if (
+    url.pathname === '/oauthredirect' ||
+    url.pathname === '/oauthredirect.html' ||
+    url.pathname.startsWith('/oauthredirect/')
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -77,10 +84,21 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate' || request.destination === 'document') {
     event.respondWith(
       fetch(request)
-        .then((response) => {
+        .then(async (response) => {
           if (response && response.ok) {
             const copy = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
+            return response;
+          }
+          // Fallback SPA para rotas client-side sem extensão quando o servidor estático retorna 404
+          const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(url.pathname);
+          if (response && response.status === 404 && !hasFileExtension) {
+            const cachedShell = await caches.match('/');
+            if (cachedShell) return cachedShell;
+            try {
+              const rootRes = await fetch('/');
+              if (rootRes && rootRes.ok) return rootRes;
+            } catch {}
           }
           return response;
         })

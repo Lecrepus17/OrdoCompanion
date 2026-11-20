@@ -13,7 +13,10 @@ const STORAGE_KEYS = {
   AUTH_STATE: '@ordem_paranormal:gdrive_auth_session_v2',
   CLIENT_ID: '@ordem_paranormal:google_client_id_v1',
   REMOTE_FILE_ID: '@ordem_paranormal:gdrive_remote_file_id_v1',
+  REDIRECT_MODE: '@ordem_paranormal:google_redirect_mode_v1',
 };
+
+export type GoogleOAuthRedirectMode = 'custom_scheme' | 'reverse_client_id';
 
 // Nome do arquivo protegido armazenado na pasta appDataFolder do Google Drive
 export const BACKUP_FILE_NAME = 'ordem_paranormal_backup_v1.json';
@@ -51,6 +54,7 @@ export class GoogleDriveService {
   private static instance: GoogleDriveService;
   private authState: SyncAuthState = { isAuthenticated: false };
   private customClientId: string = '';
+  private redirectMode: GoogleOAuthRedirectMode = 'custom_scheme';
 
   private constructor() {}
 
@@ -66,10 +70,15 @@ export class GoogleDriveService {
    */
   public async initialize(): Promise<SyncAuthState> {
     try {
-      const [savedAuth, savedClientId] = await Promise.all([
+      const [savedAuth, savedClientId, savedRedirectMode] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.AUTH_STATE),
         AsyncStorage.getItem(STORAGE_KEYS.CLIENT_ID),
+        AsyncStorage.getItem(STORAGE_KEYS.REDIRECT_MODE),
       ]);
+
+      if (savedRedirectMode === 'reverse_client_id' || savedRedirectMode === 'custom_scheme') {
+        this.redirectMode = savedRedirectMode;
+      }
 
       if (savedClientId && !savedClientId.includes('ordemparanormal.apps.googleusercontent.com')) {
         this.customClientId = savedClientId;
@@ -131,6 +140,29 @@ export class GoogleDriveService {
     return Platform.OS === 'web' ? DEFAULT_CLIENT_SECRET_WEB : '';
   }
 
+  public getRedirectMode(): GoogleOAuthRedirectMode {
+    return this.redirectMode;
+  }
+
+  public async setRedirectMode(mode: GoogleOAuthRedirectMode): Promise<void> {
+    this.redirectMode = mode;
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.REDIRECT_MODE, mode);
+    } catch {}
+  }
+
+  public getReverseClientIdScheme(clientId?: string): string {
+    const cid = (clientId ?? this.getClientId()).trim();
+    const suffix = '.apps.googleusercontent.com';
+    if (cid.endsWith(suffix)) {
+      const prefix = cid.slice(0, -suffix.length).trim();
+      if (prefix) {
+        return `com.googleusercontent.apps.${prefix}`;
+      }
+    }
+    return 'com.ordemparanormal.ordo';
+  }
+
   public getRedirectUri(): string {
     if (Platform.OS === 'web') {
       return AuthSession.makeRedirectUri({
@@ -139,9 +171,56 @@ export class GoogleDriveService {
         preferLocalhost: true,
       });
     }
+    if (this.redirectMode === 'reverse_client_id') {
+      return `${this.getReverseClientIdScheme()}:/oauthredirect`;
+    }
     return AuthSession.makeRedirectUri({
       native: 'com.ordemparanormal.ordo:/oauthredirect',
     });
+  }
+
+  public static formatGoogleOAuthError(rawError?: string): string {
+    const raw = (rawError || '').trim();
+    if (!raw) {
+      return 'Falha na autenticação do Google.';
+    }
+    const lower = raw.toLowerCase();
+
+    if (lower.includes('access_denied')) {
+      return 'Acesso bloqueado pelo Google (Erro 403: access_denied). Sua conta Google ainda não está liberada na lista de testadores (OAuth em modo Teste no Google Cloud) ou você recusou a permissão do Drive.';
+    }
+
+    if (
+      lower.includes('redirect_uri_mismatch') ||
+      lower.includes('invalid_request') ||
+      lower.includes('custom_scheme') ||
+      lower.includes('custom scheme uris are not allowed')
+    ) {
+      return 'Falha de redirecionamento OAuth no Android (Erro 400). Ative o "Modo Compatibilidade (Scheme Reverso)" abaixo na aba Nuvem e tente conectar novamente.';
+    }
+
+    if (lower.includes('disallowed_useragent')) {
+      return 'O navegador padrão do seu celular bloqueou o login seguro do Google (Erro 403). Defina o Google Chrome como navegador padrão do Android e tente novamente.';
+    }
+
+    if (lower.includes('org_internal')) {
+      return 'Esta conta Google possui restrição de organização/escola (Erro 403: org_internal). Utilize uma conta Google pessoal (@gmail.com).';
+    }
+
+    return `Google OAuth: ${raw}`;
+  }
+
+  public getOAuthDiagnostics() {
+    return {
+      platform: Platform.OS,
+      clientId: this.getClientId(),
+      redirectUri: this.getRedirectUri(),
+      redirectMode: this.redirectMode,
+      reverseScheme: this.getReverseClientIdScheme(),
+      hasCustomClientId: this.hasCustomClientId(),
+      isConfigured: this.isConfigured(),
+      lastError: this.authState.error,
+    };
   }
 
   public isConfigured(): boolean {
@@ -238,7 +317,9 @@ export class GoogleDriveService {
             },
       });
 
-      const result = await request.promptAsync(GOOGLE_DISCOVERY);
+      const result = await request.promptAsync(GOOGLE_DISCOVERY, {
+        showInRecents: true,
+      });
 
       if (result.type === 'success') {
         let accessToken = result.params.access_token;
@@ -298,13 +379,17 @@ export class GoogleDriveService {
           (result as any)?.error?.message ||
           (result as any)?.params?.error_description ||
           (result as any)?.params?.error;
-        return {
+        const formattedError = GoogleDriveService.formatGoogleOAuthError(errorDetail);
+        this.authState = {
           ...this.authState,
-          error: errorDetail ? `Google OAuth: ${errorDetail}` : 'Falha na autenticação do Google.',
+          error: formattedError,
         };
+        return this.authState;
       }
     } catch (err: any) {
-      const errorMsg = err?.message || 'Erro inesperado ao conectar ao Google Drive.';
+      const errorMsg = err?.message
+        ? GoogleDriveService.formatGoogleOAuthError(err.message)
+        : 'Erro inesperado ao conectar ao Google Drive.';
       this.authState = {
         ...this.authState,
         error: errorMsg,
