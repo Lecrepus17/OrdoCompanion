@@ -20,10 +20,14 @@ import { showAlert } from '../utils/alert';
 import {
   areElementsIncompatible,
   calculateCurseCategoryIncrease,
+  calculateEquippedProtections,
+  calculateMultipleEquippedProtections,
+  EquippedProtectionEntry,
+  isProtectionInventoryEntry,
   OFFICIAL_PROTECTION_CURSES,
   OFFICIAL_PROTECTIONS,
   ProtectionItem,
-  calculateEquippedProtections,
+  resolveProtectionInventoryEntry,
 } from '../utils/protections';
 
 export interface EquippedProtectionItemPayload {
@@ -32,6 +36,8 @@ export interface EquippedProtectionItemPayload {
   spaces: number;
   details: string;
   itemType: 'protecao' | 'escudo';
+  equipped?: boolean;
+  sourceInventoryId?: string;
   isBodyArmor?: boolean;
   isShield?: boolean;
   modifications?: string[];
@@ -46,6 +52,15 @@ export interface ProtectionApplyPayload {
   armorPenalty: number;
   totalSpaces: number;
   replaceExisting?: boolean;
+}
+
+interface ExtraProtectionSlot {
+  id: string;
+  prot: ProtectionItem;
+  mods: string[];
+  curses: string[];
+  equipped: boolean;
+  payloadItem: EquippedProtectionItemPayload;
 }
 
 interface ProtectionModalProps {
@@ -81,6 +96,111 @@ function getCurseElementColor(element: string, colors: ThemeColors): string {
   }
 }
 
+function buildPayloadItemForEntry(
+  prot: ProtectionItem,
+  mods: string[],
+  curses: string[],
+  equipped = true,
+  sourceInventoryId?: string
+): EquippedProtectionItemPayload {
+  const curseCatIncrease = calculateCurseCategoryIncrease(curses.length);
+
+  if (prot.type === 'Escudo') {
+    const isReforcada = mods.some(
+      (m) => m.toLowerCase().includes('reforç') || m.toLowerCase().includes('reforc')
+    );
+    const shieldMods = isReforcada ? ['Reforçada'] : [];
+    const shieldFinalCat = increaseCategory(
+      prot.category,
+      (isReforcada ? 1 : 0) + curseCatIncrease
+    );
+    const shieldCurseDefense = curses.reduce((acc, cName) => {
+      const curseDef = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName);
+      return acc + (curseDef?.defenseBonus || 0);
+    }, 0);
+    const allSuffixes = [...shieldMods, ...curses];
+    const shieldSuffix = allSuffixes.length > 0 ? ` (${allSuffixes.join(', ')})` : '';
+    const shieldSpaces = prot.spaces + (isReforcada ? 1 : 0);
+    const shieldDefTotal = prot.defenseBonus + (isReforcada ? 2 : 0) + shieldCurseDefense;
+
+    return {
+      name: `${prot.name}${shieldSuffix}`,
+      category: shieldFinalCat,
+      spaces: shieldSpaces,
+      details: `Escudo • Defesa +${shieldDefTotal}${
+        prot.damageReduction?.ballistic
+          ? ` • RD Balístico ${prot.damageReduction.ballistic}`
+          : ''
+      }`,
+      itemType: 'escudo',
+      equipped,
+      ...(sourceInventoryId ? { sourceInventoryId } : {}),
+      isShield: true,
+      ...(shieldMods.length > 0 ? { modifications: shieldMods } : {}),
+      ...(curses.length > 0 ? { curses } : {}),
+    };
+  }
+
+  let catIncrease = curseCatIncrease;
+  if (mods.includes('Reforçada')) catIncrease += 1;
+  if (mods.includes('Blindada')) catIncrease += 1;
+  if (mods.includes('Antibombas')) catIncrease += 1;
+  if (mods.includes('Discreta')) catIncrease += 1;
+
+  const finalCat = increaseCategory(prot.category, catIncrease);
+
+  let armorSpaces = prot.spaces;
+  if (mods.includes('Reforçada')) armorSpaces += 1;
+  if (mods.includes('Blindada')) armorSpaces += 1;
+  if (mods.includes('Discreta')) armorSpaces = Math.max(1, armorSpaces - 1);
+
+  const allSuffixes = [...mods, ...curses];
+  const modsSuffix = allSuffixes.length > 0 ? ` (${allSuffixes.join(', ')})` : '';
+  const curseDefenseDelta = curses.reduce((acc, cName) => {
+    const curseDef = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName);
+    return acc + (curseDef?.defenseBonus || 0);
+  }, 0);
+
+  const bodyPhysRd =
+    mods.includes('Blindada') && prot.type === 'Pesada'
+      ? 5
+      : prot.damageReduction?.physical || 0;
+  const bodyCurseRdParts = curses
+    .map((cName) => {
+      const curseDef = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName);
+      if (!curseDef) return '';
+      if (curseDef.rdElement) return `${curseDef.rdElement.element} ${curseDef.rdElement.value}`;
+      if (curseDef.rdGeneralHeavy || curseDef.rdGeneralLightOrShield) {
+        return `Geral ${
+          prot.type === 'Pesada'
+            ? curseDef.rdGeneralHeavy || 5
+            : curseDef.rdGeneralLightOrShield || 2
+        }`;
+      }
+      return '';
+    })
+    .filter(Boolean);
+  const bodyRdParts = [
+    bodyPhysRd > 0 ? `Física ${bodyPhysRd}` : '',
+    ...bodyCurseRdParts,
+  ].filter(Boolean);
+
+  return {
+    name: `${prot.name}${modsSuffix}`,
+    category: finalCat,
+    spaces: armorSpaces,
+    details: `Proteção Corporal (${prot.type}) • Defesa +${
+      prot.defenseBonus + (mods.includes('Reforçada') ? 2 : 0) + curseDefenseDelta
+    }${bodyRdParts.length > 0 ? ` • RD: ${bodyRdParts.join(', ')}` : ''}`,
+    itemType: 'protecao',
+    equipped,
+    ...(sourceInventoryId ? { sourceInventoryId } : {}),
+    isBodyArmor: true,
+    ...(mods.length > 0 ? { modifications: mods } : {}),
+    ...(curses.length > 0 ? { curses } : {}),
+  };
+}
+
 export default function ProtectionModal({
   visible,
   onClose,
@@ -97,6 +217,7 @@ export default function ProtectionModal({
   const [shieldSelection, setShieldSelection] = useState<string>('none');
   const [selectedMods, setSelectedMods] = useState<string[]>([]);
   const [selectedCurses, setSelectedCurses] = useState<string[]>([]);
+  const [extraProtections, setExtraProtections] = useState<ExtraProtectionSlot[]>([]);
   const [replaceExisting, setReplaceExisting] = useState<boolean>(true);
 
   // Campos para Armadura Customizada
@@ -127,59 +248,68 @@ export default function ProtectionModal({
 
   // Sincronizar estado inicial a partir do personagem quando o modal abre
   useEffect(() => {
-    if (!visible || !character) return;
+    if (!visible) return;
+    if (!character) {
+      setExtraProtections([]);
+      return;
+    }
 
     const protectionText = (character.protection || '').toLowerCase();
     const inventory = character.inventory || [];
+    const allProtectionItems = inventory.filter(isProtectionInventoryEntry);
 
-    // Tentar detectar armadura corporal existente
+    // Tentar detectar primeira armadura corporal equipada
     let initialArmor = 'none';
-    const equippedArmor = inventory.find(
-      (item) =>
-        item.equipped &&
-        (item.itemType === 'protecao' ||
-          item.name.toLowerCase().includes('proteção') ||
-          item.name.toLowerCase().includes('capacete'))
-    );
+    const equippedArmor = allProtectionItems.find((item) => {
+      if (!item.equipped) return false;
+      return !resolveProtectionInventoryEntry(item).isShield;
+    });
 
-    if (equippedArmor) {
-      const n = equippedArmor.name.toLowerCase();
-      if (n.includes('pesada')) initialArmor = 'item__livro_base__protecao_pesada';
-      else if (n.includes('leve')) initialArmor = 'item__livro_base__protecao_leve';
-      else if (n.includes('capacete')) initialArmor = 'item__arquivos_secretos_09__capacete_tatico';
-      else {
+    const parsedEquippedArmor = equippedArmor
+      ? resolveProtectionInventoryEntry(equippedArmor)
+      : null;
+
+    if (equippedArmor && parsedEquippedArmor) {
+      if (OFFICIAL_PROTECTIONS.some((p) => p.id === parsedEquippedArmor.prot.id)) {
+        initialArmor = parsedEquippedArmor.prot.id;
+      } else {
         initialArmor = 'custom';
-        setCustomArmorName(equippedArmor.name);
-        setCustomArmorSpaces(String(equippedArmor.spaces || 2));
-        setCustomArmorCategory(equippedArmor.category || 'I');
+        setCustomArmorName(parsedEquippedArmor.prot.name);
+        setCustomArmorType(parsedEquippedArmor.prot.type === 'Pesada' ? 'Pesada' : 'Leve');
+        setCustomArmorDefense(String(parsedEquippedArmor.prot.defenseBonus));
+        setCustomArmorRd(String(parsedEquippedArmor.prot.damageReduction?.physical || 0));
+        setCustomArmorSpaces(String(parsedEquippedArmor.prot.spaces || 2));
+        setCustomArmorCategory(parsedEquippedArmor.prot.category || 'I');
       }
-    } else if (protectionText) {
+    } else if (allProtectionItems.length === 0 && protectionText) {
       if (protectionText.includes('pesada')) initialArmor = 'item__livro_base__protecao_pesada';
       else if (protectionText.includes('leve')) initialArmor = 'item__livro_base__protecao_leve';
       else if (protectionText.includes('capacete')) initialArmor = 'item__arquivos_secretos_09__capacete_tatico';
     }
 
-    // Tentar detectar escudo existente
+    // Tentar detectar primeiro escudo equipado
     let initialShield = 'none';
-    const equippedShield = inventory.find(
-      (item) =>
-        item.equipped &&
-        (item.itemType === 'escudo' || item.name.toLowerCase().includes('escudo'))
-    );
+    const equippedShield = allProtectionItems.find((item) => {
+      if (!item.equipped || item === equippedArmor) return false;
+      return resolveProtectionInventoryEntry(item).isShield;
+    });
 
-    if (equippedShield) {
-      const n = equippedShield.name.toLowerCase();
-      if (n.includes('led') || n.includes('balístico') || n.includes('balistico')) {
-        initialShield = 'item__arquivos_secretos_09__escudo_balistico_led';
-      } else if (n.includes('escudo')) {
-        initialShield = 'item__livro_base__escudo';
+    const parsedEquippedShield = equippedShield
+      ? resolveProtectionInventoryEntry(equippedShield)
+      : null;
+
+    if (equippedShield && parsedEquippedShield) {
+      if (OFFICIAL_PROTECTIONS.some((p) => p.id === parsedEquippedShield.prot.id)) {
+        initialShield = parsedEquippedShield.prot.id;
       } else {
         initialShield = 'custom';
-        setCustomShieldName(equippedShield.name);
-        setCustomShieldSpaces(String(equippedShield.spaces || 2));
-        setCustomShieldCategory(equippedShield.category || '0');
+        setCustomShieldName(parsedEquippedShield.prot.name);
+        setCustomShieldDefense(String(parsedEquippedShield.prot.defenseBonus));
+        setCustomShieldRd(String(parsedEquippedShield.prot.damageReduction?.ballistic || 0));
+        setCustomShieldSpaces(String(parsedEquippedShield.prot.spaces || 2));
+        setCustomShieldCategory(parsedEquippedShield.prot.category || '0');
       }
-    } else if (protectionText) {
+    } else if (allProtectionItems.length === 0 && protectionText) {
       if (protectionText.includes('led') || protectionText.includes('balístico')) {
         initialShield = 'item__arquivos_secretos_09__escudo_balistico_led';
       } else if (protectionText.includes('escudo')) {
@@ -187,32 +317,63 @@ export default function ProtectionModal({
       }
     }
 
-    // Detectar modificações e maldições
+    // Detectar modificações e maldições da proteção principal carregada no construtor
     const initialMods: string[] = [];
-    const armorMods = (equippedArmor?.modifications || []).map((m) => m.toLowerCase());
-    const shieldMods = (equippedShield?.modifications || []).map((m) => m.toLowerCase());
-    const allModNames = [...armorMods, ...shieldMods];
-
-    if (protectionText.includes('reforçada') || protectionText.includes('reforcada') || allModNames.some((m) => m.includes('reforç'))) initialMods.push('Reforçada');
-    if (protectionText.includes('blindada') || allModNames.some((m) => m.includes('blindad'))) initialMods.push('Blindada');
-    if (protectionText.includes('antibombas') || allModNames.some((m) => m.includes('antibomba'))) initialMods.push('Antibombas');
-    if (protectionText.includes('discreta') || allModNames.some((m) => m.includes('discret'))) initialMods.push('Discreta');
-
     const initialCurses: string[] = [];
-    for (const curse of OFFICIAL_PROTECTION_CURSES) {
-      const lowerName = curse.name.toLowerCase();
-      if (
-        protectionText.includes(lowerName) ||
-        allModNames.some((m) => m.includes(lowerName))
-      ) {
-        initialCurses.push(curse.name);
+
+    if (parsedEquippedArmor || parsedEquippedShield) {
+      for (const m of [
+        ...(parsedEquippedArmor?.mods || []),
+        ...(parsedEquippedShield?.mods || []),
+      ]) {
+        if (!initialMods.includes(m)) initialMods.push(m);
+      }
+      for (const c of [
+        ...(parsedEquippedArmor?.curses || []),
+        ...(parsedEquippedShield?.curses || []),
+      ]) {
+        if (!initialCurses.includes(c)) initialCurses.push(c);
+      }
+    } else if (allProtectionItems.length === 0 && protectionText) {
+      if (protectionText.includes('reforçada') || protectionText.includes('reforcada')) initialMods.push('Reforçada');
+      if (protectionText.includes('blindada')) initialMods.push('Blindada');
+      if (protectionText.includes('antibombas')) initialMods.push('Antibombas');
+      if (protectionText.includes('discreta')) initialMods.push('Discreta');
+      for (const curse of OFFICIAL_PROTECTION_CURSES) {
+        if (protectionText.includes(curse.name.toLowerCase())) {
+          initialCurses.push(curse.name);
+        }
       }
     }
+
+    // Carregar demais proteções/armaduras da ficha (ativas ou guardadas na mochila)
+    const remainingSlots: ExtraProtectionSlot[] = allProtectionItems
+      .filter((item) => item !== equippedArmor && item !== equippedShield)
+      .map((item, idx) => {
+        const parsed = resolveProtectionInventoryEntry(item);
+        const isEquipped = Boolean(item.equipped);
+        const payloadItem = buildPayloadItemForEntry(
+          parsed.prot,
+          parsed.mods,
+          parsed.curses,
+          isEquipped,
+          item.id
+        );
+        return {
+          id: item.id || `extra_sync_${idx}`,
+          prot: parsed.prot,
+          mods: parsed.mods,
+          curses: parsed.curses,
+          equipped: isEquipped,
+          payloadItem,
+        };
+      });
 
     setBodyArmorSelection(initialArmor);
     setShieldSelection(initialShield);
     setSelectedMods(initialMods);
     setSelectedCurses(initialCurses);
+    setExtraProtections(remainingSlots);
     setReplaceExisting(true);
   }, [visible, character]);
 
@@ -357,15 +518,119 @@ export default function ProtectionModal({
     });
   }, [effectiveBodyArmor, selectedMods]);
 
-  // Cálculo canônico das proteções equipadas
+  // Cálculo canônico das proteções equipadas (incluindo múltiplas armaduras/proteções ativas)
   const calculation = useMemo(() => {
-    return calculateEquippedProtections(
-      effectiveBodyArmor,
-      effectiveShield,
-      activeCompatibleMods,
-      selectedCurses
+    const activeExtraEntries: EquippedProtectionEntry[] = extraProtections
+      .filter((slot) => slot.equipped)
+      .map((slot) => ({
+        prot: slot.prot,
+        mods: slot.mods,
+        curses: slot.curses,
+      }));
+
+    if (activeExtraEntries.length === 0) {
+      return calculateEquippedProtections(
+        effectiveBodyArmor,
+        effectiveShield,
+        activeCompatibleMods,
+        selectedCurses
+      );
+    }
+
+    const allActiveEntries: EquippedProtectionEntry[] = [...activeExtraEntries];
+    if (effectiveBodyArmor) {
+      allActiveEntries.push({
+        prot: effectiveBodyArmor,
+        mods: activeCompatibleMods,
+        curses: selectedCurses,
+      });
+    }
+    if (effectiveShield) {
+      allActiveEntries.push({
+        prot: effectiveShield,
+        mods: [],
+        curses: !effectiveBodyArmor ? selectedCurses : [],
+      });
+    }
+
+    return calculateMultipleEquippedProtections(allActiveEntries);
+  }, [
+    extraProtections,
+    effectiveBodyArmor,
+    effectiveShield,
+    activeCompatibleMods,
+    selectedCurses,
+  ]);
+
+  // Guardar proteção atual na lista de múltiplas proteções e liberar construtor para criar outra
+  const handleAddCurrentToExtraList = () => {
+    if (!effectiveBodyArmor && !effectiveShield) return;
+
+    const newSlots: ExtraProtectionSlot[] = [];
+    const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+    if (effectiveBodyArmor) {
+      const payloadItem = buildPayloadItemForEntry(
+        effectiveBodyArmor,
+        activeCompatibleMods,
+        selectedCurses,
+        true
+      );
+      newSlots.push({
+        id: `extra_armor_${stamp}`,
+        prot: effectiveBodyArmor,
+        mods: [...activeCompatibleMods],
+        curses: [...selectedCurses],
+        equipped: true,
+        payloadItem,
+      });
+    }
+
+    if (effectiveShield) {
+      const shieldCurses = !effectiveBodyArmor ? [...selectedCurses] : [];
+      const payloadItem = buildPayloadItemForEntry(
+        effectiveShield,
+        [],
+        shieldCurses,
+        true
+      );
+      newSlots.push({
+        id: `extra_shield_${stamp}`,
+        prot: effectiveShield,
+        mods: [],
+        curses: shieldCurses,
+        equipped: true,
+        payloadItem,
+      });
+    }
+
+    setExtraProtections((prev) => [...prev, ...newSlots]);
+    setBodyArmorSelection('none');
+    setShieldSelection('none');
+    setSelectedMods([]);
+    setSelectedCurses([]);
+  };
+
+  const handleToggleExtraSlot = (slotId: string) => {
+    setExtraProtections((prev) =>
+      prev.map((slot) =>
+        slot.id === slotId
+          ? {
+              ...slot,
+              equipped: !slot.equipped,
+              payloadItem: {
+                ...slot.payloadItem,
+                equipped: !slot.equipped,
+              },
+            }
+          : slot
+      )
     );
-  }, [effectiveBodyArmor, effectiveShield, activeCompatibleMods, selectedCurses]);
+  };
+
+  const handleRemoveExtraSlot = (slotId: string) => {
+    setExtraProtections((prev) => prev.filter((slot) => slot.id !== slotId));
+  };
 
   // Alternar modificações
   const toggleModification = (modName: string) => {
@@ -468,98 +733,34 @@ export default function ProtectionModal({
     setShieldSelection('none');
     setSelectedMods([]);
     setSelectedCurses([]);
+    setExtraProtections([]);
   };
 
   // Equipar e aplicar alterações na ficha
   const handleConfirm = () => {
-    const equippedItems: EquippedProtectionItemPayload[] = [];
-    const curseCatIncrease = calculateCurseCategoryIncrease(selectedCurses.length);
+    const equippedItems: EquippedProtectionItemPayload[] = extraProtections.map((slot) => ({
+      ...slot.payloadItem,
+      equipped: slot.equipped,
+    }));
 
-    // Armadura corporal
+    // Armadura corporal atual do construtor
     if (effectiveBodyArmor) {
-      let catIncrease = curseCatIncrease;
-      if (activeCompatibleMods.includes('Reforçada')) catIncrease += 1;
-      if (activeCompatibleMods.includes('Blindada')) catIncrease += 1;
-      if (activeCompatibleMods.includes('Antibombas')) catIncrease += 1;
-      if (activeCompatibleMods.includes('Discreta')) catIncrease += 1;
-
-      const finalCat = increaseCategory(effectiveBodyArmor.category, catIncrease);
-
-      // Calcular espaços específicos da armadura
-      let armorSpaces = effectiveBodyArmor.spaces;
-      if (activeCompatibleMods.includes('Reforçada')) armorSpaces += 1;
-      if (activeCompatibleMods.includes('Blindada')) armorSpaces += 1;
-      if (activeCompatibleMods.includes('Discreta')) armorSpaces = Math.max(1, armorSpaces - 1);
-
-      const allSuffixes = [...activeCompatibleMods, ...selectedCurses];
-      const modsSuffix = allSuffixes.length > 0 ? ` (${allSuffixes.join(', ')})` : '';
-      const curseDefenseDelta = selectedCurses.reduce((acc, cName) => {
-        const curseDef = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName);
-        return acc + (curseDef?.defenseBonus || 0);
-      }, 0);
-
-      const bodyPhysRd =
-        activeCompatibleMods.includes('Blindada') && effectiveBodyArmor.type === 'Pesada'
-          ? 5
-          : effectiveBodyArmor.damageReduction?.physical || 0;
-      const bodyCurseRdParts = selectedCurses
-        .map((cName) => {
-          const curseDef = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName);
-          if (!curseDef) return '';
-          if (curseDef.rdElement) return `${curseDef.rdElement.element} ${curseDef.rdElement.value}`;
-          if (curseDef.rdGeneralHeavy || curseDef.rdGeneralLightOrShield) {
-            return `Geral ${effectiveBodyArmor.type === 'Pesada' ? curseDef.rdGeneralHeavy || 5 : curseDef.rdGeneralLightOrShield || 2}`;
-          }
-          return '';
-        })
-        .filter(Boolean);
-      const bodyRdParts = [
-        bodyPhysRd > 0 ? `Física ${bodyPhysRd}` : '',
-        ...bodyCurseRdParts,
-      ].filter(Boolean);
-
-      equippedItems.push({
-        name: `${effectiveBodyArmor.name}${modsSuffix}`,
-        category: finalCat,
-        spaces: armorSpaces,
-        details: `Proteção Corporal (${effectiveBodyArmor.type}) • Defesa +${
-          effectiveBodyArmor.defenseBonus +
-          (activeCompatibleMods.includes('Reforçada') ? 2 : 0) +
-          curseDefenseDelta
-        }${bodyRdParts.length > 0 ? ` • RD: ${bodyRdParts.join(', ')}` : ''}`,
-        itemType: 'protecao',
-        isBodyArmor: true,
-        ...(activeCompatibleMods.length > 0 ? { modifications: activeCompatibleMods } : {}),
-        ...(selectedCurses.length > 0 ? { curses: selectedCurses } : {}),
-      });
+      equippedItems.push(
+        buildPayloadItemForEntry(
+          effectiveBodyArmor,
+          activeCompatibleMods,
+          selectedCurses,
+          true
+        )
+      );
     }
 
-    // Escudo
+    // Escudo atual do construtor
     if (effectiveShield) {
       const cursesOnShield = !effectiveBodyArmor ? selectedCurses : [];
-      const shieldFinalCat =
-        cursesOnShield.length > 0
-          ? increaseCategory(effectiveShield.category, curseCatIncrease)
-          : effectiveShield.category;
-      const shieldCurseDefense = cursesOnShield.reduce((acc, cName) => {
-        const curseDef = OFFICIAL_PROTECTION_CURSES.find((c) => c.name === cName);
-        return acc + (curseDef?.defenseBonus || 0);
-      }, 0);
-      const shieldSuffix = cursesOnShield.length > 0 ? ` (${cursesOnShield.join(', ')})` : '';
-
-      equippedItems.push({
-        name: `${effectiveShield.name}${shieldSuffix}`,
-        category: shieldFinalCat,
-        spaces: effectiveShield.spaces,
-        details: `Escudo • Defesa +${effectiveShield.defenseBonus + shieldCurseDefense}${
-          effectiveShield.damageReduction?.ballistic
-            ? ` • RD Balístico ${effectiveShield.damageReduction.ballistic}`
-            : ''
-        }`,
-        itemType: 'escudo',
-        isShield: true,
-        ...(cursesOnShield.length > 0 ? { curses: cursesOnShield } : {}),
-      });
+      equippedItems.push(
+        buildPayloadItemForEntry(effectiveShield, [], cursesOnShield, true)
+      );
     }
 
     onApply({
@@ -651,6 +852,87 @@ export default function ProtectionModal({
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
+              </View>
+            )}
+
+            {/* PROTEÇÕES ADICIONAIS NA FICHA (MÚLTIPLAS ARMADURAS) */}
+            {extraProtections.length > 0 && (
+              <View style={styles.sectionBox} testID="extra-protections-section">
+                <View style={styles.sectionHeaderRow}>
+                  <Ionicons name="layers-outline" size={16} color="#38BDF8" />
+                  <Text style={styles.sectionTitle}>
+                    Proteções na Ficha ({extraProtections.length})
+                  </Text>
+                </View>
+                <Text style={styles.sectionSubtitle}>
+                  Todas marcadas como "Ativa na Defesa" somam automaticamente na Defesa e RD.
+                </Text>
+
+                <View style={styles.extraSlotsList}>
+                  {extraProtections.map((slot, idx) => (
+                    <View
+                      key={slot.id}
+                      style={[
+                        styles.extraSlotCard,
+                        slot.equipped && styles.extraSlotCardActive,
+                      ]}
+                      testID={`extra-prot-slot-${idx}`}
+                    >
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <View style={styles.extraSlotTitleRow}>
+                          <Text style={styles.extraSlotTitle} numberOfLines={2}>
+                            {slot.payloadItem.name}
+                          </Text>
+                          <View style={styles.catBadge}>
+                            <Text style={styles.catBadgeText}>
+                              Cat {slot.payloadItem.category}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.extraSlotMeta}>
+                          {slot.payloadItem.spaces} esp. • {slot.payloadItem.details}
+                        </Text>
+                      </View>
+
+                      <View style={styles.extraSlotActions}>
+                        <TouchableOpacity
+                          style={[
+                            styles.extraSlotToggleBtn,
+                            slot.equipped
+                              ? styles.extraSlotToggleBtnActive
+                              : styles.extraSlotToggleBtnInactive,
+                          ]}
+                          onPress={() => handleToggleExtraSlot(slot.id)}
+                          testID={`btn-toggle-extra-prot-${idx}`}
+                        >
+                          <Ionicons
+                            name={slot.equipped ? 'shield-checkmark' : 'briefcase-outline'}
+                            size={13}
+                            color={slot.equipped ? '#10B981' : colors.textSecondary}
+                          />
+                          <Text
+                            style={[
+                              styles.extraSlotToggleText,
+                              { color: slot.equipped ? '#10B981' : colors.textSecondary },
+                            ]}
+                          >
+                            {slot.equipped ? 'Ativa na Defesa' : 'Na Mochila'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.extraSlotRemoveBtn}
+                          onPress={() => handleRemoveExtraSlot(slot.id)}
+                          testID={`btn-remove-extra-prot-${idx}`}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel={`Remover ${slot.payloadItem.name}`}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
 
@@ -1297,11 +1579,39 @@ export default function ProtectionModal({
               </View>
             )}
 
+            {/* BOTÃO PARA ADICIONAR PROTEÇÃO ATUAL À LISTA E CRIAR OUTRA ARMADURA */}
+            {(effectiveBodyArmor || effectiveShield) && (
+              <TouchableOpacity
+                style={styles.addExtraProtectionCard}
+                onPress={handleAddCurrentToExtraList}
+                testID="btn-add-extra-protection"
+              >
+                <View style={styles.addExtraProtectionRow}>
+                  <Ionicons name="add-circle-outline" size={18} color="#38BDF8" />
+                  <Text style={styles.addExtraProtectionTitle}>
+                    Guardar Esta e Criar Outra Armadura / Escudo
+                  </Text>
+                </View>
+                <Text style={styles.addExtraProtectionSubtitle}>
+                  Mantém a seleção acima ativa na Defesa da ficha e limpa o editor para adicionar mais uma proteção.
+                </Text>
+              </TouchableOpacity>
+            )}
+
             {/* SEÇÃO 4: RESUMO DOS CÁLCULOS TÁTICOS */}
             <View style={styles.previewBox}>
               <View style={styles.previewHeaderRow}>
                 <Ionicons name="analytics-outline" size={16} color="#38BDF8" />
-                <Text style={styles.previewTitle}>Resumo Tático dos Cálculos</Text>
+                <Text style={styles.previewTitle}>
+                  Resumo Tático dos Cálculos
+                  {extraProtections.some((s) => s.equipped)
+                    ? ` (${
+                        extraProtections.filter((s) => s.equipped).length +
+                        (effectiveBodyArmor ? 1 : 0) +
+                        (effectiveShield ? 1 : 0)
+                      } ativas)`
+                    : ''}
+                </Text>
               </View>
 
               <View style={styles.previewGrid}>
@@ -1383,12 +1693,6 @@ export default function ProtectionModal({
             </TouchableOpacity>
 
             <View style={styles.footerRight}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={onClose}
-              >
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.applyBtn}
                 onPress={handleConfirm}
@@ -1825,5 +2129,101 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '700',
       color: colors.warning,
       textTransform: 'uppercase',
+    },
+    extraSlotsList: {
+      gap: 8,
+    },
+    extraSlotCard: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 10,
+      gap: 8,
+    },
+    extraSlotCardActive: {
+      borderColor: '#10B981',
+      backgroundColor: 'rgba(16, 185, 129, 0.06)',
+    },
+    extraSlotTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      flexWrap: 'wrap',
+    },
+    extraSlotTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.text,
+      flex: 1,
+      flexShrink: 1,
+    },
+    extraSlotMeta: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    extraSlotActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      flexWrap: 'wrap',
+    },
+    extraSlotToggleBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 6,
+      borderWidth: 1,
+    },
+    extraSlotToggleBtnActive: {
+      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+      borderColor: '#10B981',
+    },
+    extraSlotToggleBtnInactive: {
+      backgroundColor: colors.surfaceElevated,
+      borderColor: colors.border,
+    },
+    extraSlotToggleText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    extraSlotRemoveBtn: {
+      padding: 6,
+      borderRadius: 6,
+      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+      borderWidth: 1,
+      borderColor: 'rgba(239, 68, 68, 0.3)',
+    },
+    addExtraProtectionCard: {
+      backgroundColor: 'rgba(56, 189, 248, 0.08)',
+      borderWidth: 1,
+      borderColor: '#38BDF8',
+      borderStyle: 'dashed',
+      borderRadius: 10,
+      padding: 12,
+      gap: 4,
+    },
+    addExtraProtectionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    addExtraProtectionTitle: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: '#38BDF8',
+      textTransform: 'uppercase',
+      flex: 1,
+      flexShrink: 1,
+    },
+    addExtraProtectionSubtitle: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      lineHeight: 15,
     },
   });

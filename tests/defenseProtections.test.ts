@@ -15,8 +15,10 @@ import ProtectionModal, {
 import { CharacterSheet, CharacterInventoryItem } from '../src/types/compendium';
 import {
   calculateEquippedProtections,
+  calculateMultipleEquippedProtections,
   OFFICIAL_PROTECTIONS,
   formatDamageResistances,
+  resolveProtectionInventoryEntry,
 } from '../src/utils/protections';
 
 describe('Assistente de Proteções e Defesa na Ficha (Milestone 2 - R1)', () => {
@@ -551,6 +553,206 @@ describe('Assistente de Proteções e Defesa na Ficha (Milestone 2 - R1)', () =>
       assert.strictEqual((appliedPayload as any).protectionText, '');
       assert.strictEqual((appliedPayload as any).totalSpaces, 0);
       assert.strictEqual((appliedPayload as any).equippedItems.length, 0);
+    });
+  });
+
+  describe('4. Múltiplas Armaduras e Proteções Simultâneas (SOL-ERR-001 / #ORD-83296E)', () => {
+    const leve = OFFICIAL_PROTECTIONS.find((p) => p.name === 'Proteção Leve')!;
+    const pesada = OFFICIAL_PROTECTIONS.find((p) => p.name === 'Proteção Pesada')!;
+    const capacete = OFFICIAL_PROTECTIONS.find((p) => p.name === 'Capacete Tático')!;
+    const escudo = OFFICIAL_PROTECTIONS.find((p) => p.name === 'Escudo')!;
+
+    test('calculateMultipleEquippedProtections deve somar Defesa, espaços e RD de múltiplas armaduras ativas', () => {
+      const customArmor = {
+        id: 'custom_vest',
+        name: 'Colete Secundário',
+        type: 'Leve' as const,
+        defenseBonus: 4,
+        damageReduction: { physical: 3, description: 'RD 3' },
+        spaces: 2,
+        category: 'I' as const,
+        requiredProficiency: 'Proteções Leves' as const,
+      };
+
+      const res = calculateMultipleEquippedProtections([
+        { prot: leve, mods: ['Reforçada'], curses: ['Cinética'] },
+        { prot: customArmor, mods: [], curses: ['Cinética'] },
+        { prot: escudo, mods: [], curses: [] },
+      ]);
+
+      // Leve (5) + Reforçada (2) + Cinética (2) + Custom (4) + Cinética (2) + Escudo (2) = 17
+      assert.strictEqual(res.totalDefenseEquip, 17);
+      // Espaços: Leve+Ref (3) + Custom (2) + Escudo (2) = 7
+      assert.strictEqual(res.totalSpaces, 7);
+      // RD: Geral 2+2=4, Física 3 (Balístico/Corte/Impacto/Perfuração 3)
+      assert.strictEqual(
+        res.resistancesText,
+        'Geral 4, Balístico 3, Corte 3, Impacto 3, Perfuração 3'
+      );
+      assert.strictEqual(res.bodyArmorCount, 2);
+      assert.strictEqual(res.shieldCount, 1);
+      assert.ok(res.protectionText.includes('Proteção Leve Reforçada Cinética (+9 Defesa)'));
+      assert.ok(res.protectionText.includes('Colete Secundário Cinética (+6 Defesa, RD 3)'));
+      assert.ok(res.protectionText.includes('Escudo (+2 Defesa)'));
+    });
+
+    test('calculateMultipleEquippedProtections preserva penalidade -5 quando houver Proteção Pesada entre as ativas', () => {
+      const res = calculateMultipleEquippedProtections([
+        { prot: pesada, mods: [], curses: [] },
+        { prot: capacete, mods: [], curses: [] },
+      ]);
+
+      assert.strictEqual(res.totalDefenseEquip, 10);
+      assert.strictEqual(res.armorPenalty, -5);
+      assert.strictEqual(res.totalSpaces, 6);
+    });
+
+    test('resolveProtectionInventoryEntry deve preservar Defesa, RD Física e modificações de armadura customizada do inventário', () => {
+      const parsed = resolveProtectionInventoryEntry({
+        id: 'inv_prot_custom_1',
+        name: 'Armadura Tática Especial (Reforçada, Cinética)',
+        category: 'IV',
+        spaces: 3,
+        details: 'Proteção Corporal (Leve) • Defesa +8 • RD: Física 4, Geral 2',
+        itemType: 'protecao',
+        modifications: ['Reforçada', 'Cinética'],
+      });
+
+      assert.strictEqual(parsed.isShield, false);
+      assert.deepStrictEqual(parsed.mods, ['Reforçada']);
+      assert.deepStrictEqual(parsed.curses, ['Cinética']);
+      // Base defense = 8 - 2 (Reforçada) - 2 (Cinética) = 4
+      assert.strictEqual(parsed.prot.defenseBonus, 4);
+      assert.strictEqual(parsed.prot.damageReduction?.physical, 4);
+    });
+
+    test('ProtectionModal permite criar múltiplas armaduras via Assistente e aplicar todas automaticamente na Defesa', async () => {
+      let appliedPayload: ProtectionApplyPayload | null = null;
+
+      const { getByTestId, getByText } = await renderWithProviders(
+        React.createElement(ProtectionModal, {
+          visible: true,
+          onClose: () => {},
+          onApply: (payload) => {
+            appliedPayload = payload;
+          },
+          character: null,
+        })
+      );
+
+      // 1ª Armadura: Proteção Leve (+5 Defesa) + Reforçada (+2 Defesa) = +7
+      await fireClick(getByTestId('btn-armor-leve'));
+      await fireClick(getByTestId('mod-reforcada'));
+
+      // Guardar 1ª armadura e liberar editor para criar a 2ª
+      await fireClick(getByTestId('btn-add-extra-protection'));
+      assert.ok(getByTestId('extra-protections-section'));
+      assert.ok(getByText('Proteções na Ficha (1)'));
+
+      // 2ª Armadura: Customizada (+4 Defesa, RD Física 3, 2 esp.)
+      await fireClick(getByTestId('btn-armor-custom'));
+      await changeInputText(getByTestId('input-custom-armor-name') as HTMLInputElement, 'Armadura Secundária');
+      await changeInputText(getByTestId('input-custom-armor-defense') as HTMLInputElement, '4');
+      await changeInputText(getByTestId('input-custom-armor-rd') as HTMLInputElement, '3');
+      await changeInputText(getByTestId('input-custom-armor-spaces') as HTMLInputElement, '2');
+
+      // Aplicar ambas
+      await fireClick(getByTestId('btn-apply-protections'));
+
+      assert.ok(appliedPayload !== null);
+      const result = appliedPayload as ProtectionApplyPayload;
+      assert.strictEqual(result.defenseEquip, 11); // 7 + 4
+      assert.strictEqual(result.totalSpaces, 5); // 3 + 2
+      assert.strictEqual(result.resistancesText, 'Balístico 3, Corte 3, Impacto 3, Perfuração 3');
+      assert.strictEqual(result.equippedItems.length, 2);
+      assert.strictEqual(result.equippedItems[0].equipped, true);
+      assert.strictEqual(result.equippedItems[1].equipped, true);
+    });
+
+    test('ProtectionModal carrega segunda armadura do inventário e permite alternar entre Ativa na Defesa e Na Mochila', async () => {
+      let appliedPayload: ProtectionApplyPayload | null = null;
+
+      const charWithTwoArmors: CharacterSheet = {
+        id: 'char_multi_prot',
+        name: 'Agente Multi',
+        player: 'Tester',
+        nex: 25,
+        rank: 'Operador',
+        originId: 'orig_policial',
+        classId: 'cls_combatente',
+        trackId: 'trk_guerreiro',
+        affinity: 'Nenhum',
+        attributes: { AGI: 3, FOR: 2, INT: 1, PRE: 1, VIG: 2 },
+        pvCurrent: 30,
+        pvMax: 30,
+        peCurrent: 12,
+        peMax: 12,
+        sanCurrent: 18,
+        sanMax: 18,
+        defenseBonus: 9,
+        defenseEquip: 9,
+        defenseOther: 0,
+        protection: 'Proteção Leve (+5 Defesa) • Colete Secundário (+4 Defesa)',
+        resistances: '',
+        skills: {},
+        attacks: [],
+        abilities: [],
+        inventory: [
+          {
+            id: 'inv_prot_1',
+            name: 'Proteção Leve',
+            category: 'I',
+            spaces: 2,
+            details: 'Proteção Corporal (Leve) • Defesa +5',
+            equipped: true,
+            itemType: 'protecao',
+          },
+          {
+            id: 'inv_prot_2',
+            name: 'Colete Secundário',
+            category: 'I',
+            spaces: 2,
+            details: 'Proteção Corporal (Leve) • Defesa +4',
+            equipped: true,
+            itemType: 'protecao',
+          },
+        ],
+        entityIds: [],
+        notes: '',
+        updatedAt: new Date().toISOString(),
+      };
+
+      const { getByTestId, getByText } = await renderWithProviders(
+        React.createElement(ProtectionModal, {
+          visible: true,
+          onClose: () => {},
+          onApply: (payload) => {
+            appliedPayload = payload;
+          },
+          character: charWithTwoArmors,
+        })
+      );
+
+      // A 2ª armadura aparece na lista de proteções na ficha como "Ativa na Defesa"
+      assert.ok(getByTestId('extra-prot-slot-0'));
+      assert.ok(getByText('Ativa na Defesa'));
+      // Defesa combinada inicial: 5 + 4 = 9
+      assert.ok(getByText('+9'));
+
+      // Alternar a 2ª armadura para "Na Mochila"
+      await fireClick(getByTestId('btn-toggle-extra-prot-0'));
+      assert.ok(getByText('Na Mochila'));
+
+      // Salvar
+      await fireClick(getByTestId('btn-apply-protections'));
+
+      assert.ok(appliedPayload !== null);
+      const result = appliedPayload as ProtectionApplyPayload;
+      assert.strictEqual(result.defenseEquip, 5);
+      assert.strictEqual(result.equippedItems.length, 2);
+      const slotItem = result.equippedItems.find((i) => i.sourceInventoryId === 'inv_prot_2');
+      assert.ok(slotItem);
+      assert.strictEqual(slotItem?.equipped, false);
     });
   });
 });

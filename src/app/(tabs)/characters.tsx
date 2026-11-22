@@ -69,13 +69,17 @@ import { encodeAgentShareCode, formatAgentSummary } from '../../utils/agentShari
 import {
   OFFICIAL_SKILLS_LIST,
   SkillDefinition,
+  applyCanonicalSkillGrant,
   calculateStatIncreases,
   calculateMaxStats,
   calculateCharacterVitals,
   checkPrerequisite,
   confirmUnmetPrerequisites,
+  extractCanonicalSkillGrants,
+  extractPassiveAbilitySkillAndDefenseBonuses,
   getPeRoundLimit,
   getRitualDt,
+  mergePassiveSkillBonus,
 } from '../../utils/progression';
 import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
 import {
@@ -87,10 +91,13 @@ import {
 } from '../../utils/proficiencies';
 import {
   calculateEquippedProtections,
+  calculateMultipleEquippedProtections,
   findProtectionByName,
   findProtectionCurse,
+  isProtectionInventoryEntry,
   OFFICIAL_PROTECTION_MODIFICATIONS,
   ProtectionItem,
+  resolveProtectionInventoryEntry,
 } from '../../utils/protections';
 import {
   calculateActiveItemSkillBonuses,
@@ -149,7 +156,6 @@ export default function CharactersScreen() {
     rollFormula,
     rollWeaponDamage,
     userProfile,
-    openManual,
     tableStatus,
     virtualTable,
     rollTableInitiative,
@@ -312,10 +318,30 @@ export default function CharactersScreen() {
     return calculateActiveItemSkillBonuses(activeChar.inventory);
   }, [activeChar?.inventory]);
 
-  // Resumo mecânico do inventário (Espaços decimais, bônus de Mochila Militar, Braçadeira Reforçada e limites por patente)
+  // Bônus passivos de Defesa, Perícias, Carga, Bloqueio e Deslocamento provenientes de Poderes, Origens e Trilhas
+  const passiveAbilityBonuses = useMemo(() => {
+    if (!activeChar) {
+      return {
+        skillBonuses: {},
+        defenseOtherBonus: 0,
+        loadBonus: 0,
+        hasInventarioOrganizado: false,
+        hasCascaGrossa: false,
+        hasMagnata: false,
+        displacementBonusMeters: 0,
+        resistancesList: [],
+      };
+    }
+    return extractPassiveAbilitySkillAndDefenseBonuses(activeChar, getEntityById);
+  }, [activeChar, getEntityById]);
+
+  // Resumo mecânico do inventário (Espaços decimais, bônus de Mochila Militar, Braçadeira Reforçada, Maldições e limites por patente)
   const inventorySummary = useMemo(
-    () => calculateInventoryMechanicsSummary(activeChar?.inventory || []),
-    [activeChar?.inventory]
+    () =>
+      calculateInventoryMechanicsSummary(activeChar?.inventory || [], {
+        hasInventarioOrganizado: passiveAbilityBonuses.hasInventarioOrganizado,
+      }),
+    [activeChar?.inventory, passiveAbilityBonuses.hasInventarioOrganizado]
   );
 
   // Lista curada e enriquecida de itens do compêndio
@@ -406,110 +432,20 @@ export default function CharactersScreen() {
       return it;
     });
 
-    const isProtectionInventoryEntry = (it: CharacterInventoryItem) => {
-      const low = it.name.toLowerCase();
-      return (
-        it.itemType === 'protecao' ||
-        it.itemType === 'escudo' ||
-        (it.id && it.id.startsWith('inv_prot_')) ||
-        low.includes('proteção leve') ||
-        low.includes('proteção pesada') ||
-        low.includes('escudo')
-      );
-    };
-
     if (toggledItem && isProtectionInventoryEntry(toggledItem)) {
-      const resolveProtEntry = (
-        it: CharacterInventoryItem
-      ): { prot: ProtectionItem; mods: string[]; curses: string[]; isShield: boolean } => {
-        const baseName = it.name.replace(/\s*\([^)]*\)\s*$/, '').trim();
-        const found = findProtectionByName(baseName) || findProtectionByName(it.name);
-        const mods: string[] = [];
-        const curses: string[] = [];
-        let extraDef = 0;
-
-        for (const raw of it.modifications || []) {
-          const clean = raw.trim().toLowerCase();
-          const modDef = OFFICIAL_PROTECTION_MODIFICATIONS.find(
-            (m) => m.id.toLowerCase() === clean || m.name.toLowerCase() === clean
-          );
-          if (modDef) {
-            mods.push(modDef.name);
-            extraDef += modDef.defenseBonus || 0;
-            continue;
-          }
-          const curseDef = findProtectionCurse(raw);
-          if (curseDef) {
-            curses.push(curseDef.name);
-            extraDef += curseDef.defenseBonus || 0;
-          }
-        }
-
-        const isShield =
-          found?.type === 'Escudo' ||
-          it.itemType === 'escudo' ||
-          baseName.toLowerCase().includes('escudo');
-        if (found) {
-          return { prot: found, mods, curses, isShield };
-        }
-
-        const isPesada = baseName.toLowerCase().includes('pesada');
-        const detailsMatch = (it.details || '').match(/(?:defesa\s*\+?|\+)(\d+)\s*(?:def)?/i);
-        const parsedTotalDef = detailsMatch
-          ? parseInt(detailsMatch[1], 10)
-          : isShield
-          ? 2
-          : isPesada
-          ? 10
-          : 5;
-        const baseDef = Math.max(0, parsedTotalDef - extraDef);
-
-        return {
-          prot: {
-            id: `custom_${it.id}`,
-            name: baseName || it.name,
-            type: isShield ? 'Escudo' : isPesada ? 'Pesada' : 'Leve',
-            defenseBonus: baseDef,
-            spaces: it.spaces || 1,
-            category: it.category || '0',
-            armorPenalty: isPesada ? -5 : 0,
-            requiredProficiency: isPesada || isShield ? 'Proteções Pesadas' : 'Proteções Leves',
-          },
-          mods,
-          curses,
-          isShield,
-        };
-      };
-
       const equippedProts = updated.filter(
         (it) => it.equipped && isProtectionInventoryEntry(it)
       );
-      let bodyArmor: ProtectionItem | null = null;
-      let shield: ProtectionItem | null = null;
-      const allMods: string[] = [];
-      const bodyCurses: string[] = [];
-      const shieldCurses: string[] = [];
+      const entries = equippedProts.map((it) => {
+        const parsed = resolveProtectionInventoryEntry(it);
+        return {
+          prot: parsed.prot,
+          mods: parsed.mods,
+          curses: parsed.curses,
+        };
+      });
 
-      for (const it of equippedProts) {
-        const parsed = resolveProtEntry(it);
-        if (parsed.isShield && !shield) {
-          shield = parsed.prot;
-          allMods.push(...parsed.mods);
-          shieldCurses.push(...parsed.curses);
-        } else if (!parsed.isShield && !bodyArmor) {
-          bodyArmor = parsed.prot;
-          allMods.push(...parsed.mods);
-          bodyCurses.push(...parsed.curses);
-        }
-      }
-
-      const calc = calculateEquippedProtections(
-        bodyArmor,
-        shield,
-        Array.from(new Set(allMods)),
-        Array.from(new Set(bodyCurses)),
-        Array.from(new Set(shieldCurses))
-      );
+      const calc = calculateMultipleEquippedProtections(entries);
 
       await updateActiveChar({
         inventory: updated,
@@ -664,17 +600,18 @@ export default function CharactersScreen() {
   const handleRecalculateStats = async () => {
     if (!activeChar) return;
     const calc = calculateCharacterVitals(activeChar, getEntityById);
+    const passiveBonuses = extractPassiveAbilitySkillAndDefenseBonuses(activeChar, getEntityById);
 
-    // Atualiza bônus de perícias concedidos por vitais (Fortitude, Vontade)
+    // Atualiza bônus passivos de perícias concedidos por vitais, poderes, origens e trilhas sem sobrescrever manuais/customName
     const updatedSkills = { ...(activeChar.skills || {}) };
-    if (calc.skillBonuses) {
-      for (const [skName, bVal] of Object.entries(calc.skillBonuses)) {
-        if (bVal !== undefined) {
-          updatedSkills[skName] = {
-            degree: updatedSkills[skName]?.degree || 0,
-            bonus: bVal,
-          };
-        }
+    for (const [skName, pVal] of Object.entries(passiveBonuses.skillBonuses)) {
+      if (pVal !== undefined && pVal !== 0) {
+        const existing = updatedSkills[skName] || { degree: 0, bonus: 0 };
+        updatedSkills[skName] = {
+          ...existing,
+          degree: existing.degree || 0,
+          bonus: mergePassiveSkillBonus(existing.bonus || 0, pVal),
+        };
       }
     }
 
@@ -729,7 +666,11 @@ export default function CharactersScreen() {
   const updateSkillOtherBonus = async (skillName: string, delta: number) => {
     if (!activeChar) return;
     const currentEntry = activeChar.skills[skillName] || { degree: 0, bonus: 0 };
-    const nextBonus = Math.max(-10, Math.min(20, (currentEntry.bonus || 0) + delta));
+    const baseDisplayBonus = mergePassiveSkillBonus(
+      currentEntry.bonus || 0,
+      passiveAbilityBonuses.skillBonuses[skillName] || 0
+    );
+    const nextBonus = Math.max(-10, Math.min(20, baseDisplayBonus + delta));
     await updateActiveChar({
       skills: {
         ...activeChar.skills,
@@ -1286,28 +1227,24 @@ export default function CharactersScreen() {
   const handleApplyProtections = async (payload: ProtectionApplyPayload) => {
     if (!activeChar) return;
 
-    const isProtectionItem = (item: CharacterInventoryItem) =>
-      item.itemType === 'protecao' ||
-      item.itemType === 'escudo' ||
-      (item.id && item.id.startsWith('inv_prot_')) ||
-      (item.equipped &&
-        (item.name.toLowerCase().includes('proteção leve') ||
-          item.name.toLowerCase().includes('proteção pesada') ||
-          item.name.toLowerCase().includes('escudo') ||
-          item.name.toLowerCase().includes('capacete tático') ||
-          item.name.toLowerCase().includes('elmo do colosso')));
-
     const existingInventory = activeChar.inventory || [];
     const shouldReplace = payload.replaceExisting !== false;
+    const managedIds = new Set(
+      payload.equippedItems
+        .map((it) => it.sourceInventoryId)
+        .filter((id): id is string => Boolean(id))
+    );
 
-    // 1. Substituir apenas proteções anteriormente equipadas ou preservá-las na mochila como desequipadas
+    // 1. Substituir proteções anteriores ou preservá-las na mochila como desequipadas
     const baseInventory = shouldReplace
-      ? existingInventory.filter((item) => !(isProtectionItem(item) && item.equipped !== false))
-      : existingInventory.map((item) =>
-          isProtectionItem(item) ? { ...item, equipped: false } : item
-        );
+      ? existingInventory.filter((item) => !isProtectionInventoryEntry(item))
+      : existingInventory
+          .filter((item) => !managedIds.has(item.id))
+          .map((item) =>
+            isProtectionInventoryEntry(item) ? { ...item, equipped: false } : item
+          );
 
-    // 2. Criar novos itens de inventário para as proteções equipadas (incluindo mods e maldições)
+    // 2. Criar novos itens de inventário para as proteções configuradas (ativas ou na mochila)
     const newInventoryItems: CharacterInventoryItem[] = payload.equippedItems.map(
       (item, idx) => {
         const modsAndCurses = [
@@ -1315,12 +1252,12 @@ export default function CharactersScreen() {
           ...(item.curses || []),
         ];
         return {
-          id: `inv_prot_${Date.now()}_${idx}`,
+          id: item.sourceInventoryId || `inv_prot_${Date.now()}_${idx}`,
           name: item.name,
           category: item.category,
           spaces: item.spaces,
           details: item.details,
-          equipped: true,
+          equipped: item.equipped !== false,
           itemType: item.itemType,
           ...(modsAndCurses.length > 0 ? { modifications: modsAndCurses } : {}),
         };
@@ -1466,9 +1403,26 @@ export default function CharactersScreen() {
   // Carga Calculation
   const maxLoad = useMemo(() => {
     if (!activeChar) return 2;
-    const base = activeChar.attributes.FOR <= 0 ? 2 : activeChar.attributes.FOR * 5;
-    return base + (activeChar.maxLoadBonus || 0) + inventorySummary.totalLoadBonusFromItems;
-  }, [activeChar, inventorySummary.totalLoadBonusFromItems]);
+    const effectiveFor = activeChar.attributes.FOR + inventorySummary.attributeBonusesFromItems.FOR;
+    const base = effectiveFor <= 0 ? 2 : effectiveFor * 5;
+    const extraIntLoad = passiveAbilityBonuses.hasInventarioOrganizado
+      ? inventorySummary.attributeBonusesFromItems.INT
+      : 0;
+    return (
+      base +
+      (activeChar.maxLoadBonus || 0) +
+      inventorySummary.totalLoadBonusFromItems +
+      passiveAbilityBonuses.loadBonus +
+      extraIntLoad
+    );
+  }, [
+    activeChar,
+    inventorySummary.totalLoadBonusFromItems,
+    inventorySummary.attributeBonusesFromItems.FOR,
+    inventorySummary.attributeBonusesFromItems.INT,
+    passiveAbilityBonuses.loadBonus,
+    passiveAbilityBonuses.hasInventarioOrganizado,
+  ]);
 
   const currentLoad = inventorySummary.totalSpacesUsed;
 
@@ -1478,10 +1432,18 @@ export default function CharactersScreen() {
     return (
       10 +
       activeChar.attributes.AGI +
+      inventorySummary.attributeBonusesFromItems.AGI +
       (activeChar.defenseEquip || 0) +
-      (activeChar.defenseOther || 0)
+      (activeChar.defenseOther || 0) +
+      inventorySummary.totalDefenseBonusFromItems +
+      passiveAbilityBonuses.defenseOtherBonus
     );
-  }, [activeChar]);
+  }, [
+    activeChar,
+    inventorySummary.attributeBonusesFromItems.AGI,
+    inventorySummary.totalDefenseBonusFromItems,
+    passiveAbilityBonuses.defenseOtherBonus,
+  ]);
 
   const activeMaskTestBonus =
     activeChar?.maskConfig?.enabled &&
@@ -1492,15 +1454,48 @@ export default function CharactersScreen() {
 
   // Reações de Defesa de Ordem Paranormal (Esquiva = Defesa + Reflexos; Bloqueio RD = Fortitude; Contra-ataque = Luta)
   const reflexosEntry = activeChar?.skills?.['Reflexos'] || { degree: 0, bonus: 0 };
-  const reflexosBonus = (reflexosEntry.degree || 0) + (reflexosEntry.bonus || 0) + activeMaskTestBonus;
+  const reflexosItemBonusInfo = itemSkillBonuses.effectiveBonuses['Reflexos'];
+  const reflexosPassiveOrSaved = mergePassiveSkillBonus(
+    reflexosEntry.bonus || 0,
+    passiveAbilityBonuses.skillBonuses['Reflexos'] || 0
+  );
+  const reflexosBonus =
+    (reflexosEntry.degree || 0) +
+    reflexosPassiveOrSaved +
+    (reflexosItemBonusInfo?.bonus || 0) +
+    activeMaskTestBonus;
   const esquivaTotal = totalDefense + reflexosBonus;
 
   const fortitudeEntry = activeChar?.skills?.['Fortitude'] || { degree: 0, bonus: 0 };
+  const fortitudeItemBonusInfo = itemSkillBonuses.effectiveBonuses['Fortitude'];
+  const fortitudePassiveOrSaved = mergePassiveSkillBonus(
+    fortitudeEntry.bonus || 0,
+    passiveAbilityBonuses.skillBonuses['Fortitude'] || 0
+  );
+  const cascaGrossaBlockRd = passiveAbilityBonuses.hasCascaGrossa
+    ? Math.max(
+        0,
+        (activeChar?.attributes.VIG || 0) + inventorySummary.attributeBonusesFromItems.VIG
+      )
+    : 0;
   const bloqueioRD =
-    (fortitudeEntry.degree || 0) + (fortitudeEntry.bonus || 0) + inventorySummary.totalBlockRdBonus;
+    (fortitudeEntry.degree || 0) +
+    fortitudePassiveOrSaved +
+    (fortitudeItemBonusInfo?.bonus || 0) +
+    inventorySummary.totalBlockRdBonus +
+    cascaGrossaBlockRd;
 
   const lutaEntry = activeChar?.skills?.['Luta'] || { degree: 0, bonus: 0 };
-  const contraAtaqueBonus = (lutaEntry.degree || 0) + (lutaEntry.bonus || 0) + activeMaskTestBonus;
+  const lutaItemBonusInfo = itemSkillBonuses.effectiveBonuses['Luta'];
+  const lutaPassiveOrSaved = mergePassiveSkillBonus(
+    lutaEntry.bonus || 0,
+    passiveAbilityBonuses.skillBonuses['Luta'] || 0
+  );
+  const contraAtaqueBonus =
+    (lutaEntry.degree || 0) +
+    lutaPassiveOrSaved +
+    (lutaItemBonusInfo?.bonus || 0) +
+    activeMaskTestBonus;
 
   if (!activeChar) {
     return (
@@ -1513,43 +1508,31 @@ export default function CharactersScreen() {
                 Ficha completa de Ordem Paranormal: Livro Base & Sobrevivendo ao Horror.
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <TouchableOpacity
-                style={[
-                  styles.newBtn,
-                  {
-                    backgroundColor: colors.primarySoft,
-                    borderWidth: 1,
-                    borderColor: colors.primary,
-                  },
-                ]}
-                onPress={() => openManual('characters')}
-              >
-                <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
-                <Text style={[styles.newBtnText, { color: colors.primary }]}>Manual</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.newBtn,
-                  {
-                    backgroundColor: colors.surfaceElevated,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={handleCreateNewAgent}
-              >
-                <Ionicons name="create-outline" size={18} color={colors.text} />
-                <Text style={[styles.newBtnText, { color: colors.text }]}>Criar Manual</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.newBtn}
-                onPress={() => setCreateAgentModalVisible(true)}
-              >
-                <Ionicons name="sparkles" size={18} color="#FFF" />
-                <Text style={styles.newBtnText}>Criar Assistido</Text>
-              </TouchableOpacity>
-            </View>
+            {characters.length > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <TouchableOpacity
+                  style={[
+                    styles.newBtn,
+                    {
+                      backgroundColor: colors.surfaceElevated,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={handleCreateNewAgent}
+                >
+                  <Ionicons name="create-outline" size={18} color={colors.text} />
+                  <Text style={[styles.newBtnText, { color: colors.text }]}>Criar Manual</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.newBtn}
+                  onPress={() => setCreateAgentModalVisible(true)}
+                >
+                  <Ionicons name="sparkles" size={18} color="#FFF" />
+                  <Text style={styles.newBtnText}>Criar Assistido</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {characters.length === 0 ? (
@@ -1841,14 +1824,6 @@ export default function CharactersScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.recalcBtn}
-            onPress={() => openManual('characters')}
-          >
-            <Ionicons name="help-circle-outline" size={16} color={colors.primary} />
-            <Text style={[styles.recalcBtnText, { color: colors.primary }]}>Manual</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={styles.printHeaderBtn}
             onPress={() => {
               setPrintingChar(activeChar);
@@ -1954,12 +1929,18 @@ export default function CharactersScreen() {
                     gap: 4,
                   }}
                   onPress={() => {
-                    const agi = activeChar.attributes.AGI || 1;
+                    const agi =
+                      (activeChar.attributes.AGI || 0) +
+                      inventorySummary.attributeBonusesFromItems.AGI;
                     const initEntry = activeChar.skills['Iniciativa'] || { degree: 0, bonus: 0 };
+                    const initPassiveOrSaved = mergePassiveSkillBonus(
+                      initEntry.bonus || 0,
+                      passiveAbilityBonuses.skillBonuses['Iniciativa'] || 0
+                    );
                     const itemInitBonus = itemSkillBonuses.effectiveBonuses['Iniciativa']?.bonus || 0;
                     const bonus =
                       (initEntry.degree || 0) +
-                      (initEntry.bonus || 0) +
+                      initPassiveOrSaved +
                       itemInitBonus +
                       activeMaskTestBonus;
                     const protPen = getProtectionDicePenalty(activeChar, 'AGI');
@@ -2022,35 +2003,18 @@ export default function CharactersScreen() {
 
               <View style={[styles.row, { marginTop: 8 }]}>
                 <View style={{ flex: 1.2 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={styles.fieldLabel}>NEX (%)</Text>
-                    <TouchableOpacity
-                      style={styles.nexLevelUpBadge}
-                      onPress={() => setLevelUpModalVisible(true)}
-                    >
-                      <Ionicons name="arrow-up" size={11} color={colors.primary} />
-                      <Text style={styles.nexLevelUpBadgeText}>Subir +5%</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                    <TextInput
-                      style={[styles.input, { flex: 1 }]}
-                      keyboardType="numeric"
-                      value={String(activeChar.nex)}
-                      onChangeText={(v) => {
-                        const n = Math.min(99, Math.max(0, parseInt(v, 10) || 0));
-                        const peR = getPeRoundLimit(n);
-                        const dt = 10 + peR + activeChar.attributes.PRE;
-                        updateActiveChar({ nex: n, peRound: peR, dtRituals: dt });
-                      }}
-                    />
-                    <TouchableOpacity
-                      style={styles.nexQuickPlusBtn}
-                      onPress={() => setLevelUpModalVisible(true)}
-                    >
-                      <Ionicons name="sparkles" size={16} color="#FFF" />
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={styles.fieldLabel}>NEX (%)</Text>
+                  <TextInput
+                    style={styles.input}
+                    keyboardType="numeric"
+                    value={String(activeChar.nex)}
+                    onChangeText={(v) => {
+                      const n = Math.min(99, Math.max(0, parseInt(v, 10) || 0));
+                      const peR = getPeRoundLimit(n);
+                      const dt = 10 + peR + activeChar.attributes.PRE;
+                      updateActiveChar({ nex: n, peRound: peR, dtRituals: dt });
+                    }}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>PE / Rodada</Text>
@@ -2430,16 +2394,24 @@ export default function CharactersScreen() {
                     }}
                     onPress={() => {
                       const fortitudeEntry = activeChar.skills['Fortitude'] || { degree: 0, bonus: 0 };
+                      const fortitudeItem = itemSkillBonuses.effectiveBonuses['Fortitude'];
+                      const fortPassiveOrSaved = mergePassiveSkillBonus(
+                        fortitudeEntry.bonus || 0,
+                        passiveAbilityBonuses.skillBonuses['Fortitude'] || 0
+                      );
                       const fortitudeBonus =
                         (fortitudeEntry.degree || 0) +
-                        (fortitudeEntry.bonus || 0) +
+                        fortPassiveOrSaved +
+                        (fortitudeItem?.bonus || 0) +
                         activeMaskTestBonus;
                       rollSkillTest(
-                        activeChar.attributes.VIG,
+                        activeChar.attributes.VIG + inventorySummary.attributeBonusesFromItems.VIG,
                         fortitudeBonus,
                         `Teste de Fortitude (Estabilizar / Morrendo)${
-                          activeMaskTestBonus > 0 ? ' [Forma Suprema: +5]' : ''
-                        }`
+                          fortitudeItem
+                            ? ` [Item: +${fortitudeItem.bonus} ${fortitudeItem.sourceItemName}]`
+                            : ''
+                        }${activeMaskTestBonus > 0 ? ' [Forma Suprema: +5]' : ''}`
                       );
                     }}
                   >
@@ -2508,16 +2480,24 @@ export default function CharactersScreen() {
                     }}
                     onPress={() => {
                       const vontadeEntry = activeChar.skills['Vontade'] || { degree: 0, bonus: 0 };
+                      const vontadeItem = itemSkillBonuses.effectiveBonuses['Vontade'];
+                      const vontPassiveOrSaved = mergePassiveSkillBonus(
+                        vontadeEntry.bonus || 0,
+                        passiveAbilityBonuses.skillBonuses['Vontade'] || 0
+                      );
                       const vontadeBonus =
                         (vontadeEntry.degree || 0) +
-                        (vontadeEntry.bonus || 0) +
+                        vontPassiveOrSaved +
+                        (vontadeItem?.bonus || 0) +
                         activeMaskTestBonus;
                       rollSkillTest(
-                        activeChar.attributes.PRE,
+                        activeChar.attributes.PRE + inventorySummary.attributeBonusesFromItems.PRE,
                         vontadeBonus,
                         `Teste de Vontade (Resistir à Loucura)${
-                          activeMaskTestBonus > 0 ? ' [Forma Suprema: +5]' : ''
-                        }`
+                          vontadeItem
+                            ? ` [Item: +${vontadeItem.bonus} ${vontadeItem.sourceItemName}]`
+                            : ''
+                        }${activeMaskTestBonus > 0 ? ' [Forma Suprema: +5]' : ''}`
                       );
                     }}
                   >
@@ -2607,6 +2587,12 @@ export default function CharactersScreen() {
                   <Text style={styles.totalDefVal}>{totalDefense}</Text>
                   <Text style={styles.totalDefFormula}>
                     10 + AGI ({activeChar.attributes.AGI}) + Equip ({activeChar.defenseEquip || 0}) + Outros ({activeChar.defenseOther || 0})
+                    {inventorySummary.totalDefenseBonusFromItems > 0
+                      ? ` + Itens (${inventorySummary.totalDefenseBonusFromItems})`
+                      : ''}
+                    {passiveAbilityBonuses.defenseOtherBonus > 0
+                      ? ` + Poderes (${passiveAbilityBonuses.defenseOtherBonus})`
+                      : ''}
                   </Text>
                 </View>
               </View>
@@ -2638,6 +2624,9 @@ export default function CharactersScreen() {
                     let label = protPen !== 0
                       ? 'Teste de Reflexos (Esquiva) [Penalidade de Proteção: -2d20]'
                       : 'Teste de Reflexos (Esquiva)';
+                    if (reflexosItemBonusInfo) {
+                      label += ` [Item: +${reflexosItemBonusInfo.bonus} ${reflexosItemBonusInfo.sourceItemName}]`;
+                    }
                     if (activeMaskTestBonus > 0) {
                       label += ' [Forma Suprema: +5]';
                     }
@@ -2676,8 +2665,10 @@ export default function CharactersScreen() {
                       activeChar.attributes.VIG,
                       bloqueioRD + activeMaskTestBonus,
                       `Teste de Fortitude (Bloqueio / RD)${
-                        activeMaskTestBonus > 0 ? ' [Forma Suprema: +5]' : ''
-                      }`
+                        fortitudeItemBonusInfo
+                          ? ` [Item: +${fortitudeItemBonusInfo.bonus} ${fortitudeItemBonusInfo.sourceItemName}]`
+                          : ''
+                      }${activeMaskTestBonus > 0 ? ' [Forma Suprema: +5]' : ''}`
                     )
                   }
                 >
@@ -2710,6 +2701,9 @@ export default function CharactersScreen() {
                     let label = protPen !== 0
                       ? 'Teste de Luta (Contra-ataque) [Penalidade de Proteção: -2d20]'
                       : 'Teste de Luta (Contra-ataque)';
+                    if (lutaItemBonusInfo) {
+                      label += ` [Item: +${lutaItemBonusInfo.bonus} ${lutaItemBonusInfo.sourceItemName}]`;
+                    }
                     if (activeMaskTestBonus > 0) {
                       label += ' [Forma Suprema: +5]';
                     }
@@ -3100,31 +3094,6 @@ export default function CharactersScreen() {
                       </Text>
                     ) : null}
 
-                    {atk.customWeaponId ? (
-                      <TouchableOpacity
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 6,
-                          marginTop: 6,
-                          alignSelf: 'flex-start',
-                          paddingVertical: 4,
-                          paddingHorizontal: 8,
-                          backgroundColor: colors.surfaceHighlight,
-                          borderRadius: 6,
-                          borderWidth: 1,
-                          borderColor: colors.border,
-                        }}
-                        onPress={() => router.push('/(tabs)/weapons')}
-                        accessibilityLabel="Abrir na Armaria"
-                      >
-                        <Ionicons name="shield-outline" size={13} color={colors.primary} />
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
-                          Abrir na Armaria
-                        </Text>
-                      </TouchableOpacity>
-                    ) : null}
-
                     <TouchableOpacity
                       style={styles.prepareAttackBtn}
                       onPress={(e) => {
@@ -3208,7 +3177,10 @@ export default function CharactersScreen() {
             {OFFICIAL_SKILLS_LIST.map((sk) => {
               const entry = activeChar.skills[sk.name] || { degree: 0, bonus: 0 };
               const degree = entry.degree || 0;
-              const bonus = entry.bonus || 0;
+              const bonus = mergePassiveSkillBonus(
+                entry.bonus || 0,
+                passiveAbilityBonuses.skillBonuses[sk.name] || 0
+              );
               const itemBonusInfo = itemSkillBonuses.effectiveBonuses[sk.name];
               const itemBonus = itemBonusInfo ? itemBonusInfo.bonus : 0;
               const maskTestBonus =
@@ -3218,7 +3190,9 @@ export default function CharactersScreen() {
                   ? 5
                   : 0;
               const totalBonus = degree + bonus + itemBonus + maskTestBonus;
-              const attrVal = activeChar.attributes[sk.attr];
+              const attrVal =
+                activeChar.attributes[sk.attr] +
+                (inventorySummary.attributeBonusesFromItems[sk.attr] || 0);
 
               const protPen = activeChar ? getProtectionDicePenalty(activeChar, sk.attr) : 0;
               const effectiveAttrDice = protPen !== 0 ? Math.max(-5, attrVal + protPen) : attrVal;
@@ -3251,7 +3225,15 @@ export default function CharactersScreen() {
                     {itemBonusInfo ? (
                       <View style={styles.itemSkillBonusBadge} testID={`sheet-skill-item-bonus-${sk.name}`}>
                         <Text style={styles.itemSkillBonusBadgeText}>
-                          +{itemBonusInfo.bonus} ({itemBonusInfo.itemType === 'vestimenta' ? 'Vestimenta' : 'Utensílio'}: {itemBonusInfo.sourceItemName})
+                          +{itemBonusInfo.bonus} (
+                          {itemBonusInfo.itemType === 'vestimenta'
+                            ? 'Vestimenta'
+                            : itemBonusInfo.itemType === 'protecao'
+                            ? 'Proteção'
+                            : itemBonusInfo.itemType === 'geral'
+                            ? 'Item'
+                            : 'Utensílio'}
+                          : {itemBonusInfo.sourceItemName})
                         </Text>
                       </View>
                     ) : null}
@@ -3391,6 +3373,7 @@ export default function CharactersScreen() {
                 <Text style={styles.dtRitualBadgeLabel}>DT RITUAL</Text>
                 <Text style={styles.dtRitualBadgeVal}>
                   {(activeChar.dtRituals || 10 + (activeChar.peRound || 1) + activeChar.attributes.PRE) +
+                    inventorySummary.totalDtBonusFromItems +
                     (activeChar.maskConfig?.enabled &&
                     activeChar.maskConfig?.isActive &&
                     activeChar.maskConfig?.grantBonusDt !== false
@@ -3593,7 +3576,6 @@ export default function CharactersScreen() {
                     key={item.id}
                     style={styles.abilityCard}
                     activeOpacity={0.85}
-                    onPress={openAbilityPreview}
                     onLongPress={openAbilityPreview}
                     delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                     testID={`sheet-ability-${item.id}`}
@@ -3605,7 +3587,7 @@ export default function CharactersScreen() {
                           {item.originText}{item.element && item.element !== 'Nenhum' ? ` • ${item.element}` : ''}
                         </Text>
                       </View>
-                      {item.cost ? (
+                      {item.cost && !resolvedRitual ? (
                         <TouchableOpacity
                           style={styles.spendPeBtn}
                           onPress={(e) => {
@@ -4008,6 +3990,7 @@ export default function CharactersScreen() {
                 const curCharges = it.charges ?? it.maxCharges ?? 0;
                 const depleted = isInventoryItemDepleted(it);
                 const totalSpacesForItem = (it.spaces || 0) * qty;
+                const canRechargeCharges = hasCharges && curCharges <= 0 && qty > 0;
                 const actionMechanics = (it.mechanics || []).filter(
                   (m) => m.type !== 'none' && m.type !== 'load_bonus' && m.type !== 'block_rd_bonus'
                 );
@@ -4020,7 +4003,6 @@ export default function CharactersScreen() {
                       depleted && { opacity: 0.72, borderColor: 'rgba(239, 68, 68, 0.45)' },
                     ]}
                     activeOpacity={0.88}
-                    onPress={openInvPreview}
                     onLongPress={openInvPreview}
                     delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                     testID={`sheet-inv-${it.id}`}
@@ -4136,7 +4118,7 @@ export default function CharactersScreen() {
                             </TouchableOpacity>
                           );
                         })}
-                        {depleted ? (
+                        {canRechargeCharges ? (
                           <TouchableOpacity
                             style={[styles.invMechBtn, { borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.14)' }]}
                             onPress={(e) => {
@@ -4150,7 +4132,7 @@ export default function CharactersScreen() {
                           </TouchableOpacity>
                         ) : null}
                       </View>
-                    ) : depleted ? (
+                    ) : canRechargeCharges ? (
                       <View style={styles.invMechanicsRow}>
                         <TouchableOpacity
                           style={[styles.invMechBtn, { borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.14)' }]}
@@ -4161,7 +4143,7 @@ export default function CharactersScreen() {
                           testID={`btn-recharge-item-${it.id}`}
                         >
                           <Ionicons name="refresh" size={13} color="#38BDF8" />
-                          <Text style={[styles.invMechBtnText, { color: '#38BDF8' }]}>Repor Unidade</Text>
+                          <Text style={[styles.invMechBtnText, { color: '#38BDF8' }]}>Recarregar</Text>
                         </TouchableOpacity>
                       </View>
                     ) : null}
@@ -4461,7 +4443,7 @@ export default function CharactersScreen() {
               }}
               testID="btn-import-weapon-cancel"
             >
-              <Text style={styles.weaponChoiceCancelText}>Cancelar</Text>
+              <Text style={styles.weaponChoiceCancelText}>Voltar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -5323,42 +5305,120 @@ export default function CharactersScreen() {
                       : checkPrerequisite(item.prerequisite, activeChar, getEntityById);
 
                     const applyPickerItem = async () => {
+                      const applyPassiveAndVitalsDelta = (
+                        tempChar: CharacterSheet,
+                        sourceEntity?: CompendiumEntity
+                      ) => {
+                        const prevVitals = calculateCharacterVitals(activeChar, getEntityById);
+                        const prevPassive = extractPassiveAbilitySkillAndDefenseBonuses(
+                          activeChar,
+                          getEntityById
+                        );
+                        const nextVitals = calculateCharacterVitals(tempChar, getEntityById);
+                        const nextPassive = extractPassiveAbilitySkillAndDefenseBonuses(
+                          tempChar,
+                          getEntityById
+                        );
+
+                        const pvDelta = nextVitals.pvMax - prevVitals.pvMax;
+                        const peDelta = nextVitals.peMax - prevVitals.peMax;
+                        const sanDelta = nextVitals.sanMax - prevVitals.sanMax;
+
+                        const nextPvMax = Math.max(1, (activeChar.pvMax || 1) + pvDelta);
+                        const nextPeMax = Math.max(1, (activeChar.peMax || 1) + peDelta);
+                        const nextSanMax = Math.max(1, (activeChar.sanMax || 1) + sanDelta);
+
+                        let updatedSkills = { ...(activeChar.skills || {}) };
+                        const adjustedPassiveSkills = new Set<string>();
+                        const allSkillKeys = new Set([
+                          ...Object.keys(prevPassive.skillBonuses),
+                          ...Object.keys(nextPassive.skillBonuses),
+                        ]);
+
+                        for (const skName of allSkillKeys) {
+                          const delta =
+                            (nextPassive.skillBonuses[skName] || 0) -
+                            (prevPassive.skillBonuses[skName] || 0);
+                          if (delta !== 0) {
+                            adjustedPassiveSkills.add(skName);
+                            const existing = updatedSkills[skName] || { degree: 0, bonus: 0 };
+                            updatedSkills[skName] = {
+                              ...existing,
+                              degree: existing.degree || 0,
+                              bonus: (existing.bonus || 0) + delta,
+                            };
+                          }
+                        }
+
+                        if (sourceEntity) {
+                          const grants = extractCanonicalSkillGrants(
+                            sourceEntity.description || sourceEntity.summary,
+                            sourceEntity.name,
+                            updatedSkills
+                          );
+                          for (const skName of grants) {
+                            if (adjustedPassiveSkills.has(skName)) {
+                              // Bônus numérico passivo já aplicado via nextPassive; garante grau Treinado caso destreinada
+                              const existing = updatedSkills[skName] || { degree: 0, bonus: 0 };
+                              if ((existing.degree || 0) === 0) {
+                                updatedSkills[skName] = { ...existing, degree: 5 };
+                              }
+                            } else {
+                              updatedSkills = applyCanonicalSkillGrant(updatedSkills, skName);
+                            }
+                          }
+                        }
+
+                        return {
+                          pvMax: nextPvMax,
+                          pvCurrent: Math.max(0, Math.min(nextPvMax, (activeChar.pvCurrent || 0) + pvDelta)),
+                          peMax: nextPeMax,
+                          peCurrent: Math.max(0, Math.min(nextPeMax, (activeChar.peCurrent || 0) + peDelta)),
+                          sanMax: nextSanMax,
+                          sanCurrent: Math.max(0, Math.min(nextSanMax, (activeChar.sanCurrent || 0) + sanDelta)),
+                          peRound: nextVitals.peRound,
+                          dtRituals: nextVitals.dtRituals,
+                          skills: updatedSkills,
+                        };
+                      };
+
                       if (pickerModalType === 'origin') {
-                        await updateActiveChar({ originId: item.id });
+                        const patch = applyPassiveAndVitalsDelta(
+                          { ...activeChar, originId: item.id },
+                          item
+                        );
+                        await updateActiveChar({
+                          originId: item.id,
+                          ...patch,
+                        });
                       } else if (pickerModalType === 'class') {
-                        await updateActiveChar({ classId: item.id });
+                        const patch = applyPassiveAndVitalsDelta({
+                          ...activeChar,
+                          classId: item.id,
+                        });
+                        await updateActiveChar({
+                          classId: item.id,
+                          ...patch,
+                        });
                       } else if (pickerModalType === 'track') {
-                        await updateActiveChar({ trackId: item.id });
+                        const patch = applyPassiveAndVitalsDelta({
+                          ...activeChar,
+                          trackId: item.id,
+                        });
+                        await updateActiveChar({
+                          trackId: item.id,
+                          ...patch,
+                        });
                       } else if (pickerModalType === 'link_compendium') {
                         if (!activeChar.entityIds.includes(item.id)) {
                           const nextEntityIds = [...activeChar.entityIds, item.id];
-                          const tempChar = { ...activeChar, entityIds: nextEntityIds };
-                          const vitals = calculateCharacterVitals(tempChar, getEntityById);
-                          const pvDiff = Math.max(0, vitals.pvMax - activeChar.pvMax);
-                          const peDiff = Math.max(0, vitals.peMax - activeChar.peMax);
-                          const sanDiff = Math.max(0, vitals.sanMax - activeChar.sanMax);
-                          const updatedSkills = { ...(activeChar.skills || {}) };
-                          if (vitals.skillBonuses) {
-                            for (const [skName, bVal] of Object.entries(vitals.skillBonuses)) {
-                              if (bVal !== undefined) {
-                                updatedSkills[skName] = {
-                                  degree: updatedSkills[skName]?.degree || 0,
-                                  bonus: bVal,
-                                };
-                              }
-                            }
-                          }
+                          const patch = applyPassiveAndVitalsDelta(
+                            { ...activeChar, entityIds: nextEntityIds },
+                            item
+                          );
                           await updateActiveChar({
                             entityIds: nextEntityIds,
-                            pvMax: vitals.pvMax,
-                            pvCurrent: activeChar.pvCurrent + pvDiff,
-                            peMax: vitals.peMax,
-                            peCurrent: activeChar.peCurrent + peDiff,
-                            sanMax: vitals.sanMax,
-                            sanCurrent: activeChar.sanCurrent + sanDiff,
-                            peRound: vitals.peRound,
-                            dtRituals: vitals.dtRituals,
-                            skills: updatedSkills,
+                            ...patch,
                           });
                         }
                       }

@@ -318,6 +318,12 @@ export function formatDamageResistances(resistances: Record<string, number>): st
   return orderedKeys.map((k) => `${k} ${resistances[k]}`).join(', ');
 }
 
+export interface EquippedProtectionEntry {
+  prot: ProtectionItem;
+  mods?: string[];
+  curses?: string[];
+}
+
 export interface EquippedProtectionsResult {
   totalDefenseEquip: number;
   resistancesText: string;
@@ -325,18 +331,26 @@ export interface EquippedProtectionsResult {
   totalSpaces: number;
   armorPenalty: number;
   appliedCurses?: string[];
+  bodyArmorCount?: number;
+  shieldCount?: number;
 }
 
-/**
- * Calcula os atributos combinados de uma proteção corporal, escudo, modificações e maldições equipadas.
- */
-export function calculateEquippedProtections(
+interface ProtectionContribution {
+  totalDefenseEquip: number;
+  resistances: Record<string, number>;
+  protectionParts: string[];
+  totalSpaces: number;
+  armorPenalty: number;
+  appliedCurses: string[];
+}
+
+function computeProtectionContribution(
   bodyArmor?: ProtectionItem | null,
   shield?: ProtectionItem | null,
   modifications: string[] = [],
   curses: string[] = [],
   shieldCurses: string[] = []
-): EquippedProtectionsResult {
+): ProtectionContribution {
   let totalDefenseEquip = 0;
   let totalSpaces = 0;
   let armorPenalty = 0;
@@ -501,9 +515,7 @@ export function calculateEquippedProtections(
     protectionParts.push(`${shield.name}${shieldCursesSuffix} (+${shieldDef} Defesa${shieldRdLabel})`);
   }
 
-  const resistancesText = formatDamageResistances(resistances);
-  const protectionText = protectionParts.join(' • ');
-  const combinedCurses = Array.from(
+  const appliedCurses = Array.from(
     new Set([
       ...(bodyArmor ? resolvedCurses.map((c) => c.name) : []),
       ...resolvedShieldCurses.map((c) => c.name),
@@ -512,11 +524,224 @@ export function calculateEquippedProtections(
 
   return {
     totalDefenseEquip,
-    resistancesText,
-    protectionText,
+    resistances,
+    protectionParts,
     totalSpaces,
     armorPenalty,
-    appliedCurses: combinedCurses,
+    appliedCurses,
+  };
+}
+
+/**
+ * Calcula os atributos combinados de uma proteção corporal, escudo, modificações e maldições equipadas.
+ */
+export function calculateEquippedProtections(
+  bodyArmor?: ProtectionItem | null,
+  shield?: ProtectionItem | null,
+  modifications: string[] = [],
+  curses: string[] = [],
+  shieldCurses: string[] = []
+): EquippedProtectionsResult {
+  const contrib = computeProtectionContribution(
+    bodyArmor,
+    shield,
+    modifications,
+    curses,
+    shieldCurses
+  );
+
+  return {
+    totalDefenseEquip: contrib.totalDefenseEquip,
+    resistancesText: formatDamageResistances(contrib.resistances),
+    protectionText: contrib.protectionParts.join(' • '),
+    totalSpaces: contrib.totalSpaces,
+    armorPenalty: contrib.armorPenalty,
+    appliedCurses: contrib.appliedCurses,
+  };
+}
+
+/**
+ * Calcula os atributos combinados de múltiplas proteções corporais e/ou escudos equipados simultaneamente.
+ */
+export function calculateMultipleEquippedProtections(
+  entries: EquippedProtectionEntry[]
+): EquippedProtectionsResult {
+  let totalDefenseEquip = 0;
+  let totalSpaces = 0;
+  let armorPenalty = 0;
+  let bodyArmorCount = 0;
+  let shieldCount = 0;
+  const resistances: Record<string, number> = {};
+  const protectionParts: string[] = [];
+  const cursesSet = new Set<string>();
+
+  for (const entry of entries || []) {
+    if (!entry?.prot) continue;
+    const mods = entry.mods || [];
+    const curses = entry.curses || [];
+    const isShield = entry.prot.type === 'Escudo';
+
+    if (isShield) shieldCount += 1;
+    else bodyArmorCount += 1;
+
+    const contrib = isShield
+      ? computeProtectionContribution(null, entry.prot, mods, curses, curses)
+      : computeProtectionContribution(entry.prot, null, mods, curses);
+
+    totalDefenseEquip += contrib.totalDefenseEquip;
+    totalSpaces += contrib.totalSpaces;
+    armorPenalty = Math.min(armorPenalty, contrib.armorPenalty);
+
+    for (const [k, val] of Object.entries(contrib.resistances)) {
+      if (k === 'Geral') {
+        resistances[k] = (resistances[k] || 0) + val;
+      } else {
+        resistances[k] = Math.max(resistances[k] || 0, val);
+      }
+    }
+
+    protectionParts.push(...contrib.protectionParts);
+    for (const c of contrib.appliedCurses) {
+      cursesSet.add(c);
+    }
+  }
+
+  return {
+    totalDefenseEquip,
+    resistancesText: formatDamageResistances(resistances),
+    protectionText: protectionParts.join(' • '),
+    totalSpaces,
+    armorPenalty,
+    appliedCurses: Array.from(cursesSet),
+    bodyArmorCount,
+    shieldCount,
+  };
+}
+
+/**
+ * Identifica se um item de inventário representa uma proteção corporal ou escudo.
+ */
+export function isProtectionInventoryEntry(it: {
+  id?: string;
+  name: string;
+  itemType?: string;
+  equipped?: boolean;
+}): boolean {
+  const low = (it.name || '').toLowerCase();
+  return (
+    it.itemType === 'protecao' ||
+    it.itemType === 'escudo' ||
+    Boolean(it.id && it.id.startsWith('inv_prot_')) ||
+    low.includes('proteção leve') ||
+    low.includes('proteção pesada') ||
+    low.includes('escudo') ||
+    low.includes('capacete tático') ||
+    low.includes('elmo do colosso')
+  );
+}
+
+/**
+ * Converte um item de inventário em ProtectionItem + modificações + maldições para recálculo fiel.
+ */
+export function resolveProtectionInventoryEntry(it: {
+  id?: string;
+  name: string;
+  category?: '0' | 'I' | 'II' | 'III' | 'IV';
+  spaces?: number;
+  details?: string;
+  itemType?: string;
+  modifications?: string[];
+}): { prot: ProtectionItem; mods: string[]; curses: string[]; isShield: boolean } {
+  const rawName = it.name || '';
+  const baseName = rawName.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const found = findProtectionByName(baseName) || findProtectionByName(rawName);
+  const mods: string[] = [];
+  const curses: string[] = [];
+  let extraDef = 0;
+
+  const parenMatch = rawName.match(/\(([^)]+)\)\s*$/);
+  const parenTokens = parenMatch
+    ? parenMatch[1]
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
+  const rawTokens = [...(it.modifications || []), ...parenTokens];
+
+  for (const raw of rawTokens) {
+    const clean = raw.trim().toLowerCase();
+    if (!clean) continue;
+    const modDef = OFFICIAL_PROTECTION_MODIFICATIONS.find(
+      (m) => m.id.toLowerCase() === clean || m.name.toLowerCase() === clean
+    );
+    if (modDef) {
+      if (!mods.includes(modDef.name)) {
+        mods.push(modDef.name);
+        extraDef += modDef.defenseBonus || 0;
+      }
+      continue;
+    }
+    const curseDef = findProtectionCurse(raw);
+    if (curseDef && !curses.includes(curseDef.name)) {
+      curses.push(curseDef.name);
+      extraDef += curseDef.defenseBonus || 0;
+    }
+  }
+
+  const isShield =
+    found?.type === 'Escudo' ||
+    it.itemType === 'escudo' ||
+    baseName.toLowerCase().includes('escudo');
+  if (found) {
+    return { prot: found, mods, curses, isShield };
+  }
+
+  const details = it.details || '';
+  const isPesada =
+    !isShield &&
+    (baseName.toLowerCase().includes('pesada') || details.toLowerCase().includes('(pesada)'));
+  const detailsMatch = details.match(/(?:defesa\s*\+?|\+)(\d+)\s*(?:def)?/i);
+  const parsedTotalDef = detailsMatch
+    ? parseInt(detailsMatch[1], 10)
+    : isShield
+    ? 2
+    : isPesada
+    ? 10
+    : 5;
+  const baseDef = Math.max(0, parsedTotalDef - extraDef);
+
+  // Parse de RD Física / Balístico em detalhes para preservar RD de proteções customizadas
+  const physMatch =
+    details.match(/F[íi]sica\s*:?\s*(\d+)/i) ||
+    details.match(/Corte\s*:?\s*(\d+)/i) ||
+    details.match(/RD(?!\s*Bal[íi]stic[oa])\s*:?\s*(\d+)/i);
+  const ballisticMatch = details.match(/Bal[íi]stic[oa]\s*:?\s*(\d+)/i);
+  const parsedPhysRd = physMatch ? parseInt(physMatch[1], 10) : 0;
+  const parsedBallisticRd = ballisticMatch ? parseInt(ballisticMatch[1], 10) : 0;
+
+  let damageReduction: DamageReduction | undefined;
+  if (parsedPhysRd > 0) {
+    damageReduction = { physical: parsedPhysRd, description: `RD ${parsedPhysRd}` };
+  } else if (parsedBallisticRd > 0) {
+    damageReduction = { ballistic: parsedBallisticRd, description: `RD Balístico ${parsedBallisticRd}` };
+  }
+
+  return {
+    prot: {
+      id: `custom_${it.id || baseName.toLowerCase().replace(/\s+/g, '_')}`,
+      name: baseName || rawName,
+      type: isShield ? 'Escudo' : isPesada ? 'Pesada' : 'Leve',
+      defenseBonus: baseDef,
+      ...(damageReduction ? { damageReduction } : {}),
+      spaces: it.spaces || 1,
+      category: it.category || '0',
+      armorPenalty: isPesada ? -5 : 0,
+      requiredProficiency: isPesada || isShield ? 'Proteções Pesadas' : 'Proteções Leves',
+    },
+    mods,
+    curses,
+    isShield,
   };
 }
 
