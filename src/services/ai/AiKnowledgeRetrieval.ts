@@ -1,5 +1,5 @@
 import { CharacterSheet, CompendiumEntity } from '../../types/compendium';
-import { AiCitation, AiConfig, ConcreteRelicPersona } from '../../types/ai';
+import { AiCitation, AiConfig, ConcreteRelicPersona, isRoleplayCapablePersona } from '../../types/ai';
 import { defaultRepository, normalizeText } from '../../repositories/OfflineDataRepository';
 import { MANUAL_SECTIONS, ManualSection, searchManual } from '../../data/manualData';
 import { buildPersonaSystemPrompt } from './prompts';
@@ -10,6 +10,7 @@ export interface RetrievedKnowledge {
   matchedEntities: CompendiumEntity[];
   matchedManualSections: ManualSection[];
   resolvedPersona: ConcreteRelicPersona;
+  roleplayModeActive?: boolean;
 }
 
 /**
@@ -28,8 +29,8 @@ export function resolveRelicPersona(config: AiConfig): ConcreteRelicPersona {
 /**
  * Legado exportado para compatibilidade retroativa
  */
-export function buildRelicSystemPrompt(persona: ConcreteRelicPersona): string {
-  return buildPersonaSystemPrompt(persona);
+export function buildRelicSystemPrompt(persona: ConcreteRelicPersona, roleplayMode = false): string {
+  return buildPersonaSystemPrompt(persona, { roleplayMode });
 }
 
 const STOP_WORDS = new Set([
@@ -68,6 +69,7 @@ export function retrieveAiKnowledge(
   activeAgent?: CharacterSheet | null
 ): RetrievedKnowledge {
   const resolvedPersona = resolveRelicPersona(config);
+  const roleplayModeActive = Boolean(config.roleplayMode && isRoleplayCapablePersona(resolvedPersona));
   const keywords = extractKeywords(query);
   const allEntities = defaultRepository.getAllEntities();
 
@@ -246,7 +248,7 @@ export function retrieveAiKnowledge(
     lowerQuery.includes('onde fica');
 
   let matchedManualSections: ManualSection[] = [];
-  if (!isCombatOrWeaponQuery || isExplicitAppManualQuery) {
+  if (!roleplayModeActive && (!isCombatOrWeaponQuery || isExplicitAppManualQuery)) {
     matchedManualSections = searchManual(query).slice(0, 3);
     if (matchedManualSections.length === 0) {
       const seenSecIds = new Set<string>();
@@ -264,13 +266,23 @@ export function retrieveAiKnowledge(
   }
 
   // 4. Montagem das Diretrizes do Sistema (Persona Especializada, Canônica ou Relíquia)
-  let systemPrompt = `${buildPersonaSystemPrompt(resolvedPersona)}\n\n`;
+  let systemPrompt = `${buildPersonaSystemPrompt(resolvedPersona, { roleplayMode: roleplayModeActive })}\n\n`;
 
   if (config.customInstructions && config.customInstructions.trim()) {
     systemPrompt += `INSTRUÇÕES ADICIONAIS DO USUÁRIO:\n${config.customInstructions.trim()}\n\n`;
   }
 
-  systemPrompt += `DIRETRIZES DE FORMATAÇÃO E CITAÇÃO:
+  if (roleplayModeActive) {
+    systemPrompt += `DIRETRIZ DE MODO ROLEPLAY LIVRE (COMPROMISSO ESTRITO COM REGRAS DESATIVADO):
+1. Priorize 100% a interpretação viva, teatral, filosófica ou descontraída da sua persona diante de perguntas situacionais, cotidianas, hipotéticas ou conversas livres (como um diálogo presencial em cena de RPG).
+2. NUNCA responda com recusas burocráticas do tipo "isso não existe oficialmente no sistema de Ordem Paranormal RPG" ou "não consta nos autos das regras" para barrar perguntas de roleplay ou conversas casuais.
+3. Enriqueça a fala com descrições cênicas curtas em itálico (*exemplo*) e mantenha fidelidade emocional, tom de voz e lore do universo de Ordem Paranormal.
+4. REGRA RESTRITA DE FORMATAÇÃO (NUNCA USE LATEX):
+   - É TOTALMENTE PROIBIDO usar notação LaTeX ($$, $, \\text{}, \\times, \\frac, etc.)! Use apenas texto direto e Markdown simples.
+5. Só inclua citações [Livro Base, Pág. X], tags [Entidade: Nome] ou [Rolar: Dados] se o usuário fizer explicitamente uma pergunta mecânica de regras ou pedir um teste no meio da cena.
+6. Responda em Português do Brasil com excelente fluidez narrativa.\n\n`;
+  } else {
+    systemPrompt += `DIRETRIZES DE FORMATAÇÃO E CITAÇÃO:
 1. Sempre que mencionar regras de livros oficiais, cite a fonte exata assim: [Livro Base, Pág. X] ou [Sobrevivendo ao Horror, Pág. Y].
 2. Se citar uma entidade do compêndio, use a tag: [Entidade: NomeDaEntidade].
 3. Se for útil rolar dados para a situação, sugira a rolagem assim: [Rolar: 3d20] ou [Rolar: 2d8+4].
@@ -294,6 +306,7 @@ export function retrieveAiKnowledge(
    - Se o usuário pedir expressamente para criar algo personalizado ou caseiro (homebrew), você pode sugerir criativamente, mas DEVE OBRIGATORIAMENTE iniciar o trecho com a etiqueta destacada "[CRIAÇÃO CASEIRA / HOMEBREW]" para que o jogador saiba que não é oficial.
    - Só cite números de páginas se constarem com certeza nas fontes do contexto fornecido. Nunca invente páginas fictícias.
 7. Responda em Português do Brasil com excelente clareza em Markdown.\n\n`;
+  }
 
   // 5. Injeção de Contexto do Agente Ativo (se houver)
   if (activeAgent) {
@@ -327,8 +340,8 @@ Use este contexto para dar respostas personalizadas ao agente quando a pergunta 
     systemPrompt += `\n`;
   }
 
-  // 7. Injeção de Entidades do Compêndio
-  if (matchedEntities.length > 0) {
+  // 7. Injeção de Entidades do Compêndio (omitido em Roleplay Livre se forem apenas buscas acidentais de diálogo)
+  if (!roleplayModeActive && matchedEntities.length > 0) {
     systemPrompt += `REGISTROS OFICIAIS DO COMPÊNDIO ENCONTRADOS:\n`;
     for (const ent of matchedEntities) {
       systemPrompt += `---
@@ -343,7 +356,7 @@ ${ent.damage ? `Dano/Efeito: ${ent.damage}` : ''}
   }
 
   // 8. Injeção de Páginas dos Livros Oficiais
-  if (pageSearchSnippets.length > 0) {
+  if (!roleplayModeActive && pageSearchSnippets.length > 0) {
     systemPrompt += `TRECHOS EXTRAÍDOS DOS LIVROS CANÔNICOS:\n`;
     for (const p of pageSearchSnippets) {
       systemPrompt += `[${p.bookTitle}, Pág. ${p.pageNumber} - Seção: ${p.section || 'Geral'}]
@@ -353,9 +366,10 @@ ${ent.damage ? `Dano/Efeito: ${ent.damage}` : ''}
 
   return {
     systemPrompt,
-    citations,
+    citations: roleplayModeActive ? [] : citations,
     matchedEntities,
     matchedManualSections,
     resolvedPersona,
+    roleplayModeActive,
   };
 }

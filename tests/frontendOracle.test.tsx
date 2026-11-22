@@ -406,4 +406,71 @@ $$\\text{Dano Final Brutal: } 9d8+6$$ [Aba: dice]`,
     assert.equal(spokenContent, 'Instrução tática do G.L.I.T.C.H.');
     assert.equal(spokenId, 'msg_voice_test');
   });
+
+  test('OracleScreen deve ocultar roleplay-mode-toggle no G.L.I.T.C.H. padrão e exibir ao selecionar Relíquia ou Personagem com padrão desativado', async () => {
+    const { getByText, queryByText, queryByTestId } = await renderWithProviders(<OracleScreen />);
+
+    // No G.L.I.T.C.H. padrão (especialista), o botão de roleplay livre não aparece
+    assert.equal(queryByTestId('roleplay-mode-toggle'), null);
+
+    // Seleciona Deus da Morte (Relíquia)
+    const morteChip = getByText('Deus da Morte');
+    await fireClick(morteChip);
+
+    // Deve exibir o alternador com Compromisso com a Realidade (desativado por padrão)
+    const toggleBtn = queryByTestId('roleplay-mode-toggle');
+    assert.ok(toggleBtn, 'Botão roleplay-mode-toggle deve aparecer para Relíquias');
+    assert.ok(queryByText(/Compromisso com a Realidade: Regras/i));
+    assert.ok(queryByText(/Como funciona o envelhecimento e distorção temporal/i));
+
+    // Ativa o Modo Roleplay Livre clicando no alternador
+    await fireClick(toggleBtn!);
+
+    assert.ok(queryByText(/Roleplay Livre Ativo \(Interpretação\)/i));
+    assert.ok(queryByText(/tomar um café e conversar sobre a vida/i));
+
+    // Desativa novamente voltando ao foco em regras
+    await fireClick(queryByTestId('roleplay-mode-toggle')!);
+    assert.ok(queryByText(/Compromisso com a Realidade: Regras/i));
+  });
+
+  test('AiConfigModal deve renderizar e persistir a opção Modo Roleplay Livre apenas para personas roleplay (desativado por padrão)', async () => {
+    let savedConfig: any = null;
+
+    const { getByText, queryByText, getByTestId, queryByTestId } = await renderWithProviders(
+      <AiConfigModal
+        visible={true}
+        config={{ ...DEFAULT_AI_CONFIG }}
+        onSave={(cfg) => {
+          savedConfig = cfg;
+        }}
+        onClose={() => {}}
+      />
+    );
+
+    // Na persona padrão (especialista), o switch de roleplay não aparece
+    assert.equal(queryByTestId('config-roleplay-mode-switch'), null);
+
+    // Seleciona uma persona capaz de roleplay dentro do modal (O Anfitrião)
+    await fireClick(getByText('O Anfitrião'));
+
+    assert.ok(queryByText(/Modo Roleplay Livre \(Desativar Compromisso com Regras\)/i));
+    assert.ok(queryByText(/Desativado \(Padrão\): a IA segue o livro de regras/i));
+
+    const switchEl = getByTestId('config-roleplay-mode-switch');
+    const checkbox = (switchEl.tagName === 'INPUT' ? switchEl : switchEl.querySelector('input[type="checkbox"]')) as HTMLInputElement | null;
+    assert.ok(checkbox, 'Switch deve renderizar input checkbox na web');
+    await act(async () => {
+      checkbox!.click();
+    });
+
+    assert.ok(queryByText(/Ativado: ao interpretar Personagens ou Relíquias/i));
+
+    const saveBtn = getByText('Salvar Configurações');
+    await fireClick(saveBtn);
+
+    assert.ok(savedConfig);
+    assert.equal(savedConfig.relicPersona, 'anfitriao');
+    assert.equal(savedConfig.roleplayMode, true);
+  });
 });

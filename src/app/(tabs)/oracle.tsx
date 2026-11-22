@@ -23,6 +23,7 @@ import {
   AiConfig,
   AiMessage,
   DEFAULT_AI_CONFIG,
+  isRoleplayCapablePersona,
   ParanormalRelic,
   RELIC_PERSONAS,
 } from '../../types/ai';
@@ -33,6 +34,7 @@ import { AiConfigModal } from '../../components/AiConfigModal';
 import { PdfViewerModal, PdfViewerMode } from '../../components/PdfViewerModal';
 import { isPdfServerConfigured } from '../../utils/pdfUrl';
 import { BookInfo } from '../../types/compendium';
+import { showAlert } from '../../utils/alert';
 
 const QUICK_PROMPTS = [
   'Como funciona teste de atributo e penalidade?',
@@ -74,7 +76,6 @@ export default function OracleScreen() {
     characters,
     books,
     rollFormula,
-    openManual,
     setFilters,
   } = useApp();
 
@@ -366,11 +367,16 @@ export default function OracleScreen() {
           const bId = (b.id || '').toLowerCase();
           const bTitle = (b.title || '').toLowerCase();
           return bId === cleanId || bId.includes(cleanId) || cleanId.includes(bId) || bTitle.includes(cleanId);
-        }) || books[0];
+        }) || null;
       if (targetBook) {
         setSelectedBook(targetBook);
         setSelectedPageNumber(pageNumber);
         setReaderModalVisible(true);
+      } else {
+        showAlert(
+          'PDF não disponibilizado',
+          'Este livro ainda não foi enviado para o leitor. Acesse a aba Livros > Disponibilizar PDF para liberar a leitura das páginas.'
+        );
       }
     },
     [books]
@@ -405,14 +411,35 @@ export default function OracleScreen() {
     [router]
   );
 
-  const inputPlaceholder = currentRelicMeta.placeholder || 'Pergunte sobre regras, livros ou o aplicativo...';
-  const typingText = currentRelicMeta.typingText || 'G.L.I.T.C.H. analisando compêndio e manuais...';
+  const canUseRoleplay = isRoleplayCapablePersona(activeRelic);
+  const isRoleplayActive = Boolean(config.roleplayMode && canUseRoleplay);
+
+  const toggleRoleplayMode = () => {
+    saveConfig({
+      ...config,
+      roleplayMode: !config.roleplayMode,
+    });
+  };
+
+  const inputPlaceholder =
+    (isRoleplayActive && currentRelicMeta.roleplayPlaceholder) ||
+    currentRelicMeta.placeholder ||
+    'Pergunte sobre regras, livros ou o aplicativo...';
+  const typingText = isRoleplayActive
+    ? `${currentRelicMeta.name} entrando na cena...`
+    : currentRelicMeta.typingText || 'G.L.I.T.C.H. analisando compêndio e manuais...';
   const welcomeContent = {
     emoji: currentRelicMeta.emoji || '🔮',
     title: currentRelicMeta.welcomeTitle || currentRelicMeta.name,
-    subtitle: currentRelicMeta.welcomeSubtitle || currentRelicMeta.description,
+    subtitle:
+      (isRoleplayActive && currentRelicMeta.roleplayWelcomeSubtitle) ||
+      currentRelicMeta.welcomeSubtitle ||
+      currentRelicMeta.description,
   };
-  const activeQuickPrompts = currentRelicMeta.quickPrompts || QUICK_PROMPTS;
+  const activeQuickPrompts =
+    (isRoleplayActive && currentRelicMeta.roleplayQuickPrompts) ||
+    currentRelicMeta.quickPrompts ||
+    QUICK_PROMPTS;
 
   const bottomInset = Math.max(insets.bottom, 12);
   const activeColor = activeRelic === 'none' ? colors.primary : currentRelicMeta.color;
@@ -459,32 +486,6 @@ export default function OracleScreen() {
 
           {/* Botões do Topo */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {/* Status do Provedor */}
-            <TouchableOpacity
-              onPress={() => setConfigModalVisible(true)}
-              style={[styles.providerBadge, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-              accessibilityLabel="Status do provedor"
-            >
-              <Ionicons
-                name={
-                  config.provider === 'offline'
-                    ? 'cloud-offline-outline'
-                    : config.provider === 'gemini'
-                    ? 'logo-google'
-                    : 'flash-outline'
-                }
-                size={12}
-                color={colors.primary}
-              />
-              <Text style={[styles.providerBadgeText, { color: colors.textSecondary }]}>
-                {config.provider === 'gemini'
-                  ? 'Gemini'
-                  : config.provider === 'groq'
-                  ? 'Groq'
-                  : 'Offline'}
-              </Text>
-            </TouchableOpacity>
-
             {/* Limpar Chat */}
             {messages.length > 0 && (
               <TouchableOpacity
@@ -496,22 +497,47 @@ export default function OracleScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Configurações */}
+            {/* Status do Provedor & Configurações (unificados) */}
             <TouchableOpacity
               onPress={() => setConfigModalVisible(true)}
               style={[
-                styles.headerIconBtn,
+                styles.providerBadge,
                 {
                   backgroundColor: isMissingKey
                     ? 'rgba(239, 68, 68, 0.15)'
-                    : colors.primarySoft,
+                    : colors.surfaceElevated,
+                  borderColor: isMissingKey ? '#EF4444' : colors.border,
                 },
               ]}
               accessibilityLabel="Configurações de IA"
+              testID="oracle-config-button"
             >
               <Ionicons
+                name={
+                  config.provider === 'offline'
+                    ? 'cloud-offline-outline'
+                    : config.provider === 'gemini'
+                    ? 'logo-google'
+                    : 'flash-outline'
+                }
+                size={12}
+                color={isMissingKey ? '#EF4444' : colors.primary}
+              />
+              <Text
+                style={[
+                  styles.providerBadgeText,
+                  { color: isMissingKey ? '#EF4444' : colors.textSecondary },
+                ]}
+              >
+                {config.provider === 'gemini'
+                  ? 'Gemini'
+                  : config.provider === 'groq'
+                  ? 'Groq'
+                  : 'Offline'}
+              </Text>
+              <Ionicons
                 name="settings-outline"
-                size={16}
+                size={13}
                 color={isMissingKey ? '#EF4444' : colors.primary}
               />
             </TouchableOpacity>
@@ -601,6 +627,59 @@ export default function OracleScreen() {
             })}
           </ScrollView>
         </View>
+
+        {/* Alternador: Compromisso com a Realidade (Regras) vs Roleplay Livre */}
+        {canUseRoleplay && (
+          <View style={styles.roleplayBarRow}>
+            <TouchableOpacity
+              testID="roleplay-mode-toggle"
+              onPress={toggleRoleplayMode}
+              activeOpacity={0.8}
+              style={[
+                styles.roleplayTogglePill,
+                {
+                  backgroundColor: isRoleplayActive ? currentRelicMeta.accentBg : colors.surfaceElevated,
+                  borderColor: isRoleplayActive ? activeColor : colors.border,
+                },
+              ]}
+              accessibilityLabel="Alternar modo roleplay livre ou foco em regras"
+              accessibilityRole="switch"
+              accessibilityState={{ checked: isRoleplayActive }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                <Text style={{ fontSize: 13 }}>{isRoleplayActive ? '🎭' : '⚖️'}</Text>
+                <Text
+                  style={[
+                    styles.roleplayToggleTitle,
+                    { color: isRoleplayActive ? activeColor : colors.textSecondary },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {isRoleplayActive
+                    ? 'Roleplay Livre Ativo (Interpretação)'
+                    : 'Compromisso com a Realidade: Regras'}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.roleplayToggleAction,
+                  {
+                    backgroundColor: isRoleplayActive ? activeColor : colors.primarySoft,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.roleplayToggleActionText,
+                    { color: isRoleplayActive ? '#FFFFFF' : colors.primary },
+                  ]}
+                >
+                  {isRoleplayActive ? 'Usar Regras' : 'Ativar Roleplay'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Seletor de Agente Ativo para Contexto (se houver agentes cadastrados) */}
         {characters.length > 0 && (
@@ -830,18 +909,9 @@ export default function OracleScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
             <Ionicons name="radio" size={14} color="#FFFFFF" />
             <Text style={{ color: '#FFFFFF', fontSize: 11.5, fontWeight: '700' }} numberOfLines={1}>
-              🎙️ Ouvindo comando de voz... Fale agora.
+              🎙️ Ouvindo comando de voz... (toque no microfone para parar)
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => {
-              GlitchVoiceService.stopListening();
-              setIsListening(false);
-            }}
-            style={styles.voiceBannerAction}
-          >
-            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>Concluir</Text>
-          </TouchableOpacity>
         </View>
       )}
 
@@ -1042,6 +1112,33 @@ const styles = StyleSheet.create({
   },
   relicChipText: {
     fontSize: 11,
+  },
+  roleplayBarRow: {
+    marginTop: 6,
+  },
+  roleplayTogglePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  roleplayToggleTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
+  },
+  roleplayToggleAction: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  roleplayToggleActionText: {
+    fontSize: 10,
+    fontWeight: '800',
   },
   agentSelectorRow: {
     flexDirection: 'row',

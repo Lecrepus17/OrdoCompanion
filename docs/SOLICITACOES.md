@@ -83,11 +83,18 @@ npm run requests:questions
 | `SOL-ERR-HIST-01` | 🐛 Erro | Discord `#erros` (`#ORD-9386DK`, `#ORD-5040KS`) | OutOfMemoryError no upload de PDF no Android | `2026-11-09` / `v1.5.1-beta.1` |
 | `SOL-ERR-HIST-02` | 🐛 Erro | Discord `#erros` (`#ORD-5322T7`) | Maldições em proteções e salto de atributo na ficha assistida | `2026-11-18` / `v1.6.0-beta.1` |
 | `SOL-ERR-HIST-03` | 🐛 Erro | Chat Direto (`SOL-ERR-001`) | Falha no login Google OAuth em celulares de outros usuários (`access_denied`, scheme reverso Android e diagnóstico OAuth) | `2026-11-20` / `v1.6.0-beta.2` |
+| `SOL-ERR-HIST-04` | 🐛 Erro | Discord `#erros` (`#ORD-83296E`) | Múltiplas armaduras/proteções no Assistente de Proteções somando automaticamente na Defesa e RD, com alternância entre Ativa e Mochila | `2026-11-22` / `v1.7.0-beta.2` |
+| `SOL-ERR-HIST-05` | 🐛 Erro | Chat Direto (`SOL-ERR-002`) | Correção e validação ponta a ponta da Central de Suporte / Discord no Android APK, Web e Edge Function (`#erros` vs `#melhorias`, preservação de rascunho + reenvio, botão Abrir Discord no Hermes e ocultação de `Salvar Informações` na aba Suporte) | `2026-11-22` / `v1.7.0-beta.2` |
+| `SOL-ERR-HIST-06` | 🐛 Erro | Chat Direto (`SOL-ERR-001`) | Vestimentas com +2 em duas perícias (`Função Adicional` e `Amuleto Sagrado`) somadas nas colunas `Outros` e `BÔNUS` da impressão PDF (`LB` e `SH`) com seletor direto no `ItemEditorModal` | `2026-11-22` / `v1.7.0-beta.2` |
+| `SOL-ERR-HIST-07` | 🐛 Erro | Chat Direto (`SOL-ERR-002`) | Bônus extras passivos de Sanidade/Enlouquecer (`Vontade` + itens), Defesa, Poderes, Origens, Trilhas (`Iniciativa Aprimorada`, `Gatuno`, `O Sorriso`, `Ser Escarificado`), Maldições de Acessórios/Proteções (`Sombria`/`Lépida`) e Forma Suprema na ficha ativa e impressão PDF | `2026-11-22` / `v1.7.0-beta.2` |
 | `SOL-MEL-HIST-01` | 💡 Melhoria | Discord `#erros` (`#ORD-33762V`) | Mecânica dos Mascarados & Forma Suprema | `2026-11-13` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-02` | 💡 Melhoria | Discord `#erros` (`#ORD-4662K3`) | Importar itens do Compêndio na aba Inventário do Agente | `2026-11-14` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-03` | 💡 Melhoria | Discord `#erros` (`#ORD-4017YV`) | Armaria para proteções, vestimentas e itens com maldições | `2026-11-18` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-04` | 💡 Melhoria | Discord `#erros` (`#ORD-913969`) | Criador completo de Ameaças estilo C.R.I.S. (VD 20–400) | `2026-11-18` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-05` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Aplicativo para PC (Web App + PWA Instalável Offline) com backup `.json` em disco e atualizador PC | `2026-11-20` / `v1.6.0-beta.2` |
+| `SOL-MEL-HIST-06` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Modo Roleplay Livre vs. Compromisso com a Realidade (desativado por padrão) e base de lore expandida para Personagens e Relíquias na IA G.L.I.T.C.H. | `2026-11-22` / `v1.7.0-beta.2` |
+| `SOL-MEL-HIST-07` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Núcleo essencial do Livro Base (3 Classes, 28 Perícias e 37 Condições) liberado por padrão mantendo o PDF, leitor e demais 734 registros/9 livros bloqueados até o upload | `2026-11-22` / `v1.7.0-beta.2` |
+| `SOL-MEL-HIST-08` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Varredura geral e eliminação de botões/controles duplicados em todas as 48 telas e modais do aplicativo (Lotes 1 a 5), centralizando Suporte/Temas/Backup no Perfil do Usuário | `2026-11-22` / `v1.7.0-beta.2` |
 
 ---
 

@@ -402,8 +402,14 @@ export async function sendAiChatMessage({
 
   // Se o provedor for 'offline' ou se for um provedor que exige chave e nenhuma estiver configurada, utiliza o sintetizador local gratuito
   if (config.provider === 'offline' || (isKeyRequired && !effectiveApiKey)) {
-    const offlineMsg = generateOfflineResponse(query, knowledge, knowledge.resolvedPersona);
-    const parsed = parseCitationsAndActions(offlineMsg.content, offlineMsg.citations);
+    const offlineMsg = generateOfflineResponse(
+      query,
+      knowledge,
+      knowledge.resolvedPersona,
+      Boolean(knowledge.roleplayModeActive)
+    );
+    const baseCitations = knowledge.roleplayModeActive ? [] : offlineMsg.citations;
+    const parsed = parseCitationsAndActions(offlineMsg.content, baseCitations);
     return {
       ...offlineMsg,
       citations: parsed.citations,
@@ -414,8 +420,14 @@ export async function sendAiChatMessage({
 
   // Se o provedor for 'gemini' e a chave for inválida no formato, transiciona graciosamente para o motor offline sem quebrar
   if (config.provider === 'gemini' && !validateKey(effectiveApiKey)) {
-    const offlineMsg = generateOfflineResponse(query, knowledge, knowledge.resolvedPersona);
-    const parsed = parseCitationsAndActions(offlineMsg.content, offlineMsg.citations);
+    const offlineMsg = generateOfflineResponse(
+      query,
+      knowledge,
+      knowledge.resolvedPersona,
+      Boolean(knowledge.roleplayModeActive)
+    );
+    const baseCitations = knowledge.roleplayModeActive ? [] : offlineMsg.citations;
+    const parsed = parseCitationsAndActions(offlineMsg.content, baseCitations);
     const reason = !effectiveApiKey
       ? 'Nenhuma chave de API configurada'
       : 'Chave de API do Gemini inválida ou não configurada';
@@ -447,8 +459,14 @@ export async function sendAiChatMessage({
 
     // Se o fallback offline estiver ativado, retorna a resposta offline com um aviso
     if (config.offlineFallback) {
-      const fallback = generateOfflineResponse(query, knowledge, knowledge.resolvedPersona);
-      const parsed = parseCitationsAndActions(fallback.content, fallback.citations);
+      const fallback = generateOfflineResponse(
+        query,
+        knowledge,
+        knowledge.resolvedPersona,
+        Boolean(knowledge.roleplayModeActive)
+      );
+      const baseCitations = knowledge.roleplayModeActive ? [] : fallback.citations;
+      const parsed = parseCitationsAndActions(fallback.content, baseCitations);
       return {
         ...fallback,
         content: `⚠️ *Não foi possível conectar à API de IA (${error.message || 'Falha de rede'}). Exibindo resposta através dos registros locais:*\n\n${fallback.content}`,
@@ -512,13 +530,17 @@ async function callGeminiApi(
     });
   }
 
+  const effectiveTemperature = knowledge.roleplayModeActive
+    ? Math.max(config.temperature ?? 0.4, 0.75)
+    : (config.temperature ?? 0.4);
+
   const payload = {
     system_instruction: {
       parts: [{ text: knowledge.systemPrompt }],
     },
     contents,
     generationConfig: {
-      temperature: config.temperature ?? 0.4,
+      temperature: effectiveTemperature,
       maxOutputTokens: 2048,
     },
   };
@@ -571,7 +593,8 @@ async function callGeminiApi(
 
       const data = await response.json();
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Nenhuma resposta gerada.';
-      const { citations, actions } = parseCitationsAndActions(rawText, knowledge.citations);
+      const retrievedCitations = knowledge.roleplayModeActive ? [] : knowledge.citations;
+      const { citations, actions } = parseCitationsAndActions(rawText, retrievedCitations);
 
       return {
         id: `msg_gemini_${Date.now()}`,
@@ -627,6 +650,10 @@ async function callGroqApi(
   const sanitizedKey = sanitizeApiKey(config.apiKey);
   let lastError: Error | null = null;
 
+  const effectiveTemperature = knowledge.roleplayModeActive
+    ? Math.max(config.temperature ?? 0.4, 0.75)
+    : (config.temperature ?? 0.4);
+
   for (const currentModel of modelsToTry) {
     try {
       const response = await fetch(url, {
@@ -638,7 +665,7 @@ async function callGroqApi(
         body: JSON.stringify({
           model: currentModel,
           messages,
-          temperature: config.temperature ?? 0.4,
+          temperature: effectiveTemperature,
           max_tokens: 2048,
         }),
       });
@@ -678,7 +705,8 @@ async function callGroqApi(
 
       const data = await response.json();
       const rawText = data?.choices?.[0]?.message?.content || 'Nenhuma resposta gerada.';
-      const { citations, actions } = parseCitationsAndActions(rawText, knowledge.citations);
+      const retrievedCitations = knowledge.roleplayModeActive ? [] : knowledge.citations;
+      const { citations, actions } = parseCitationsAndActions(rawText, retrievedCitations);
 
       return {
         id: `msg_groq_${Date.now()}`,
@@ -730,11 +758,15 @@ async function callOpenAiCompatibleApi(
     headers['Authorization'] = `Bearer ${config.apiKey.trim()}`;
   }
 
+  const effectiveTemperature = knowledge.roleplayModeActive
+    ? Math.max(config.temperature ?? 0.4, 0.75)
+    : (config.temperature ?? 0.4);
+
   const isNativeOllamaApi = url.endsWith('/api/chat');
   const payload: Record<string, any> = {
     model: modelName,
     messages,
-    temperature: config.temperature ?? 0.4,
+    temperature: effectiveTemperature,
   };
   if (isNativeOllamaApi) {
     payload.stream = false;
@@ -760,7 +792,8 @@ async function callOpenAiCompatibleApi(
     data?.choices?.[0]?.message?.content ||
     data?.message?.content ||
     'Sem resposta.';
-  const { citations, actions } = parseCitationsAndActions(rawText, knowledge.citations);
+  const retrievedCitations = knowledge.roleplayModeActive ? [] : knowledge.citations;
+  const { citations, actions } = parseCitationsAndActions(rawText, retrievedCitations);
 
   return {
     id: `msg_compat_${Date.now()}`,

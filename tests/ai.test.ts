@@ -18,7 +18,7 @@ import {
   testAiConnection,
 } from '../src/services/ai/AiClient';
 import { generateOfflineResponse } from '../src/services/ai/AiOfflineEngine';
-import { DEFAULT_AI_CONFIG, RELIC_PERSONAS } from '../src/types/ai';
+import { DEFAULT_AI_CONFIG, isRoleplayCapablePersona, RELIC_PERSONAS } from '../src/types/ai';
 import { CharacterSheet } from '../src/types/compendium';
 
 describe('G.L.I.T.C.H. - Extração de Palavras-Chave e RAG (AiKnowledgeRetrieval.ts)', () => {
@@ -168,6 +168,65 @@ describe('G.L.I.T.C.H. - Extração de Palavras-Chave e RAG (AiKnowledgeRetrieva
     assert.ok(knowledge.systemPrompt.includes('[CRIAÇÃO CASEIRA / HOMEBREW]'));
     assert.ok(knowledge.systemPrompt.includes('REGRA ABSOLUTA DE PROTOCOLO DO G.L.I.T.C.H.'));
     assert.ok(knowledge.systemPrompt.includes('Que a Realidade não se curve!'));
+  });
+
+  test('DEFAULT_AI_CONFIG deve manter roleplayMode desativado (false) por padrão e preservar compromisso com regras', () => {
+    assert.equal(DEFAULT_AI_CONFIG.roleplayMode, false);
+    const knowledgeDefault = retrieveAiKnowledge('vamos tomar um café diante do lodo?', {
+      ...DEFAULT_AI_CONFIG,
+      relicPersona: 'deus_da_morte',
+    });
+    assert.equal(knowledgeDefault.roleplayModeActive, false);
+    assert.ok(knowledgeDefault.systemPrompt.includes('DIRETRIZ SUPREMA DE VERACIDADE CANÔNICA'));
+    assert.ok(knowledgeDefault.systemPrompt.includes('REGRA ABSOLUTA DE OURO DO DEUS DA MORTE'));
+  });
+
+  test('isRoleplayCapablePersona deve habilitar roleplay apenas para Personas Canônicas e Relíquias', () => {
+    assert.equal(isRoleplayCapablePersona('none'), false);
+    assert.equal(isRoleplayCapablePersona('arbitro_regras'), false);
+    assert.equal(isRoleplayCapablePersona('co_mestre'), false);
+    assert.equal(isRoleplayCapablePersona('build_advisor'), false);
+
+    assert.equal(isRoleplayCapablePersona('verissimo'), true);
+    assert.equal(isRoleplayCapablePersona('cervero'), true);
+    assert.equal(isRoleplayCapablePersona('kian'), true);
+    assert.equal(isRoleplayCapablePersona('anfitriao'), true);
+    assert.equal(isRoleplayCapablePersona('magistrada'), true);
+    assert.equal(isRoleplayCapablePersona('deus_da_morte'), true);
+    assert.equal(isRoleplayCapablePersona('diabo'), true);
+    assert.equal(isRoleplayCapablePersona('random'), true);
+  });
+
+  test('retrieveAiKnowledge com roleplayMode=true deve ativar Modo Roleplay Livre e base expandida para Relíquias e Personagens', () => {
+    const relicKnowledge = retrieveAiKnowledge('Se eu tomar um café com você, como reage?', {
+      ...DEFAULT_AI_CONFIG,
+      relicPersona: 'deus_da_morte',
+      roleplayMode: true,
+    });
+    assert.equal(relicKnowledge.roleplayModeActive, true);
+    assert.ok(relicKnowledge.systemPrompt.includes('MODO ROLEPLAY LIVRE — CONTEMPLAÇÃO NA ESPIRAL'));
+    assert.ok(relicKnowledge.systemPrompt.includes('DIRETRIZ DE MODO ROLEPLAY LIVRE'));
+    assert.ok(!relicKnowledge.systemPrompt.includes('DIRETRIZ SUPREMA DE VERACIDADE CANÔNICA'));
+    assert.ok(relicKnowledge.systemPrompt.includes('BASE DE LORE E RELAÇÕES DO DEUS DA MORTE'));
+    assert.equal(relicKnowledge.citations.length, 0);
+
+    const canonKnowledge = retrieveAiKnowledge('como aguenta a liderança?', {
+      ...DEFAULT_AI_CONFIG,
+      relicPersona: 'verissimo',
+      roleplayMode: true,
+    });
+    assert.equal(canonKnowledge.roleplayModeActive, true);
+    assert.ok(canonKnowledge.systemPrompt.includes('MODO ROLEPLAY LIVRE — CONVERSA NA SALA DE COMANDO'));
+    assert.ok(canonKnowledge.systemPrompt.includes('Suvaco Seco'));
+
+    // Especialista continua no modo de regras mesmo se roleplayMode=true estiver marcado na config
+    const specialistKnowledge = retrieveAiKnowledge('como funciona agarrar?', {
+      ...DEFAULT_AI_CONFIG,
+      relicPersona: 'arbitro_regras',
+      roleplayMode: true,
+    });
+    assert.equal(specialistKnowledge.roleplayModeActive, false);
+    assert.ok(specialistKnowledge.systemPrompt.includes('DIRETRIZ SUPREMA DE VERACIDADE CANÔNICA'));
   });
 });
 
@@ -398,5 +457,42 @@ describe('G.L.I.T.C.H. - Motor Offline de Relíquias (AiOfflineEngine.ts)', () =
     const msg = generateOfflineResponse('lâmina de medo', mockKnowledge, 'none');
     assert.ok(msg.content.includes('Fonte: Sobrevivendo ao Horror — [Sobrevivendo ao Horror, Pág. 42]'));
     assert.ok(!msg.content.includes('[Livro Base, Pág. 42]'));
+  });
+
+  test('generateOfflineResponse com roleplayMode=true deve responder em personagem a perguntas cotidianas e situacionais sem erro de regra não encontrada', () => {
+    const queryMorte = 'Se eu me sentar para tomar um café diante do lodo, como você reagiria?';
+    const knowledgeMorte = retrieveAiKnowledge(queryMorte, {
+      ...DEFAULT_AI_CONFIG,
+      relicPersona: 'deus_da_morte',
+      roleplayMode: true,
+    });
+    const msgMorte = generateOfflineResponse(queryMorte, knowledgeMorte, 'deus_da_morte', true);
+
+    assert.equal(msgMorte.relicPersona, 'deus_da_morte');
+    assert.equal(msgMorte.citations?.length ?? 0, 0);
+    assert.ok(!msgMorte.content.includes('não localizei registros'));
+    assert.ok(!msgMorte.content.includes('O silêncio engoliu essa busca'));
+    assert.ok(msgMorte.content.includes('café') || msgMorte.content.includes('xícara'));
+
+    const queryAnfitriao = 'Qual a sua opinião sincera sobre a Magistrada?';
+    const knowledgeAnfitriao = retrieveAiKnowledge(queryAnfitriao, {
+      ...DEFAULT_AI_CONFIG,
+      relicPersona: 'anfitriao',
+      roleplayMode: true,
+    });
+    const msgAnfitriao = generateOfflineResponse(queryAnfitriao, knowledgeAnfitriao, 'anfitriao', true);
+    assert.equal(msgAnfitriao.relicPersona, 'anfitriao');
+    assert.ok(msgAnfitriao.content.includes('Magistrada'));
+    assert.ok(!msgAnfitriao.content.includes('Nem mesmo o Caos conseguiu pescar esse termo'));
+
+    const queryCervero = 'Arthur, o que você anda tocando na guitarra ultimamente?';
+    const knowledgeCervero = retrieveAiKnowledge(queryCervero, {
+      ...DEFAULT_AI_CONFIG,
+      relicPersona: 'cervero',
+      roleplayMode: true,
+    });
+    const msgCervero = generateOfflineResponse(queryCervero, knowledgeCervero, 'cervero', true);
+    assert.equal(msgCervero.relicPersona, 'cervero');
+    assert.ok(msgCervero.content.includes('parceiro') || msgCervero.content.includes('Gaudérios'));
   });
 });

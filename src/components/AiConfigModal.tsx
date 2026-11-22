@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
-import { AiConfig, AiProvider, ParanormalRelic, RELIC_PERSONAS } from '../types/ai';
+import { AiConfig, AiProvider, isRoleplayCapablePersona, ParanormalRelic, RELIC_PERSONAS } from '../types/ai';
 import {
   getDefaultGeminiApiKey,
   hasDefaultApiKey,
@@ -75,6 +75,7 @@ export function AiConfigModal({
   const [relicPersona, setRelicPersona] = useState<ParanormalRelic>(
     config.relicPersona || (config.anfitriaoMode ? 'anfitriao' : 'none')
   );
+  const [roleplayMode, setRoleplayMode] = useState(config.roleplayMode ?? false);
   const [customInstructions, setCustomInstructions] = useState(config.customInstructions || '');
   const [offlineFallback, setOfflineFallback] = useState(config.offlineFallback);
   const [voiceEnabled, setVoiceEnabled] = useState(config.voiceEnabled ?? false);
@@ -116,6 +117,7 @@ export function AiConfigModal({
           : config.model || 'gemini-flash-lite-latest'
       );
       setRelicPersona(config.relicPersona || (config.anfitriaoMode ? 'anfitriao' : 'none'));
+      setRoleplayMode(config.roleplayMode ?? false);
       setCustomInstructions(config.customInstructions || '');
       setOfflineFallback(config.offlineFallback);
       setVoiceEnabled(config.voiceEnabled ?? false);
@@ -141,6 +143,7 @@ export function AiConfigModal({
         offlineFallback,
         relicPersona,
         anfitriaoMode: relicPersona === 'anfitriao',
+        roleplayMode,
         customInstructions,
       });
       setTestResult(res);
@@ -162,6 +165,7 @@ export function AiConfigModal({
       offlineFallback,
       relicPersona,
       anfitriaoMode: relicPersona === 'anfitriao',
+      roleplayMode,
       customInstructions: customInstructions.trim(),
       voiceEnabled,
       voiceAutoRead,
@@ -188,7 +192,7 @@ export function AiConfigModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View style={styles.modalOverlay}>
         <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {/* Header */}
@@ -204,7 +208,7 @@ export function AiConfigModal({
                 </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
               <Ionicons name="close" size={22} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
@@ -221,15 +225,6 @@ export function AiConfigModal({
               <Text style={{ color: '#C7D2FE', fontSize: 12, marginTop: 4, lineHeight: 17 }}>
                 O OrdoCompanion não cobra nada e se conecta diretamente à API gratuita do Google Gemini ou Groq. Sua chave fica gravada apenas no seu celular.
               </Text>
-              <TouchableOpacity
-                onPress={openGoogleAiStudio}
-                style={[styles.linkBtn, { backgroundColor: '#4F46E5', marginTop: 10 }]}
-              >
-                <Ionicons name="key-outline" size={14} color="#FFFFFF" />
-                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>
-                  Obter Chave Grátis no Google AI Studio (30 seg)
-                </Text>
-              </TouchableOpacity>
             </View>
 
             {/* SELEÇÃO DO PROVEDOR */}
@@ -491,8 +486,39 @@ export function AiConfigModal({
                 </Text>
               </View>
               <Text style={{ fontSize: 11.5, color: colors.textMuted, marginBottom: 10, lineHeight: 16 }}>
-                Escolha qual entidade responderá às suas dúvidas no chat. Cada Relíquia tem estilo, gírias e teatralidade únicos, mas todas mantêm 100% de exatidão nas regras e cálculos!
+                Escolha qual entidade responderá às suas dúvidas no chat. Cada Relíquia tem estilo, gírias e teatralidade únicos!
               </Text>
+
+              {/* MODO ROLEPLAY LIVRE VS COMPROMISSO COM A REALIDADE */}
+              {isRoleplayCapablePersona(relicPersona) && (
+                <View
+                  style={[
+                    styles.roleplayConfigCard,
+                    {
+                      backgroundColor: roleplayMode ? 'rgba(168, 85, 247, 0.1)' : colors.surfaceElevated,
+                      borderColor: roleplayMode ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '800' }}>
+                      🎭 Modo Roleplay Livre (Desativar Compromisso com Regras)
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3, lineHeight: 15 }}>
+                      {roleplayMode
+                        ? 'Ativado: ao interpretar Personagens ou Relíquias, a IA foca na interpretação, lore e conversas situacionais/descontraídas.'
+                        : 'Desativado (Padrão): a IA segue o livro de regras à risca para responder dúvidas mecânicas e cálculos.'}
+                    </Text>
+                  </View>
+                  <Switch
+                    testID="config-roleplay-mode-switch"
+                    value={roleplayMode}
+                    onValueChange={setRoleplayMode}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              )}
 
               <View style={styles.relicGrid}>
                 {RELIC_OPTIONS.map((opt) => {
@@ -803,7 +829,7 @@ export function AiConfigModal({
           {/* Rodapé de Ações */}
           <View style={[styles.footer, { borderTopColor: colors.border }]}>
             <TouchableOpacity
-              onPress={onClose}
+              onPress={handleClose}
               style={[styles.footerBtn, { backgroundColor: colors.surfaceElevated }]}
             >
               <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>Cancelar</Text>
@@ -989,6 +1015,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 14,
+  },
+  roleplayConfigCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
   },
   voiceOptionsBox: {
     marginTop: 10,

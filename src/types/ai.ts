@@ -41,6 +41,15 @@ export interface RelicPersonaMetadata {
   welcomeSubtitle?: string;
   placeholder?: string;
   typingText?: string;
+  roleplayQuickPrompts?: string[];
+  roleplayWelcomeSubtitle?: string;
+  roleplayPlaceholder?: string;
+}
+
+export function isRoleplayCapablePersona(persona?: ParanormalRelic | null): boolean {
+  if (!persona) return false;
+  const meta = RELIC_PERSONAS[persona];
+  return Boolean(meta && (meta.category === 'canon' || meta.category === 'relics'));
 }
 
 export interface AiPersonaMetadata extends RelicPersonaMetadata {}
@@ -173,6 +182,14 @@ export const RELIC_PERSONAS: Record<ParanormalRelic, RelicPersonaMetadata> = {
     welcomeSubtitle: 'Na minha mesa só entram fatos e preparação tática. Agente, relate a situação de campo para que possamos traçar o melhor plano de ação. Que a Realidade não se curve!',
     placeholder: 'Senhor Veríssimo, qual o protocolo da Ordem para...',
     typingText: 'Senhor Veríssimo avaliando o relatório tático...',
+    roleplayWelcomeSubtitle: 'Feche os relatórios por um minuto, Agente. Aqui na sala de comando podemos conversar abertamente sobre a missão, a equipe ou o peso de carregar essa bandeira.',
+    roleplayPlaceholder: 'Converse com o Senhor Veríssimo...',
+    roleplayQuickPrompts: [
+      'Senhor Veríssimo, como você aguenta o peso de liderar a Ordem depois de tantas perdas?',
+      'Ainda sobra tempo para um café tranquilo aí embaixo do Suvaco Seco?',
+      'O que você realmente acha dos novos recrutas que chegaram este mês?',
+      'Se tudo desse errado hoje, qual seria sua última ordem para a equipe?',
+    ],
   },
   cervero: {
     id: 'cervero',
@@ -198,6 +215,14 @@ export const RELIC_PERSONAS: Record<ParanormalRelic, RelicPersonaMetadata> = {
     welcomeSubtitle: 'Já vi muita coisa cair nesse Outro Lado, mas a gente continua de pé. Me diz qual é a bronca que a gente resolve no braço e na manha.',
     placeholder: 'Arthur, como você lidaria com essa situação...',
     typingText: 'Arthur lembrando das lições de missões passadas...',
+    roleplayWelcomeSubtitle: 'Puxa uma cadeira aí, parceiro. Sem formalidade de missão agora — pode falar de música, de estrada, dos perrengues ou só jogar conversa fora.',
+    roleplayPlaceholder: 'Bata um papo com o Arthur Cervero...',
+    roleplayQuickPrompts: [
+      'Arthur, o que você anda tocando na guitarra ultimamente para espantar os pesadelos?',
+      'Qual foi o maior susto que você já passou numa estrada de madrugada?',
+      'Como você faz para continuar sorrindo mesmo depois de perder tanta gente querida?',
+      'Bora comer alguma coisa depois da missão? Qual é a sua pedida?',
+    ],
   },
   kian: {
     id: 'kian',
@@ -223,6 +248,14 @@ export const RELIC_PERSONAS: Record<ParanormalRelic, RelicPersonaMetadata> = {
     welcomeSubtitle: 'Você enxerga apenas a casca da Realidade. O Outro Lado pulsa por trás de cada fresta. Traga seus questionamentos e contemple a verdade sem filtros.',
     placeholder: 'Kian, revele o mistério sobre...',
     typingText: 'Kian perscrutando os registros ancestrais...',
+    roleplayWelcomeSubtitle: 'Quatro milênios de memória repousam diante de você, mortal. Fale livremente — sobre o mundo antigo, suas convicções ou o que bem entender antes do fim.',
+    roleplayPlaceholder: 'Dialogue com Kian...',
+    roleplayQuickPrompts: [
+      'Kian, do que você mais sente falta da época em que ainda era apenas Kushim?',
+      'Você realmente não sente remorso nenhum pelo destino dos Escriptas?',
+      'O que você responderia se um agente te convidasse para conversar em paz sem armas?',
+      'Por que você despreza tanto as Relíquias do Outro Lado?',
+    ],
   },
 
   // --- RELÍQUIAS DO OUTRO LADO ---
@@ -248,6 +281,14 @@ export const RELIC_PERSONAS: Record<ParanormalRelic, RelicPersonaMetadata> = {
     welcomeSubtitle: 'Eu sou o Anfitrião! Pergunte sobre qualquer regra, ritual ou como operar essa engrenagem chamada OrdoCompanion. O espetáculo é seu, o caos é meu, mas as regras são sagradas!',
     placeholder: 'Faça sua aposta... Diga, o que quer saber?',
     typingText: 'O Anfitrião está preparando o espetáculo...',
+    roleplayWelcomeSubtitle: 'LUZES, CÂMERA, CURTO-CIRCUITO! Esquece esse livro de regras empoeirado aí no canto — hoje o palco é todo nosso! Puxe assunto, faça uma aposta maluca ou me provoque!',
+    roleplayPlaceholder: 'Entre no show do Anfitrião...',
+    roleplayQuickPrompts: [
+      'Anfitrião, qual a sua opinião sincera sobre a chatice da Magistrada?',
+      'Se eu desafiasse você para uma partida de truco valendo minha sanidade, você aceitaria?',
+      'O que o Deus da Morte faz que te deixa mais entediado?',
+      'Qual foi a maior palhaçada que você já aprontou com um grupo de agentes?',
+    ],
   },
   magistrada: {
     id: 'magistrada',
@@ -271,6 +312,14 @@ export const RELIC_PERSONAS: Record<ParanormalRelic, RelicPersonaMetadata> = {
     welcomeSubtitle: 'Eu sou a Magistrada. Todos os fatos, rituais e memórias da Realidade estão gravados na Máscara do Desespero. Apresente seus questionamentos para que a verdade seja lavrada.',
     placeholder: 'Apresente os fatos ao tribunal do Conhecimento...',
     typingText: 'A Magistrada está deliberando nos autos...',
+    roleplayWelcomeSubtitle: 'Os protocolos formais foram suspensos nesta audiência. Dirija-se à Máscara do Desespero com suas indagações pessoais, dilemas ou provocações.',
+    roleplayPlaceholder: 'Dirija-se à Magistrada...',
+    roleplayQuickPrompts: [
+      'Magistrada, você ainda lembra de quem era antes de vestir a Máscara do Desespero?',
+      'Por que o barulho do Anfitrião te incomoda tanto se você vê tudo com frieza?',
+      'O que aconteceria se alguém te oferecesse uma xícara de chá em pleno tribunal?',
+      'Vale mesmo a pena sacrificar tanto livre-arbítrio pelo Equilíbrio?',
+    ],
   },
   deus_da_morte: {
     id: 'deus_da_morte',
@@ -294,6 +343,14 @@ export const RELIC_PERSONAS: Record<ParanormalRelic, RelicPersonaMetadata> = {
     welcomeSubtitle: 'Eu sou o Deus da Morte. O tempo escorre gota a gota... consulte as eras passadas, as regras imutáveis e os rituais que a cinza e o lodo preservaram.',
     placeholder: 'O tempo escorre... o que deseja consultar na espiral?',
     typingText: 'O Deus da Morte está consultando a espiral do tempo...',
+    roleplayWelcomeSubtitle: 'Sente-se diante do lodo, pequeno ser efêmero. Não há manuais ou pressa aqui... conte-me como os mortais desperdiçam seus preciosos segundos.',
+    roleplayPlaceholder: 'Converse com o Deus da Morte...',
+    roleplayQuickPrompts: [
+      'Se eu sentasse aqui para tomar um café e conversar sobre a vida, como você reagiria?',
+      'O que você acha da pressa dos humanos e dos agentes da Ordem?',
+      'Qual a sua opinião sobre o show barulhento do Anfitrião e a fúria do Diabo?',
+      'Depois de tantos séculos na espiral, o silêncio nunca te entedia?',
+    ],
   },
   diabo: {
     id: 'diabo',
@@ -317,6 +374,14 @@ export const RELIC_PERSONAS: Record<ParanormalRelic, RelicPersonaMetadata> = {
     welcomeSubtitle: 'Eu sou o Diabo! A carne ferve e o sangue pulsa! Traga suas dúvidas de combate, armas, dano letal e rituais mortíferos. Aqui a força não vacila!',
     placeholder: 'Fale logo, mortal! Qual combate ou regra quer devorar?',
     typingText: 'O Diabo está farejando os registros de combate...',
+    roleplayWelcomeSubtitle: 'Esqueça as contas frias por um instante! O Trono de Sangue quer saber o que faz seu coração bater mais rápido... qual é o seu maior desejo ou fúria, mortal?',
+    roleplayPlaceholder: 'Provoque ou negocie com o Diabo...',
+    roleplayQuickPrompts: [
+      'Diabo, o que seria preciso para te convencer a fazer um pacto favorável sem perder minha alma?',
+      'Por que você detesta tanto o lodo lento do Deus da Morte?',
+      'O que você faria se um agente entrasse na sua frente só para elogiar sua postura?',
+      'Fora do campo de batalha, o que realmente diverte o Senhor do Trono de Sangue?',
+    ],
   },
   random: {
     id: 'random',
@@ -340,6 +405,14 @@ export const RELIC_PERSONAS: Record<ParanormalRelic, RelicPersonaMetadata> = {
     welcomeSubtitle: 'A cada resposta, uma das 4 Relíquias primordiais (Anfitrião, Magistrada, Deus da Morte ou Diabo) se manifestará para responder seu questionamento!',
     placeholder: 'Qualquer Relíquia pode responder... faça sua pergunta!',
     typingText: 'Uma Relíquia está sendo invocada ao acaso...',
+    roleplayWelcomeSubtitle: 'As quatro Relíquias escutam do outro lado da Membrana! Lance uma provocação ou pergunta cotidiana e descubra qual entidade decidirá responder primeiro.',
+    roleplayPlaceholder: 'Lance qualquer assunto para o Outro Lado...',
+    roleplayQuickPrompts: [
+      'Qual de vocês quatro sobreviveria a um dia inteiro trabalhando num escritório comum?',
+      'O que vocês realmente acham uma da outra quando os humanos não estão ouvindo?',
+      'Se eu oferecesse um banquete agora, o que cada Relíquia escolheria?',
+      'Qual foi a coisa mais absurda que um humano já pediu a vocês?',
+    ],
   },
 };
 
@@ -387,6 +460,12 @@ export interface AiConfig {
   relicPersona: ParanormalRelic;
   /** Legado mantido para retrocompatibilidade */
   anfitriaoMode?: boolean;
+  /**
+   * Modo Roleplay Livre (Desativa o compromisso estrito com regras mecânicas ao interpretar Personagens ou Relíquias).
+   * - false (Padrão): Compromisso com a Realidade ativo — foco estrito no livro de regras e mecânicas.
+   * - true: Roleplay Livre ativo — foco em interpretação, lore, reações situacionais e conversas descontraídas.
+   */
+  roleplayMode?: boolean;
   /** Instrução personalizada adicional definida livremente pelo usuário */
   customInstructions?: string;
   /** Suporte a comando e resposta por voz (Speech-to-Text e Text-to-Speech) */
@@ -411,6 +490,7 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   offlineFallback: true,
   relicPersona: 'none',
   anfitriaoMode: false,
+  roleplayMode: false,
   customInstructions: '',
   voiceEnabled: false,
   voiceAutoRead: false,

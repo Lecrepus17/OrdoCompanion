@@ -6,11 +6,39 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente no momento)*
+*(Nenhum commit pendente nesta fila — todos os commits do ciclo `v1.7.0-beta.2` foram executados.)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ Varredura Geral e Eliminação de Botões/Controles Duplicados em Todas as Telas e Modais (`SOL-MEL-001`) (2026-11-22):
+- **Título**: `refactor(ui): elimina botoes duplicados e padroniza acoes em todas as telas e modais`
+- **Resumo**: Lotes 1 a 5 eliminando botões/controles redundantes em 48 telas e modais, ocultando atalho G.L.I.T.C.H. quando Oráculo está ativo/fixado, removendo 7 botões Manual/Regras duplicados, centralizando Suporte/Temas/Backup no `UserProfileModal`, adicionando `tests/uiDeduplicationRegression.test.tsx` e atualizando 10 suítes de frontend/navegação.
+
+### ✅ Núcleo Essencial do Livro Base Liberado por Padrão (Sem Expor PDF — `SOL-MEL-001`) (2026-11-22):
+- **Título**: `feat(compendium,pdf): libera nucleo essencial do Livro Base por padrao mantendo PDF bloqueado`
+- **Resumo**: Separa acesso de dados (`isEntityUnlocked`, liberando 3 Classes, 28 Perícias e 37 Condições do Livro Base) do acesso ao PDF (`isBookUnlocked`, leitor e outros 9 livros bloqueados), remove fallbacks de abertura sem upload e atualiza `tests/pdfAccessAndUnlock.test.tsx` e `tests/deletePdfBook.test.tsx`.
+
+### ✅ Vestimentas com Duas Perícias e Bônus Extras na Impressão PDF & Ficha Ativa (`SOL-ERR-001` / `SOL-ERR-002`) (2026-11-22):
+- **Título**: `fix(printer,rules): soma vestimentas duplas e todos os bonus/campos extras na impressao PDF e ficha ativa`
+- **Resumo**: Suporta multi-perícia (`Função Adicional` / `Amuleto Sagrado`), maldições e poderes passivos em `inventorySkills.ts`, `inventoryItems.ts`, `progression.ts`, `sheetPrinter.ts`, `PrintSheetModal.tsx` e `characters.tsx`, com ampliação de `tests/rulesInventorySkills.test.ts` e `tests/sheetPrinter.test.ts`.
+
+### ✅ Vídeo Promocional Multiplataforma (Celular Android APK + PC Web/Desktop PWA) (2026-11-22):
+- **Título**: `chore(marketing): adiciona showcase PC Desktop PWA no video promocional e thumbnail`
+- **Resumo**: Cria `DesktopFrame.tsx` e atualiza `video/src/Promo.tsx`, `copy.ts`, `EndCard.tsx`, legendas e `docs/PLANO_VIDEO_PROMOCIONAL.md` com showcase multiplataforma Celular + PC e Thumbnail Duo Showcase.
+
+### ✅ Correção & Validação Completa da Central de Suporte / Discord no Android, Web e Edge Function (`SOL-ERR-002`) (2026-11-22):
+- **Título**: `fix(support,android): corrige envio ao discord no celular, reenvio local e roteamento da edge function`
+- **Resumo**: Corrige `handleOpenDiscord` no Android APK, adiciona timeout Hermes-safe e reenvio local em `SupportService.ts`, refatora `supabase/functions/support-webhook/index.ts` para `#erros` vs `#melhorias`, oculta `Salvar Informações` na aba Suporte do `UserProfileModal.tsx` e amplia `tests/supportService.test.ts` e `tests/frontendSupport.test.tsx`.
+
+### ✅ Múltiplas Armaduras/Proteções no Assistente de Proteções e Aplicação Automática na Defesa (`#ORD-83296E`) (2026-11-22):
+- **Título**: `fix(characters): suporta multiplas armaduras no assistente de protecoes e soma automatica na defesa`
+- **Resumo**: Adiciona cálculo e sincronização multi-armadura em `src/utils/protections.ts`, `ProtectionModal.tsx` e `characters.tsx`, alternando slots entre `Ativa na Defesa` e `Na Mochila`, com cobertura em `tests/defenseProtections.test.ts`.
+
+### ✅ Modo Roleplay Livre vs. Compromisso com a Realidade e Base de Lore Expandida na IA G.L.I.T.C.H. (`SOL-MEL-001`) (2026-11-22):
+- **Título**: `feat(ai): adiciona modo roleplay livre vs compromisso com regras na GLITCH`
+- **Resumo**: Adiciona `roleplayMode` (`false` por padrão), lore expandida e variantes `*_ROLEPLAY_PROMPT` para Personagens e Relíquias, sintetizador offline in-character em `AiOfflineEngine.ts`, alternador rápido em `oracle.tsx` e `AiConfigModal.tsx`, e testes em `tests/ai.test.ts` e `tests/frontendOracle.test.tsx`.
 
 ### ✅ 1. Preparação da Release v1.7.0-beta.1 (versionCode 13):
 ```bash
