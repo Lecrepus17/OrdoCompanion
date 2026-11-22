@@ -109,12 +109,22 @@ describe('Frontend - Tela de Armaria e Arsenal (weapons.tsx)', () => {
     assert.ok(queryByText(/Nova Arma Customizada|Modelo Base|Modificações/i));
   });
 
-  test('deve abrir o manual de armas ao clicar no botão "Manual"', async () => {
-    const { getByText } = await renderWithProviders(<WeaponsScreen />);
+  test('deve evitar Manual/+ Item Geral duplicados e exibir Limpar Filtros quando busca zerar resultados', async () => {
+    const { getByText, queryByText, getByTestId, getByPlaceholder } = await renderWithProviders(<WeaponsScreen />);
 
-    const helpBtn = getByText('Manual');
-    await fireClick(helpBtn);
-    assert.ok(helpBtn);
+    // Manual duplicado removido (fica apenas no header global)
+    assert.equal(queryByText('Manual'), null);
+
+    // Filtra arma por nome inexistente -> deve exibir Limpar Filtros e recuperar lista ao limpar
+    await changeInputText(getByPlaceholder(/Buscar/i), 'ArmaInexistenteXYZ');
+    assert.ok(queryByText(/Nenhuma arma encontrada/i));
+    await fireClick(getByTestId('btn-clear-weapon-filters'));
+    assert.ok(getByText('Fuzil de Caça Sombrio'));
+
+    // Na sub-aba Itens, + Item Geral duplicado não deve existir
+    await fireClick(getByTestId('armory-tab-items'));
+    assert.equal(queryByText('+ Item Geral'), null);
+    assert.ok(getByTestId('btn-new-depot-item'));
   });
 
   test('deve exibir sempre o botão Crítico Máx e opções Usar a Mesma / Duplicar ao equipar no agente', async () => {

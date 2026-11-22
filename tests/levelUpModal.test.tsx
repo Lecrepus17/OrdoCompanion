@@ -518,8 +518,11 @@ describe('LevelUpModal - Exibição Completa de Habilidades Desbloqueadas e Apri
     assert.ok(getByText(/Transcender: Escolha 1 Poder Paranormal \(Opcional\)/i));
     assert.ok(getByText(/Desejo Transcender neste avanço/i));
 
-    // Inicialmente, sem selecionar poder: ganho normal de Sanidade mantido (+3 SAN)
+    // Inicialmente, sem marcar Transcender: lista fica oculta e ganho normal de Sanidade mantido (+3 SAN)
     assert.ok(getByText(/\+3 SAN/i));
+
+    // Marca o checkbox de Transcender para expandir os poderes paranormais
+    await fireClick(getByTestId('levelup-transcend-checkbox'));
 
     // Encontra o primeiro poder paranormal e clica nele
     const firstParaPower = allPowers.find((p) => {

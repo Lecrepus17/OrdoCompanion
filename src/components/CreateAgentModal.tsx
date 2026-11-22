@@ -114,12 +114,9 @@ export default function CreateAgentModal({
     onConfirm: () => void;
   } | null>(null);
 
-  const handleModalClose = () => {
-    if (step > 1) {
-      setStep((prev) => prev - 1);
-      return;
-    }
+  const handleCloseModal = () => {
     const hasModifications =
+      step > 1 ||
       name !== 'Novo Agente' ||
       attrs.AGI !== 1 ||
       attrs.FOR !== 1 ||
@@ -141,11 +138,19 @@ export default function CreateAgentModal({
     }
   };
 
+  const handleHardwareBack = () => {
+    if (step > 1) {
+      setStep((prev) => prev - 1);
+      return;
+    }
+    handleCloseModal();
+  };
+
   // Intercepta botão de retorno físico no Android (Hermes runtime)
   useEffect(() => {
     if (Platform.OS === 'web' || typeof document !== 'undefined' || !visible) return;
     const onBackPress = () => {
-      handleModalClose();
+      handleHardwareBack();
       return true;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -823,11 +828,11 @@ export default function CreateAgentModal({
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleModalClose}>
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleHardwareBack}>
       <View style={styles.container}>
         {/* Top Header */}
         <View style={[styles.header, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 14 : 10) }]}>
-          <TouchableOpacity style={styles.closeBtn} onPress={handleModalClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Fechar">
+          <TouchableOpacity style={styles.closeBtn} onPress={handleCloseModal} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Fechar" testID="btn-close-create-agent">
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>

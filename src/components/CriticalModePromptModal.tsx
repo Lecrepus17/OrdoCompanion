@@ -59,13 +59,6 @@ export const CriticalModePromptModal: React.FC<CriticalModePromptModalProps> = (
                 {weaponName ? ` • ${weaponName}` : ''}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={onClose}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Fechar"
-            >
-              <Ionicons name="close" size={20} color={colors.text} />
-            </TouchableOpacity>
           </View>
 
           <Text style={styles.subtitle}>

@@ -377,7 +377,9 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
                 ]}
                 onPress={handleShare}
                 disabled={isExporting}
-                accessibilityLabel="Compartilhar imagem estilizada"
+                accessibilityLabel={
+                  Platform.OS === 'ios' ? 'Compartilhar ou salvar imagem estilizada' : 'Compartilhar imagem estilizada'
+                }
                 testID="btn-share-card-image"
               >
                 <Ionicons name="share-social-outline" size={17} color={colors.accent || colors.primary} />
@@ -385,30 +387,32 @@ export const RecordImageExportModal: React.FC<RecordImageExportModalProps> = ({
                   style={[styles.primaryActionBtnText, { color: colors.accent || colors.primary }]}
                   numberOfLines={1}
                 >
-                  Compartilhar
+                  {Platform.OS === 'ios' ? 'Compartilhar / Salvar' : 'Compartilhar'}
                 </Text>
               </TouchableOpacity>
 
-              {/* Baixar PNG */}
-              <TouchableOpacity
-                style={[
-                  styles.downloadBtn,
-                  { backgroundColor: colors.primary, flex: 1.15 },
-                ]}
-                onPress={handleDownload}
-                disabled={isExporting}
-                accessibilityLabel="Baixar imagem"
-                testID="btn-download-card-image"
-              >
-                {isExporting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="download" size={17} color="#FFFFFF" />
-                    <Text style={styles.downloadBtnText} numberOfLines={1}>Baixar</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {/* Baixar PNG (no iOS o share sheet já executa Share + Salvar) */}
+              {Platform.OS !== 'ios' && (
+                <TouchableOpacity
+                  style={[
+                    styles.downloadBtn,
+                    { backgroundColor: colors.primary, flex: 1.15 },
+                  ]}
+                  onPress={handleDownload}
+                  disabled={isExporting}
+                  accessibilityLabel="Baixar imagem"
+                  testID="btn-download-card-image"
+                >
+                  {isExporting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="download" size={17} color="#FFFFFF" />
+                      <Text style={styles.downloadBtnText} numberOfLines={1}>Baixar</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>

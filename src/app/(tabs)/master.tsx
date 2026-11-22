@@ -73,7 +73,6 @@ export default function MasterScreen() {
     entities,
     rollOrdemTest,
     rollFormula,
-    openManual,
     openRecordPreview,
     openEntityPreview,
   } = useApp();
@@ -680,21 +679,15 @@ export default function MasterScreen() {
               <Text style={styles.actionPillBtnTextWhite}>Mesa VTT</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionPillBtn}
-              onPress={() => openManual('characters')}
-              accessibilityLabel="Manual do Mestre"
-            >
-              <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionPillBtn, { backgroundColor: colors.primary }]}
-              onPress={handleOpenCreateCampaign}
-            >
-              <Ionicons name="add" size={18} color="#FFF" />
-              <Text style={styles.actionPillBtnTextWhite}>Nova Campanha</Text>
-            </TouchableOpacity>
+            {activeCampaign && (
+              <TouchableOpacity
+                style={[styles.actionPillBtn, { backgroundColor: colors.primary }]}
+                onPress={handleOpenCreateCampaign}
+              >
+                <Ionicons name="add" size={18} color="#FFF" />
+                <Text style={styles.actionPillBtnTextWhite}>Nova Campanha</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -844,9 +837,6 @@ export default function MasterScreen() {
               {activeCampaign.stories.length === 0 ? (
                 <View style={styles.subEmptyCard}>
                   <Text style={styles.subEmptyText}>Nenhuma cena cadastrada.</Text>
-                  <TouchableOpacity style={styles.linkActionText} onPress={handleOpenCreateScene}>
-                    <Text style={{ color: colors.primary, fontWeight: '700' }}>+ Adicionar Cena 1</Text>
-                  </TouchableOpacity>
                 </View>
               ) : (
                 activeCampaign.stories.map((scene, idx) => {

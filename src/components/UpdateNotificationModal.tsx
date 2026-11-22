@@ -211,27 +211,33 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={[
-                styles.downloadButton,
-                {
-                  backgroundColor: isWeb ? colors.surfaceElevated : colors.primary,
-                  borderWidth: isWeb ? 1 : 0,
-                  borderColor: isWeb ? colors.primary : undefined,
-                },
-              ]}
-              onPress={handleDownload}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={apkUrl ? 'logo-android' : 'download-outline'}
-                size={18}
-                color={isWeb ? colors.primary : '#FFFFFF'}
-              />
-              <Text style={[styles.downloadButtonText, isWeb && { color: colors.primary }]}>
-                {apkUrl ? 'Baixar Nova Versão (APK)' : 'Baixar Nova Versão'}
-              </Text>
-            </TouchableOpacity>
+            {(!isWeb || Boolean(apkUrl)) && (
+              <TouchableOpacity
+                style={[
+                  styles.downloadButton,
+                  {
+                    backgroundColor: isWeb ? colors.surfaceElevated : colors.primary,
+                    borderWidth: isWeb ? 1 : 0,
+                    borderColor: isWeb ? colors.primary : undefined,
+                  },
+                ]}
+                onPress={handleDownload}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={apkUrl ? 'logo-android' : 'download-outline'}
+                  size={18}
+                  color={isWeb ? colors.primary : '#FFFFFF'}
+                />
+                <Text style={[styles.downloadButtonText, isWeb && { color: colors.primary }]}>
+                  {isWeb
+                    ? 'Baixar APK para Android'
+                    : apkUrl
+                    ? 'Baixar Nova Versão (APK)'
+                    : 'Baixar Nova Versão'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {apkUrl && downloadUrl && apkUrl !== downloadUrl && (
               <TouchableOpacity

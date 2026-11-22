@@ -237,21 +237,6 @@ export default function EntityEditorScreen() {
         keyboardShouldPersistTaps="handled"
       >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <TouchableOpacity
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace('/');
-            }
-          }}
-          style={styles.cancelTopBtn}
-          accessibilityLabel="Cancelar e voltar"
-        >
-          <Ionicons name="arrow-back" size={17} color={colors.text} />
-          <Text style={styles.cancelTopBtnText}>Cancelar</Text>
-        </TouchableOpacity>
-
         <Text style={styles.heading}>
           {existing ? `Editar: ${existing.name}` : 'Novo Registro no Compêndio'}
         </Text>

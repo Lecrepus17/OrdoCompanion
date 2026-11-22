@@ -104,8 +104,18 @@ export function AiChatMessageItem({
   const [isCitationsOpen, setIsCitationsOpen] = useState(true);
   const [isActionsOpen, setIsActionsOpen] = useState(true);
 
+  const citationKeys = new Set(
+    (message.citations || []).map((c) => `${c.bookId}:${Number(c.pageNumber)}`)
+  );
+  const filteredSuggestedActions = (message.suggestedActions || []).filter((act) => {
+    if (act.type === 'open_book' && act.payload?.bookId && act.payload?.pageNumber !== undefined) {
+      return !citationKeys.has(`${act.payload.bookId}:${Number(act.payload.pageNumber)}`);
+    }
+    return true;
+  });
+
   const hasCitations = Boolean(message.citations && message.citations.length > 0);
-  const hasActions = Boolean(message.suggestedActions && message.suggestedActions.length > 0);
+  const hasActions = filteredSuggestedActions.length > 0;
 
   // Determina a persona da mensagem: pela mensagem, por keywords ou pela ativa
   const personaKey: ConcreteRelicPersona = (() => {
@@ -815,7 +825,7 @@ export function AiChatMessageItem({
                         </Text>
                         <View style={[styles.countBadge, { backgroundColor: accentBg }]}>
                           <Text style={[styles.countBadgeText, { color: accentColor }]}>
-                            {message.suggestedActions!.length}
+                            {filteredSuggestedActions.length}
                           </Text>
                         </View>
                       </View>
@@ -828,23 +838,11 @@ export function AiChatMessageItem({
 
                     {isActionsOpen && (
                       <View style={styles.actionGrid}>
-                        {message.suggestedActions!.map((act, idx) => renderActionBtn(act, idx))}
+                        {filteredSuggestedActions.map((act, idx) => renderActionBtn(act, idx))}
                       </View>
                     )}
                   </View>
                 )}
-
-                {/* Botão de Fechar no Rodapé do Bloco Expandido */}
-                <TouchableOpacity
-                  onPress={() => setIsFooterExpanded(false)}
-                  activeOpacity={0.7}
-                  style={[styles.closeBottomBtn, { borderTopColor: colors.border }]}
-                >
-                  <Ionicons name="chevron-up" size={13} color={colors.textMuted} />
-                  <Text style={[styles.closeBottomBtnText, { color: colors.textMuted }]}>
-                    Recolher fontes e ações
-                  </Text>
-                </TouchableOpacity>
               </View>
             )}
           </View>

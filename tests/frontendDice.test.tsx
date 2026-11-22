@@ -76,11 +76,17 @@ describe('Frontend - Tela de Dados (dice.tsx)', () => {
     assert.ok(rolledItems.length > 0, 'Deveria exibir 4d6 no histórico');
   });
 
-  test('deve abrir o modal de regras ao clicar no botão "Regras"', async () => {
-    const { getByText } = await renderWithProviders(<DiceScreen />);
+  test('deve evitar botão Regras duplicado e manter limpeza de histórico funcionando', async () => {
+    const { getByText, queryByText, getAllByText } = await renderWithProviders(<DiceScreen />);
 
-    const rulesBtn = getByText('Regras');
-    await fireClick(rulesBtn);
-    assert.ok(rulesBtn);
+    // Botão Regras duplicado removido (fica apenas no header global)
+    assert.equal(queryByText('Regras'), null);
+
+    // Rola fórmula e limpa o histórico normalmente
+    await fireClick(getByText('4d6'));
+    await fireClick(getByText('Rolar'));
+    assert.ok(getAllByText(/Fórmula:|4d6/i).length > 0);
+    await fireClick(getByText('Limpar'));
+    assert.ok(queryByText(/Nenhuma rolagem feita ainda/i));
   });
 });

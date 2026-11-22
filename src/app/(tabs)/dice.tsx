@@ -30,10 +30,8 @@ const TRAINING_DEGREES: Array<{ label: string; value: TrainingDegree }> = [
   { label: 'Expert (+15)', value: 15 },
 ];
 
-const QUICK_FORMULAS = ['1d4', '1d6', '1d8', '1d10', '1d12', '2d6', '4d6', '6d6', '2d8+4', '3d10+5'];
-
 export default function DiceScreen() {
-  const { rollSkillTest, rollFormula, rollHistory, clearRollHistory, openManual } = useApp();
+  const { rollSkillTest, rollFormula, rollHistory, clearRollHistory } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 10);
@@ -89,30 +87,9 @@ export default function DiceScreen() {
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 90 + bottomInset }]}>
       {/* Card 1: Teste de Perícia (Sistema Ordem Paranormal) */}
       <View style={styles.card}>
-        <View style={[styles.cardHeader, { justifyContent: 'space-between' }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-            <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
-            <Text style={styles.cardTitle}>Teste de Perícia (d20 Ordem)</Text>
-          </View>
-          <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              paddingHorizontal: 9,
-              paddingVertical: 5,
-              borderRadius: 6,
-              backgroundColor: colors.primarySoft,
-              borderWidth: 1,
-              borderColor: colors.primary,
-            }}
-            onPress={() => openManual('dice')}
-          >
-            <Ionicons name="help-circle-outline" size={16} color={colors.primary} />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
-              Regras
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.cardHeader}>
+          <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
+          <Text style={styles.cardTitle}>Teste de Perícia (d20 Ordem)</Text>
         </View>
 
         <Text style={styles.subLabel}>

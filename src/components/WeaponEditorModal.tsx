@@ -495,11 +495,13 @@ export const WeaponEditorModal: React.FC<WeaponEditorModalProps> = ({
               {title || (editingWeaponId ? 'Modificar Arma' : 'Nova Arma Customizada')}
             </Text>
             <TouchableOpacity
-              style={styles.saveHeaderBtn}
+              style={[styles.saveHeaderBtn, { maxWidth: 165, flexShrink: 1 }]}
               onPress={handleSave}
               testID="weapon-editor-save-btn"
             >
-              <Text style={styles.saveHeaderBtnText}>Salvar</Text>
+              <Text style={styles.saveHeaderBtnText} numberOfLines={1}>
+                {saveButtonLabel || 'Salvar'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -1082,11 +1084,6 @@ export const WeaponEditorModal: React.FC<WeaponEditorModalProps> = ({
                 onChangeText={setNotes}
               />
             </View>
-
-            <TouchableOpacity style={styles.bigSaveBtn} onPress={handleSave}>
-              <Ionicons name="checkmark-circle" size={20} color="#FFF" />
-              <Text style={styles.bigSaveBtnText}>{saveButtonLabel || 'Salvar na Armaria'}</Text>
-            </TouchableOpacity>
           </ScrollView>
         </View>
       </Modal>

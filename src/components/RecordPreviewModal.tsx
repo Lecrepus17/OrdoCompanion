@@ -358,7 +358,7 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
   const elStyle = getElementStyle(headerInfo.element || 'Nenhum', colors);
   const isFav = resolvedEntity ? favoriteIds.has(resolvedEntity.id) : false;
 
-  const renderEntityBody = (ent: CompendiumEntity) => {
+  const renderEntityBody = (ent: CompendiumEntity, options?: { hideDiceRolls?: boolean }) => {
     return (
       <>
         {/* ORIGEM */}
@@ -662,7 +662,7 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
         )}
 
         {/* FÓRMULAS DE ROLAGEM RÁPIDA */}
-        {ent.diceFormulas && ent.diceFormulas.length > 0 && (
+        {!options?.hideDiceRolls && ent.diceFormulas && ent.diceFormulas.length > 0 && (
           <View style={styles.statsCard}>
             <Text style={styles.sectionTitle}>Rolagens Rápidas</Text>
             <View style={styles.diceRow}>
@@ -1167,7 +1167,7 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
                         <Text style={styles.descText}>{atk.special}</Text>
                       </View>
                     )}
-                    {resolvedEntity && renderEntityBody(resolvedEntity)}
+                    {resolvedEntity && renderEntityBody(resolvedEntity, { hideDiceRolls: true })}
                   </>
                 );
               })()}

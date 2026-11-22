@@ -60,7 +60,6 @@ export default function WeaponsScreen() {
     characters,
     rollWeaponDamage,
     userProfile,
-    openManual,
     openRecordPreview,
   } = useApp();
 
@@ -352,20 +351,6 @@ export default function WeaponsScreen() {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <TouchableOpacity
-            style={[
-              styles.createBtn,
-              {
-                backgroundColor: colors.primarySoft,
-                borderWidth: 1,
-                borderColor: colors.primary,
-              },
-            ]}
-            onPress={() => openManual('weapons')}
-          >
-            <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
-            <Text style={[styles.createBtnText, { color: colors.primary }]}>Manual</Text>
-          </TouchableOpacity>
           {activeSection === 'items' ? (
             <TouchableOpacity
               style={[
@@ -506,13 +491,6 @@ export default function WeaponsScreen() {
               >
                 <Text style={[styles.typePillText, { color: colors.elements.Variável.text }]}>+ Utensílio</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typePill, { borderColor: colors.primary, backgroundColor: colors.primarySoft }]}
-                onPress={() => openNewCatalogItemByType('geral', 'operacional', 'Novo Item')}
-                testID="btn-quick-new-geral"
-              >
-                <Text style={[styles.typePillText, { color: colors.primary }]}>+ Item Geral</Text>
-              </TouchableOpacity>
             </ScrollView>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeFilterRow}>
             {(
@@ -551,31 +529,34 @@ export default function WeaponsScreen() {
       {activeSection === 'items' ? (
         <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]} keyboardShouldPersistTaps="handled">
           {filteredItems.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Ionicons name="briefcase-outline" size={48} color={colors.textMuted} />
-              <Text style={styles.emptyTitle}>Nenhum item no Depósito</Text>
-              <Text style={styles.emptySub}>
-                Crie itens, acessórios aprimorados, explosivos ou curativos reutilizáveis e equipe-os facilmente em qualquer agente.
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            customItems.length > 0 ? (
+              <View style={styles.emptyCard}>
+                <Ionicons name="search-outline" size={44} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>Nenhum item encontrado</Text>
+                <Text style={styles.emptySub}>
+                  Nenhum item do Depósito corresponde à busca ou ao filtro selecionado.
+                </Text>
                 <TouchableOpacity
-                  style={[styles.createBtn, { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.primary }]}
-                  onPress={openCompendiumItemPicker}
-                  testID="btn-depot-first-from-compendium"
+                  style={[styles.createBtn, { marginTop: 12 }]}
+                  onPress={() => {
+                    setSearchQuery('');
+                    setItemFilterGroup('all');
+                  }}
+                  testID="btn-clear-depot-filters"
                 >
-                  <Ionicons name="book-outline" size={18} color={colors.primary} />
-                  <Text style={[styles.createBtnText, { color: colors.primary }]}>Importar do Compêndio</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.createBtn}
-                  onPress={openNewItemEditor}
-                  testID="btn-create-first-depot-item"
-                >
-                  <Ionicons name="add" size={18} color="#FFF" />
-                  <Text style={styles.createBtnText}>Criar Personalizado</Text>
+                  <Ionicons name="refresh-outline" size={18} color="#FFF" />
+                  <Text style={styles.createBtnText}>Limpar Filtros</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            ) : (
+              <View style={styles.emptyCard}>
+                <Ionicons name="briefcase-outline" size={48} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>Nenhum item no Depósito</Text>
+                <Text style={styles.emptySub}>
+                  Crie itens, acessórios aprimorados, explosivos ou curativos reutilizáveis pelos botões &quot;Compêndio&quot; ou &quot;Novo Item&quot; acima.
+                </Text>
+              </View>
+            )
           ) : (
             filteredItems.map((item) => {
               const elemDef =
@@ -715,17 +696,34 @@ export default function WeaponsScreen() {
       ) : (
       <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}>
         {filteredWeapons.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Ionicons name="construct-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>Nenhuma arma customizada</Text>
-            <Text style={styles.emptySub}>
-              Crie uma arma ou escolha um modelo base (ex.: Fuzil de Precisão, Pistola, Katana) e adicione modificações como Mira Laser, Calibre Grosso ou Maldições Elementais.
-            </Text>
-            <TouchableOpacity style={[styles.createBtn, { marginTop: 12 }]} onPress={openNewWeaponEditor}>
-              <Ionicons name="add" size={18} color="#FFF" />
-              <Text style={styles.createBtnText}>Criar Primeira Arma</Text>
-            </TouchableOpacity>
-          </View>
+          customWeapons.length > 0 ? (
+            <View style={styles.emptyCard}>
+              <Ionicons name="search-outline" size={44} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>Nenhuma arma encontrada</Text>
+              <Text style={styles.emptySub}>
+                Nenhuma arma da sua Armaria corresponde à busca ou ao filtro de tipo selecionado.
+              </Text>
+              <TouchableOpacity
+                style={[styles.createBtn, { marginTop: 12 }]}
+                onPress={() => {
+                  setSearchQuery('');
+                  setFilterType('all');
+                }}
+                testID="btn-clear-weapon-filters"
+              >
+                <Ionicons name="refresh-outline" size={18} color="#FFF" />
+                <Text style={styles.createBtnText}>Limpar Filtros</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Ionicons name="construct-outline" size={48} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>Nenhuma arma customizada</Text>
+              <Text style={styles.emptySub}>
+                Crie uma arma pelo botão &quot;Nova Arma&quot; acima ou escolha um modelo base (ex.: Fuzil de Precisão, Pistola, Katana) e adicione modificações como Mira Laser, Calibre Grosso ou Maldições Elementais.
+              </Text>
+            </View>
+          )
         ) : (
           filteredWeapons.map((weapon) => {
             const elemDef =
@@ -860,12 +858,6 @@ export default function WeaponsScreen() {
                               openRecordPreview({ target: { kind: 'weapon_mod', mod: def } });
                             }
                           }}
-                          onLongPress={() => {
-                            if (def) {
-                              openRecordPreview({ target: { kind: 'weapon_mod', mod: def } });
-                            }
-                          }}
-                          delayLongPress={DEFAULT_LONG_PRESS_DELAY}
                         >
                           <Ionicons
                             name={isAmmo ? 'flame' : isCurse ? 'sparkles' : 'checkmark-circle'}

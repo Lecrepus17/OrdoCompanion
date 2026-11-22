@@ -47,6 +47,10 @@ import { resolveNativePdfUri } from '../utils/nativePdfSource';
 
 export type PdfViewerMode = 'pdf_scroll' | 'pdf_page' | 'pdf_native' | 'text';
 
+const MIN_PDF_ZOOM = 0.5;
+const MAX_PDF_ZOOM = 2.5;
+const PDF_ZOOM_STEP = 0.25;
+
 interface PdfViewerModalProps {
   visible: boolean;
   onClose: () => void;
@@ -267,7 +271,6 @@ interface PdfScrollPageItemProps {
   screenWidth: number;
   isMaximized?: boolean;
   onImageLoaded?: (width: number, height: number) => void;
-  onOpenExternalPdf?: () => void;
   onSelectPageForSingleView?: (page: number) => void;
 }
 
@@ -290,7 +293,6 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
   screenWidth,
   isMaximized = false,
   onImageLoaded,
-  onOpenExternalPdf,
   onSelectPageForSingleView,
 }) => {
   const isServerConfigured = isPdfServerConfigured();
@@ -517,16 +519,6 @@ const PdfScrollPageItem: React.FC<PdfScrollPageItemProps> = React.memo(({
                   >
                     <Ionicons name="reader-outline" size={13} color={colors.primary} />
                     <Text style={styles.scrollPageConfigServerText}>Ler Página Inteira</Text>
-                  </TouchableOpacity>
-                )}
-
-                {onOpenExternalPdf && (
-                  <TouchableOpacity
-                    style={styles.scrollPageRetryBtn}
-                    onPress={onOpenExternalPdf}
-                  >
-                    <Ionicons name="open-outline" size={13} color={colors.text} />
-                    <Text style={styles.scrollPageRetryText}>Abrir Leitor In-App</Text>
                   </TouchableOpacity>
                 )}
 
@@ -1261,10 +1253,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         goToPage(safeCurrentPage - 1);
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault();
-        setZoom((z) => Math.min(2.5, Number((z + 0.25).toFixed(2))));
+        setZoom((z) => Math.min(MAX_PDF_ZOOM, Number((z + PDF_ZOOM_STEP).toFixed(2))));
       } else if (e.key === '-') {
         e.preventDefault();
-        setZoom((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))));
+        setZoom((z) => Math.max(MIN_PDF_ZOOM, Number((z - PDF_ZOOM_STEP).toFixed(2))));
       } else if (e.key === 'f' || e.key === 'F' || e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         toggleMaximized();
@@ -1444,7 +1436,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               setPageAspect(w / h);
             }
           }}
-          onOpenExternalPdf={handleOpenExternalPdf}
           onSelectPageForSingleView={(p) => {
             goToPage(p, false);
             setViewMode('text');
@@ -1464,7 +1455,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
       screenWidth,
       isMaximized,
       getBookPage,
-      handleOpenExternalPdf,
       goToPage,
     ]
   );
@@ -1482,6 +1472,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         {!isMaximized && (
           <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 10) }]}>
             <TouchableOpacity
+              testID="pdf-viewer-back-button"
               style={[styles.modalBackBtn, isSmallScreen && { paddingHorizontal: 6, gap: 0 }]}
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -1624,6 +1615,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
               {/* Botão de Maximizar Visualização */}
               <TouchableOpacity
+                testID="btn-toggle-maximize-pdf"
                 style={[styles.maximizeBtn, isNarrow && styles.maximizeBtnCompact]}
                 onPress={toggleMaximized}
                 accessibilityLabel="Maximizar visualização (Modo Foco)"
@@ -1660,10 +1652,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               >
                 <Ionicons name="trash-outline" size={isSmallScreen ? 16 : 18} color="#EF4444" />
               </TouchableOpacity>
-
-              <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="Fechar">
-                <Ionicons name="close" size={isSmallScreen ? 20 : 24} color={colors.text} />
-              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -1674,7 +1662,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
             <View style={styles.modeTabs}>
               {/* Grupo 1: Tipo de Leitura (Leitura Direta PDF vs Texto Oficial) */}
               <TouchableOpacity
-                style={[styles.modeTab, viewMode !== 'text' && styles.modeTabActive]}
+                style={[styles.modeTab, (viewMode === 'pdf_scroll' || viewMode === 'pdf_page') && styles.modeTabActive]}
                 onPress={() => {
                   if (textLayout === 'page') {
                     setViewMode('pdf_page');
@@ -1686,10 +1674,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 <Ionicons
                   name="document-outline"
                   size={14}
-                  color={viewMode !== 'text' ? colors.primary : colors.textSecondary}
+                  color={viewMode === 'pdf_scroll' || viewMode === 'pdf_page' ? colors.primary : colors.textSecondary}
                 />
                 <Text
-                  style={[styles.modeTabText, viewMode !== 'text' && styles.modeTabTextActive]}
+                  style={[styles.modeTabText, (viewMode === 'pdf_scroll' || viewMode === 'pdf_page') && styles.modeTabTextActive]}
                 >
                   Leitura Direta PDF
                 </Text>
@@ -1796,7 +1784,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                       viewMode === 'pdf_native' && styles.modeTabTextActive,
                     ]}
                   >
-                    PDF Completo
+                    Leitor do Navegador
                   </Text>
                 </TouchableOpacity>
               )}
@@ -1806,7 +1794,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               <View style={styles.zoomRow}>
                 <TouchableOpacity
                   style={styles.zoomBtn}
-                  onPress={() => setZoom((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
+                  onPress={() => setZoom((z) => Math.max(MIN_PDF_ZOOM, Number((z - PDF_ZOOM_STEP).toFixed(2))))}
                   accessibilityLabel="Diminuir Zoom"
                 >
                   <Ionicons name="remove" size={16} color={colors.text} />
@@ -1822,21 +1810,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
                 <TouchableOpacity
                   style={styles.zoomBtn}
-                  onPress={() => setZoom((z) => Math.min(2.5, Number((z + 0.25).toFixed(2))))}
+                  onPress={() => setZoom((z) => Math.min(MAX_PDF_ZOOM, Number((z + PDF_ZOOM_STEP).toFixed(2))))}
                   accessibilityLabel="Aumentar Zoom"
                 >
                   <Ionicons name="add" size={16} color={colors.text} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.subToolbarMaximizeBtn}
-                  onPress={toggleMaximized}
-                  accessibilityLabel="Maximizar visualização"
-                >
-                  <Ionicons name="expand-outline" size={15} color={colors.primary} />
-                  {!isVerySmall && (
-                    <Text style={styles.subToolbarMaximizeText}>Maximizar</Text>
-                  )}
                 </TouchableOpacity>
               </View>
             )}
@@ -1988,29 +1965,25 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                 </Text>
               </View>
 
-              {!useNativeReader && (
+              {!useNativeReader && !isAnnotationModeActive && (
                 <TouchableOpacity
-                  style={[
-                    styles.floatingActionBtn,
-                    isAnnotationModeActive && { backgroundColor: '#DC2626' },
-                  ]}
+                  style={styles.floatingActionBtn}
                   onPress={toggleAnnotationMode}
                   accessibilityLabel="Anotar na página"
                 >
                   <Ionicons
-                    name={isAnnotationModeActive ? 'pencil' : 'pencil-outline'}
+                    name="pencil-outline"
                     size={16}
-                    color={isAnnotationModeActive ? '#FFF' : colors.text}
+                    color={colors.text}
                   />
                   {!isCompact && (
-                    <Text style={styles.floatingBtnText}>
-                      {isAnnotationModeActive ? 'Anotando' : 'Anotar'}
-                    </Text>
+                    <Text style={styles.floatingBtnText}>Anotar</Text>
                   )}
                 </TouchableOpacity>
               )}
 
               <TouchableOpacity
+                testID="btn-restore-maximize-pdf"
                 style={styles.floatingActionBtn}
                 onPress={toggleMaximized}
                 accessibilityLabel="Restaurar visualização normal"
@@ -2187,29 +2160,31 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                             {activePageData?.section || book.title}
                           </Text>
                         </View>
-                        <View style={styles.fontScalingRow}>
-                          <TouchableOpacity
-                            style={styles.fontScaleBtn}
-                            onPress={() => setZoom((z) => Math.max(0.7, Number((z - 0.15).toFixed(2))))}
-                            accessibilityLabel="Diminuir tamanho da fonte"
-                          >
-                            <Text style={styles.fontScaleBtnText}>A-</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.fontScaleResetBtn}
-                            onPress={() => setZoom(1.0)}
-                            accessibilityLabel="Restaurar tamanho da fonte"
-                          >
-                            <Text style={styles.fontScaleLabel}>{Math.round(zoom * 100)}%</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.fontScaleBtn}
-                            onPress={() => setZoom((z) => Math.min(2.2, Number((z + 0.15).toFixed(2))))}
-                            accessibilityLabel="Aumentar tamanho da fonte"
-                          >
-                            <Text style={styles.fontScaleBtnText}>A+</Text>
-                          </TouchableOpacity>
-                        </View>
+                        {isMaximized && (
+                          <View style={styles.fontScalingRow}>
+                            <TouchableOpacity
+                              style={styles.fontScaleBtn}
+                              onPress={() => setZoom((z) => Math.max(MIN_PDF_ZOOM, Number((z - PDF_ZOOM_STEP).toFixed(2))))}
+                              accessibilityLabel="Diminuir tamanho da fonte"
+                            >
+                              <Text style={styles.fontScaleBtnText}>A-</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.fontScaleResetBtn}
+                              onPress={() => setZoom(1.0)}
+                              accessibilityLabel="Restaurar tamanho da fonte"
+                            >
+                              <Text style={styles.fontScaleLabel}>{Math.round(zoom * 100)}%</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.fontScaleBtn}
+                              onPress={() => setZoom((z) => Math.min(MAX_PDF_ZOOM, Number((z + PDF_ZOOM_STEP).toFixed(2))))}
+                              accessibilityLabel="Aumentar tamanho da fonte"
+                            >
+                              <Text style={styles.fontScaleBtnText}>A+</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
                         <Text style={styles.textModePageBadge}>
                           Pág. {safeCurrentPage} / {book.pageCount}
                         </Text>
@@ -2217,24 +2192,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                       {renderFormattedBookText(activePageData?.text, zoom, colors, styles)}
                     </View>
 
-                    <View style={[styles.fallbackBtnsRow, { flexWrap: 'wrap', gap: 8, justifyContent: 'center' }]}>
-                      <TouchableOpacity
-                        style={styles.externalBtn}
-                        onPress={handleOpenExternalPdf}
-                      >
-                        <Ionicons name="open-outline" size={14} color="#FFF" />
-                        <Text style={styles.externalBtnText}>Abrir Leitor In-App</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.retryBtn}
-                        onPress={handleDownloadPdf}
-                      >
-                        <Ionicons name="download-outline" size={14} color={colors.text} />
-                        <Text style={styles.retryBtnText}>Baixar PDF</Text>
-                      </TouchableOpacity>
-
-                      {hasValidRenderedImageUrl && (
+                    {hasValidRenderedImageUrl && (
+                      <View style={[styles.fallbackBtnsRow, { flexWrap: 'wrap', gap: 8, justifyContent: 'center' }]}>
                         <TouchableOpacity
                           style={styles.retryBtn}
                           onPress={() => {
@@ -2245,8 +2204,8 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                           <Ionicons name="reload-outline" size={14} color={colors.text} />
                           <Text style={styles.retryBtnText}>Tentar Novamente</Text>
                         </TouchableOpacity>
-                      )}
-                    </View>
+                      </View>
+                    )}
                   </View>
                 )}
 
@@ -2273,20 +2232,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
           {/* MODO 3: PDF NATIVO / COMPLETO (WEB IFRAME OU LEITOR IN-APP NO CELULAR) */}
           {viewMode === 'pdf_native' && Platform.OS === 'web' && (
             <View style={styles.iframeContainer}>
-              {isMobile && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#27272A' }}>
-                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', flex: 1 }} numberOfLines={1}>
-                    {book.title} (Pág. {safeCurrentPage})
-                  </Text>
-                  <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
-                    onPress={handleOpenExternalPdf}
-                  >
-                    <Ionicons name="open-outline" size={13} color="#FFF" />
-                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700' }}>Abrir no Celular</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
               {React.createElement('iframe', {
                 key: `${book.fileName}_p${safeCurrentPage}`,
                 src: nativePdfIframeUrl,
@@ -2420,29 +2365,31 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                     </Text>
                   </View>
                   <View style={styles.textModeHeaderRight}>
-                    <View style={styles.fontScalingRow}>
-                      <TouchableOpacity
-                        style={styles.fontScaleBtn}
-                        onPress={() => setZoom((z) => Math.max(0.7, Number((z - 0.15).toFixed(2))))}
-                        accessibilityLabel="Diminuir tamanho da fonte"
-                      >
-                        <Text style={styles.fontScaleBtnText}>A-</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.fontScaleResetBtn}
-                        onPress={() => setZoom(1.0)}
-                        accessibilityLabel="Restaurar tamanho padrão da fonte"
-                      >
-                        <Text style={styles.fontScaleLabel}>{Math.round(zoom * 100)}%</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.fontScaleBtn}
-                        onPress={() => setZoom((z) => Math.min(2.2, Number((z + 0.15).toFixed(2))))}
-                        accessibilityLabel="Aumentar tamanho da fonte"
-                      >
-                        <Text style={styles.fontScaleBtnText}>A+</Text>
-                      </TouchableOpacity>
-                    </View>
+                    {isMaximized && (
+                      <View style={styles.fontScalingRow}>
+                        <TouchableOpacity
+                          style={styles.fontScaleBtn}
+                          onPress={() => setZoom((z) => Math.max(MIN_PDF_ZOOM, Number((z - PDF_ZOOM_STEP).toFixed(2))))}
+                          accessibilityLabel="Diminuir tamanho da fonte"
+                        >
+                          <Text style={styles.fontScaleBtnText}>A-</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.fontScaleResetBtn}
+                          onPress={() => setZoom(1.0)}
+                          accessibilityLabel="Restaurar tamanho padrão da fonte"
+                        >
+                          <Text style={styles.fontScaleLabel}>{Math.round(zoom * 100)}%</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.fontScaleBtn}
+                          onPress={() => setZoom((z) => Math.min(MAX_PDF_ZOOM, Number((z + PDF_ZOOM_STEP).toFixed(2))))}
+                          accessibilityLabel="Aumentar tamanho da fonte"
+                        >
+                          <Text style={styles.fontScaleBtnText}>A+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                     <View style={styles.textModeOfflineBadge}>
                       <Text style={styles.textModeOfflineBadgeText}>100% Offline</Text>
                     </View>
@@ -2452,24 +2399,6 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                   </View>
                 </View>
                 {renderFormattedBookText(activePageData?.text, zoom, colors, styles)}
-
-                <View style={[styles.fallbackBtnsRow, { marginTop: 16, justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 }]}>
-                  <TouchableOpacity
-                    style={styles.retryBtn}
-                    onPress={handleOpenExternalPdf}
-                  >
-                    <Ionicons name="open-outline" size={14} color={colors.text} />
-                    <Text style={styles.retryBtnText}>Abrir PDF Original</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.retryBtn}
-                    onPress={handleDownloadPdf}
-                  >
-                    <Ionicons name="download-outline" size={14} color={colors.text} />
-                    <Text style={styles.retryBtnText}>Baixar PDF</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             </ScrollView>
           )}

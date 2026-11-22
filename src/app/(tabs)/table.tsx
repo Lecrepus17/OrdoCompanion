@@ -868,20 +868,6 @@ export default function TableScreen() {
           {/* SUB-ABA 3: ROLAGENS (FEED ESTILO ROLL20) */}
           {activeTab === 'rolls' && (
             <View style={{ flex: 1 }}>
-              {isMaster && (
-                <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2 }}>
-                  <TouchableOpacity
-                    style={[styles.outlineBtn, { borderColor: '#F59E0B', gap: 6 }]}
-                    onPress={() => setExportModalVisible(true)}
-                    testID="table-export-rolls-btn"
-                  >
-                    <Ionicons name="share-social-outline" size={16} color="#F59E0B" />
-                    <Text style={[styles.outlineBtnText, { color: '#F59E0B', fontWeight: '800' }]}>
-                      Exportar Histórico da Sessão (PDF / JSON)
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
               <FlatList
                 data={tableRecentRolls}
                 keyExtractor={(item) => item.id}

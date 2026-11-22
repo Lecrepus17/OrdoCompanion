@@ -33,17 +33,17 @@ describe('Sistema Dinâmico de Navegação e Abas (tabNavigation.ts)', () => {
     'support',
   ];
 
-  test('resolveNavigationTabs com novo padrão oficial do app (5 fixadas, 2 menu mais, 3 ocultas)', () => {
+  test('resolveNavigationTabs com novo padrão oficial do app (5 fixadas, 1 menu mais, 4 ocultas)', () => {
     const res = resolveNavigationTabs(allAppRoutes);
 
     // 1. ABAS FIXADAS NA BARRA (5)
     assert.deepEqual(res.pinnedTabs, ['index', 'characters', 'books', 'favorites', 'dice']);
 
-    // 2. ABAS NO MENU MAIS (2)
-    assert.deepEqual(res.overflowTabs, ['weapons', 'support']);
+    // 2. ABAS NO MENU MAIS (1)
+    assert.deepEqual(res.overflowTabs, ['weapons']);
 
-    // 3. ABAS OCULTAS (3)
-    assert.deepEqual(res.hiddenTabs, ['master', 'oracle', 'table']);
+    // 3. ABAS OCULTAS (4)
+    assert.deepEqual(res.hiddenTabs, ['master', 'oracle', 'table', 'support']);
   });
 
   test('migração automática do padrão legado antigo para o novo padrão', () => {
@@ -57,8 +57,8 @@ describe('Sistema Dinâmico de Navegação e Abas (tabNavigation.ts)', () => {
     const res = resolveNavigationTabs(allAppRoutes, legacyConfig);
     // Deve migrar para o novo padrão do app
     assert.deepEqual(res.pinnedTabs, ['index', 'characters', 'books', 'favorites', 'dice']);
-    assert.deepEqual(res.overflowTabs, ['weapons', 'support']);
-    assert.deepEqual(res.hiddenTabs, ['master', 'oracle', 'table']);
+    assert.deepEqual(res.overflowTabs, ['weapons']);
+    assert.deepEqual(res.hiddenTabs, ['master', 'oracle', 'table', 'support']);
   });
 
   test('respeito irrestrito a alterações do usuário (a menos que o usuário altere)', () => {
@@ -183,6 +183,6 @@ describe('Sistema Dinâmico de Navegação e Abas (tabNavigation.ts)', () => {
     assert.deepEqual(reset.pinnedTabs, DEFAULT_PINNED_TABS);
     assert.deepEqual(reset.pinnedTabs, ['index', 'characters', 'books', 'favorites', 'dice']);
     assert.deepEqual(reset.hiddenTabs, DEFAULT_HIDDEN_TABS);
-    assert.deepEqual(reset.hiddenTabs, ['master', 'oracle', 'table']);
+    assert.deepEqual(reset.hiddenTabs, ['master', 'oracle', 'table', 'support']);
   });
 });

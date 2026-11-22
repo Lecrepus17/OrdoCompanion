@@ -14,13 +14,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
-import { ThemeColors, ThemeDefinition, useTheme, useThemedStyles } from '../../theme';
+import { ThemeColors, useTheme, useThemedStyles } from '../../theme';
 import { EntityCard } from '../../components/EntityCard';
-import { confirmAction, showAlert } from '../../utils/alert';
+import { confirmAction } from '../../utils/alert';
 import { CompendiumEntity } from '../../types/compendium';
 import { DEFAULT_LONG_PRESS_DELAY } from '../../types/recordPreview';
 
-type SubTab = 'favorites' | 'lists' | 'homebrew' | 'backup' | 'themes';
+type SubTab = 'favorites' | 'lists' | 'homebrew';
 
 export default function FavoritesAndListsScreen() {
   const router = useRouter();
@@ -32,12 +32,8 @@ export default function FavoritesAndListsScreen() {
     savedLists,
     createSavedList,
     deleteSavedList,
-    exportBackupJson,
-    importBackupJson,
     listingColumns,
     toggleListingColumns,
-    setListingColumns,
-    openManual,
     toggleFavorite,
     rollFormula,
     openEntityPreview,
@@ -45,13 +41,12 @@ export default function FavoritesAndListsScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const cardWidth = listingColumns === 2 ? Math.floor((windowWidth - 28 - 10) / 2) : undefined;
 
-  const { themeId, setThemeId, availableThemes, colors } = useTheme();
+  const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
 
   const [subTab, setSubTab] = useState<SubTab>('favorites');
   const [newListName, setNewListName] = useState('');
   const [newListDesc, setNewListDesc] = useState('');
-  const [backupJsonText, setBackupJsonText] = useState('');
 
   const handlePressEntity = useCallback((id: string) => {
     router.push({ pathname: '/entity/[id]', params: { id } });
@@ -104,42 +99,6 @@ export default function FavoritesAndListsScreen() {
     setNewListDesc('');
   };
 
-  const handleExportBackup = async () => {
-    const json = await exportBackupJson();
-    setBackupJsonText(json);
-  };
-
-  const handleImportBackup = async () => {
-    if (!backupJsonText.trim()) return;
-    try {
-      await importBackupJson(backupJsonText);
-      showAlert('Sucesso', 'Dados personalizados, favoritos e fichas importados com sucesso!');
-    } catch {
-      showAlert('Erro no JSON', 'Verifique se o JSON colado é um backup válido.');
-    }
-  };
-
-  const getThemeIcon = (id: string) => {
-    switch (id) {
-      case 'dark':
-        return 'moon';
-      case 'sangue':
-        return 'water';
-      case 'morte':
-        return 'skull';
-      case 'conhecimento':
-        return 'eye';
-      case 'purple':
-        return 'flash';
-      case 'medo':
-        return 'flame';
-      case 'light':
-        return 'sunny';
-      default:
-        return 'color-palette';
-    }
-  };
-
   return (
     <View style={styles.container}>
       {/* Sub-abas */}
@@ -149,8 +108,6 @@ export default function FavoritesAndListsScreen() {
             { key: 'favorites', label: `Favoritos (${favoriteEntities.length})` },
             { key: 'lists', label: `Listas (${savedLists.length})` },
             { key: 'homebrew', label: `Editados (${customOrEditedEntities.length})` },
-            { key: 'themes', label: 'Temas & Visual' },
-            { key: 'backup', label: 'Backup JSON' },
           ] as const
         ).map((t) => {
           const active = subTab === t.key;
@@ -166,24 +123,6 @@ export default function FavoritesAndListsScreen() {
             </TouchableOpacity>
           );
         })}
-        <TouchableOpacity
-          style={[
-            styles.tabPill,
-            {
-              backgroundColor: colors.primarySoft,
-              borderColor: colors.primary,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-            },
-          ]}
-          onPress={() => openManual('favorites')}
-        >
-          <Ionicons name="help-circle-outline" size={14} color={colors.primary} />
-          <Text style={[styles.tabPillText, { color: colors.primary, fontWeight: '700' }]}>
-            Manual
-          </Text>
-        </TouchableOpacity>
       </View>
 
       {subTab === 'favorites' && (
@@ -386,194 +325,6 @@ export default function FavoritesAndListsScreen() {
         </View>
       )}
 
-      {subTab === 'themes' && (
-        <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}>
-          <View style={styles.createCard}>
-            <Text style={styles.cardTitle}>Gerenciador de Aparência & Temas</Text>
-            <Text style={styles.themeInfoText}>
-              Escolha a estética desejada para o Guia Ordem Paranormal. A escolha é salva instantaneamente no armazenamento local do aplicativo.
-            </Text>
-
-            {availableThemes.map((item: ThemeDefinition) => {
-              const isSelected = item.id === themeId;
-              const iconName = getThemeIcon(item.id);
-
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.themeItemCard,
-                    isSelected && {
-                      borderColor: item.colors.primary,
-                      borderWidth: 2,
-                      backgroundColor: colors.surfaceHighlight,
-                    },
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => setThemeId(item.id)}
-                >
-                  <View style={styles.themeItemTop}>
-                    <View style={styles.themeItemLeft}>
-                      <View
-                        style={[
-                          styles.themeIconBox,
-                          {
-                            backgroundColor: item.colors.primarySoft,
-                            borderColor: item.colors.primary,
-                          },
-                        ]}
-                      >
-                        <Ionicons name={iconName as any} size={20} color={item.colors.primary} />
-                      </View>
-                      <View>
-                        <Text style={styles.themeItemName}>{item.name}</Text>
-                        <Text style={styles.themeItemSub}>{item.subtitle}</Text>
-                      </View>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.themeRadio,
-                        isSelected && {
-                          borderColor: item.colors.primary,
-                          backgroundColor: item.colors.primary,
-                        },
-                      ]}
-                    >
-                      {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                    </View>
-                  </View>
-
-                  <Text style={styles.themeItemDesc}>{item.description}</Text>
-
-                  <View style={styles.themeSwatchesRow}>
-                    <Text style={styles.swatchesLabel}>Cores:</Text>
-                    <View style={styles.swatchesList}>
-                      {item.previewColors.map((hex, idx) => (
-                        <View
-                          key={idx}
-                          style={[
-                            styles.swatchCircle,
-                            { backgroundColor: hex, borderColor: colors.border },
-                          ]}
-                        />
-                      ))}
-                    </View>
-                    {isSelected && (
-                      <View
-                        style={[
-                          styles.selectedPill,
-                          {
-                            backgroundColor: item.colors.primarySoft,
-                            borderColor: item.colors.primary,
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.selectedPillText, { color: item.colors.primary }]}>
-                          ATIVO
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Seletor de Colunas / Layout das Listagens */}
-          <View style={[styles.createCard, { marginTop: 14 }]}>
-            <Text style={styles.cardTitle}>Layout das Listagens</Text>
-            <Text style={styles.themeInfoText}>
-              Defina se as listas do Compêndio e Favoritos devem ser exibidas em 1 coluna ou em 2 colunas lado a lado para maior densidade.
-            </Text>
-
-            <View style={styles.layoutOptionRow}>
-              <TouchableOpacity
-                style={[
-                  styles.layoutOptionBtn,
-                  listingColumns === 1 && styles.layoutOptionBtnActive,
-                ]}
-                onPress={() => setListingColumns(1)}
-              >
-                <Ionicons
-                  name="list"
-                  size={18}
-                  color={listingColumns === 1 ? colors.primary : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.layoutOptionText,
-                    listingColumns === 1 && styles.layoutOptionTextActive,
-                  ]}
-                >
-                  1 Coluna (Detalhada)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.layoutOptionBtn,
-                  listingColumns === 2 && styles.layoutOptionBtnActive,
-                ]}
-                onPress={() => setListingColumns(2)}
-              >
-                <Ionicons
-                  name="grid"
-                  size={18}
-                  color={listingColumns === 2 ? colors.primary : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.layoutOptionText,
-                    listingColumns === 2 && styles.layoutOptionTextActive,
-                  ]}
-                >
-                  2 Colunas (Grade)
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ScrollView>
-      )}
-
-      {subTab === 'backup' && (
-        <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: 90 + bottomInset }]}>
-          <View style={styles.createCard}>
-            <Text style={styles.cardTitle}>Backup e Migração de Dados</Text>
-            <Text style={styles.emptySub}>
-              Exporte seus dados (favoritos, fichas de agentes, armas customizadas e rituais/criaturas editadas) em formato JSON para salvar no computador ou transferir para outro aparelho.
-            </Text>
-
-            <View style={styles.rowBtns}>
-              <TouchableOpacity style={[styles.primaryBtn, { flex: 1 }]} onPress={handleExportBackup}>
-                <Text style={styles.primaryBtnText}>Gerar JSON de Backup</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.secondaryBtn, { flex: 1 }]}
-                onPress={() =>
-                  confirmAction({
-                    title: 'Restaurar Backup',
-                    message: 'Deseja sobrescrever seus dados atuais com os dados do JSON informado abaixo?',
-                    onConfirm: handleImportBackup,
-                    destructive: true,
-                  })
-                }
-              >
-                <Text style={styles.secondaryBtnText}>Importar JSON</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TextInput
-              style={[styles.input, styles.jsonArea]}
-              multiline
-              value={backupJsonText}
-              onChangeText={setBackupJsonText}
-              placeholder="Clique em 'Gerar JSON de Backup' para visualizar/copiar ou cole aqui um JSON para importar..."
-              placeholderTextColor={colors.textMuted}
-            />
-          </View>
-        </ScrollView>
-      )}
     </View>
   );
 }

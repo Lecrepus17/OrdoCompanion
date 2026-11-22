@@ -99,27 +99,29 @@ export default function TabsLayout() {
                   marginRight,
                 }}
               >
-                {/* Botão de Acesso Rápido ao G.L.I.T.C.H. (IA) */}
-                <TouchableOpacity
-                  onPress={() => router.navigate('/(tabs)/oracle' as any)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={{
-                    paddingHorizontal: btnPaddingH,
-                    paddingVertical: btnPaddingV,
-                    borderRadius: 8,
-                    backgroundColor: colors.primarySoft,
-                    borderWidth: 1,
-                    borderColor: colors.primary,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: btnMinDim,
-                    minHeight: btnMinDim,
-                  }}
-                  accessibilityLabel="G.L.I.T.C.H. - Inteligência Artificial"
-                >
-                  <Ionicons name="sparkles" size={iconSize} color={colors.primary} />
-                </TouchableOpacity>
+                {/* Botão de Acesso Rápido ao G.L.I.T.C.H. (IA) — oculto quando já está na tela ou fixado na barra */}
+                {activeRouteName !== 'oracle' && !resolvedTabs.pinnedTabs.includes('oracle') && (
+                  <TouchableOpacity
+                    onPress={() => router.navigate('/(tabs)/oracle' as any)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{
+                      paddingHorizontal: btnPaddingH,
+                      paddingVertical: btnPaddingV,
+                      borderRadius: 8,
+                      backgroundColor: colors.primarySoft,
+                      borderWidth: 1,
+                      borderColor: colors.primary,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: btnMinDim,
+                      minHeight: btnMinDim,
+                    }}
+                    accessibilityLabel="G.L.I.T.C.H. - Inteligência Artificial"
+                  >
+                    <Ionicons name="sparkles" size={iconSize} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
 
                 {/* Botão de Manual / Guia da Tela Atual */}
                 <TouchableOpacity

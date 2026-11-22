@@ -668,7 +668,7 @@ export function ThreatCreatorModal({
                 testID="btn-threat-autobalance"
               >
                 <Ionicons name="sparkles" size={14} color="#FFF" />
-                <Text style={styles.autoBalanceBtnText}>Auto-Balancear VD</Text>
+                <Text style={styles.autoBalanceBtnText}>Balancear p/ VD {vdText || '20'}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView
@@ -1248,20 +1248,6 @@ export function ThreatCreatorModal({
             ) : null}
           </View>
             </ScrollView>
-            <View
-              style={[
-                styles.footer,
-                { paddingBottom: Platform.OS === 'web' ? 12 : Math.max(12, insets.bottom) },
-              ]}
-            >
-              <TouchableOpacity style={styles.footerCancelBtn} onPress={onClose}>
-                <Text style={styles.footerCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.footerSaveBtn} onPress={handleConfirmSave}>
-                <Ionicons name="checkmark-sharp" size={16} color="#FFF" />
-                <Text style={styles.footerSaveText}>Salvar Ameaça</Text>
-              </TouchableOpacity>
-            </View>
           </KeyboardAvoidingView>
         </View>
       </View>

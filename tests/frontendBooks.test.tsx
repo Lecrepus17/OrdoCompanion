@@ -100,11 +100,13 @@ describe('Frontend - Tela de Biblioteca e Leitor de PDFs (books.tsx)', () => {
     assert.ok(queryByText(/ocorrências encontradas|Sanidade/i));
   });
 
-  test('deve abrir o manual ao clicar no botão "Manual"', async () => {
-    const { getByText } = await renderWithProviders(<BooksScreen />);
+  test('deve evitar duplicidade de botões (sem Manual duplicado) e abrir gerenciamento por ponto único', async () => {
+    const { queryByText, getAllByTestId, getByTestId } = await renderWithProviders(<BooksScreen />);
 
-    const helpBtn = getByText('Manual');
-    await fireClick(helpBtn);
-    assert.ok(helpBtn);
+    // Botão Manual duplicado removido (fica apenas no header global)
+    assert.equal(queryByText('Manual'), null);
+    // Único botão de abrir modal de PDFs
+    assert.equal(getAllByTestId('btn-open-pdf-access-modal').length, 1);
+    assert.ok(getByTestId('btn-open-pdf-access-modal'));
   });
 });

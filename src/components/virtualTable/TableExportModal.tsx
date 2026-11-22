@@ -95,6 +95,7 @@ export function TableExportModal({
               </View>
             </View>
             <TouchableOpacity
+              testID="table-export-close-btn"
               onPress={onClose}
               disabled={isExporting !== null}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -187,17 +188,6 @@ export function TableExportModal({
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </ScrollView>
-
-          {/* Rodapé do Modal */}
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={onClose}
-              disabled={isExporting !== null}
-            >
-              <Text style={styles.cancelBtnText}>Fechar</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </Modal>

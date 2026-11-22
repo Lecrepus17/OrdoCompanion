@@ -20,28 +20,32 @@ describe('Frontend - Tela de Favoritos, Listas e Backup (favorites.tsx)', () => 
     await cleanup();
   });
 
-  test('deve renderizar as abas de navegação interna (Favoritos, Listas, Homebrew, Backup, Temas)', async () => {
-    const { getByText, queryByText } = await renderWithProviders(
+  test('deve renderizar apenas as 3 sub-abas essenciais (Favoritos, Listas, Editados) sem duplicar Temas, Backup ou Manual', async () => {
+    const { queryByText } = await renderWithProviders(
       <FavoritesAndListsScreen />,
       { mobile: false }
     );
 
-    // Abas internas
+    // Abas internas consolidadas
     assert.ok(queryByText(/Favoritos/i));
     assert.ok(queryByText(/Listas/i));
     assert.ok(queryByText(/Editados/i));
-    assert.ok(queryByText(/Backup/i));
-    assert.ok(queryByText(/Temas/i));
+
+    // Sub-abas/botões globais removidos para evitar duplicidade com Header/Perfil
+    assert.equal(queryByText(/Temas & Visual/i), null);
+    assert.equal(queryByText(/Backup JSON/i), null);
+    assert.equal(queryByText('Manual'), null);
   });
 
   test('deve renderizar em ambiente Celular (Android e iOS) com abas roláveis e safe area', async () => {
-    const { getByText, queryByText } = await renderWithProviders(
+    const { queryByText } = await renderWithProviders(
       <FavoritesAndListsScreen />,
       { mobile: 'android' }
     );
 
     assert.ok(queryByText(/Favoritos/i));
-    assert.ok(queryByText(/Backup/i));
+    assert.ok(queryByText(/Listas/i));
+    assert.ok(queryByText(/Editados/i));
     // Estado inicial de favoritos vazios
     assert.ok(queryByText(/Nenhum favorito salvo/i));
   });
@@ -74,21 +78,15 @@ describe('Frontend - Tela de Favoritos, Listas e Backup (favorites.tsx)', () => 
     assert.ok(queryByText('Investigação do Necrotério'));
   });
 
-  test('deve alternar para a aba de Temas e exibir paletas disponíveis', async () => {
+  test('deve alternar para a aba de Editados e manter toggle de 1/2 colunas funcionando', async () => {
     const { getByText, queryByText } = await renderWithProviders(<FavoritesAndListsScreen />);
 
-    const themesTab = getByText('Temas');
-    await fireClick(themesTab);
+    const homebrewTab = getByText(/Editados/i);
+    await fireClick(homebrewTab);
+    assert.ok(queryByText(/Nenhum registro customizado/i));
 
-    // Deve listar temas (ex: Dark / Ordo Realitas, Sangue, etc.)
-    assert.ok(queryByText(/Tema|Paleta|Ordo/i));
-  });
-
-  test('deve abrir o manual ao clicar no botão "Manual"', async () => {
-    const { getByText } = await renderWithProviders(<FavoritesAndListsScreen />);
-
-    const helpBtn = getByText('Manual');
-    await fireClick(helpBtn);
-    assert.ok(helpBtn);
+    const toggleCols = getByText('1 coluna');
+    await fireClick(toggleCols);
+    assert.ok(queryByText('2 colunas'));
   });
 });

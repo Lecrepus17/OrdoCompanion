@@ -252,7 +252,7 @@ describe('RecordPreviewModal - Padronização de Pré-visualização (Long-Press
       await renderWithProviders(<CharactersScreen />);
 
     // Cria um agente rápido para testar na ficha
-    await fireClick(getByText(/Criar Assistido/i));
+    await fireClick(getByText(/Criar (Agente )?Assistido/i));
     await changeInputText(getByPlaceholder(/Ex: Arthur Cervero/i), 'Agente Preview');
     for (let i = 0; i < 5; i++) {
       await fireClick(getByText('Próximo'));

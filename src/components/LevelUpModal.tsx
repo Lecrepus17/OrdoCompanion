@@ -1232,6 +1232,7 @@ export default function LevelUpModal({
 
               {/* Checkbox de ativação do item opcional */}
               <TouchableOpacity
+                testID="levelup-transcend-checkbox"
                 style={[
                   styles.checkboxRow,
                   {
@@ -1268,147 +1269,151 @@ export default function LevelUpModal({
                 </View>
               </TouchableOpacity>
 
-              <TextInput
-                style={styles.searchInput}
-                value={paranormalPowerSearch}
-                onChangeText={setParanormalPowerSearch}
-                placeholder="Pesquisar poderes paranormais por nome, resumo ou elemento..."
-                placeholderTextColor={colors.textMuted}
-              />
+              {wantToTranscendExtra && (
+                <>
+                  <TextInput
+                    style={styles.searchInput}
+                    value={paranormalPowerSearch}
+                    onChangeText={setParanormalPowerSearch}
+                    placeholder="Pesquisar poderes paranormais por nome, resumo ou elemento..."
+                    placeholderTextColor={colors.textMuted}
+                  />
 
-              {/* Warning when paranormal power is selected */}
-              {selectedParanormalPowerId && !doNotIncreaseNex && (
-                <View style={styles.transcendWarningBox}>
-                  <Ionicons name="eye" size={16} color="#8B5CF6" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.transcendWarningTitle}>Poder Paranormal (Transcender) Selecionado</Text>
-                    <Text style={styles.transcendWarningText}>
-                      Regra Oficial: ao Transcender, você recebe o poder escolhido mas não ganha Sanidade neste avanço de NEX (+0 SAN).
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              <View style={{ gap: 8, marginTop: 8 }}>
-                {displayedParanormalPowers.slice(0, 50).map((pow) => {
-                  const isSel = pow.id === selectedParanormalPowerId;
-                  const isNoPrereq = !pow.prerequisite || pow.prerequisite === 'Nenhum' || pow.prerequisite === '—';
-                  const prereqStatus = isNoPrereq
-                    ? { met: true, details: 'Nenhum', unmetDetails: [] as string[] }
-                    : checkPrerequisite(pow.prerequisite, character, getEntityById, {
-                        targetNex,
-                        targetAttributes: effectiveAttrs,
-                      });
-                  const handleSelectParaPower = () => {
-                    if (isSel) {
-                      setSelectedParanormalPowerId(null);
-                      setWantToTranscendExtra(false);
-                      return;
-                    }
-                    const applyPara = () => {
-                      setSelectedParanormalPowerId(pow.id);
-                      setWantToTranscendExtra(true);
-                    };
-                    if (!prereqStatus.met) {
-                      requestPrereqConfirm(
-                        pow.name,
-                        prereqStatus.unmetDetails || prereqStatus.details,
-                        'power',
-                        applyPara
-                      );
-                      return;
-                    }
-                    applyPara();
-                  };
-                  const openParaDetails = () =>
-                    openEntityPreview(pow, {
-                      primaryAction: {
-                        label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
-                        isSelected: isSel,
-                        onPress: handleSelectParaPower,
-                      },
-                    });
-                  return (
-                    <TouchableOpacity
-                      key={pow.id}
-                      style={[styles.choiceCard, isSel && [styles.choiceCardActive, { borderColor: '#8B5CF6' }]]}
-                      onPress={handleSelectParaPower}
-                      onLongPress={openParaDetails}
-                      delayLongPress={DEFAULT_LONG_PRESS_DELAY}
-                      testID={`levelup-para-power-${pow.id}`}
-                    >
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                          <Ionicons name="eye" size={14} color="#8B5CF6" />
-                          <Text style={[styles.choiceCardTitle, isSel && { color: '#8B5CF6' }]}>
-                            {pow.name}
-                          </Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={[styles.badgeText, { color: '#8B5CF6', fontWeight: '700' }]}>
-                            {pow.subCategory}{pow.element && pow.element !== 'Nenhum' ? ` • ${pow.element}` : ''}
-                          </Text>
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation?.();
-                              openParaDetails();
-                            }}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
-                            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
-                          </TouchableOpacity>
-                        </View>
+                  {/* Warning when paranormal power is selected */}
+                  {selectedParanormalPowerId && !doNotIncreaseNex && (
+                    <View style={styles.transcendWarningBox}>
+                      <Ionicons name="eye" size={16} color="#8B5CF6" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.transcendWarningTitle}>Poder Paranormal (Transcender) Selecionado</Text>
+                        <Text style={styles.transcendWarningText}>
+                          Regra Oficial: ao Transcender, você recebe o poder escolhido mas não ganha Sanidade neste avanço de NEX (+0 SAN).
+                        </Text>
                       </View>
-                      {Boolean(pow.prerequisite) && (
-                        <View
-                          style={[
-                            styles.prereqRow,
-                            !isNoPrereq && (prereqStatus.met ? styles.prereqRowMet : styles.prereqRowUnmet),
-                          ]}
+                    </View>
+                  )}
+
+                  <View style={{ gap: 8, marginTop: 8 }}>
+                    {displayedParanormalPowers.slice(0, 50).map((pow) => {
+                      const isSel = pow.id === selectedParanormalPowerId;
+                      const isNoPrereq = !pow.prerequisite || pow.prerequisite === 'Nenhum' || pow.prerequisite === '—';
+                      const prereqStatus = isNoPrereq
+                        ? { met: true, details: 'Nenhum', unmetDetails: [] as string[] }
+                        : checkPrerequisite(pow.prerequisite, character, getEntityById, {
+                            targetNex,
+                            targetAttributes: effectiveAttrs,
+                          });
+                      const handleSelectParaPower = () => {
+                        if (isSel) {
+                          setSelectedParanormalPowerId(null);
+                          setWantToTranscendExtra(false);
+                          return;
+                        }
+                        const applyPara = () => {
+                          setSelectedParanormalPowerId(pow.id);
+                          setWantToTranscendExtra(true);
+                        };
+                        if (!prereqStatus.met) {
+                          requestPrereqConfirm(
+                            pow.name,
+                            prereqStatus.unmetDetails || prereqStatus.details,
+                            'power',
+                            applyPara
+                          );
+                          return;
+                        }
+                        applyPara();
+                      };
+                      const openParaDetails = () =>
+                        openEntityPreview(pow, {
+                          primaryAction: {
+                            label: isSel ? 'Poder Selecionado' : 'Escolher este Poder',
+                            isSelected: isSel,
+                            onPress: handleSelectParaPower,
+                          },
+                        });
+                      return (
+                        <TouchableOpacity
+                          key={pow.id}
+                          style={[styles.choiceCard, isSel && [styles.choiceCardActive, { borderColor: '#8B5CF6' }]]}
+                          onPress={handleSelectParaPower}
+                          onLongPress={openParaDetails}
+                          delayLongPress={DEFAULT_LONG_PRESS_DELAY}
+                          testID={`levelup-para-power-${pow.id}`}
                         >
-                          <Ionicons
-                            name={
-                              isNoPrereq
-                                ? 'checkmark-circle-outline'
-                                : prereqStatus.met
-                                ? 'checkmark-circle'
-                                : 'alert-circle'
-                            }
-                            size={11}
-                            color={
-                              isNoPrereq
-                                ? colors.textMuted
-                                : prereqStatus.met
-                                ? '#22C55E'
-                                : '#EF4444'
-                            }
-                          />
-                          <Text
-                            style={[
-                              styles.prereqText,
-                              {
-                                color: isNoPrereq
-                                  ? colors.textMuted
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                              <Ionicons name="eye" size={14} color="#8B5CF6" />
+                              <Text style={[styles.choiceCardTitle, isSel && { color: '#8B5CF6' }]}>
+                                {pow.name}
+                              </Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={[styles.badgeText, { color: '#8B5CF6', fontWeight: '700' }]}>
+                                {pow.subCategory}{pow.element && pow.element !== 'Nenhum' ? ` • ${pow.element}` : ''}
+                              </Text>
+                              <TouchableOpacity
+                                onPress={(e) => {
+                                  e.stopPropagation?.();
+                                  openParaDetails();
+                                }}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              >
+                                <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                          {Boolean(pow.prerequisite) && (
+                            <View
+                              style={[
+                                styles.prereqRow,
+                                !isNoPrereq && (prereqStatus.met ? styles.prereqRowMet : styles.prereqRowUnmet),
+                              ]}
+                            >
+                              <Ionicons
+                                name={
+                                  isNoPrereq
+                                    ? 'checkmark-circle-outline'
+                                    : prereqStatus.met
+                                    ? 'checkmark-circle'
+                                    : 'alert-circle'
+                                }
+                                size={11}
+                                color={
+                                  isNoPrereq
+                                    ? colors.textMuted
+                                    : prereqStatus.met
+                                    ? '#22C55E'
+                                    : '#EF4444'
+                                }
+                              />
+                              <Text
+                                style={[
+                                  styles.prereqText,
+                                  {
+                                    color: isNoPrereq
+                                      ? colors.textMuted
+                                      : prereqStatus.met
+                                      ? '#22C55E'
+                                      : '#EF4444',
+                                  },
+                                ]}
+                                numberOfLines={2}
+                              >
+                                {isNoPrereq
+                                  ? 'Pré-requisito: Nenhum'
                                   : prereqStatus.met
-                                  ? '#22C55E'
-                                  : '#EF4444',
-                              },
-                            ]}
-                            numberOfLines={2}
-                          >
-                            {isNoPrereq
-                              ? 'Pré-requisito: Nenhum'
-                              : prereqStatus.met
-                              ? `Pré-req: ${pow.prerequisite} (Atendido)`
-                              : `Pré-req: ${pow.prerequisite} (${prereqStatus.details})`}
-                          </Text>
-                        </View>
-                      )}
-                      <Text style={styles.choiceCardDesc}>{pow.summary || pow.description}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                                  ? `Pré-req: ${pow.prerequisite} (Atendido)`
+                                  : `Pré-req: ${pow.prerequisite} (${prereqStatus.details})`}
+                              </Text>
+                            </View>
+                          )}
+                          <Text style={styles.choiceCardDesc}>{pow.summary || pow.description}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
             </View>
           )}
 
@@ -1873,11 +1878,7 @@ export default function LevelUpModal({
 
         {/* Footer */}
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-          <TouchableOpacity style={styles.cancelBtn} onPress={handleModalClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.cancelBtnText}>Cancelar</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmLevelUp} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity style={[styles.confirmBtn, { flex: 1 }]} onPress={handleConfirmLevelUp} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="arrow-up-circle" size={20} color="#FFF" />
             <Text style={styles.confirmBtnText}>{doNotIncreaseNex ? `Confirmar Poder (NEX ${currentNex}%)` : `Confirmar Evolução (${targetNex}%)`}</Text>
           </TouchableOpacity>
