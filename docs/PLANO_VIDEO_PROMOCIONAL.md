@@ -1,7 +1,7 @@
-# 🎬 Plano: Vídeo Promocional do Ordo Companion (APK)
+# 🎬 Plano: Vídeo Promocional Multiplataforma do Ordo Companion (Android APK + PC Web/Desktop PWA)
 
-> **Status**: ✅ **CONCLUÍDO — Projeto `video/` (Remotion) implementado e renderizado (aguardando apenas `video/public/music.mp3` opcional do usuário)**
-> **Criado em**: 2026-11-07
+> **Status**: ✅ **CONCLUÍDO — Projeto `video/` (Remotion) atualizado com cenas híbridas Celular Android + PC Desktop PWA e renderizado**
+> **Criado em**: 2026-11-07 *(Atualizado para showcase híbrido Mobile + PC em 2026-11-22)*
 > **Gatilhos para retomar**: "faz o vídeo", "vídeo promocional", "vídeo do apk", "vídeo para o LinkedIn/Discord", "executa o plano do vídeo".
 
 > [!IMPORTANT]
@@ -41,7 +41,7 @@ Metas do usuário:
 ### Frases oficiais
 
 - **Frase de destaque (tela final):** *"Feito por um fã, para a comunidade de Ordem Paranormal. Gratuito e open source."*
-- **Frase de CTA (aparece no decorrer do vídeo e embaixo da final):** *"Baixe o APK gratuito → GitHub Releases"* + URL da página de releases do repositório (pegue de `git remote get-url origin` + `/releases/latest`).
+- **Frase de CTA (aparece no decorrer do vídeo e embaixo da final):** *"Baixe grátis para Android & PC → GitHub Releases"* + URL da página de releases do repositório (`github.com/Lecrepus17/OrdoCompanion/releases/latest`).
 
 ---
 
@@ -75,18 +75,18 @@ flowchart LR
 
 ## 4. Roteiro (storyboard ~45s)
 
-Identidade visual: paleta do tema escuro em `src/theme/themes.ts` (fundo `#090A0F`, primária `#DC2626`, destaque `#A855F7`), efeito de glitch/estática da Ordem, celular em perspectiva 3D.
+Identidade visual: paleta do tema escuro em `src/theme/themes.ts` (fundo `#090A0F`, primária `#DC2626`, destaque `#A855F7`), efeito de glitch/estática da Ordem, alternando **Celular 3D (`PhoneFrame.tsx`)** e **Janela PC Desktop PWA Standalone 3D (`DesktopFrame.tsx`)**.
 
-| # | Tempo | Cena | Texto animado |
-| :--- | :--- | :--- | :--- |
-| 1 | 0–4s | Tela preta, estática/glitch, o logo (`assets/icon.png`) surge | *"O Outro Lado está mais perto do que você imagina."* |
-| 2 | 4–9s | Celular abrindo o app (tela inicial `index.tsx`) | **ORDO COMPANION**: *o grimório tático de Ordem Paranormal* |
-| 3 | 9–16s | Compêndio (`books.tsx`): busca por um ritual e abertura do detalhe | *10 suplementos oficiais. Tudo na palma da mão.* |
-| 4 | 16–23s | Agentes (`characters.tsx`): criação de ficha com PV/PE/SAN calculados | *Fichas com regras calculadas automaticamente* |
-| 5 | 23–28s | Rolador de dados (`dice.tsx`) | *Rolagens oficiais, na hora* + CTA discreto no rodapé: *"Baixe grátis no GitHub Releases"* |
-| 6 | 28–34s | Central do Mestre / Mesa (`master.tsx` / `table.tsx`) | *Ferramentas para o Mestre e mesa multiplayer* |
-| 7 | 34–39s | Oráculo G.L.I.T.C.H. (`oracle.tsx`) com o **motor offline** | *Uma IA paranormal ao seu lado* |
-| 8 | 39–45s | Logo + **frase de destaque** + CTA com link | *"Feito por um fã, para a comunidade de Ordem Paranormal. Gratuito e open source."* / *"Baixe o APK gratuito → GitHub Releases"* |
+| # | Tempo | Dispositivo | Cena | Texto animado |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | 0–4s | — | Tela preta, estática/glitch, o logo (`assets/icon.png`) surge | *"O Outro Lado está mais perto do que você imagina."* |
+| 2 | 4–9s | 📱 Android APK | Celular abrindo o app (tela inicial `index.tsx`) | **ORDO COMPANION**: *O grimório tático de Ordem Paranormal no celular e no PC.* |
+| 3 | 9–16s | 💻 PC Desktop PWA | Acervo de Livros (`books.tsx` widescreen + PDF.js / IndexedDB) | *10 suplementos oficiais no Celular e no PC.* |
+| 4 | 16–23s | 📱 Android APK | Agentes (`characters.tsx`): ficha Arthur Cervero com PV/PE/SAN calculados | *Fichas com regras calculadas automaticamente* |
+| 5 | 23–28s | 📱 Android APK | Rolador de dados (`dice.tsx`) | *Rolagens oficiais, na hora* + CTA discreto: *"Baixe grátis (Android & PC) no GitHub Releases"* |
+| 6 | 28–34s | 💻 PC Desktop PWA | Central do Mestre / Mesa (`master.tsx` / `table.tsx` widescreen 2 colunas) | *Escudo do Mestre e Mesa Virtual widescreen no PC* |
+| 7 | 34–39s | 💻 PC Desktop PWA | Oráculo G.L.I.T.C.H. (`oracle.tsx` sidebar + chat tático offline) | *Uma IA paranormal ao seu lado* |
+| 8 | 39–45s | Android & PC | Logo + **frase de destaque** + CTA com link | *"Feito por um fã, para a comunidade de Ordem Paranormal. Gratuito e open source."* / *"Baixe grátis para Android & PC → GitHub Releases"* |
 
 > [!WARNING]
 > **Evitar no vídeo** (bugs abertos quando este plano foi escrito): leitor de PDF, microfone/botão ouvir, erros dos provedores Gemini e Groq, login Google. Antes de gravar, confira de novo `docs/imagensDosProblemas/`.
@@ -128,6 +128,7 @@ video/
 │   ├── copy.ts             # TODOS os textos/frases centralizados (fácil de editar)
 │   └── components/
 │       ├── PhoneFrame.tsx         # moldura de celular 3D + sombra
+│       ├── DesktopFrame.tsx       # moldura de janela Desktop PWA 3D widescreen
 │       ├── AnimatedBackground.tsx # gradiente vermelho/roxo, partículas, estática
 │       ├── GlitchText.tsx         # texto com efeito glitch
 │       ├── CtaBadge.tsx           # selo "Baixe no GitHub Releases"

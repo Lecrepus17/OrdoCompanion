@@ -15,6 +15,7 @@ import { fade } from '@remotion/transitions/fade';
 import { COPY, SceneCopy } from './copy';
 import { AnimatedBackground } from './components/AnimatedBackground';
 import { CtaBadge } from './components/CtaBadge';
+import { DesktopFrame } from './components/DesktopFrame';
 import { EndCard } from './components/EndCard';
 import { GlitchText } from './components/GlitchText';
 import { PhoneFrame } from './components/PhoneFrame';
@@ -119,7 +120,7 @@ const IntroGlitchScene: React.FC = () => {
 };
 
 /**
- * Cenas 2 a 7: Moldura de celular 3D + Textos animados + CTA opcional
+ * Cenas 2 a 7: Moldura 3D (Celular Android ou PC Desktop PWA) + Textos animados + CTA opcional
  */
 const PhoneShowcaseScene: React.FC<{
   scene: SceneCopy;
@@ -129,6 +130,7 @@ const PhoneShowcaseScene: React.FC<{
   const { fps, width, height } = useVideoConfig();
   const isPortrait = height > width;
   const isEven = index % 2 === 0;
+  const isDesktop = scene.device === 'desktop';
 
   const subProgress = spring({
     frame: Math.max(0, frame - 12),
@@ -150,45 +152,79 @@ const PhoneShowcaseScene: React.FC<{
               : 'row-reverse',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: isPortrait ? '70px 56px 60px 56px' : '60px 110px',
-          gap: isPortrait ? 28 : 64,
+          padding: isPortrait
+            ? '70px 56px 60px 56px'
+            : isDesktop
+              ? '56px 88px'
+              : '60px 110px',
+          gap: isPortrait ? 28 : isDesktop ? 48 : 64,
           boxSizing: 'border-box',
         }}
       >
         {/* Text Column */}
         <div
           style={{
-            flex: isPortrait ? '0 0 auto' : '1 1 52%',
+            flex: isPortrait ? '0 0 auto' : isDesktop ? '1 1 44%' : '1 1 52%',
             display: 'flex',
             flexDirection: 'column',
             alignItems: isPortrait ? 'center' : 'flex-start',
             textAlign: isPortrait ? 'center' : 'left',
             gap: isPortrait ? 16 : 22,
-            maxWidth: isPortrait ? '100%' : 820,
+            maxWidth: isPortrait ? '100%' : isDesktop ? 760 : 820,
             zIndex: 5,
           }}
         >
-          {/* Scene tactical tag */}
+          {/* Scene tactical tag + Device badge */}
           <div
             style={{
-              padding: '7px 18px',
-              borderRadius: 999,
-              backgroundColor: `${scene.accentColor}26`,
-              border: `1px solid ${scene.accentColor}`,
-              color: VIDEO_THEME.text,
-              fontFamily: "'Consolas', 'Courier New', monospace",
-              fontSize: isPortrait ? 17 : 16,
-              fontWeight: 800,
-              letterSpacing: '0.14em',
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: isPortrait ? 'center' : 'flex-start',
+              alignItems: 'center',
+              gap: 10,
             }}
           >
-            {scene.tag}
+            <div
+              style={{
+                padding: '7px 18px',
+                borderRadius: 999,
+                backgroundColor: `${scene.accentColor}26`,
+                border: `1px solid ${scene.accentColor}`,
+                color: VIDEO_THEME.text,
+                fontFamily: "'Consolas', 'Courier New', monospace",
+                fontSize: isPortrait ? 17 : 16,
+                fontWeight: 800,
+                letterSpacing: '0.14em',
+              }}
+            >
+              {scene.tag}
+            </div>
+
+            {scene.deviceBadge && (
+              <div
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 999,
+                  backgroundColor: isDesktop
+                    ? 'rgba(56, 189, 248, 0.16)'
+                    : 'rgba(16, 185, 129, 0.16)',
+                  border: `1px solid ${isDesktop ? '#38BDF8' : '#10B981'}`,
+                  color: isDesktop ? '#BAE6FD' : '#A7F3D0',
+                  fontFamily: "'Consolas', 'Courier New', monospace",
+                  fontSize: isPortrait ? 15 : 14,
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                }}
+              >
+                {scene.deviceBadge}
+              </div>
+            )}
           </div>
 
           {/* Main animated headline */}
           <GlitchText
             text={scene.title}
-            fontSize={isPortrait ? 52 : 62}
+            fontSize={isPortrait ? 52 : isDesktop ? 56 : 62}
             accentColor={scene.accentColor}
             align={isPortrait ? 'center' : 'left'}
             delay={4}
@@ -198,7 +234,7 @@ const PhoneShowcaseScene: React.FC<{
           <div
             style={{
               color: VIDEO_THEME.textSecondary,
-              fontSize: isPortrait ? 25 : 27,
+              fontSize: isPortrait ? 25 : isDesktop ? 25 : 27,
               lineHeight: 1.38,
               fontWeight: 500,
               fontFamily: "'Segoe UI', 'Inter', system-ui, sans-serif",
@@ -218,22 +254,36 @@ const PhoneShowcaseScene: React.FC<{
           )}
         </div>
 
-        {/* 3D Phone Frame Column */}
+        {/* 3D Device Frame Column */}
         <div
           style={{
-            flex: isPortrait ? '1 1 auto' : '0 0 460px',
+            flex: isPortrait
+              ? '1 1 auto'
+              : isDesktop
+                ? '0 0 820px'
+                : '0 0 460px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <PhoneFrame
-            clip={scene.clip}
-            screenType={scene.screenType}
-            accentColor={scene.accentColor}
-            tiltDirection={isPortrait ? 'center' : isEven ? 'left' : 'right'}
-            scale={isPortrait ? 1.18 : 1.08}
-          />
+          {isDesktop ? (
+            <DesktopFrame
+              clip={scene.clip}
+              screenType={scene.screenType}
+              accentColor={scene.accentColor}
+              tiltDirection={isPortrait ? 'center' : isEven ? 'left' : 'right'}
+              scale={isPortrait ? 1.04 : 0.94}
+            />
+          ) : (
+            <PhoneFrame
+              clip={scene.clip}
+              screenType={scene.screenType}
+              accentColor={scene.accentColor}
+              tiltDirection={isPortrait ? 'center' : isEven ? 'left' : 'right'}
+              scale={isPortrait ? 1.18 : 1.08}
+            />
+          )}
         </div>
       </AbsoluteFill>
     </AbsoluteFill>
@@ -366,7 +416,7 @@ export const ThumbnailStill: React.FC = () => {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '60px 110px',
+          padding: '60px 90px',
           boxSizing: 'border-box',
         }}
       >
@@ -376,7 +426,8 @@ export const ThumbnailStill: React.FC = () => {
             flexDirection: 'column',
             alignItems: 'flex-start',
             gap: 24,
-            maxWidth: 880,
+            maxWidth: 780,
+            zIndex: 4,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
@@ -396,10 +447,10 @@ export const ThumbnailStill: React.FC = () => {
                   fontFamily: 'monospace',
                   fontSize: 16,
                   fontWeight: 700,
-                  letterSpacing: '0.16em',
+                  letterSpacing: '0.14em',
                 }}
               >
-                ANDROID APK • GRATUITO & OPEN SOURCE
+                ANDROID APK & PC (WEB / DESKTOP PWA) • GRATUITO & OPEN SOURCE
               </div>
               <div
                 style={{
@@ -440,14 +491,55 @@ export const ThumbnailStill: React.FC = () => {
           <CtaBadge delay={0} staticPreview />
         </div>
 
-        <PhoneFrame
-          clip={COPY.scenes.agentes.clip}
-          screenType="agentes"
-          accentColor="#DC2626"
-          tiltDirection="left"
-          scale={1.06}
-          staticPreview
-        />
+        {/* Duo Showcase: PC Desktop PWA ao fundo/direita + Celular Android APK à frente/esquerda */}
+        <div
+          style={{
+            position: 'relative',
+            width: 860,
+            height: 760,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              right: -30,
+              top: 120,
+              zIndex: 2,
+            }}
+          >
+            <DesktopFrame
+              clip={COPY.scenes.mestre.clip}
+              screenType="mestre"
+              accentColor="#38BDF8"
+              tiltDirection="left"
+              scale={0.76}
+              staticPreview
+            />
+          </div>
+
+          <div
+            style={{
+              position: 'absolute',
+              left: 10,
+              bottom: -20,
+              zIndex: 5,
+              filter: 'drop-shadow(0 28px 50px rgba(0, 0, 0, 0.9))',
+            }}
+          >
+            <PhoneFrame
+              clip={COPY.scenes.agentes.clip}
+              screenType="agentes"
+              accentColor="#DC2626"
+              tiltDirection="left"
+              scale={0.78}
+              staticPreview
+            />
+          </div>
+        </div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

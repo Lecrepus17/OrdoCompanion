@@ -108,10 +108,10 @@ export const EndCard: React.FC = () => {
           }}
         >
           {[
+            'ANDROID APK & PC (WEB/PWA)',
             '100% GRATUITO',
-            'CÓDIGO ABERTO (MIT)',
-            'FUNCIONA OFFLINE',
-            'ANDROID APK DISPONÍVEL',
+            'CÓDIGO ABERTO (GPL-3.0)',
+            'FUNCIONA 100% OFFLINE',
           ].map((pill) => (
             <span
               key={pill}
