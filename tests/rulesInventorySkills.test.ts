@@ -379,5 +379,83 @@ describe('Regras Canônicas de Vestimentas, Utensílios e Perícias (inventorySk
       assert.strictEqual(res.effectiveBonuses['Luta'], undefined);
       assert.ok(res.warnings.some((w) => w.includes('Luta')));
     });
+
+    it('deve aplicar bônus de vestimenta com 2 perícias mesmo com equipped undefined', () => {
+      const inv: CharacterInventoryItem[] = [
+        {
+          id: 'v_multi',
+          name: 'Túnica Ritualística',
+          category: 'II',
+          spaces: 1,
+          itemType: 'vestimenta',
+          targetSkill: 'Religião',
+          skillBonus: 2,
+          secondarySkill: 'Vontade',
+          secondaryBonus: 2,
+        },
+      ];
+
+      const res = calculateActiveItemSkillBonuses(inv);
+      assert.strictEqual(res.effectiveBonuses['Religião']?.bonus, 2);
+      assert.strictEqual(res.effectiveBonuses['Vontade']?.bonus, 2);
+      assert.strictEqual(res.activeClothesCount, 1);
+    });
+
+    it('deve reconhecer Amuleto Sagrado por descrição textual ou mechanics com +2 em Religião e Vontade', () => {
+      const invDescOnly: CharacterInventoryItem[] = [
+        {
+          id: 'amuleto_desc',
+          name: 'Amuleto Sagrado',
+          category: '0',
+          spaces: 1,
+          details: 'Ocupa o espaço de um item vestido e fornece +2 em Religião e Vontade.',
+        },
+      ];
+
+      const res = calculateActiveItemSkillBonuses(invDescOnly);
+      assert.strictEqual(res.effectiveBonuses['Religião']?.bonus, 2);
+      assert.strictEqual(res.effectiveBonuses['Vontade']?.bonus, 2);
+    });
+  });
+
+  describe('Normalização de Nomes e Maldições de Proteção', () => {
+    it('deve canonicalizar nomes com ou sem acento em mechanics skill_bonus', () => {
+      const inv: CharacterInventoryItem[] = [
+        {
+          id: 'u_canon',
+          name: 'Grimório de Apoio',
+          category: 'I',
+          spaces: 1,
+          equipped: true,
+          itemType: 'utensilio',
+          mechanics: [
+            { id: 'm1', label: 'Religião +2', type: 'skill_bonus', targetSkill: 'religiao', flatValue: 2 },
+            { id: 'm2', label: 'Ciências +2', type: 'skill_bonus', targetSkill: 'ciencias', flatValue: 2 },
+          ],
+        },
+      ];
+
+      const res = calculateActiveItemSkillBonuses(inv);
+      assert.strictEqual(res.effectiveBonuses['Religião']?.bonus, 2);
+      assert.strictEqual(res.effectiveBonuses['Ciências']?.bonus, 2);
+    });
+
+    it('deve aplicar bônus de maldições Sombria (+5 Furtividade) e Lépida (+10 Atletismo) em proteções equipadas', () => {
+      const inv: CharacterInventoryItem[] = [
+        {
+          id: 'prot_1',
+          name: 'Proteção Leve',
+          category: 'II',
+          spaces: 2,
+          equipped: true,
+          itemType: 'protecao',
+          modifications: ['Sombria', 'Lépida'],
+        },
+      ];
+
+      const res = calculateActiveItemSkillBonuses(inv);
+      assert.strictEqual(res.effectiveBonuses['Furtividade']?.bonus, 5);
+      assert.strictEqual(res.effectiveBonuses['Atletismo']?.bonus, 10);
+    });
   });
 });

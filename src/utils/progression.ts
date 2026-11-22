@@ -42,6 +42,16 @@ export interface CharacterVitalsOptions {
   hasCultistaArrependido?: boolean;
   hasMergulhador?: boolean;
   hasPersonalidadeEsoterica?: boolean;
+  hasAdaptacaoClimatica?: boolean;
+  hasReflexosDefensivos?: boolean;
+  hasPrecognicao?: boolean;
+  hasVisaoDoOculto?: boolean;
+  hasEspreitarDaBesta?: boolean;
+  hasEspreitarDaBestaAffinity?: boolean;
+  hasSensitivo?: boolean;
+  hasPolicial?: boolean;
+  hasEspecialistaProtecaoLeve?: boolean;
+  hasMuitoSorrateiro?: boolean;
   transcendedCount?: number;
 }
 
@@ -52,6 +62,7 @@ export interface CharacterVitalsResult {
   peRound: number;
   dtRituals: number;
   defense: number;
+  defenseBonusFromPowers?: number;
   skillBonuses: Record<string, number>;
   breakdown: {
     basePv: number;
@@ -311,6 +322,9 @@ export function calculateMaxStats(
   const hasMergulhador =
     options?.hasMergulhador ??
     (normOrigin.includes('mergulhador') || normOrigin.includes('folego de nadador'));
+  const hasPolicial =
+    options?.hasPolicial ??
+    (normOrigin.includes('policial') || normOrigin.includes('patrulha'));
 
   // Poderes
   const hasVitalidadeReforcada = Boolean(options?.hasVitalidadeReforcada);
@@ -322,12 +336,22 @@ export function calculateMaxStats(
   const hasCombatenteEsforcado = Boolean(options?.hasCombatenteEsforcado);
   const hasCascaGrossa = Boolean(options?.hasCascaGrossa);
   const hasPersonalidadeEsoterica = Boolean(options?.hasPersonalidadeEsoterica);
+  const hasAdaptacaoClimatica = Boolean(options?.hasAdaptacaoClimatica);
+  const hasReflexosDefensivos = Boolean(options?.hasReflexosDefensivos);
+  const hasPrecognicao = Boolean(options?.hasPrecognicao);
+  const hasVisaoDoOculto = Boolean(options?.hasVisaoDoOculto);
+  const hasEspreitarDaBesta = Boolean(options?.hasEspreitarDaBesta);
+  const hasEspreitarDaBestaAffinity = Boolean(options?.hasEspreitarDaBestaAffinity);
+  const hasSensitivo = Boolean(options?.hasSensitivo);
+  const hasEspecialistaProtecaoLeve = Boolean(options?.hasEspecialistaProtecaoLeve);
+  const hasMuitoSorrateiro = Boolean(options?.hasMuitoSorrateiro);
 
   const pvBonuses: VitalsModifierBreakdown[] = [];
   const peBonuses: VitalsModifierBreakdown[] = [];
   const sanBonuses: VitalsModifierBreakdown[] = [];
   const skillBonusesList: Array<{ skill: string; bonus: number; source: string }> = [];
   const skillBonuses: Record<string, number> = {};
+  let defenseBonusFromPowers = 0;
 
   // 1. Vitalidade Reforçada: +1 PV para cada 5% de NEX e +2 em Fortitude
   if (hasVitalidadeReforcada) {
@@ -414,6 +438,70 @@ export function calculateMaxStats(
     sanBonuses.push({ name: 'Cultista Arrependido', value: -5 });
   }
 
+  // 13. Adaptação Climática: +2 em Fortitude
+  if (hasAdaptacaoClimatica) {
+    skillBonusesList.push({ skill: 'Fortitude', bonus: 2, source: 'Adaptação Climática' });
+    skillBonuses['Fortitude'] = (skillBonuses['Fortitude'] || 0) + 2;
+  }
+
+  // 14. Reflexos Defensivos: +2 em Defesa e +2 em testes de resistência (Fortitude, Reflexos, Vontade)
+  if (hasReflexosDefensivos) {
+    defenseBonusFromPowers += 2;
+    ['Fortitude', 'Reflexos', 'Vontade'].forEach((sk) => {
+      skillBonusesList.push({ skill: sk, bonus: 2, source: 'Reflexos Defensivos' });
+      skillBonuses[sk] = (skillBonuses[sk] || 0) + 2;
+    });
+  }
+
+  // 15. Precognição: +2 em Defesa e +2 em testes de resistência (Fortitude, Reflexos, Vontade)
+  if (hasPrecognicao) {
+    defenseBonusFromPowers += 2;
+    ['Fortitude', 'Reflexos', 'Vontade'].forEach((sk) => {
+      skillBonusesList.push({ skill: sk, bonus: 2, source: 'Precognição' });
+      skillBonuses[sk] = (skillBonuses[sk] || 0) + 2;
+    });
+  }
+
+  // 16. Visão do Oculto: +5 em Percepção
+  if (hasVisaoDoOculto) {
+    skillBonusesList.push({ skill: 'Percepção', bonus: 5, source: 'Visão do Oculto' });
+    skillBonuses['Percepção'] = (skillBonuses['Percepção'] || 0) + 5;
+  }
+
+  // 17. Espreitar da Besta: +5 em Furtividade (+10 com Afinidade)
+  if (hasEspreitarDaBesta) {
+    const val = hasEspreitarDaBestaAffinity ? 10 : 5;
+    const src = hasEspreitarDaBestaAffinity ? 'Espreitar da Besta (Afinidade)' : 'Espreitar da Besta';
+    skillBonusesList.push({ skill: 'Furtividade', bonus: val, source: src });
+    skillBonuses['Furtividade'] = (skillBonuses['Furtividade'] || 0) + val;
+  }
+
+  // 18. Sensitivo: +5 em Diplomacia, Intimidação e Intuição
+  if (hasSensitivo) {
+    ['Diplomacia', 'Intimidação', 'Intuição'].forEach((sk) => {
+      skillBonusesList.push({ skill: sk, bonus: 5, source: 'Sensitivo' });
+      skillBonuses[sk] = (skillBonuses[sk] || 0) + 5;
+    });
+  }
+
+  // 19. Policial (Patrulha): +2 em Defesa
+  if (hasPolicial) {
+    defenseBonusFromPowers += 2;
+  }
+
+  // 20. Especialista em Proteção Leve: +2 na Defesa e +2 em Reflexos quando usando proteção leve
+  if (hasEspecialistaProtecaoLeve) {
+    defenseBonusFromPowers += 2;
+    skillBonusesList.push({ skill: 'Reflexos', bonus: 2, source: 'Especialista em Proteção Leve' });
+    skillBonuses['Reflexos'] = (skillBonuses['Reflexos'] || 0) + 2;
+  }
+
+  // 21. Muito Sorrateiro: +3 em Furtividade
+  if (hasMuitoSorrateiro) {
+    skillBonusesList.push({ skill: 'Furtividade', bonus: 3, source: 'Muito Sorrateiro' });
+    skillBonuses['Furtividade'] = (skillBonuses['Furtividade'] || 0) + 3;
+  }
+
   const totalPvBonuses = pvBonuses.reduce((acc, b) => acc + b.value, 0);
   const totalPeBonuses = peBonuses.reduce((acc, b) => acc + b.value, 0);
   const totalSanBonuses = sanBonuses.reduce((acc, b) => acc + b.value, 0);
@@ -436,6 +524,7 @@ export function calculateMaxStats(
     peRound,
     dtRituals,
     defense,
+    defenseBonusFromPowers,
     skillBonuses,
     breakdown: {
       basePv,
@@ -475,6 +564,7 @@ export function detectVitalsModifiers(
   let hasVitima = originStr.includes('vitima') || originStr.includes('cicatrizes');
   let hasCultistaArrependido = originStr.includes('cultista') || originStr.includes('tracos');
   let hasMergulhador = originStr.includes('mergulhador') || originStr.includes('folego de nadador');
+  let hasPolicial = originStr.includes('policial') || originStr.includes('patrulha');
 
   let hasVitalidadeReforcada = false;
   let hasSangueDeFerro = false;
@@ -485,6 +575,15 @@ export function detectVitalsModifiers(
   let hasCombatenteEsforcado = false;
   let hasCascaGrossa = false;
   let hasPersonalidadeEsoterica = false;
+  let hasAdaptacaoClimatica = false;
+  let hasReflexosDefensivos = false;
+  let hasPrecognicao = false;
+  let hasVisaoDoOculto = false;
+  let hasEspreitarDaBesta = false;
+  let hasEspreitarDaBestaAffinity = false;
+  let hasSensitivo = false;
+  let hasEspecialistaProtecaoLevePower = false;
+  let hasMuitoSorrateiro = false;
 
   const checkTextForPowers = (name: string, desc: string) => {
     const n = norm(name);
@@ -504,6 +603,9 @@ export function detectVitalsModifiers(
     }
     if (n.includes('mergulhador') || n.includes('folego de nadador') || d.includes('folego de nadador')) {
       hasMergulhador = true;
+    }
+    if (n.includes('patrulha') || n === 'policial') {
+      hasPolicial = true;
     }
 
     if (n.includes('vitalidade reforcada')) {
@@ -541,6 +643,41 @@ export function detectVitalsModifiers(
     if (n.includes('casca grossa') || d.includes('casca grossa')) {
       hasCascaGrossa = true;
     }
+    if (n.includes('adaptacao climatica') || d.includes('adaptacao climatica')) {
+      hasAdaptacaoClimatica = true;
+    }
+    if (n.includes('reflexos defensivos')) {
+      hasReflexosDefensivos = true;
+    }
+    if (n.includes('precognicao')) {
+      hasPrecognicao = true;
+    }
+    if (n.includes('visao do oculto')) {
+      hasVisaoDoOculto = true;
+    }
+    if (n.includes('espreitar da besta')) {
+      hasEspreitarDaBesta = true;
+      if (
+        n.includes('afinidade') ||
+        (character.affinity === 'Sangue' && (character.nex ?? 0) >= 50)
+      ) {
+        hasEspreitarDaBestaAffinity = true;
+      }
+    }
+    if (
+      (n === 'sensitivo' ||
+        n.includes('power livro base sensitivo') ||
+        d.includes('+5 em testes de diplomacia, intimidacao e intuicao')) &&
+      !n.includes('rebelde')
+    ) {
+      hasSensitivo = true;
+    }
+    if (n.includes('especialista em protecao leve')) {
+      hasEspecialistaProtecaoLevePower = true;
+    }
+    if (n.includes('muito sorrateiro') || d.includes('muito sorrateiro')) {
+      hasMuitoSorrateiro = true;
+    }
   };
 
   if (character.abilities && Array.isArray(character.abilities)) {
@@ -555,6 +692,24 @@ export function detectVitalsModifiers(
       checkTextForPowers(ent?.name || id, ent?.description || '');
     }
   }
+
+  const trackEnt = getEntityById && character.trackId ? getEntityById(character.trackId) : null;
+  const trackStr = norm(`${character.trackId || ''} ${trackEnt?.name || ''}`);
+  if (trackStr.includes('tropa de choque') && (character.nex ?? 5) >= 10) {
+    hasCascaGrossa = true;
+  }
+
+  const wearsLightProtection =
+    (character.inventory || []).some((item) => {
+      if (item.equipped === false || (item.quantity ?? 1) <= 0) return false;
+      const itemNorm = norm(`${item.name || ''} ${item.details || ''} ${item.justification || ''}`);
+      return (
+        itemNorm.includes('protecao leve') ||
+        (item.itemType === 'protecao' && itemNorm.includes('leve'))
+      );
+    }) || norm(character.protection).includes('protecao leve');
+
+  const hasEspecialistaProtecaoLeve = hasEspecialistaProtecaoLevePower && wearsLightProtection;
 
   const classEnt = getEntityById && character.classId ? getEntityById(character.classId) : null;
   const className = classEnt?.name || character.classId || 'Especialista';
@@ -578,6 +733,16 @@ export function detectVitalsModifiers(
     hasCultistaArrependido,
     hasMergulhador,
     hasPersonalidadeEsoterica,
+    hasAdaptacaoClimatica,
+    hasReflexosDefensivos,
+    hasPrecognicao,
+    hasVisaoDoOculto,
+    hasEspreitarDaBesta,
+    hasEspreitarDaBestaAffinity,
+    hasSensitivo,
+    hasPolicial,
+    hasEspecialistaProtecaoLeve,
+    hasMuitoSorrateiro,
   };
 }
 
@@ -1568,5 +1733,208 @@ export function checkRitualPrerequisites(
     details: met ? 'Requisitos atendidos' : unmetDetails.join('; '),
     unmetDetails,
   };
+}
+
+/**
+ * Consolida bônus numéricos passivos de perícias e Defesa provenientes de poderes,
+ * origens e habilidades de trilha (ex: Vontade Inabalável, Reflexos Defensivos,
+ * Policial/Patrulha, Especialista em Proteção Leve, Gatuno, Iniciativa Aprimorada,
+ * O Sorriso, Ser Escarificado, Diplomata/Conexões, Profetizado/Luta ou Fuga).
+ *
+ * Não aplica bônus condicionais de "treinamento ou +2", evitando somar +2 indevidamente
+ * quando o personagem apenas adquiriu o grau Treinado pela fonte.
+ */
+export interface PassiveAbilityBonusesResult {
+  skillBonuses: Record<string, number>;
+  defenseOtherBonus: number;
+  loadBonus: number;
+  hasInventarioOrganizado: boolean;
+  hasCascaGrossa: boolean;
+  hasMagnata: boolean;
+  displacementBonusMeters: number;
+  resistancesList: string[];
+}
+
+export function extractPassiveAbilitySkillAndDefenseBonuses(
+  character: CharacterSheet,
+  getEntityById?: (id: string) => CompendiumEntity | undefined
+): PassiveAbilityBonusesResult {
+  const norm = (s?: string) =>
+    (s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/_/g, ' ');
+
+  const vitals = calculateCharacterVitals(character, getEntityById);
+  const skillBonuses: Record<string, number> = { ...(vitals.skillBonuses || {}) };
+  const defenseOtherBonus = vitals.defenseBonusFromPowers || 0;
+
+  const addSkillBonus = (skillName: string, delta: number) => {
+    skillBonuses[skillName] = (skillBonuses[skillName] || 0) + delta;
+  };
+
+  const originEnt = getEntityById && character.originId ? getEntityById(character.originId) : null;
+  const originStr = norm(`${character.originId || ''} ${originEnt?.name || ''} ${originEnt?.powerName || ''}`);
+
+  const trackEnt = getEntityById && character.trackId ? getEntityById(character.trackId) : null;
+  const trackStr = norm(`${character.trackId || ''} ${trackEnt?.name || ''}`);
+  const trackParsed = parseTrackAbilities(trackEnt?.description || '');
+  const nex = character.nex ?? 5;
+
+  const unlockedTrackAbilities = Object.entries(trackParsed)
+    .filter(([nexKey]) => Number(nexKey) <= nex)
+    .map(([, val]) => norm(`${val.title} ${val.description}`));
+
+  const abilityTexts = [
+    ...(character.abilities || []).map((ab) => norm(`${ab.name} ${ab.description || ''}`)),
+    ...(character.entityIds || []).map((id) => {
+      const ent = getEntityById ? getEntityById(id) : null;
+      return norm(`${id} ${ent?.name || ''} ${ent?.description || ''}`);
+    }),
+    ...unlockedTrackAbilities,
+  ];
+
+  const hasTextMatch = (pattern: RegExp) => abilityTexts.some((t) => pattern.test(t));
+
+  // Origens com bônus passivo incondicional em perícia específica
+  if (originStr.includes('diplomata') || originStr.includes('conexoes')) {
+    addSkillBonus('Diplomacia', 2);
+  }
+  if (originStr.includes('profetizado') || originStr.includes('luta ou fuga')) {
+    addSkillBonus('Vontade', 2);
+  }
+
+  // Trilha: Operações Especiais (NEX 10% - Iniciativa Aprimorada -> +5 em Iniciativa)
+  if (
+    hasTextMatch(/iniciativa aprimorada/) ||
+    (trackStr.includes('operacoes especiais') && nex >= 10)
+  ) {
+    addSkillBonus('Iniciativa', 5);
+  }
+
+  // Trilha: Infiltrador (NEX 40% - Gatuno -> +5 em Atletismo e Crime)
+  if (
+    hasTextMatch(/\bgatuno\b/) ||
+    (trackStr.includes('infiltrador') && nex >= 40)
+  ) {
+    addSkillBonus('Atletismo', 5);
+    addSkillBonus('Crime', 5);
+  }
+
+  // Trilha: Agente Secreto (NEX 40% - O Sorriso -> +2 em Diplomacia e Enganação)
+  if (
+    hasTextMatch(/o sorriso/) ||
+    (trackStr.includes('agente secreto') && nex >= 40)
+  ) {
+    addSkillBonus('Diplomacia', 2);
+    addSkillBonus('Enganação', 2);
+  }
+
+  // Trilha: Monstruoso Ocultista (NEX 10% - Ser Escarificado -> +2 Ocultismo, -2 Diplomacia/Enganação/Intuição)
+  if (
+    hasTextMatch(/ser escarificado/) ||
+    (trackStr.includes('monstruoso') && trackStr.includes('ocultista') && nex >= 10)
+  ) {
+    addSkillBonus('Ocultismo', 2);
+    addSkillBonus('Diplomacia', -2);
+    addSkillBonus('Enganação', -2);
+    addSkillBonus('Intuição', -2);
+  }
+
+  // Capacidade de carga, proteção/RD, crédito, deslocamento e resistências passivas
+  const hasInventarioOrganizado = hasTextMatch(/inventario organizado/);
+  const hasCascaGrossa =
+    hasTextMatch(/casca grossa/) || (trackStr.includes('tropa de choque') && nex >= 10);
+  const hasMagnata =
+    originStr.includes('magnata') || hasTextMatch(/patrocinador da ordem/);
+  const hasMuambeiroMascate =
+    hasTextMatch(/\bmascate\b/) || (trackStr.includes('muambeiro') && nex >= 10);
+
+  let loadBonus = 0;
+  if (hasInventarioOrganizado) {
+    loadBonus += Math.max(0, character.attributes?.INT || 0);
+  }
+  if (hasMuambeiroMascate) {
+    loadBonus += 5;
+  }
+
+  let displacementBonusMeters = 0;
+  if (hasTextMatch(/\batletico\b/)) {
+    displacementBonusMeters += 3;
+  }
+  if (hasTextMatch(/correria desesperada/)) {
+    displacementBonusMeters += 3;
+  }
+
+  // Resistências passivas de "Resistir a Elemento" (ex: "Resistir a Sangue", "Resistir a Elemento (Morte)")
+  const resistancesList: string[] = [];
+  const elementNames: Array<{ key: string; label: 'Sangue' | 'Morte' | 'Conhecimento' | 'Energia' }> = [
+    { key: 'sangue', label: 'Sangue' },
+    { key: 'morte', label: 'Morte' },
+    { key: 'conhecimento', label: 'Conhecimento' },
+    { key: 'energia', label: 'Energia' },
+  ];
+  const resistanceByElement = new Map<string, number>();
+
+  const inspectResistSource = (rawName: string, rawDesc: string) => {
+    const cleanName = norm(rawName);
+    // Remove trecho padrão "Escolha entre Conhecimento, Energia, Morte ou Sangue" antes de buscar elemento específico
+    const strippedDesc = norm(rawDesc).replace(/escolha entre[^.!?\n]+/g, ' ');
+    const combined = `${cleanName} ${strippedDesc}`;
+    if (!combined.includes('resistir')) return;
+
+    for (const el of elementNames) {
+      const explicitDirect = new RegExp(`resistir\\s+a\\s+${el.key}|${el.key}\\s+(?:10|20)|escolhido\\s*[:\\-]\\s*${el.key}`);
+      if (cleanName.includes(el.key) || explicitDirect.test(combined)) {
+        const hasElAffinity =
+          cleanName.includes('afinidade') ||
+          (norm(character.affinity) === el.key && nex >= 50);
+        const val = hasElAffinity ? 20 : 10;
+        const prev = resistanceByElement.get(el.label) || 0;
+        if (val > prev) {
+          resistanceByElement.set(el.label, val);
+        }
+      }
+    }
+  };
+
+  for (const ab of character.abilities || []) {
+    inspectResistSource(ab.name || '', ab.description || '');
+  }
+  for (const id of character.entityIds || []) {
+    const ent = getEntityById ? getEntityById(id) : null;
+    inspectResistSource(ent?.name || id, ent?.description || '');
+  }
+  for (const [elLabel, val] of resistanceByElement.entries()) {
+    resistancesList.push(`${elLabel} ${val}`);
+  }
+
+  return {
+    skillBonuses,
+    defenseOtherBonus,
+    loadBonus,
+    hasInventarioOrganizado,
+    hasCascaGrossa,
+    hasMagnata,
+    displacementBonusMeters,
+    resistancesList,
+  };
+}
+
+/**
+ * Mescla um bônus salvo na ficha com o bônus passivo calculado de poderes/origens/trilhas,
+ * evitando dupla contagem quando a ficha já armazenava esse bônus, sem sobrescrever ajustes manuais.
+ */
+export function mergePassiveSkillBonus(savedBonus: number, passiveBonus: number): number {
+  if (passiveBonus > 0) {
+    return savedBonus >= 0 ? Math.max(savedBonus, passiveBonus) : savedBonus + passiveBonus;
+  }
+  if (passiveBonus < 0) {
+    if (savedBonus === 0) return passiveBonus;
+    if (savedBonus <= passiveBonus) return savedBonus;
+    return savedBonus + passiveBonus;
+  }
+  return savedBonus;
 }
 

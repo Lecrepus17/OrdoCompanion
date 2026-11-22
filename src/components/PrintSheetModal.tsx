@@ -19,6 +19,7 @@ import {
   generateSheetHtml,
   printCharacterSheet,
   openPrintableTab,
+  resolveSheetPrintSkillsAndStats,
   SheetType,
 } from '../utils/sheetPrinter';
 
@@ -70,16 +71,25 @@ export default function PrintSheetModal({
     });
   }, [character, visible, sheetType, pageView, originEntity, classEntity, trackEntity]);
 
+  const resolvedPrintData = useMemo(() => {
+    if (!character) return null;
+    return resolveSheetPrintSkillsAndStats(character, {
+      originEntity,
+      classEntity,
+      trackEntity,
+    });
+  }, [character, originEntity, classEntity, trackEntity]);
+
   const trainedSkills = useMemo(() => {
-    if (!character?.skills) return [];
-    return Object.entries(character.skills)
-      .filter(([_, data]) => (data.degree || 0) > 0 || (data.bonus || 0) > 0)
-      .map(([name, data]) => ({
-        name,
-        total: (data.degree || 0) + (data.bonus || 0),
-        degree: data.degree || 0,
+    if (!resolvedPrintData) return [];
+    return Object.values(resolvedPrintData.skills)
+      .filter((sk) => sk.degree > 0 || sk.otherBonus !== 0)
+      .map((sk) => ({
+        name: sk.name,
+        total: sk.totalBonus,
+        degree: sk.degree,
       }));
-  }, [character?.skills]);
+  }, [resolvedPrintData]);
 
   if (!character) return null;
 
@@ -315,11 +325,31 @@ export default function PrintSheetModal({
                   {/* Attributes Grid */}
                   <View style={styles.sheetAttrRow}>
                     {[
-                      { key: 'AGI', label: 'AGILIDADE', val: character.attributes?.AGI ?? 1 },
-                      { key: 'FOR', label: 'FORÇA', val: character.attributes?.FOR ?? 1 },
-                      { key: 'INT', label: 'INTELECTO', val: character.attributes?.INT ?? 1 },
-                      { key: 'PRE', label: 'PRESENÇA', val: character.attributes?.PRE ?? 1 },
-                      { key: 'VIG', label: 'VIGOR', val: character.attributes?.VIG ?? 1 },
+                      {
+                        key: 'AGI',
+                        label: 'AGILIDADE',
+                        val: resolvedPrintData?.effectiveAttributes.AGI ?? character.attributes?.AGI ?? 1,
+                      },
+                      {
+                        key: 'FOR',
+                        label: 'FORÇA',
+                        val: resolvedPrintData?.effectiveAttributes.FOR ?? character.attributes?.FOR ?? 1,
+                      },
+                      {
+                        key: 'INT',
+                        label: 'INTELECTO',
+                        val: resolvedPrintData?.effectiveAttributes.INT ?? character.attributes?.INT ?? 1,
+                      },
+                      {
+                        key: 'PRE',
+                        label: 'PRESENÇA',
+                        val: resolvedPrintData?.effectiveAttributes.PRE ?? character.attributes?.PRE ?? 1,
+                      },
+                      {
+                        key: 'VIG',
+                        label: 'VIGOR',
+                        val: resolvedPrintData?.effectiveAttributes.VIG ?? character.attributes?.VIG ?? 1,
+                      },
                     ].map((attr) => (
                       <View key={attr.key} style={styles.sheetAttrBox}>
                         <Text style={styles.sheetAttrKey}>{attr.key}</Text>
@@ -333,25 +363,25 @@ export default function PrintSheetModal({
                     <View style={[styles.sheetVitalBox, { borderColor: '#EF4444' }]}>
                       <Text style={[styles.sheetVitalLabel, { color: '#EF4444' }]}>VIDA (PV)</Text>
                       <Text style={styles.sheetVitalValue}>
-                        {character.pvCurrent ?? character.pvMax}/{character.pvMax}
+                        {character.pvCurrent ?? resolvedPrintData?.effectivePvMax ?? character.pvMax}/{resolvedPrintData?.effectivePvMax ?? character.pvMax}
                       </Text>
                     </View>
                     <View style={[styles.sheetVitalBox, { borderColor: '#38BDF8' }]}>
                       <Text style={[styles.sheetVitalLabel, { color: '#38BDF8' }]}>SANIDADE (SAN)</Text>
                       <Text style={styles.sheetVitalValue}>
-                        {character.sanCurrent ?? character.sanMax}/{character.sanMax}
+                        {character.sanCurrent ?? resolvedPrintData?.effectiveSanMax ?? character.sanMax}/{resolvedPrintData?.effectiveSanMax ?? character.sanMax}
                       </Text>
                     </View>
                     <View style={[styles.sheetVitalBox, { borderColor: '#A855F7' }]}>
                       <Text style={[styles.sheetVitalLabel, { color: '#A855F7' }]}>ESFORÇO (PE)</Text>
                       <Text style={styles.sheetVitalValue}>
-                        {character.peCurrent ?? character.peMax}/{character.peMax}
+                        {character.peCurrent ?? resolvedPrintData?.effectivePeMax ?? character.peMax}/{resolvedPrintData?.effectivePeMax ?? character.peMax}
                       </Text>
                     </View>
                     <View style={[styles.sheetVitalBox, { borderColor: '#10B981' }]}>
                       <Text style={[styles.sheetVitalLabel, { color: '#10B981' }]}>DEFESA</Text>
                       <Text style={styles.sheetVitalValue}>
-                        {character.defenseBonus || (10 + (character.attributes?.AGI || 0))}
+                        {resolvedPrintData?.totalDef ?? (character.defenseBonus || (10 + (character.attributes?.AGI || 0)))}
                       </Text>
                     </View>
                   </View>
@@ -407,7 +437,7 @@ export default function PrintSheetModal({
                           {trainedSkills.map((sk) => (
                             <View key={sk.name} style={styles.sheetSkillPill}>
                               <Text style={styles.sheetSkillName}>{sk.name}</Text>
-                              <Text style={styles.sheetSkillBonus}>+{sk.total}</Text>
+                              <Text style={styles.sheetSkillBonus}>{sk.total >= 0 ? `+${sk.total}` : `${sk.total}`}</Text>
                             </View>
                           ))}
                         </View>
@@ -481,11 +511,7 @@ export default function PrintSheetModal({
 
           {/* Footer Actions */}
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Fechar</Text>
-            </TouchableOpacity>
-
-            <View style={styles.rightActions}>
+            <View style={[styles.rightActions, { flex: 1, justifyContent: 'flex-end' }]}>
               {Platform.OS === 'web' && (
                 <TouchableOpacity
                   style={styles.openTabBtn}

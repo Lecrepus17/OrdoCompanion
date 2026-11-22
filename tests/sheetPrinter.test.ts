@@ -7,6 +7,7 @@ import {
   getSkillTrainingRoman,
   getSkillTotalBonus,
   generateSheetHtml,
+  resolveSheetPrintSkillsAndStats,
 } from '../src/utils/sheetPrinter';
 import { CharacterSheet } from '../src/types/compendium';
 
@@ -194,6 +195,367 @@ describe('Impressão e Renderização de Ficha (sheetPrinter.ts)', () => {
       const html = generateSheetHtml({ character: charWithRitual, sheetType: 'livro_base' });
       assert.ok(html.includes('Decadência'));
       assert.ok(html.includes('Causa 2d8+2 de dano de Morte com espirais negras.'));
+    });
+
+    it('deve incluir bônus +2 de vestimenta com duas perícias (Função Adicional / Amuleto Sagrado) em Outros e BÔNUS nas fichas LB e SH', () => {
+      const charVestimentaDupla: CharacterSheet = {
+        ...dummyChar,
+        skills: {
+          ...dummyChar.skills,
+          Religião: { degree: 5, bonus: 0 }, // Treinada (+5) +2 vestimenta = Outros +2 / Total 7
+          Vontade: { degree: 0, bonus: 0 }, // Destreinada +2 vestimenta = Outros +2 / Total 2
+        },
+        inventory: [
+          {
+            id: 'amuleto_1',
+            name: 'Amuleto Sagrado',
+            category: '0',
+            spaces: 1,
+            itemType: 'vestimenta',
+            targetSkill: 'Religião',
+            skillBonus: 2,
+            secondarySkill: 'Vontade',
+            secondaryBonus: 2,
+            // equipped propositalmente omitido (undefined -> ativo por padrão)
+          },
+        ],
+      };
+
+      const resolved = resolveSheetPrintSkillsAndStats(charVestimentaDupla);
+      assert.strictEqual(resolved.skills['Religião'].otherBonus, 2);
+      assert.strictEqual(resolved.skills['Religião'].outrosText, '+2');
+      assert.strictEqual(resolved.skills['Religião'].totalBonus, 7);
+      assert.strictEqual(resolved.skills['Religião'].bonusText, '7');
+
+      assert.strictEqual(resolved.skills['Vontade'].otherBonus, 2);
+      assert.strictEqual(resolved.skills['Vontade'].outrosText, '+2');
+      assert.strictEqual(resolved.skills['Vontade'].totalBonus, 2);
+      assert.strictEqual(resolved.skills['Vontade'].bonusText, '2');
+
+      const htmlLB = generateSheetHtml({ character: charVestimentaDupla, sheetType: 'livro_base' });
+      const htmlSH = generateSheetHtml({
+        character: charVestimentaDupla,
+        sheetType: 'sobrevivendo_horror',
+      });
+
+      assert.ok(htmlLB.includes('+2'));
+      assert.ok(htmlLB.includes('top: 68.13')); // Linha de Religião em LB
+      assert.ok(htmlLB.includes('top: 76.57')); // Linha de Vontade em LB
+      assert.ok(htmlSH.includes('top: 68.63')); // Linha de Religião em SH
+      assert.ok(htmlSH.includes('top: 77.07')); // Linha de Vontade em SH
+    });
+
+    it('deve somar bônus salvo na perícia (+2) com bônus de vestimenta (+2) totalizando +4 em Outros e 9 em BÔNUS sem perda', () => {
+      const charCumulativo: CharacterSheet = {
+        ...dummyChar,
+        skills: {
+          ...dummyChar.skills,
+          Diplomacia: { degree: 5, bonus: 2 },
+        },
+        inventory: [
+          {
+            id: 'vest_dip',
+            name: 'Terno Sob Medida',
+            category: 'I',
+            spaces: 1,
+            equipped: true,
+            itemType: 'vestimenta',
+            targetSkill: 'Diplomacia',
+            skillBonus: 2,
+            secondarySkill: 'Enganação',
+            secondaryBonus: 2,
+          },
+        ],
+      };
+
+      const resolved = resolveSheetPrintSkillsAndStats(charCumulativo);
+      assert.strictEqual(resolved.skills['Diplomacia'].otherBonus, 4);
+      assert.strictEqual(resolved.skills['Diplomacia'].outrosText, '+4');
+      assert.strictEqual(resolved.skills['Diplomacia'].totalBonus, 9);
+      assert.strictEqual(resolved.skills['Diplomacia'].bonusText, '9');
+      assert.strictEqual(resolved.skills['Enganação'].otherBonus, 2);
+
+      const htmlLB = generateSheetHtml({ character: charCumulativo, sheetType: 'livro_base' });
+      assert.ok(htmlLB.includes('+4'));
+    });
+
+    it('deve aplicar bônus passivos de poderes, origens, maldições de acessórios/proteção e Máscara ativa sem dupla contagem', () => {
+      const charFullBonuses: CharacterSheet = {
+        ...dummyChar,
+        pvMax: 30,
+        peMax: 12,
+        sanMax: 16,
+        dtRituals: 15,
+        defenseEquip: 2,
+        defenseOther: 0,
+        originId: 'origin__livro_base__policial', // +2 Defesa
+        entityIds: [
+          'power__sobrevivendo_ao_horror__vontade_inabalavel', // +2 Vontade
+          'power__livro_base__reflexos_defensivos', // +2 Defesa e +2 Fortitude/Reflexos/Vontade
+          'power__arquivos_secretos_06__especialista_em_protecao_leve', // +2 Defesa e +2 Reflexos usando proteção leve
+        ],
+        skills: {
+          Vontade: { degree: 5, bonus: 0 },
+          Reflexos: { degree: 5, bonus: 0 },
+          Fortitude: { degree: 0, bonus: 0 },
+        },
+        inventory: [
+          {
+            id: 'prot_leve',
+            name: 'Proteção Leve',
+            category: 'II',
+            spaces: 2,
+            equipped: true,
+            itemType: 'protecao',
+            modifications: ['curse__prot_sombria'], // +5 Furtividade
+          },
+          {
+            id: 'anel_poder',
+            name: 'Anel Amaldiçoado',
+            category: 'III',
+            spaces: 1,
+            equipped: true,
+            itemType: 'utensilio',
+            targetSkill: 'Ocultismo',
+            skillBonus: 2,
+            modifications: [
+              'curse_acc_defesa', // +5 Defesa
+              'curse_acc_vitalidade', // +15 PV
+              'curse_acc_esforco_adicional', // +5 PE
+              'curse_acc_potencia', // +1 DT
+            ],
+            customModifications: [
+              {
+                id: 'cm_san',
+                name: 'Lúcido',
+                effect: '+5 de SAN máxima',
+                categoryIncrease: 1,
+              },
+            ],
+          },
+        ],
+        maskConfig: {
+          enabled: true,
+          maskName: 'Máscara das Pessoas nas Sombras',
+          isActive: true,
+          activeRounds: 1,
+          grantBonusTests: true,
+          grantBonusDt: true,
+          grantBonusDiceDamage: true,
+          freeAdvancedRituals: false,
+        },
+      };
+
+      const resolved = resolveSheetPrintSkillsAndStats(charFullBonuses);
+      // Defesa Outros: Policial (+2) + Reflexos Defensivos (+2) + Esp. Prot. Leve (+2) + Maldição Defesa (+5) = 11
+      assert.strictEqual(resolved.effectiveDefenseOther, 11);
+      // Defesa Total: 10 + AGI (3) + Equip (2) + Outros (11) = 26
+      assert.strictEqual(resolved.totalDef, 26);
+
+      // Vitais: PV 30 + Vitalidade 15 = 45; PE 12 (base) + Vontade Inabalável 2 + Esforço Adicional 5 = 19; SAN 16 + custom SAN 5 = 21
+      assert.strictEqual(resolved.effectivePvMax, 45);
+      assert.strictEqual(resolved.effectivePeMax, 19);
+      assert.strictEqual(resolved.effectiveSanMax, 21);
+
+      // DT Ritual: 15 base + Potência (1) + Máscara (5) = 21
+      assert.strictEqual(resolved.effectiveDtRitual, 21);
+
+      // Perícias (com +5 de Forma Suprema da Máscara em todos os testes):
+      // Vontade: Treino +5, Vontade Inabalável +2, Reflexos Defensivos +2, Máscara +5 -> Outros +9, Total 14
+      assert.strictEqual(resolved.skills['Vontade'].otherBonus, 9);
+      assert.strictEqual(resolved.skills['Vontade'].totalBonus, 14);
+
+      // Reflexos: Treino +5, Reflexos Defensivos +2, Esp. Prot. Leve +2, Máscara +5 -> Outros +9, Total 14
+      assert.strictEqual(resolved.skills['Reflexos'].otherBonus, 9);
+      assert.strictEqual(resolved.skills['Reflexos'].totalBonus, 14);
+
+      // Fortitude: Treino 0, Reflexos Defensivos +2, Máscara +5 -> Outros +7, Total 7
+      assert.strictEqual(resolved.skills['Fortitude'].otherBonus, 7);
+      assert.strictEqual(resolved.skills['Fortitude'].totalBonus, 7);
+
+      // Furtividade: Sombria (+5) + Máscara (+5) = Outros +10
+      assert.strictEqual(resolved.skills['Furtividade'].otherBonus, 10);
+
+      // Verifica não-dupla-contagem se `skills.Vontade.bonus` já contiver o bônus passivo salvo (+4)
+      const resolvedAlreadySynced = resolveSheetPrintSkillsAndStats({
+        ...charFullBonuses,
+        skills: {
+          ...charFullBonuses.skills,
+          Vontade: { degree: 5, bonus: 4 },
+        },
+      });
+      assert.strictEqual(resolvedAlreadySynced.skills['Vontade'].otherBonus, 9);
+
+      const htmlLB = generateSheetHtml({ character: charFullBonuses, sheetType: 'livro_base' });
+      assert.ok(htmlLB.includes('>45<'));
+      assert.ok(htmlLB.includes('>19<'));
+      assert.ok(htmlLB.includes('>21<'));
+      assert.ok(htmlLB.includes('>26<') || htmlLB.includes('26'));
+    });
+
+    it('Especialista em Proteção Leve não deve somar Defesa nem Reflexos se não estiver usando proteção leve', () => {
+      const charSemProtecaoLeve: CharacterSheet = {
+        ...dummyChar,
+        entityIds: ['power__arquivos_secretos_06__especialista_em_protecao_leve'],
+        inventory: [],
+        protection: '',
+      };
+
+      const resolved = resolveSheetPrintSkillsAndStats(charSemProtecaoLeve);
+      assert.strictEqual(resolved.effectiveDefenseOther, 0);
+      assert.strictEqual(resolved.skills['Reflexos'].otherBonus, 0);
+    });
+
+    it('deve aplicar Muito Sorrateiro, Casca Grossa, Inventário Organizado, Muambeiro, Atlântico/Tênis Lépidos, Magnata, resistências, maldições de atributos e vitais não recalculados', () => {
+      // Combatente NEX 20% com atributos {AGI:3, FOR:2, INT:2, PRE:1, VIG:2}
+      // Base de classe sem bônus extras: PV = 20+2+3*(4+2) = 40 | PE = 2+1+3*(2+1) = 12 | SAN = 12+3*3 = 21
+      const charCompleto: CharacterSheet = {
+        ...dummyChar,
+        attributes: { AGI: 3, FOR: 2, INT: 2, PRE: 1, VIG: 2 },
+        nex: 20,
+        peRound: 4,
+        pvMax: 40,
+        peMax: 12,
+        sanMax: 21,
+        rank: 'Recruta',
+        creditLimit: 'Baixo',
+        displacement: '9m (6□)',
+        protection: '',
+        resistances: '',
+        defenseEquip: 0,
+        defenseOther: 0,
+        originId: 'origin__livro_base__magnata', // +1 tier crédito -> Médio
+        trackId: 'track__sobrevivendo_ao_horror__especialista_muambeiro', // +5 carga (NEX 10% Mascate)
+        entityIds: [
+          'power__arquivos_secretos_06__muito_sorrateiro', // +3 Furtividade
+          'power__sobrevivendo_ao_horror__vontade_inabalavel', // +2 Vontade, +2 PE (20% NEX)
+          'power__sobrevivendo_ao_horror__inventario_organizado', // +INT na carga e 0,5 -> 0,25 espaço
+          'power__sobrevivendo_ao_horror__atletico', // +3m deslocamento
+        ],
+        abilities: [
+          {
+            id: 'ab_resist',
+            name: 'Resistir a Sangue',
+            cost: 'Passiva',
+            originPage: 'LB p. 115',
+            description: 'Você recebe resistência a Sangue 10.',
+            type: 'poder',
+          },
+          {
+            id: 'ab_vitima',
+            name: 'Cicatrizes Psicológicas',
+            cost: 'Passiva',
+            originPage: 'Origem',
+            description: 'Você recebe +1 de Sanidade para cada 5% de NEX.',
+            type: 'poder',
+          },
+        ],
+        skills: {
+          Furtividade: { degree: 5, bonus: 0 },
+          Vontade: { degree: 5, bonus: 0 },
+        },
+        inventory: [
+          {
+            id: 'prot_1',
+            name: 'Proteção Leve',
+            category: 'I',
+            spaces: 2,
+            equipped: true,
+            itemType: 'protecao',
+          },
+          {
+            id: 'tenis_1',
+            name: 'Tênis Lépidos',
+            sourceEntityId: 'item__arquivos_secretos_05__tenis_lepidos',
+            category: 'III',
+            spaces: 0.5, // Deve virar 0,25 por Inventário Organizado
+            equipped: true,
+            itemType: 'vestimenta',
+            targetSkill: 'Atletismo',
+            skillBonus: 12,
+          },
+          {
+            id: 'jaqueta_verissimo',
+            name: 'Jaqueta de Veríssimo',
+            sourceEntityId: 'item__livro_base__jaqueta_de_verissimo',
+            category: 'IV',
+            spaces: 0.5, // Deve virar 0,25 por Inventário Organizado
+            equipped: true,
+            itemType: 'vestimenta',
+            modifications: [
+              'curse_acc_destreza', // +1 AGI
+              'curse_acc_pujanca', // +1 FOR
+              'curse_acc_sagacidade', // +1 INT
+              'curse_acc_carisma', // +1 PRE
+              'curse_acc_disposicao', // +1 VIG (+4 PV extra em NEX 20% = 4 passos de VIG)
+              'curse_acc_escudo_mental', // Mental 10
+            ],
+          },
+        ],
+      };
+
+      const resolved = resolveSheetPrintSkillsAndStats(charCompleto);
+
+      // Atributos efetivos com maldições de acessório
+      assert.deepStrictEqual(resolved.effectiveAttributes, {
+        AGI: 4,
+        FOR: 3,
+        INT: 3,
+        PRE: 2,
+        VIG: 3,
+      });
+
+      // Vitais não recalculados previamente recebem passivos + delta de VIG (+4 PV) + +2 PE (Vontade Inabalável -> 14) + +4 SAN (Cicatrizes/Vítima em NEX 20% -> 25)
+      assert.strictEqual(resolved.effectivePvMax, 44);
+      assert.strictEqual(resolved.effectivePeMax, 14);
+      assert.strictEqual(resolved.effectiveSanMax, 25);
+
+      // DT Ritual reflete +1 PRE (Carisma): 10 + 4 PE/rodada + 2 PRE = 16
+      assert.strictEqual(resolved.effectiveDtRitual, 16);
+
+      // Proteção Leve equipada preenche defenseEquip (+5), proteção e Defesa Total (10 + AGI 4 + Equip 5 = 19)
+      assert.strictEqual(resolved.effectiveDefenseEquip, 5);
+      assert.strictEqual(resolved.totalDef, 19);
+      assert.ok(resolved.effectiveProtectionText.includes('Proteção Leve'));
+
+      // Resistências deduplicadas e mescladas (Proteção Leve + Jaqueta de Veríssimo + Escudo Mental + Resistir a Sangue)
+      assert.ok(resolved.effectiveResistancesText.includes('Paranormal 15'));
+      assert.ok(resolved.effectiveResistancesText.includes('Mental 10'));
+      assert.ok(resolved.effectiveResistancesText.includes('Sangue 10'));
+
+      // Carga: FOR 3 (15) + Inventário Organizado INT 3 (+3) + Muambeiro/Mascate (+5) = 23
+      // Carga atual: 2 (Proteção Leve) + 0.25 (Tênis 0.5) + 0.25 (Jaqueta 0.5) = 2,5
+      assert.strictEqual(resolved.maxLoad, 23);
+      assert.strictEqual(resolved.curLoad, '2,5');
+
+      // Deslocamento: 9m + 3m (Atlético) + 3m (Tênis Lépidos) = 15m (10□)
+      assert.strictEqual(resolved.effectiveDisplacement, '15m (10□)');
+
+      // Limite de crédito: Recruta Baixo + Magnata -> Médio
+      assert.strictEqual(resolved.effectiveCreditLimit, 'Médio');
+
+      // Perícias: Muito Sorrateiro (+3 Furtividade), Tênis Lépidos (+12 Atletismo), Vontade Inabalável (+2 Vontade)
+      assert.strictEqual(resolved.skills['Furtividade'].otherBonus, 3);
+      assert.strictEqual(resolved.skills['Furtividade'].totalBonus, 8);
+      assert.strictEqual(resolved.skills['Atletismo'].otherBonus, 12);
+      assert.strictEqual(resolved.skills['Vontade'].otherBonus, 2);
+
+      // Verifica Casca Grossa via Tropa de Choque em NEX >= 10%
+      const tropaDeChoque = resolveSheetPrintSkillsAndStats({
+        ...dummyChar,
+        nex: 20,
+        pvMax: 40, // Base combatente VIG 2
+        attributes: { AGI: 1, FOR: 2, INT: 1, PRE: 1, VIG: 2 },
+        trackId: 'track__livro_base__combatente_tropa_de_choque',
+      });
+      assert.strictEqual(tropaDeChoque.passiveBonuses.hasCascaGrossa, true);
+      assert.strictEqual(tropaDeChoque.effectivePvMax, 44); // +1 PV / 5% NEX (4 passos)
+
+      const htmlLB = generateSheetHtml({ character: charCompleto, sheetType: 'livro_base' });
+      assert.ok(htmlLB.includes('15m (10□)'));
+      assert.ok(htmlLB.includes('Médio'));
+      assert.ok(htmlLB.includes('Paranormal 15'));
+      assert.ok(htmlLB.includes('2,5'));
     });
   });
 });

@@ -75,9 +75,6 @@ const MECHANIC_TYPE_OPTIONS: Array<{ value: ItemMechanicType; label: string; hin
   { value: 'damage_roll', label: 'Dano / Explosivo', hint: 'Ex: 6d6 (DT AGI)' },
   { value: 'pe_activation', label: 'Ativar (PE)', hint: 'Gasta PE p/ efeito' },
   { value: 'utility_roll', label: 'Rolagem / Teste', hint: 'Ex: 1d6, 2d4' },
-  { value: 'load_bonus', label: 'Carga (+Espaços)', hint: 'Ex: +2 espaços' },
-  { value: 'block_rd_bonus', label: 'RD Bloqueio', hint: 'Ex: +2 RD' },
-  { value: 'skill_bonus', label: 'Bônus Perícia', hint: 'Ex: +2 Medicina' },
 ];
 
 const ELEMENTS_LIST: ParanormalElement[] = ['Nenhum', 'Sangue', 'Morte', 'Conhecimento', 'Energia', 'Medo'];
@@ -96,7 +93,8 @@ export interface ItemEditorSaveResult {
 export interface ItemEditorModalProps {
   visible: boolean;
   onClose: () => void;
-  mode: 'depot' | 'character';
+  mode?: 'depot' | 'character';
+  initialCategory?: string;
   initialCatalogItem?: CustomCatalogItem | null;
   draftCatalogItem?: CustomCatalogItem | null;
   initialInventoryItem?: CharacterInventoryItem | null;
@@ -109,7 +107,7 @@ export interface ItemEditorModalProps {
 export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
   visible,
   onClose,
-  mode,
+  mode = 'depot',
   initialCatalogItem,
   draftCatalogItem,
   initialInventoryItem,
@@ -378,6 +376,8 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
     setBlockRdBonus(item.blockRdBonus ? String(item.blockRdBonus) : '');
     setTargetSkill(item.targetSkill || '');
     setSkillBonus(item.skillBonus ? String(item.skillBonus) : '2');
+    setSecondarySkill(item.secondarySkill || '');
+    setSecondaryBonus(item.secondaryBonus ? String(item.secondaryBonus) : '2');
     setMechanics(item.mechanics.map((m) => ({ ...m })));
   };
 
@@ -523,8 +523,12 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
     const parsedBlockRdBonus = parseInt(blockRdBonus, 10);
 
     const isAccessory = itemType === 'vestimenta' || itemType === 'utensilio';
-    const hasFuncAdicional = selectedMods.includes('mod_acc_funcao_adicional');
-    const hasInstrumental = selectedMods.includes('mod_acc_instrumental');
+    const hasSecondarySkill = isAccessory && Boolean(secondarySkill.trim());
+    const effectiveSelectedMods =
+      hasSecondarySkill && !selectedMods.includes('mod_acc_funcao_adicional')
+        ? [...selectedMods, 'mod_acc_funcao_adicional']
+        : selectedMods;
+    const hasInstrumental = effectiveSelectedMods.includes('mod_acc_instrumental');
 
     const now = new Date().toISOString();
     const catalogItem: CustomCatalogItem = {
@@ -540,13 +544,12 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
       finalSpaces: calculated.finalSpaces,
       details: details.trim(),
       element,
-      modifications: [...selectedMods],
+      modifications: [...effectiveSelectedMods],
       customModifications: customMods.length > 0 ? customMods.map((m) => ({ ...m })) : undefined,
       targetSkill: isAccessory && targetSkill.trim() ? targetSkill.trim() : undefined,
       skillBonus: isAccessory && targetSkill.trim() ? calculated.effectiveSkillBonus : undefined,
-      secondarySkill: hasFuncAdicional && secondarySkill.trim() ? secondarySkill.trim() : undefined,
-      secondaryBonus:
-        hasFuncAdicional && secondarySkill.trim() ? parseInt(secondaryBonus, 10) || 2 : undefined,
+      secondarySkill: hasSecondarySkill ? secondarySkill.trim() : undefined,
+      secondaryBonus: hasSecondarySkill ? parseInt(secondaryBonus, 10) || 2 : undefined,
       instrumentalSkill: hasInstrumental && instrumentalSkill.trim() ? instrumentalSkill.trim() : undefined,
       justification: isAccessory && justification.trim() ? justification.trim() : undefined,
       consumable,
@@ -588,42 +591,44 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
           style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View
-            style={[
-              styles.header,
-              { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 24 : 12) },
-            ]}
-          >
-            <TouchableOpacity
-              onPress={() => {
-                handleBackPress();
-              }}
-              style={styles.headerBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              testID="btn-close-item-editor"
+          {!baseItemPickerVisible && (
+            <View
+              style={[
+                styles.header,
+                { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 24 : 12) },
+              ]}
             >
-              <Ionicons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.headerTitle} numberOfLines={1}>
-                {title || (editingCatalogId || initialInventoryItem ? 'Editar Item' : 'Novo Item / Equipamento')}
-              </Text>
-              <Text style={styles.headerSub} numberOfLines={1}>
-                Cat {calculated.finalCategory} • {formatSpacesLabel(calculated.finalSpaces)} esp.
-              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  handleBackPress();
+                }}
+                style={styles.headerBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                testID="btn-close-item-editor"
+              >
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                  {title || (editingCatalogId || initialInventoryItem ? 'Editar Item' : 'Novo Item / Equipamento')}
+                </Text>
+                <Text style={styles.headerSub} numberOfLines={1}>
+                  Cat {calculated.finalCategory} • {formatSpacesLabel(calculated.finalSpaces)} esp.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={handleSavePress}
+                style={styles.saveBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                testID="btn-save-item-editor"
+              >
+                <Ionicons name="checkmark" size={18} color="#FFF" />
+                <Text style={styles.saveBtnText} numberOfLines={1}>
+                  {saveButtonLabel || 'Salvar'}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              onPress={handleSavePress}
-              style={styles.saveBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              testID="btn-save-item-editor"
-            >
-              <Ionicons name="checkmark" size={18} color="#FFF" />
-              <Text style={styles.saveBtnText} numberOfLines={1}>
-                {saveButtonLabel || 'Salvar'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          )}
 
           {baseItemPickerVisible ? (
             <View style={{ flex: 1 }}>
@@ -950,6 +955,56 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
+
+                  <Text style={styles.fieldLabel}>
+                    Segunda Perícia (Opcional • Função Adicional +{secondaryBonus || '2'})
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                    {ELIGIBLE_ITEM_SKILLS.map((sk) => (
+                      <TouchableOpacity
+                        key={`sec_${sk}`}
+                        style={[styles.filterPill, secondarySkill === sk && styles.filterPillActive]}
+                        onPress={() => {
+                          const next = secondarySkill === sk ? '' : sk;
+                          setSecondarySkill(next);
+                          if (next && !selectedMods.includes('mod_acc_funcao_adicional')) {
+                            setSelectedMods((prev) => [...prev, 'mod_acc_funcao_adicional']);
+                          }
+                        }}
+                        testID={`pill-secondary-skill-${sk}`}
+                      >
+                        <Text
+                          style={[
+                            styles.filterPillText,
+                            secondarySkill === sk && styles.filterPillTextActive,
+                          ]}
+                        >
+                          {sk}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  {(selectedMods.includes('mod_acc_funcao_adicional') || Boolean(secondarySkill)) && (
+                    <View style={styles.smallPillsRow}>
+                      {['2', '5'].map((val) => (
+                        <TouchableOpacity
+                          key={val}
+                          style={[styles.smallPill, secondaryBonus === val && styles.smallPillActive]}
+                          onPress={() => setSecondaryBonus(val)}
+                        >
+                          <Text
+                            style={[
+                              styles.smallPillText,
+                              secondaryBonus === val && styles.smallPillTextActive,
+                            ]}
+                          >
+                            +{val} {val === '5' ? '(+1 Cat • Aprimorado 2x)' : '(Padrão)'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
                   <Text style={styles.fieldLabel}>Justificativa Narrativa (opcional)</Text>
                   <TextInput
                     style={styles.input}
@@ -1064,48 +1119,6 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                 );
               })()}
 
-              {selectedMods.includes('mod_acc_funcao_adicional') ? (
-                <View style={styles.nestedCard}>
-                  <Text style={styles.fieldLabel}>Segunda Perícia (Função Adicional)</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-                    {ELIGIBLE_ITEM_SKILLS.map((sk) => (
-                      <TouchableOpacity
-                        key={sk}
-                        style={[styles.filterPill, secondarySkill === sk && styles.filterPillActive]}
-                        onPress={() => setSecondarySkill(secondarySkill === sk ? '' : sk)}
-                      >
-                        <Text
-                          style={[
-                            styles.filterPillText,
-                            secondarySkill === sk && styles.filterPillTextActive,
-                          ]}
-                        >
-                          {sk}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                  <View style={styles.smallPillsRow}>
-                    {['2', '5'].map((val) => (
-                      <TouchableOpacity
-                        key={val}
-                        style={[styles.smallPill, secondaryBonus === val && styles.smallPillActive]}
-                        onPress={() => setSecondaryBonus(val)}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPillText,
-                            secondaryBonus === val && styles.smallPillTextActive,
-                          ]}
-                        >
-                          +{val} {val === '5' ? '(+1 Cat • Aprimorado 2x)' : '(Padrão)'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-
               {selectedMods.includes('mod_acc_instrumental') ? (
                 <View style={styles.nestedCard}>
                   <Text style={styles.fieldLabel}>Kit de Perícia Embutido (Instrumental)</Text>
@@ -1205,7 +1218,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Mecânicas Interativas ({mechanics.length})</Text>
               <Text style={styles.sectionSub}>
-                Configure botões clicáveis no inventário para curar PV/PE/SAN, ganhar temporários, rolar explosivos ou ativar efeitos por PE.
+                Configure botões clicáveis no inventário para curar PV/PE/SAN, ganhar temporários, rolar explosivos ou ativar efeitos por PE. Bônus passivos de carga, bloqueio e perícia ficam nos campos dedicados acima.
               </Text>
 
               {mechanics.map((m) => (

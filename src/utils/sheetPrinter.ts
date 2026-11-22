@@ -8,9 +8,26 @@ import {
   getDescStyle,
 } from './abilitySummarizer';
 import {
+  calculateActiveItemSkillBonuses,
+  InventorySkillBonusResult,
+} from './inventorySkills';
+import {
   calculateInventoryMechanicsSummary,
   formatSpacesLabel,
+  InventoryMechanicsSummary,
 } from './inventoryItems';
+import {
+  extractPassiveAbilitySkillAndDefenseBonuses,
+  getPeRoundLimit,
+  mergePassiveSkillBonus,
+  calculateCharacterVitals,
+  PassiveAbilityBonusesResult,
+} from './progression';
+import {
+  calculateMultipleEquippedProtections,
+  isProtectionInventoryEntry,
+  resolveProtectionInventoryEntry,
+} from './protections';
 import {
   BASE_FRONT_B64,
   BASE_BACK_B64,
@@ -136,6 +153,353 @@ export function getSkillTotalBonus(rawDegree: unknown, otherBonus: number = 0): 
   return degreeVal + (otherBonus || 0);
 }
 
+export interface ResolvedPrintSkillEntry {
+  name: string;
+  attr: 'AGI' | 'FOR' | 'INT' | 'PRE' | 'VIG';
+  degree: number;
+  savedBonus: number;
+  passiveBonus: number;
+  itemBonus: number;
+  itemSourceName?: string;
+  maskBonus: number;
+  otherBonus: number;
+  totalBonus: number;
+  treinoText: string;
+  bonusText: string;
+  outrosText: string;
+  customName?: string;
+}
+
+function mergeResistanceTexts(texts: Array<string | undefined>): string {
+  const byType = new Map<string, { label: string; value: number }>();
+  const freeform = new Set<string>();
+
+  for (const rawBlock of texts) {
+    if (!rawBlock || !rawBlock.trim()) continue;
+    const parts = rawBlock
+      .split(/[,•;\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (const part of parts) {
+      const m = part.match(/^(?:rd\s+)?(.+?)\s+(\d+)$/i);
+      if (m) {
+        const cleanLabel = m[1].trim();
+        const val = parseInt(m[2], 10);
+        if (!cleanLabel || !Number.isFinite(val) || val <= 0) continue;
+        const normKey = cleanLabel
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase();
+        const existing = byType.get(normKey);
+        if (!existing || val > existing.value) {
+          byType.set(normKey, { label: existing?.label || cleanLabel, value: val });
+        }
+      } else {
+        freeform.add(part);
+      }
+    }
+  }
+
+  return [
+    ...Array.from(byType.values()).map((entry) => `${entry.label} ${entry.value}`),
+    ...Array.from(freeform),
+  ].join(', ');
+}
+
+function getDefaultRankCreditLimit(rank?: string): 'Baixo' | 'Médio' | 'Alto' | 'Ilimitado' {
+  const clean = (rank || '').trim().toLowerCase();
+  if (clean.includes('elite')) return 'Ilimitado';
+  if (clean.includes('oficial')) return 'Alto';
+  if (clean.includes('operador') || clean.includes('especial')) return 'Médio';
+  return 'Baixo';
+}
+
+function bumpCreditTier(tier: string): string {
+  const order = ['Baixo', 'Médio', 'Alto', 'Ilimitado'];
+  const norm = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const idx = order.findIndex((o) => norm(o) === norm(tier));
+  if (idx >= 0 && idx < order.length - 1) {
+    return order[idx + 1];
+  }
+  return tier;
+}
+
+export interface ResolvedSheetPrintData {
+  skills: Record<string, ResolvedPrintSkillEntry>;
+  itemSkillBonuses: InventorySkillBonusResult;
+  invSummary: InventoryMechanicsSummary;
+  passiveBonuses: PassiveAbilityBonusesResult;
+  maskTestBonus: number;
+  maskDtBonus: number;
+  peRodada: number;
+  nivelCalculado: number;
+  effectiveAttributes: {
+    AGI: number;
+    FOR: number;
+    INT: number;
+    PRE: number;
+    VIG: number;
+  };
+  effectivePvMax: number;
+  effectivePeMax: number;
+  effectiveSanMax: number;
+  effectiveDefenseEquip: number;
+  effectiveDefenseOther: number;
+  totalDef: number;
+  effectiveDtRitual: number;
+  effectiveProtectionText: string;
+  effectiveResistancesText: string;
+  effectiveDisplacement: string;
+  effectiveCreditLimit: string;
+  maxLoad: number;
+  curLoad: string;
+}
+
+export function resolveSheetPrintSkillsAndStats(
+  char: CharacterSheet,
+  options?: {
+    originEntity?: CompendiumEntity | null;
+    classEntity?: CompendiumEntity | null;
+    trackEntity?: CompendiumEntity | null;
+  }
+): ResolvedSheetPrintData {
+  const seedEntities = ((compendiumSeedRaw as any)?.entities || []) as CompendiumEntity[];
+  const effectiveChar: CharacterSheet = {
+    ...char,
+    originId: char.originId || options?.originEntity?.id || '',
+    classId: char.classId || options?.classEntity?.id || '',
+    trackId: char.trackId || options?.trackEntity?.id || '',
+  };
+
+  const getEntityById = (id: string): CompendiumEntity | undefined => {
+    if (options?.originEntity && (id === options.originEntity.id || id === effectiveChar.originId)) {
+      return options.originEntity;
+    }
+    if (options?.classEntity && (id === options.classEntity.id || id === effectiveChar.classId)) {
+      return options.classEntity;
+    }
+    if (options?.trackEntity && (id === options.trackEntity.id || id === effectiveChar.trackId)) {
+      return options.trackEntity;
+    }
+    return seedEntities.find((e) => e.id === id);
+  };
+
+  const itemSkillBonuses = calculateActiveItemSkillBonuses(char.inventory || []);
+  const passiveBonuses = extractPassiveAbilitySkillAndDefenseBonuses(effectiveChar, getEntityById);
+  const invSummary = calculateInventoryMechanicsSummary(char.inventory || [], {
+    hasInventarioOrganizado: passiveBonuses.hasInventarioOrganizado,
+  });
+
+  const effectiveAttributes = {
+    AGI: (char.attributes?.AGI ?? 0) + invSummary.attributeBonusesFromItems.AGI,
+    FOR: (char.attributes?.FOR ?? 0) + invSummary.attributeBonusesFromItems.FOR,
+    INT: (char.attributes?.INT ?? 0) + invSummary.attributeBonusesFromItems.INT,
+    PRE: (char.attributes?.PRE ?? 0) + invSummary.attributeBonusesFromItems.PRE,
+    VIG: (char.attributes?.VIG ?? 0) + invSummary.attributeBonusesFromItems.VIG,
+  };
+
+  const maskTestBonus =
+    char.maskConfig?.enabled &&
+    char.maskConfig?.isActive &&
+    char.maskConfig?.grantBonusTests !== false
+      ? 5
+      : 0;
+  const maskDtBonus =
+    char.maskConfig?.enabled &&
+    char.maskConfig?.isActive &&
+    char.maskConfig?.grantBonusDt !== false
+      ? 5
+      : 0;
+
+  const vitalsBase = calculateCharacterVitals(effectiveChar, getEntityById);
+  const vitalsEffective = calculateCharacterVitals(
+    { ...effectiveChar, attributes: effectiveAttributes },
+    getEntityById
+  );
+
+  const peRodada = Math.max(char.peRound || 0, vitalsEffective.peRound);
+  const nivelCalculado = Math.max(1, Math.floor((char.nex || 5) / 5));
+
+  const baseClassPv = vitalsBase.breakdown.basePv + vitalsBase.breakdown.pvFromNex;
+  const baseClassPe = vitalsBase.breakdown.basePe + vitalsBase.breakdown.peFromNex;
+  const baseClassSan = vitalsBase.breakdown.baseSan + vitalsBase.breakdown.sanFromNex;
+
+  const pvPowersTotal = vitalsBase.breakdown.pvBonuses.reduce((acc, b) => acc + b.value, 0);
+  const pePowersTotal = vitalsBase.breakdown.peBonuses.reduce((acc, b) => acc + b.value, 0);
+  const sanPowersTotal = vitalsBase.breakdown.sanBonuses.reduce((acc, b) => acc + b.value, 0);
+
+  const vigPvAttrDelta =
+    invSummary.attributeBonusesFromItems.VIG > 0
+      ? vitalsEffective.pvMax - vitalsBase.pvMax
+      : 0;
+
+  const effectivePvMax = Math.max(
+    1,
+    (char.pvMax || 0) +
+      ((char.pvMax || 0) === baseClassPv ? pvPowersTotal : 0) +
+      vigPvAttrDelta +
+      invSummary.totalPvBonusFromItems
+  );
+  const effectivePeMax = Math.max(
+    1,
+    (char.peMax || 0) +
+      ((char.peMax || 0) === baseClassPe ? pePowersTotal : 0) +
+      invSummary.totalPeBonusFromItems
+  );
+  const effectiveSanMax = Math.max(
+    0,
+    (char.sanMax || 0) +
+      ((char.sanMax || 0) === baseClassSan ? sanPowersTotal : 0) +
+      invSummary.totalSanBonusFromItems
+  );
+
+  const protInventoryItems = (char.inventory || []).filter((it) => {
+    if (it.equipped === false || (it.quantity ?? 1) <= 0) return false;
+    const isExplicitProt =
+      it.itemType === 'protecao' ||
+      it.itemType === 'escudo' ||
+      Boolean(it.id && it.id.startsWith('inv_prot_'));
+    const normName = (it.name || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    const isLedShieldAsGeneral =
+      !isExplicitProt &&
+      (it.sourceEntityId === 'item__arquivos_secretos_09__escudo_balistico_led' ||
+        normName.includes('escudo balistico led'));
+    if (isLedShieldAsGeneral) return false;
+    return isProtectionInventoryEntry(it);
+  });
+  const protEntries = protInventoryItems.map((it) => resolveProtectionInventoryEntry(it));
+  const equippedProt = calculateMultipleEquippedProtections(protEntries);
+
+  const effectiveDefenseEquip =
+    (char.defenseEquip || 0) > 0 ? char.defenseEquip || 0 : equippedProt.totalDefenseEquip;
+  const effectiveDefenseOther =
+    (char.defenseOther || 0) +
+    invSummary.totalDefenseBonusFromItems +
+    passiveBonuses.defenseOtherBonus;
+  const totalDef =
+    10 +
+    effectiveAttributes.AGI +
+    effectiveDefenseEquip +
+    effectiveDefenseOther;
+
+  const rawBaseDt =
+    10 + (char.peRound || getPeRoundLimit(char.nex || 5)) + (char.attributes?.PRE || 0);
+  const dtManualOffset = char.dtRituals ? char.dtRituals - rawBaseDt : 0;
+  const effectiveDtRitual =
+    10 +
+    peRodada +
+    effectiveAttributes.PRE +
+    dtManualOffset +
+    invSummary.totalDtBonusFromItems +
+    maskDtBonus;
+
+  const effectiveProtectionText = (char.protection || '').trim() || equippedProt.protectionText;
+  const effectiveResistancesText = mergeResistanceTexts([
+    char.resistances,
+    equippedProt.resistancesText,
+    ...(invSummary.itemResistancesList || []),
+    ...(passiveBonuses.resistancesList || []),
+  ]);
+
+  const dispBonus =
+    passiveBonuses.displacementBonusMeters + invSummary.displacementBonusMetersFromItems;
+  const rawDisp = (char.displacement || '').trim();
+  const isDefaultDisp =
+    !rawDisp || /^9\s*m(?:\s*\(\s*6\s*(?:□|q|quadrados?)?\s*\))?$/i.test(rawDisp);
+  const effectiveDisplacement =
+    dispBonus > 0 && isDefaultDisp
+      ? `${9 + dispBonus}m (${Math.floor((9 + dispBonus) / 1.5)}□)`
+      : rawDisp || '9m (6□)';
+
+  const defaultRankCredit = getDefaultRankCreditLimit(char.rank);
+  const rawCredit = (char.creditLimit || '').trim();
+  const normText = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const isCreditAtDefault =
+    !rawCredit || normText(rawCredit) === normText(defaultRankCredit);
+  const effectiveCreditLimit =
+    passiveBonuses.hasMagnata && isCreditAtDefault
+      ? bumpCreditTier(defaultRankCredit)
+      : rawCredit || defaultRankCredit;
+
+  const extraIntLoad = passiveBonuses.hasInventarioOrganizado
+    ? invSummary.attributeBonusesFromItems.INT
+    : 0;
+  const baseFor = effectiveAttributes.FOR;
+  const maxLoad =
+    (baseFor <= 0 ? 2 : baseFor * 5) +
+    (char.maxLoadBonus || 0) +
+    invSummary.totalLoadBonusFromItems +
+    passiveBonuses.loadBonus +
+    extraIntLoad;
+  const curLoad = formatSpacesLabel(invSummary.totalSpacesUsed);
+
+  const skills: Record<string, ResolvedPrintSkillEntry> = {};
+  for (const sk of OFFICIAL_SKILLS_PRINT) {
+    const entry = char.skills?.[sk.name];
+    const degree = entry?.degree || 0;
+    const savedBonus = entry?.bonus || 0;
+    const passiveBonus = passiveBonuses.skillBonuses[sk.name] || 0;
+    const itemBonusInfo = itemSkillBonuses.effectiveBonuses[sk.name];
+    const itemBonus = itemBonusInfo ? itemBonusInfo.bonus : 0;
+
+    const effectiveBaseBonus = mergePassiveSkillBonus(savedBonus, passiveBonus);
+    const otherBonus = effectiveBaseBonus + itemBonus + maskTestBonus;
+    const totalBonus = getSkillTotalBonus(degree, otherBonus);
+    const treinoText = getSkillTrainingRoman(degree);
+    const bonusText =
+      degree !== 0 || otherBonus !== 0 || totalBonus !== 0 ? String(totalBonus) : '';
+    const outrosText =
+      otherBonus !== 0 ? (otherBonus > 0 ? `+${otherBonus}` : `${otherBonus}`) : '';
+
+    skills[sk.name] = {
+      name: sk.name,
+      attr: sk.attr,
+      degree,
+      savedBonus,
+      passiveBonus,
+      itemBonus,
+      itemSourceName: itemBonusInfo?.sourceItemName,
+      maskBonus: maskTestBonus,
+      otherBonus,
+      totalBonus,
+      treinoText,
+      bonusText,
+      outrosText,
+      customName: entry?.customName,
+    };
+  }
+
+  return {
+    skills,
+    itemSkillBonuses,
+    invSummary,
+    passiveBonuses,
+    maskTestBonus,
+    maskDtBonus,
+    peRodada,
+    nivelCalculado,
+    effectiveAttributes,
+    effectivePvMax,
+    effectivePeMax,
+    effectiveSanMax,
+    effectiveDefenseEquip,
+    effectiveDefenseOther,
+    totalDef,
+    effectiveDtRitual,
+    effectiveProtectionText,
+    effectiveResistancesText,
+    effectiveDisplacement,
+    effectiveCreditLimit,
+    maxLoad,
+    curLoad,
+  };
+}
+
 export function generateSheetHtml(options: GenerateSheetOptions): string {
   const {
     character: char,
@@ -169,22 +533,30 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
 
   const classDisplay = className ? (trackName ? `${className} (${trackName})` : className) : trackName;
 
-  const peRodada = char.peRound || Math.max(1, Math.floor(char.nex / 5));
-  const nivelCalculado = Math.max(1, Math.floor(char.nex / 5));
-  const dtRitual = char.dtRituals || (10 + peRodada + (char.attributes?.PRE || 0));
-  const totalDef =
-    10 +
-    (char.attributes?.AGI || 0) +
-    (char.defenseEquip || 0) +
-    (char.defenseOther || 0);
-
-  const baseFor = char.attributes?.FOR || 0;
-  const invSummary = calculateInventoryMechanicsSummary(char.inventory || []);
-  const maxLoad =
-    (baseFor <= 0 ? 2 : baseFor * 5) +
-    (char.maxLoadBonus || 0) +
-    invSummary.totalLoadBonusFromItems;
-  const curLoad = formatSpacesLabel(invSummary.totalSpacesUsed);
+  const resolved = resolveSheetPrintSkillsAndStats(char, {
+    originEntity,
+    classEntity,
+    trackEntity,
+  });
+  const {
+    peRodada,
+    nivelCalculado,
+    effectiveAttributes,
+    effectiveDtRitual: dtRitual,
+    totalDef,
+    effectiveDefenseEquip,
+    effectiveDefenseOther,
+    effectivePvMax,
+    effectivePeMax,
+    effectiveSanMax,
+    effectiveProtectionText,
+    effectiveResistancesText,
+    effectiveDisplacement,
+    effectiveCreditLimit,
+    maxLoad,
+    curLoad,
+  } = resolved;
+  const hasInventarioOrganizado = resolved.passiveBonuses.hasInventarioOrganizado;
 
   // Collect abilities & rituals to display
   const allAbilities = [...(char.abilities || [])];
@@ -258,11 +630,11 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
           </div>
 
           <!-- Atributos Hexagonais (Centralizados na metade superior branca de cada hexágono) -->
-          <div class="attr-val" style="left: 31.0%; top: 13.0%; width: 7.6%; height: 3.4%;">${char.attributes.AGI}</div>
-          <div class="attr-val" style="left: 17.4%; top: 19.8%; width: 7.6%; height: 3.4%;">${char.attributes.FOR}</div>
-          <div class="attr-val" style="left: 44.7%; top: 19.8%; width: 7.6%; height: 3.4%;">${char.attributes.INT}</div>
-          <div class="attr-val" style="left: 21.2%; top: 32.2%; width: 7.6%; height: 3.4%;">${char.attributes.PRE}</div>
-          <div class="attr-val" style="left: 40.6%; top: 32.2%; width: 7.6%; height: 3.4%;">${char.attributes.VIG}</div>
+          <div class="attr-val" style="left: 31.0%; top: 13.0%; width: 7.6%; height: 3.4%;">${effectiveAttributes.AGI}</div>
+          <div class="attr-val" style="left: 17.4%; top: 19.8%; width: 7.6%; height: 3.4%;">${effectiveAttributes.FOR}</div>
+          <div class="attr-val" style="left: 44.7%; top: 19.8%; width: 7.6%; height: 3.4%;">${effectiveAttributes.INT}</div>
+          <div class="attr-val" style="left: 21.2%; top: 32.2%; width: 7.6%; height: 3.4%;">${effectiveAttributes.PRE}</div>
+          <div class="attr-val" style="left: 40.6%; top: 32.2%; width: 7.6%; height: 3.4%;">${effectiveAttributes.VIG}</div>
 
           <!-- Origem & Classe -->
           <div class="field" style="left: 21.5%; top: 44.3%; width: 32.5%; font-weight: 600; font-size: 12px;">
@@ -274,52 +646,49 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
 
           <!-- Status Vitais Sobrevivendo ao Horror (Totais/Máximos preenchidos nos quadrados, Atuais vazios para anotação a lápis) -->
           <!-- Linha 1: PV e PD -->
-          <div class="stat-box" style="left: 12.5%; top: 52.5%; width: 7.4%; height: 4.4%; color: #dc2626;">${char.pvMax}</div>
-          <div class="stat-box" style="left: 35.4%; top: 52.5%; width: 6.9%; height: 4.4%; color: #9333ea;">${char.peMax}</div>
+          <div class="stat-box" style="left: 12.5%; top: 52.5%; width: 7.4%; height: 4.4%; color: #dc2626;">${effectivePvMax}</div>
+          <div class="stat-box" style="left: 35.4%; top: 52.5%; width: 6.9%; height: 4.4%; color: #9333ea;">${effectivePeMax}</div>
 
           <!-- Linha 2: PE e SAN -->
-          <div class="stat-box" style="left: 12.5%; top: 60.5%; width: 7.3%; height: 4.4%; color: #d97706;">${char.peMax}</div>
-          <div class="stat-box" style="left: 37.8%; top: 60.5%; width: 7.1%; height: 4.4%; color: #0284c7;">${char.sanMax}</div>
+          <div class="stat-box" style="left: 12.5%; top: 60.5%; width: 7.3%; height: 4.4%; color: #d97706;">${effectivePeMax}</div>
+          <div class="stat-box" style="left: 37.8%; top: 60.5%; width: 7.1%; height: 4.4%; color: #0284c7;">${effectiveSanMax}</div>
 
           <!-- Defesa (no escudo) e Decomposição (alinhado com as linhas) -->
           <div class="field center" style="left: 12.5%; top: 68.5%; width: 7.2%; height: 4.8%; font-weight: bold; font-size: 19px;">
             ${totalDef}
           </div>
           <div class="field center" style="left: 28.8%; top: 72.5%; width: 2.8%; font-size: 11px; font-weight: bold;">
-            ${char.defenseEquip || 0}
+            ${effectiveDefenseEquip}
           </div>
           <div class="field center" style="left: 32.8%; top: 72.5%; width: 2.8%; font-size: 11px; font-weight: bold;">
-            ${char.defenseOther || 0}
+            ${effectiveDefenseOther}
           </div>
 
           <!-- Deslocamento (DESL ao lado da Defesa) -->
           <div class="field center" style="left: 44.7%; top: 68.6%; width: 9.0%; height: 3.7%; font-weight: bold; font-size: 12px;">
-            ${escapeHtml(char.displacement || '9m (6□)')}
+            ${escapeHtml(effectiveDisplacement)}
           </div>
 
           <!-- Proteção e Resistências -->
           <div class="field" style="left: 18.8%; top: 76.5%; width: 37.0%; font-size: 10.5px;">
-            ${escapeHtml(char.protection || '')}
+            ${escapeHtml(effectiveProtectionText)}
           </div>
           <div class="field" style="left: 21.3%; top: 78.8%; width: 34.5%; font-size: 10.5px;">
-            ${escapeHtml(char.resistances || '')}
+            ${escapeHtml(effectiveResistancesText)}
           </div>
 
           <!-- 28 Perícias Preenchidas (BÔNUS numérico, Treino I/II/III, Outros) -->
           ${OFFICIAL_SKILLS_PRINT.map((sk) => {
-            const entry = char.skills?.[sk.name];
-            const otherBonus = entry?.bonus || 0;
-            const treinoText = getSkillTrainingRoman(entry?.degree);
-            const totalBonus = getSkillTotalBonus(entry?.degree, otherBonus);
-
-            const bonusText = totalBonus !== 0 ? String(totalBonus) : '';
-            const outrosText = otherBonus !== 0 ? (otherBonus > 0 ? `+${otherBonus}` : `${otherBonus}`) : '';
+            const resolvedSk = resolved.skills[sk.name];
+            const treinoText = resolvedSk.treinoText;
+            const bonusText = resolvedSk.bonusText;
+            const outrosText = resolvedSk.outrosText;
 
             return `
               ${
-                sk.hasCustomName && entry?.customName
+                sk.hasCustomName && resolvedSk.customName
                   ? `<div class="field" style="left: 67.5%; top: ${sk.topPctSH - 0.2}%; width: 6.8%; font-size: 8.5px; font-weight: 600;">
-                      ${escapeHtml(entry.customName)}
+                      ${escapeHtml(resolvedSk.customName)}
                     </div>`
                   : ''
               }
@@ -390,11 +759,11 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
         </div>
 
         <!-- Atributos Hexagonais (Centralizados na metade superior branca de cada hexágono) -->
-        <div class="attr-val" style="left: 31.0%; top: 13.0%; width: 7.6%; height: 3.4%;">${char.attributes.AGI}</div>
-        <div class="attr-val" style="left: 17.4%; top: 19.8%; width: 7.6%; height: 3.4%;">${char.attributes.FOR}</div>
-        <div class="attr-val" style="left: 44.7%; top: 19.8%; width: 7.6%; height: 3.4%;">${char.attributes.INT}</div>
-        <div class="attr-val" style="left: 21.2%; top: 32.2%; width: 7.6%; height: 3.4%;">${char.attributes.PRE}</div>
-        <div class="attr-val" style="left: 40.6%; top: 32.2%; width: 7.6%; height: 3.4%;">${char.attributes.VIG}</div>
+        <div class="attr-val" style="left: 31.0%; top: 13.0%; width: 7.6%; height: 3.4%;">${effectiveAttributes.AGI}</div>
+        <div class="attr-val" style="left: 17.4%; top: 19.8%; width: 7.6%; height: 3.4%;">${effectiveAttributes.FOR}</div>
+        <div class="attr-val" style="left: 44.7%; top: 19.8%; width: 7.6%; height: 3.4%;">${effectiveAttributes.INT}</div>
+        <div class="attr-val" style="left: 21.2%; top: 32.2%; width: 7.6%; height: 3.4%;">${effectiveAttributes.PRE}</div>
+        <div class="attr-val" style="left: 40.6%; top: 32.2%; width: 7.6%; height: 3.4%;">${effectiveAttributes.VIG}</div>
 
         <!-- Origem & Classe -->
         <div class="field" style="left: 23.5%; top: 44.1%; width: 33.0%; font-weight: 600; font-size: 12px;">
@@ -412,48 +781,45 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
           ${peRodada}
         </div>
         <div class="field center" style="left: 42.0%; top: 53.5%; width: 14.0%; font-weight: 600; font-size: 12px;">
-          ${escapeHtml(char.displacement || '9m (6□)')}
+          ${escapeHtml(effectiveDisplacement)}
         </div>
 
         <!-- Status Vitais Livro Base (Totais/Máximos preenchidos nos quadrados, Atuais vazios para anotação a lápis) -->
-        <div class="stat-box" style="left: 14.5%; top: 59.2%; width: 6.8%; height: 4.2%; color: #dc2626;">${char.pvMax}</div>
-        <div class="stat-box" style="left: 36.8%; top: 59.2%; width: 6.4%; height: 4.2%; color: #d97706;">${char.peMax}</div>
-        <div class="stat-box" style="left: 41.7%; top: 68.3%; width: 7.5%; height: 4.2%; color: #0284c7;">${char.sanMax}</div>
+        <div class="stat-box" style="left: 14.5%; top: 59.2%; width: 6.8%; height: 4.2%; color: #dc2626;">${effectivePvMax}</div>
+        <div class="stat-box" style="left: 36.8%; top: 59.2%; width: 6.4%; height: 4.2%; color: #d97706;">${effectivePeMax}</div>
+        <div class="stat-box" style="left: 41.7%; top: 68.3%; width: 7.5%; height: 4.2%; color: #0284c7;">${effectiveSanMax}</div>
 
         <!-- Defesa (no escudo) e Decomposição (alinhado com as linhas) -->
         <div class="field center" style="left: 14.0%; top: 68.5%; width: 7.2%; height: 4.8%; font-weight: bold; font-size: 19px;">
           ${totalDef}
         </div>
         <div class="field center" style="left: 30.5%; top: 72.1%; width: 2.8%; font-size: 11px; font-weight: bold;">
-          ${char.defenseEquip || 0}
+          ${effectiveDefenseEquip}
         </div>
         <div class="field center" style="left: 34.5%; top: 72.1%; width: 2.8%; font-size: 11px; font-weight: bold;">
-          ${char.defenseOther || 0}
+          ${effectiveDefenseOther}
         </div>
 
         <!-- Proteção e Resistências -->
         <div class="field" style="left: 20.5%; top: 76.1%; width: 36.5%; font-size: 10.5px;">
-          ${escapeHtml(char.protection || '')}
+          ${escapeHtml(effectiveProtectionText)}
         </div>
         <div class="field" style="left: 23.0%; top: 78.4%; width: 34.0%; font-size: 10.5px;">
-          ${escapeHtml(char.resistances || '')}
+          ${escapeHtml(effectiveResistancesText)}
         </div>
 
         <!-- 28 Perícias Preenchidas (BÔNUS numérico, Treino I/II/III, Outros) -->
         ${OFFICIAL_SKILLS_PRINT.map((sk) => {
-          const entry = char.skills?.[sk.name];
-          const otherBonus = entry?.bonus || 0;
-          const treinoText = getSkillTrainingRoman(entry?.degree);
-          const totalBonus = getSkillTotalBonus(entry?.degree, otherBonus);
-
-          const bonusText = totalBonus !== 0 ? String(totalBonus) : '';
-          const outrosText = otherBonus !== 0 ? (otherBonus > 0 ? `+${otherBonus}` : `${otherBonus}`) : '';
+          const resolvedSk = resolved.skills[sk.name];
+          const treinoText = resolvedSk.treinoText;
+          const bonusText = resolvedSk.bonusText;
+          const outrosText = resolvedSk.outrosText;
 
           return `
             ${
-              sk.hasCustomName && entry?.customName
+              sk.hasCustomName && resolvedSk.customName
                 ? `<div class="field" style="left: 69.5%; top: ${sk.topPctBase - 0.2}%; width: 6.8%; font-size: 8.5px; font-weight: 600;">
-                    ${escapeHtml(entry.customName)}
+                    ${escapeHtml(resolvedSk.customName)}
                   </div>`
                 : ''
             }
@@ -600,7 +966,7 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
 
           <!-- Limite de Crédito -->
           <div class="field center" style="left: 48.1%; top: 68.1%; width: 24.1%; height: 2.8%; font-weight: bold; font-size: 12px;">
-            ${escapeHtml(char.creditLimit || 'Baixo')}
+            ${escapeHtml(effectiveCreditLimit)}
           </div>
 
           <!-- Carga Atual e Máxima -->
@@ -616,7 +982,9 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
             .map((it, idx) => {
               const top = 73.8 + idx * 2.00;
               const qty = it.quantity !== undefined ? it.quantity : 1;
-              const itemSpaces = formatSpacesLabel((it.spaces ?? 1) * qty);
+              const rawSpaces = it.spaces ?? 1;
+              const unitSpaces = hasInventarioOrganizado && rawSpaces === 0.5 ? 0.25 : rawSpaces;
+              const itemSpaces = formatSpacesLabel(unitSpaces * qty);
               const label = `${qty > 1 ? `${qty}x ` : ''}${it.name}`;
               return `
                 <div class="field" style="left: 6.6%; top: ${top}%; width: 27.8%; font-size: 10px;">
@@ -636,7 +1004,9 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
             .map((it, idx) => {
               const top = 73.8 + idx * 2.00;
               const qty = it.quantity !== undefined ? it.quantity : 1;
-              const itemSpaces = formatSpacesLabel((it.spaces ?? 1) * qty);
+              const rawSpaces = it.spaces ?? 1;
+              const unitSpaces = hasInventarioOrganizado && rawSpaces === 0.5 ? 0.25 : rawSpaces;
+              const itemSpaces = formatSpacesLabel(unitSpaces * qty);
               const label = `${qty > 1 ? `${qty}x ` : ''}${it.name}`;
               return `
                 <div class="field" style="left: 48.5%; top: ${top}%; width: 27.8%; font-size: 10px;">
@@ -712,7 +1082,7 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
 
         <!-- Limite de Crédito -->
         <div class="field center" style="left: 46.8%; top: 51.4%; width: 23.8%; font-weight: bold; font-size: 12px;">
-          ${escapeHtml(char.creditLimit || 'Baixo')}
+          ${escapeHtml(effectiveCreditLimit)}
         </div>
 
         <!-- Carga Atual / Carga Máx -->
@@ -728,7 +1098,9 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
           .map((it, idx) => {
             const top = 56.8 + idx * 2.00;
             const qty = it.quantity !== undefined ? it.quantity : 1;
-            const itemSpaces = formatSpacesLabel((it.spaces ?? 1) * qty);
+            const rawSpaces = it.spaces ?? 1;
+            const unitSpaces = hasInventarioOrganizado && rawSpaces === 0.5 ? 0.25 : rawSpaces;
+            const itemSpaces = formatSpacesLabel(unitSpaces * qty);
             const label = `${qty > 1 ? `${qty}x ` : ''}${it.name}`;
             return `
               <div class="field" style="left: 5.2%; top: ${top}%; width: 28.0%; font-size: 10px;">
@@ -748,7 +1120,9 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
           .map((it, idx) => {
             const top = 56.8 + idx * 2.00;
             const qty = it.quantity !== undefined ? it.quantity : 1;
-            const itemSpaces = formatSpacesLabel((it.spaces ?? 1) * qty);
+            const rawSpaces = it.spaces ?? 1;
+            const unitSpaces = hasInventarioOrganizado && rawSpaces === 0.5 ? 0.25 : rawSpaces;
+            const itemSpaces = formatSpacesLabel(unitSpaces * qty);
             const label = `${qty > 1 ? `${qty}x ` : ''}${it.name}`;
             return `
               <div class="field" style="left: 47.5%; top: ${top}%; width: 28.0%; font-size: 10px;">

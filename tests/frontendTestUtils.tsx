@@ -23,6 +23,7 @@ export interface RenderResult {
   queryByPlaceholder: (placeholder: string | RegExp) => HTMLInputElement | null;
   getByTestId: (testId: string) => HTMLElement;
   queryByTestId: (testId: string) => HTMLElement | null;
+  getAllByTestId: (testId: string) => HTMLElement[];
   getAllByText: (text: string | RegExp) => HTMLElement[];
   unmount: () => void;
 }
@@ -192,6 +193,27 @@ export async function renderWithProviders(
     return null;
   };
 
+  const getAllByTestId = (testId: string): HTMLElement[] => {
+    const found: HTMLElement[] = [];
+    const seen = new Set<HTMLElement>();
+    const searchTargets = [container, document.body];
+    for (const target of searchTargets) {
+      if (!target) continue;
+      const nodes = target.querySelectorAll(`[data-testid="${testId}"], [testID="${testId}"]`);
+      for (let i = 0; i < nodes.length; i++) {
+        const el = nodes[i] as HTMLElement;
+        if (el.isConnected !== false && !seen.has(el)) {
+          seen.add(el);
+          found.push(el);
+        }
+      }
+    }
+    if (found.length === 0) {
+      throw new Error(`No elements with testID/data-testid "${testId}" found.`);
+    }
+    return found;
+  };
+
   return {
     container,
     getByText,
@@ -200,6 +222,7 @@ export async function renderWithProviders(
     queryByPlaceholder,
     getByTestId,
     queryByTestId,
+    getAllByTestId,
     getAllByText,
     unmount: () => {
       act(() => {

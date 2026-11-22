@@ -363,6 +363,8 @@ export interface CuratedCompendiumItem {
   blockRdBonus?: number;
   skillBonus?: number;
   targetSkill?: string;
+  secondarySkill?: string;
+  secondaryBonus?: number;
   mechanics: ItemMechanic[];
   sourceEntity?: CompendiumEntity;
 }
@@ -386,11 +388,13 @@ interface OfficialItemTemplate {
   blockRdBonus?: number;
   skillBonus?: number;
   targetSkill?: string;
+  secondarySkill?: string;
+  secondaryBonus?: number;
   mechanics: ItemMechanic[];
 }
 
 export const OFFICIAL_ITEM_TEMPLATES: OfficialItemTemplate[] = [
-  // --- ACESSÓRIOS (Livro Base p. 73-74) ---
+  // --- ACESSÓRIOS (Livro Base p. 73-74 & Sobrevivendo ao Horror p. 40-41) ---
   {
     id: 'item__livro_base__kit_de_pericia',
     matchNames: ['kit de perícia', 'kit de pericia'],
@@ -437,6 +441,40 @@ export const OFFICIAL_ITEM_TEMPLATES: OfficialItemTemplate[] = [
     description:
       'Peça de vestuário funcional ou simbólica (botas militares, terno, manto). Concede +2 em uma perícia escolhida (exceto Luta e Pontaria). Máximo de 2 vestimentas ativas.',
     mechanics: [],
+  },
+  {
+    id: 'item__sobrevivendo_ao_horror__amuleto_sagrado',
+    matchNames: ['amuleto sagrado'],
+    name: 'Amuleto Sagrado',
+    bookId: 'sobrevivendo_ao_horror',
+    bookTitle: 'Sobrevivendo ao Horror',
+    pageNumber: 40,
+    category: '0',
+    spaces: 1,
+    itemType: 'vestimenta',
+    subCategoryGroup: 'acessorio',
+    skillBonus: 2,
+    targetSkill: 'Religião',
+    secondarySkill: 'Vontade',
+    secondaryBonus: 2,
+    description:
+      'Utensílio especial (shimenawa, rosário, fio de contas ou símbolo de fé). Ocupa o espaço de um item vestido e fornece +2 em Religião e Vontade.',
+    mechanics: [
+      {
+        id: 'mech_amuleto_religiao',
+        type: 'skill_bonus',
+        label: '+2 Religião',
+        targetSkill: 'Religião',
+        flatValue: 2,
+      },
+      {
+        id: 'mech_amuleto_vontade',
+        type: 'skill_bonus',
+        label: '+2 Vontade',
+        targetSkill: 'Vontade',
+        flatValue: 2,
+      },
+    ],
   },
 
   // --- CURA & MEDICAMENTOS ---
@@ -2923,7 +2961,13 @@ function detectItemTypeFromText(
   if (subCategory.toLowerCase().includes('proteç') || name.toLowerCase().includes('proteção') || name.toLowerCase().includes('capacete tático')) {
     return 'protecao';
   }
-  if (lower.includes('vestimenta')) return 'vestimenta';
+  if (
+    lower.includes('vestimenta') ||
+    lower.includes('item vestido') ||
+    lower.includes('espaço de uma vestimenta')
+  ) {
+    return 'vestimenta';
+  }
   if (lower.includes('utensílio') || lower.includes('utensilio')) return 'utensilio';
   return 'geral';
 }
@@ -3123,6 +3167,8 @@ export function getCuratedCompendiumItems(
       blockRdBonus: tpl?.blockRdBonus,
       skillBonus: tpl?.skillBonus ?? (itemType === 'vestimenta' || itemType === 'utensilio' ? 2 : undefined),
       targetSkill: tpl?.targetSkill,
+      secondarySkill: tpl?.secondarySkill,
+      secondaryBonus: tpl?.secondaryBonus,
       mechanics,
       sourceEntity: ent,
     });
@@ -3151,6 +3197,8 @@ export function getCuratedCompendiumItems(
       blockRdBonus: tpl.blockRdBonus,
       skillBonus: tpl.skillBonus,
       targetSkill: tpl.targetSkill,
+      secondarySkill: tpl.secondarySkill,
+      secondaryBonus: tpl.secondaryBonus,
       mechanics: tpl.mechanics.map((m) => ({ ...m })),
     });
   }
@@ -3173,10 +3221,12 @@ export function buildCatalogItemFromCuratedItem(item: CuratedCompendiumItem): Cu
     finalSpaces: item.spaces,
     details: item.description,
     element: item.element,
-    modifications: [],
+    modifications: item.secondarySkill ? ['mod_acc_funcao_adicional'] : [],
     customModifications: [],
     skillBonus: item.skillBonus,
     targetSkill: item.targetSkill,
+    secondarySkill: item.secondarySkill,
+    secondaryBonus: item.secondaryBonus,
     consumable: item.consumable,
     maxCharges: item.maxCharges,
     loadBonus: item.loadBonus,
@@ -3203,6 +3253,9 @@ export function buildInventoryItemFromCuratedItem(
     isUtensilio: item.itemType === 'utensilio',
     skillBonus: item.skillBonus,
     targetSkill: item.targetSkill,
+    secondarySkill: item.secondarySkill,
+    secondaryBonus: item.secondaryBonus,
+    modifications: item.secondarySkill ? ['mod_acc_funcao_adicional'] : undefined,
     quantity: Math.max(1, quantity),
     charges: item.maxCharges,
     maxCharges: item.maxCharges,
@@ -3416,16 +3469,45 @@ export interface InventoryMechanicsSummary {
   totalSpacesUsed: number;
   totalLoadBonusFromItems: number;
   totalBlockRdBonus: number;
+  totalPvBonusFromItems: number;
+  totalPeBonusFromItems: number;
+  totalSanBonusFromItems: number;
+  totalDefenseBonusFromItems: number;
+  totalDtBonusFromItems: number;
+  attributeBonusesFromItems: {
+    AGI: number;
+    FOR: number;
+    INT: number;
+    PRE: number;
+    VIG: number;
+  };
+  displacementBonusMetersFromItems: number;
+  itemResistancesList: string[];
   categoryCounts: Record<'0' | 'I' | 'II' | 'III' | 'IV', number>;
   ownedKits: string[];
 }
 
 export function calculateInventoryMechanicsSummary(
-  inventory: CharacterInventoryItem[] = []
+  inventory: CharacterInventoryItem[] = [],
+  options?: { hasInventarioOrganizado?: boolean }
 ): InventoryMechanicsSummary {
   let totalSpacesUsed = 0;
   let totalLoadBonusFromItems = 0;
   let totalBlockRdBonus = 0;
+  let totalPvBonusFromItems = 0;
+  let totalPeBonusFromItems = 0;
+  let totalSanBonusFromItems = 0;
+  let totalDefenseBonusFromItems = 0;
+  let totalDtBonusFromItems = 0;
+  const attributeBonusesFromItems = {
+    AGI: 0,
+    FOR: 0,
+    INT: 0,
+    PRE: 0,
+    VIG: 0,
+  };
+  let displacementBonusMetersFromItems = 0;
+  const itemResistancesList: string[] = [];
   const categoryCounts: Record<'0' | 'I' | 'II' | 'III' | 'IV', number> = {
     '0': 0,
     I: 0,
@@ -3437,7 +3519,10 @@ export function calculateInventoryMechanicsSummary(
 
   for (const item of inventory) {
     const qty = item.quantity !== undefined ? Math.max(0, item.quantity) : 1;
-    totalSpacesUsed += (item.spaces || 0) * qty;
+    const baseUnitSpaces = item.spaces || 0;
+    const effectiveUnitSpaces =
+      options?.hasInventarioOrganizado && baseUnitSpaces === 0.5 ? 0.25 : baseUnitSpaces;
+    totalSpacesUsed += effectiveUnitSpaces * qty;
 
     if (qty > 0) {
       const cat = normalizeItemCategory(item.category);
@@ -3469,6 +3554,138 @@ export function calculateInventoryMechanicsSummary(
       }
     }
 
+    // Maldições de acessórios equipados (Vitalidade +15 PV, Esforço Adicional +5 PE, Defesa +5, Potência +1 DT,
+    // Destreza +1 AGI, Pujança +1 FOR, Sagacidade +1 INT, Carisma +1 PRE, Disposição +1 VIG, Escudo Mental, Proteção Elemental)
+    const isProtOrShield =
+      item.itemType === 'protecao' ||
+      item.itemType === 'escudo' ||
+      Boolean(item.id && item.id.startsWith('inv_prot_'));
+    const modIds = (item.modifications || []).map((m) => resolveCatalogModOrCurseId(m));
+    if (modIds.includes('curse_acc_vitalidade')) {
+      totalPvBonusFromItems += 15;
+    }
+    if (modIds.includes('curse_acc_esforco_adicional')) {
+      totalPeBonusFromItems += 5;
+    }
+    if (!isProtOrShield && modIds.includes('curse_acc_defesa')) {
+      totalDefenseBonusFromItems += 5;
+    }
+    if (modIds.includes('curse_acc_potencia')) {
+      totalDtBonusFromItems += 1;
+    }
+    if (modIds.includes('curse_acc_destreza')) {
+      attributeBonusesFromItems.AGI += 1;
+    }
+    if (modIds.includes('curse_acc_pujanca')) {
+      attributeBonusesFromItems.FOR += 1;
+    }
+    if (modIds.includes('curse_acc_sagacidade')) {
+      attributeBonusesFromItems.INT += 1;
+    }
+    if (modIds.includes('curse_acc_carisma')) {
+      attributeBonusesFromItems.PRE += 1;
+    }
+    if (modIds.includes('curse_acc_disposicao')) {
+      attributeBonusesFromItems.VIG += 1;
+    }
+    if (modIds.includes('curse_acc_escudo_mental')) {
+      itemResistancesList.push('Mental 10');
+    }
+    if (modIds.includes('curse_acc_protecao_elemental')) {
+      itemResistancesList.push(
+        item.element && item.element !== 'Nenhum' && item.element !== 'Variável'
+          ? `${item.element} 10`
+          : 'Elemental 10'
+      );
+    }
+
+    // Bônus passivos de itens oficiais e amaldiçoados específicos (deslocamento e resistências)
+    const normItemName = (item.name || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+    const sourceEntityId = item.sourceEntityId || item.id || '';
+
+    if (
+      sourceEntityId === 'item__arquivos_secretos_05__tenis_lepidos' ||
+      normItemName.includes('tenis lepidos')
+    ) {
+      displacementBonusMetersFromItems += 3;
+    }
+    if (
+      sourceEntityId === 'item__arquivos_secretos_03__chispa' ||
+      normItemName === 'chispa'
+    ) {
+      displacementBonusMetersFromItems += 9;
+    }
+    if (
+      sourceEntityId === 'item__livro_base__jaqueta_de_verissimo' ||
+      normItemName.includes('jaqueta de verissimo')
+    ) {
+      itemResistancesList.push('Paranormal 15');
+    }
+    if (
+      sourceEntityId === 'item__arquivos_secretos_05__joias_da_mente' ||
+      normItemName.includes('joias da mente')
+    ) {
+      itemResistancesList.push('Mental 10');
+    }
+    if (
+      sourceEntityId === 'item__livro_base__escudo_mental' ||
+      normItemName === 'escudo mental'
+    ) {
+      itemResistancesList.push('Mental 10');
+    }
+    if (
+      sourceEntityId === 'item__sobrevivendo_ao_horror__traje_de_mergulho' ||
+      normItemName.includes('traje de mergulho')
+    ) {
+      itemResistancesList.push('Químico 5');
+    }
+    if (
+      sourceEntityId === 'item__sobrevivendo_ao_horror__traje_espacial' ||
+      normItemName.includes('traje espacial')
+    ) {
+      itemResistancesList.push('Químico 20');
+    }
+    if (
+      sourceEntityId === 'item__arquivos_secretos_09__escudo_balistico_led' ||
+      normItemName.includes('escudo balistico led')
+    ) {
+      itemResistancesList.push('Balístico 10');
+      if (!isProtOrShield) {
+        totalDefenseBonusFromItems += 2;
+      }
+    }
+
+    // Melhorias/Maldições personalizadas com bônus passivo de SAN / PV / PE / Defesa / Deslocamento
+    for (const cm of item.customModifications || []) {
+      const text = `${cm.name} ${cm.effect}`.trim();
+      const sanMatch = text.match(/([+-]\d+)\s*(?:de\s+)?(?:SAN|Sanidade)\b/i);
+      if (sanMatch && !/\b(?:gastar|gaste|por\s+rodada|ao\s+usar|perde)\b/i.test(text)) {
+        totalSanBonusFromItems += parseInt(sanMatch[1], 10) || 0;
+      }
+      const pvMatch = text.match(/\+(\d+)\s*(?:de\s+)?PV(?:\s+m[áa]x(?:imo)?s?)?\b/i);
+      if (pvMatch && !/\b(?:tempor[áa]rio|cura|recupera|gastar|gaste)\b/i.test(text)) {
+        totalPvBonusFromItems += parseInt(pvMatch[1], 10) || 0;
+      }
+      const peMatch = text.match(/\+(\d+)\s*(?:de\s+)?PE(?:\s+m[áa]x(?:imo)?s?)?\b/i);
+      if (peMatch && !/\b(?:tempor[áa]rio|recupera|gastar|gaste)\b/i.test(text)) {
+        totalPeBonusFromItems += parseInt(peMatch[1], 10) || 0;
+      }
+      if (!isProtOrShield) {
+        const defMatch = text.match(/\+(\d+)\s*(?:de\s+|na\s+|em\s+)?Defesa\b/i);
+        if (defMatch && !/\b(?:gastar|gaste|esquiva)\b/i.test(text)) {
+          totalDefenseBonusFromItems += parseInt(defMatch[1], 10) || 0;
+        }
+      }
+      const dispMatch = text.match(/\+(\d+)\s*m\s*(?:de\s+|em\s+(?:seu\s+)?)?deslocamento\b/i);
+      if (dispMatch && !/\b(?:gastar|gaste|tempor[áa]ri[oa])\b/i.test(text)) {
+        displacementBonusMetersFromItems += parseInt(dispMatch[1], 10) || 0;
+      }
+    }
+
     // Kits de Perícia / Modificação Instrumental
     if (item.instrumentalSkill && item.instrumentalSkill.trim()) {
       ownedKitSet.add(item.instrumentalSkill.trim());
@@ -3482,6 +3699,14 @@ export function calculateInventoryMechanicsSummary(
     totalSpacesUsed: roundSpaces(totalSpacesUsed),
     totalLoadBonusFromItems,
     totalBlockRdBonus,
+    totalPvBonusFromItems,
+    totalPeBonusFromItems,
+    totalSanBonusFromItems,
+    totalDefenseBonusFromItems,
+    totalDtBonusFromItems,
+    attributeBonusesFromItems,
+    displacementBonusMetersFromItems,
+    itemResistancesList,
     categoryCounts,
     ownedKits: Array.from(ownedKitSet),
   };
