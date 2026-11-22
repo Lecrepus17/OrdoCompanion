@@ -12,6 +12,17 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ 1. Preparação da Release v1.7.0-beta.2 (versionCode 14):
+```bash
+git add package.json app.json version.json docs/RELEASE_NOTES.md docs/HISTORICO_RELEASES.md docs/ATUALIZACOES_PENDENTES.md docs/COMMITS_PENDENTES.md
+git commit -m "chore(release): prepara versao v1.7.0-beta.2 (versionCode 14)" \
+  -m "- Atualiza versao em package.json, app.json e version.json para 1.7.0-beta.2" \
+  -m "- Incrementa android.versionCode para 14 em app.json" \
+  -m "- Gera docs/RELEASE_NOTES.md e arquiva notas da v1.7.0-beta.2 em docs/HISTORICO_RELEASES.md" \
+  -m "- Reseta docs/ATUALIZACOES_PENDENTES.md para o proximo ciclo e atualiza docs/COMMITS_PENDENTES.md"
+git tag v1.7.0-beta.2
+```
+
 ### ✅ Varredura Geral e Eliminação de Botões/Controles Duplicados em Todas as Telas e Modais (`SOL-MEL-001`) (2026-11-22):
 - **Título**: `refactor(ui): elimina botoes duplicados e padroniza acoes em todas as telas e modais`
 - **Resumo**: Lotes 1 a 5 eliminando botões/controles redundantes em 48 telas e modais, ocultando atalho G.L.I.T.C.H. quando Oráculo está ativo/fixado, removendo 7 botões Manual/Regras duplicados, centralizando Suporte/Temas/Backup no `UserProfileModal`, adicionando `tests/uiDeduplicationRegression.test.tsx` e atualizando 10 suítes de frontend/navegação.

@@ -1,15 +1,19 @@
 {
-  "version": "1.7.0-beta.1",
+  "version": "1.7.0-beta.2",
   "minVersion": "1.0.0-beta.1",
-  "releaseName": "Ordo Companion v1.7.0-beta.1",
-  "releaseDate": "2026-11-20",
-  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.7.0-beta.1",
-  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.7.0-beta.1/OrdoCompanion.apk",
+  "releaseName": "Ordo Companion v1.7.0-beta.2",
+  "releaseDate": "2026-11-22",
+  "downloadUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/tag/v1.7.0-beta.2",
+  "apkUrl": "https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.7.0-beta.2/OrdoCompanion.apk",
   "webUrl": "https://ordo-companion.expo.app",
   "changelog": [
-    "Aplicativo para PC (Web App + PWA Instalável Offline — `SOL-MEL-001`)",
-    "Central de Suporte com Filas Separadas (Erros vs. Melhorias)",
-    "Login Google Drive OAuth (Android & PC/Web) + Política de Privacidade & Termos (`SOL-ERR-001`)"
+    "🎭 IA G.L.I.T.C.H. — Modo Roleplay Livre vs. Compromisso com a Realidade: Novo alternador rápido na tela do Oráculo e nas configurações da IA (desativado por padrão) para escolher entre seguir o livro de regras à risca ou liberar interpretação fluida, conversas descontraídas e reações situacionais ao conversar com Personagens Canônicos (`Senhor Veríssimo`, `Arthur Cervero`, `Kian`) e Relíquias (`Anfitrião`, `Magistrada`, `Deus da Morte`, `Diabo`).",
+    "📚 Base de Lore Expandida: Prompts e respostas offline das Relíquias e Personagens enriquecidos com relações entre os Elementos, história canônica e diálogos situacionais autênticos.",
+    "🛡️ Assistente de Proteções — Múltiplas Armaduras (`#ORD-83296E`): Agora é possível cadastrar, editar e alternar mais de uma armadura ou escudo no Assistente de Proteções, escolhendo quais ficam ativas na Defesa (somando Defesa e RD automaticamente) e quais permanecem guardadas na mochila.",
+    "🛠️ Central de Suporte & Envio de Melhorias ao Discord (`SOL-ERR-002`): Corrige o botão Abrir Discord no Android APK (abre o convite direto sem acionar a folha de compartilhamento antes), preserva o texto digitado em caso de falha de envio e adiciona botão Reenviar em 1 clique no histórico, oculta Salvar Informações na aba Suporte do Perfil, ajusta o rótulo do botão por categoria e atualiza a Edge Function `support-webhook` para roteamento `#erros` vs `#melhorias`.",
+    "🖨️ Impressão PDF & Ficha Ativa — Vestimentas Duplas e Bônus Extras (`SOL-ERR-001` / `SOL-ERR-002`): Corrige a impressão de fichas (`Livro Base` e `Sobrevivendo ao Horror`) e pré-visualização mobile para somar corretamente na coluna Outros e no BÔNUS total vestimentas com bônus em duas perícias (`Função Adicional` e `Amuleto Sagrado`), bônus passivos de poderes/origens/trilhas (`Vontade Inabalável`, `Reflexos Defensivos`, `Precognição`, `Policial`, `Especialista em Proteção Leve`, `Iniciativa Aprimorada`, `Gatuno`, `O Sorriso`, `Ser Escarificado`, `Diplomata`, `Profetizado`), maldições de acessórios/proteções (`Sombria`, `Lépida`, `Vitalidade`, `Esforço Adicional`, `Defesa`, `Potência`, custom SAN) e bônus da Forma Suprema da Máscara sem dupla contagem, além de aplicar bônus de itens nas rolagens de Morrendo, Enlouquecendo e reações de defesa na ficha ativa.",
+    "📘 Núcleo Essencial do Livro Base Liberado por Padrão (Sem Expor PDF): O aplicativo passa a disponibilizar por padrão as informações essenciais do Livro Base (3 Classes, 28 Perícias e 37 Condições = 68 registros estruturais) para permitir o uso imediato com qualquer *Arquivo Secreto*, mantendo bloqueados o arquivo PDF, o leitor de páginas, os demais 734 registros do Livro Base e os outros 9 livros até o envio do PDF ou Senha do Mestre.",
+    "🧹 Padronização Visual & Eliminação de Botões Duplicados em Todas as Telas e Modais (`SOL-MEL-001`): Varredura completa nas 48 telas e modais do aplicativo eliminando controles redundantes e padronizando pontos únicos de ação: remoção de 7 botões locais `Manual`/`Regras` que duplicavam o `?` do cabeçalho global, ocultação do atalho da `G.L.I.T.C.H.` quando o Oráculo já está ativo, unificação de cabeçalhos/rodapés de modais (`CreateAgentModal`, `ItemEditorModal`, `ThreatCreatorModal`, `WeaponEditorModal`, `LevelUpModal`, `ProtectionModal`, `PdfViewerModal`, `PrintSheetModal`, `TableExportModal`, `CriticalModePromptModal`, `UserProfileModal`), centralização de Temas, Backup JSON e Suporte no modal de Perfil do Usuário e preservação integral dos botões `i` de pré-visualização para acessibilidade por mouse no PC."
   ],
   "forceUpdate": false
 }
