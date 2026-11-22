@@ -40,6 +40,7 @@ export interface IDataRepository {
   getUnlockedBookIds(): string[];
   getUnlockedBooksRecordMap(): Record<string, UnlockedBookRecord>;
   isBookUnlocked(bookId: string): boolean;
+  isEntityUnlocked(entity: Pick<CompendiumEntity, 'bookId' | 'category'>): boolean;
   unlockBook(bookId: string, record?: Partial<UnlockedBookRecord>): Promise<UnlockedBookRecord>;
   unlockAllBooks(method?: BookUnlockMethod): Promise<UnlockedBookRecord[]>;
   lockBook(bookId: string): Promise<void>;

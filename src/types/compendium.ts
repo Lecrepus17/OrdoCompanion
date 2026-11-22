@@ -152,6 +152,8 @@ export interface BookInfo {
 export interface CatalogBookInfo extends BookInfo {
   isUnlocked: boolean;
   entityCount: number;
+  unlockedEntityCount?: number;
+  hasDefaultUnlockedEntities?: boolean;
   localPdfAvailable: boolean;
   driveSynced?: boolean;
 }
@@ -697,7 +699,7 @@ export const KNOWN_TAB_DEFINITIONS: Record<string, TabMetadata> = {
 };
 
 export const DEFAULT_PINNED_TABS: string[] = ['index', 'characters', 'books', 'favorites', 'dice'];
-export const DEFAULT_HIDDEN_TABS: string[] = ['master', 'oracle', 'table'];
+export const DEFAULT_HIDDEN_TABS: string[] = ['master', 'oracle', 'table', 'support'];
 export const LEGACY_DEFAULT_PINNED_TABS: string[] = ['index', 'characters', 'master', 'weapons', 'dice'];
 
 export function getTabMetadata(routeKey: string, customOptions?: { title?: string }): TabMetadata {

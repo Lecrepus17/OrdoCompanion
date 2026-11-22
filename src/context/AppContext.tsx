@@ -1640,7 +1640,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           cloudSyncManager.scheduleAutoSync();
           return {
             ok: true,
-            message: 'Arquivo PDF offline removido e livro bloqueado com sucesso.',
+            message:
+              bookId === 'livro_base'
+                ? 'Arquivo PDF do Livro Base removido e leitor bloqueado. O núcleo essencial (Classes, Perícias e Condições) continua ativo.'
+                : 'Arquivo PDF offline removido e livro bloqueado com sucesso.',
           };
         }
       } catch (err: any) {

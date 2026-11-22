@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -172,8 +172,6 @@ export default function CompendiumScreen() {
     resetFilters,
     listingColumns,
     toggleListingColumns,
-    setListingColumns,
-    openManual,
     openPdfAccessModal,
     favoriteIds,
     toggleFavorite,
@@ -192,12 +190,16 @@ export default function CompendiumScreen() {
   const [activePdfTerm, setActivePdfTerm] = useState<string>('');
   const [pdfModalVisible, setPdfModalVisible] = useState<boolean>(false);
 
+  const unlockedBookIdSet = useMemo(() => new Set(books.map((b) => b.id)), [books]);
+
+  const filterableBooks = useMemo(
+    () => catalogBooks.filter((b) => b.isUnlocked || (b.unlockedEntityCount || 0) > 0),
+    [catalogBooks]
+  );
+
   const handleOpenPdfFromCard = useCallback(
     (bookId: string, pageNumber: number, entityName: string) => {
-      const targetBook =
-        books.find((b) => b.id === bookId) ||
-        catalogBooks.find((b) => b.id === bookId) ||
-        null;
+      const targetBook = books.find((b) => b.id === bookId) || null;
       if (targetBook) {
         setActivePdfBook(targetBook);
         setActivePdfPage(pageNumber);
@@ -205,7 +207,7 @@ export default function CompendiumScreen() {
         setPdfModalVisible(true);
       }
     },
-    [books, catalogBooks]
+    [books]
   );
 
   useEffect(() => {
@@ -240,10 +242,12 @@ export default function CompendiumScreen() {
         onPressItem={handlePressEntity}
         onToggleFavorite={toggleFavorite}
         onRollFormula={rollFormula}
-        onPressPageBadge={handleOpenPdfFromCard}
+        onPressPageBadge={
+          item.bookId && unlockedBookIdSet.has(item.bookId) ? handleOpenPdfFromCard : undefined
+        }
       />
     ),
-    [listingColumns, cardWidth, favoriteIds, handlePressEntity, toggleFavorite, rollFormula, handleOpenPdfFromCard]
+    [listingColumns, cardWidth, favoriteIds, handlePressEntity, toggleFavorite, rollFormula, handleOpenPdfFromCard, unlockedBookIdSet]
   );
 
   if (!ready) {
@@ -369,23 +373,21 @@ export default function CompendiumScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => openManual('compendium')}
-          accessibilityLabel="Manual do Compêndio e Filtros"
-        >
-          <Ionicons name="help-circle-outline" size={20} color={colors.primary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={styles.addBtn}
-          onPress={() =>
+          onPress={() => {
+            if (filters.category === 'creature') {
+              setThreatCreatorVisible(true);
+              return;
+            }
             router.push({
               pathname: '/entity/editor',
               params: { defaultCategory: filters.category === 'all' ? 'ritual' : filters.category },
-            })
-          }
+            });
+          }}
+          testID={filters.category === 'creature' ? 'btn-compendium-create-threat' : undefined}
+          accessibilityLabel={filters.category === 'creature' ? 'Criar Ameaça (C.R.I.S.)' : 'Criar novo registro'}
         >
-          <Ionicons name="add" size={22} color="#FFF" />
+          <Ionicons name={filters.category === 'creature' ? 'skull-outline' : 'add'} size={22} color="#FFF" />
         </TouchableOpacity>
       </View>
 
@@ -630,25 +632,6 @@ export default function CompendiumScreen() {
             </Text>
           </TouchableOpacity>
 
-          {filters.category === 'creature' && (
-            <TouchableOpacity
-              style={[
-                styles.columnsToggleBtn,
-                {
-                  borderColor: colors.elements.Energia.border,
-                  backgroundColor: colors.elements.Energia.bg,
-                },
-              ]}
-              onPress={() => setThreatCreatorVisible(true)}
-              testID="btn-compendium-create-threat"
-            >
-              <Ionicons name="skull-outline" size={13} color={colors.elements.Energia.text} />
-              <Text style={[styles.columnsToggleBtnText, { color: colors.elements.Energia.text }]}>
-                Criar Ameaça (C.R.I.S.)
-              </Text>
-            </TouchableOpacity>
-          )}
-
           {hasActiveFilters && (
             <TouchableOpacity onPress={resetFilters}>
               <Text style={styles.clearFiltersText}>Limpar tudo</Text>
@@ -695,46 +678,50 @@ export default function CompendiumScreen() {
         windowSize={5}
         removeClippedSubviews={Platform.OS !== 'web'}
         renderItem={renderEntityItem}
-        ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Ionicons
-              name={books.length === 0 ? 'lock-closed-outline' : 'folder-open-outline'}
-              size={44}
-              color={books.length === 0 ? colors.primary : colors.textMuted}
-            />
-            <Text style={styles.emptyTitle}>
-              {books.length === 0
-                ? 'Disponibilize seus PDFs para liberar o Compêndio'
-                : 'Nenhum registro encontrado'}
-            </Text>
-            <Text style={styles.emptySub}>
-              {books.length === 0
-                ? 'Os dados do Compêndio listam apenas o conteúdo dos PDFs aos quais você tem acesso. Envie seus PDFs (ou use o código enviado por e-mail) para desbloquear os livros e ler offline.'
-                : 'Tente ajustar os filtros ou clique no botão "+" no topo para adicionar manualmente um novo item nesta categoria.'}
-            </Text>
-            {books.length === 0 && (
-              <TouchableOpacity
-                testID="btn-compendium-open-pdf-access"
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  backgroundColor: colors.primary,
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderRadius: 10,
-                  marginTop: 8,
-                }}
-                onPress={openPdfAccessModal}
-              >
-                <Ionicons name="cloud-upload-outline" size={16} color="#FFF" />
-                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>
-                  Disponibilizar PDFs / Liberar com Código
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        }
+        ListEmptyComponent={(() => {
+          const noEntitiesAtAll = entities.length === 0;
+          const noBooksUnlocked = books.length === 0;
+          return (
+            <View style={styles.emptyBox}>
+              <Ionicons
+                name={noBooksUnlocked ? 'lock-closed-outline' : 'folder-open-outline'}
+                size={44}
+                color={noBooksUnlocked ? colors.primary : colors.textMuted}
+              />
+              <Text style={styles.emptyTitle}>
+                {noEntitiesAtAll
+                  ? 'Disponibilize seus PDFs para liberar o Compêndio'
+                  : 'Nenhum registro encontrado'}
+              </Text>
+              <Text style={styles.emptySub}>
+                {noBooksUnlocked
+                  ? 'Apenas o núcleo essencial do Livro Base (Classes, Perícias e Condições) vem ativo por padrão. Envie seus PDFs ou use a Senha do Mestre para liberar rituais, origens, armas, ameaças e o leitor completo.'
+                  : 'Tente ajustar os filtros ou clique no botão "+" no topo para adicionar manualmente um novo item nesta categoria.'}
+              </Text>
+              {noBooksUnlocked && (
+                <TouchableOpacity
+                  testID="btn-compendium-open-pdf-access"
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    marginTop: 8,
+                  }}
+                  onPress={openPdfAccessModal}
+                >
+                  <Ionicons name="cloud-upload-outline" size={16} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>
+                    Disponibilizar PDFs / Senha do Mestre
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })()}
       />
 
       {/* Modal de Filtros Avançados */}
@@ -856,20 +843,12 @@ export default function CompendiumScreen() {
                   ]}
                   onPress={() => setFilters((p) => ({ ...p, bookId: 'all' }))}
                 >
-                  <Text style={styles.filterOptionText}>Todos os Livros (10)</Text>
+                  <Text style={styles.filterOptionText}>
+                    Todos os Livros ({filterableBooks.length})
+                  </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[
-                    styles.filterOptionPill,
-                    filters.bookId === 'custom' && styles.filterOptionPillActive,
-                  ]}
-                  onPress={() => setFilters((p) => ({ ...p, bookId: 'custom' }))}
-                >
-                  <Text style={styles.filterOptionText}>Criados / Editados (Homebrew)</Text>
-                </TouchableOpacity>
-
-                {books.map((b) => (
+                {filterableBooks.map((b) => (
                   <TouchableOpacity
                     key={b.id}
                     style={[
@@ -878,7 +857,9 @@ export default function CompendiumScreen() {
                     ]}
                     onPress={() => setFilters((p) => ({ ...p, bookId: b.id }))}
                   >
-                    <Text style={styles.filterOptionText}>{b.title}</Text>
+                    <Text style={styles.filterOptionText}>
+                      {b.isUnlocked ? b.title : `${b.title} (Núcleo)`}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -975,41 +956,6 @@ export default function CompendiumScreen() {
                   }
                 >
                   <Text style={styles.filterOptionText}>Apenas Criados / Editados</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.filterGroupLabel}>Layout da Listagem</Text>
-              <View style={styles.filterWrapGrid}>
-                <TouchableOpacity
-                  style={[
-                    styles.filterOptionPill,
-                    listingColumns === 1 && styles.filterOptionPillActive,
-                  ]}
-                  onPress={() => setListingColumns(1)}
-                >
-                  <Ionicons
-                    name="list"
-                    size={14}
-                    color={listingColumns === 1 ? colors.primary : colors.textMuted}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text style={styles.filterOptionText}>1 Coluna (Padrão)</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.filterOptionPill,
-                    listingColumns === 2 && styles.filterOptionPillActive,
-                  ]}
-                  onPress={() => setListingColumns(2)}
-                >
-                  <Ionicons
-                    name="grid"
-                    size={14}
-                    color={listingColumns === 2 ? colors.primary : colors.textMuted}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text style={styles.filterOptionText}>2 Colunas (Grade)</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>

@@ -38,7 +38,6 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
     catalogBooks,
     uploadAndUnlockPdf,
     unlockWithMasterPassword,
-    lockBook,
     deletePdfBook,
     syncAuthState,
   } = useApp();
@@ -62,9 +61,11 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
   const targetBookFileNameRef = useRef<string | null>(null);
 
   const unlockedBooksCount = catalogBooks.filter((b: CatalogBookInfo) => b.isUnlocked).length;
-  const totalEntitiesUnlocked = catalogBooks
-    .filter((b: CatalogBookInfo) => b.isUnlocked)
-    .reduce((acc: number, b: CatalogBookInfo) => acc + (b.entityCount || 0), 0);
+  const totalEntitiesUnlocked = catalogBooks.reduce(
+    (acc: number, b: CatalogBookInfo) =>
+      acc + (b.unlockedEntityCount ?? (b.isUnlocked ? b.entityCount || 0 : 0)),
+    0
+  );
 
   const handleWebFileChange = useCallback(
     async (e: any) => {
@@ -321,11 +322,14 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
   const handleDeleteBook = useCallback(
     (book: CatalogBookInfo) => {
       const isCustom = Boolean(book.isCustomBook);
+      const confirmMessage = isCustom
+        ? `Deseja realmente excluir permanentemente o PDF "${book.title}" e todos os seus dados vinculados?`
+        : book.id === 'livro_base'
+        ? `Deseja remover o arquivo offline de "${book.title}" e bloquear o leitor/conteúdo completo? O núcleo essencial (Classes, Perícias e Condições) permanecerá ativo no aplicativo.`
+        : `Deseja remover o arquivo offline de "${book.title}" e bloquear seu acesso? Você poderá adicioná-lo novamente a qualquer momento.`;
       confirmAction({
         title: isCustom ? 'Excluir PDF Personalizado' : 'Excluir Arquivo do PDF',
-        message: isCustom
-          ? `Deseja realmente excluir permanentemente o PDF "${book.title}" e todos os seus dados vinculados?`
-          : `Deseja remover o arquivo offline de "${book.title}" e bloquear seu acesso? Você poderá adicioná-lo novamente a qualquer momento.`,
+        message: confirmMessage,
         confirmText: 'Excluir',
         cancelText: 'Cancelar',
         destructive: true,
@@ -342,20 +346,35 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
   );
 
   const renderBookRow = (book: CatalogBookInfo) => {
+    const unlockedEntCount = book.unlockedEntityCount ?? (book.isUnlocked ? book.entityCount : 0);
+    const hasPartialCoreData = !book.isUnlocked && unlockedEntCount > 0;
+
     return (
       <View
         key={book.id}
         style={[
           styles.bookItemCard,
           book.isUnlocked && { borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.06)' },
+          hasPartialCoreData && {
+            borderColor: 'rgba(245, 158, 11, 0.55)',
+            backgroundColor: 'rgba(245, 158, 11, 0.06)',
+          },
         ]}
       >
         <View style={styles.bookItemMain}>
           <View style={styles.bookItemTitleRow}>
             <Ionicons
-              name={book.isUnlocked ? 'checkmark-circle' : 'lock-closed'}
+              name={
+                book.isUnlocked
+                  ? 'checkmark-circle'
+                  : hasPartialCoreData
+                  ? 'shield-checkmark-outline'
+                  : 'lock-closed'
+              }
               size={18}
-              color={book.isUnlocked ? '#10B981' : colors.textMuted}
+              color={
+                book.isUnlocked ? '#10B981' : hasPartialCoreData ? '#F59E0B' : colors.textMuted
+              }
             />
             <Text style={styles.bookItemTitle}>{book.title}</Text>
             {book.isCustomBook && (
@@ -365,7 +384,9 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
             )}
           </View>
           <Text style={styles.bookItemMeta}>
-            Origem: {book.fileName} • {book.pageCount} págs • {book.entityCount} itens no Compêndio
+            {hasPartialCoreData
+              ? `Origem: ${book.fileName} • ${book.pageCount} págs • ${unlockedEntCount}/${book.entityCount} itens essenciais ativos`
+              : `Origem: ${book.fileName} • ${book.pageCount} págs • ${book.entityCount} itens no Compêndio`}
           </Text>
 
           <View style={styles.badgesRow}>
@@ -375,18 +396,34 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
                 {
                   backgroundColor: book.isUnlocked
                     ? 'rgba(16, 185, 129, 0.16)'
+                    : hasPartialCoreData
+                    ? 'rgba(245, 158, 11, 0.14)'
                     : colors.surfaceElevated,
-                  borderColor: book.isUnlocked ? '#10B981' : colors.border,
+                  borderColor: book.isUnlocked
+                    ? '#10B981'
+                    : hasPartialCoreData
+                    ? '#F59E0B'
+                    : colors.border,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.statusPillText,
-                  { color: book.isUnlocked ? '#10B981' : colors.textMuted },
+                  {
+                    color: book.isUnlocked
+                      ? '#10B981'
+                      : hasPartialCoreData
+                      ? '#F59E0B'
+                      : colors.textMuted,
+                  },
                 ]}
               >
-                {book.isUnlocked ? 'Dados & Leitor Liberados' : 'Bloqueado (Envie o PDF)'}
+                {book.isUnlocked
+                  ? 'Dados & Leitor Liberados'
+                  : hasPartialCoreData
+                  ? 'Núcleo Essencial Ativo • PDF Bloqueado'
+                  : 'Bloqueado (Envie o PDF)'}
               </Text>
             </View>
 
@@ -441,21 +478,23 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                testID={`btn-lock-book-${book.id}`}
-                style={styles.lockBookBtn}
-                onPress={() => lockBook(book.id)}
-              >
-                <Ionicons name="lock-closed-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.lockBookBtnText}>Bloquear</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
                 testID={`btn-delete-catalog-book-${book.id}`}
-                style={styles.deleteBookBtn}
+                style={book.isCustomBook ? styles.deleteBookBtn : styles.lockBookBtn}
                 onPress={() => handleDeleteBook(book)}
-                accessibilityLabel={`Excluir PDF de ${book.title}`}
+                accessibilityLabel={
+                  book.isCustomBook
+                    ? `Excluir PDF de ${book.title}`
+                    : `Remover e bloquear acesso de ${book.title}`
+                }
               >
-                <Ionicons name="trash-outline" size={13} color="#EF4444" />
-                <Text style={styles.deleteBookBtnText}>Excluir</Text>
+                <Ionicons
+                  name={book.isCustomBook ? 'trash-outline' : 'lock-closed-outline'}
+                  size={13}
+                  color={book.isCustomBook ? '#EF4444' : colors.textMuted}
+                />
+                <Text style={book.isCustomBook ? styles.deleteBookBtnText : styles.lockBookBtnText}>
+                  {book.isCustomBook ? 'Excluir' : 'Bloquear'}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -655,8 +694,9 @@ export const PdfUploadAccessModal: React.FC<PdfUploadAccessModalProps> = ({
                 </Text>
               </View>
               <Text style={styles.sectionDesc}>
-                Cada entidade do aplicativo referencia seu PDF de origem. Apenas os livros marcados
-                como liberados abaixo têm seus dados exibidos no Compêndio e nas ferramentas.
+                Cada entidade do aplicativo referencia seu PDF de origem. O núcleo essencial do Livro
+                Base (Classes, Perícias e Condições) vem ativo por padrão; o leitor de páginas,
+                demais conteúdos do Livro Base e os outros livros exigem envio do PDF ou Senha do Mestre.
               </Text>
 
               <View style={{ gap: 10, marginTop: 6 }}>

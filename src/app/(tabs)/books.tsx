@@ -146,7 +146,7 @@ const BookCoverCard: React.FC<{
 };
 
 export default function BooksScreen() {
-  const { books, catalogBooks, searchInBookPages, openManual, openPdfAccessModal, deletePdfBook } = useApp();
+  const { books, catalogBooks, searchInBookPages, openPdfAccessModal, deletePdfBook } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 10);
@@ -202,11 +202,14 @@ export default function BooksScreen() {
   const handleDeletePdf = useCallback(
     (book: BookInfo) => {
       const isCustom = Boolean(book.isCustomBook);
+      const confirmMessage = isCustom
+        ? `Deseja realmente excluir permanentemente o PDF "${book.title}" e todos os seus dados vinculados?`
+        : book.id === 'livro_base'
+        ? `Deseja remover o arquivo offline de "${book.title}" e bloquear o leitor e o conteúdo completo? O núcleo essencial (Classes, Perícias e Condições) continuará ativo.`
+        : `Deseja remover o arquivo offline de "${book.title}" e bloquear seu acesso? Você poderá adicioná-lo novamente a qualquer momento.`;
       confirmAction({
         title: isCustom ? 'Excluir PDF Personalizado' : 'Excluir Arquivo do PDF',
-        message: isCustom
-          ? `Deseja realmente excluir permanentemente o PDF "${book.title}" e todos os seus dados vinculados?`
-          : `Deseja remover o arquivo offline de "${book.title}" e bloquear seu acesso? Você poderá adicioná-lo novamente a qualquer momento.`,
+        message: confirmMessage,
         confirmText: 'Excluir',
         cancelText: 'Cancelar',
         destructive: true,
@@ -274,24 +277,6 @@ export default function BooksScreen() {
           <Ionicons name="cloud-upload-outline" size={16} color="#FFF" />
           <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFF' }}>Disponibilizar PDF</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => openManual('books')}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            paddingHorizontal: 10,
-            height: 42,
-            borderRadius: 10,
-            backgroundColor: colors.primarySoft,
-            borderWidth: 1,
-            borderColor: colors.primary,
-          }}
-          accessibilityLabel="Manual dos Livros e PDFs"
-        >
-          <Ionicons name="help-circle-outline" size={17} color={colors.primary} />
-          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>Manual</Text>
-        </TouchableOpacity>
       </View>
 
       {pageQuery.trim().length >= 2 ? (
@@ -343,29 +328,8 @@ export default function BooksScreen() {
             </View>
             <Text style={styles.pipelineDesc}>
               Todas as 1.261 páginas oficiais estão conectadas diretamente ao leitor integrado com suporte a busca textual,
-              sumário hierárquico e visualização offline. Faça upload dos PDFs que você tem acesso (ou use a Senha do Mestre) para liberar os dados no Compêndio e ler os livros offline.
+              sumário hierárquico e visualização offline. O núcleo essencial do Livro Base (Classes, Perícias e Condições) já fica ativo no Compêndio; envie seus PDFs (ou use a Senha do Mestre) para liberar o leitor e o acervo completo ({sortedBooks.length}/{catalogBooks.length} liberados).
             </Text>
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                backgroundColor: colors.primarySoft,
-                borderWidth: 1,
-                borderColor: colors.primary,
-                borderRadius: 10,
-                paddingVertical: 9,
-                paddingHorizontal: 12,
-                marginTop: 4,
-              }}
-              onPress={openPdfAccessModal}
-            >
-              <Ionicons name="key-outline" size={15} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800' }}>
-                Enviar PDFs / Liberar com Senha do Mestre ({sortedBooks.length}/{catalogBooks.length} liberados)
-              </Text>
-            </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionHeading}>
@@ -380,12 +344,8 @@ export default function BooksScreen() {
                   Nenhum PDF disponibilizado ainda
                 </Text>
                 <Text style={[styles.pipelineDesc, { textAlign: 'center' }]}>
-                  Envie seus arquivos PDF (ex.: Livro Base, Arquivos Secretos #01, #03) ou digite a Senha do Mestre para liberar os livros no leitor e no Compêndio.
+                  O núcleo essencial do Livro Base (Classes, Perícias e Condições) já está disponível no Compêndio. Use o botão &quot;Disponibilizar PDF&quot; acima para enviar seus arquivos PDF (ex.: Livro Base, Arquivos Secretos #01, #03) ou digitar a Senha do Mestre e liberar o leitor.
                 </Text>
-                <TouchableOpacity style={styles.readBookBtn} onPress={openPdfAccessModal}>
-                  <Ionicons name="cloud-upload-outline" size={15} color="#FFF" />
-                  <Text style={styles.readBookBtnText}>Disponibilizar Meus PDFs / Senha Mestre</Text>
-                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -423,7 +383,7 @@ export default function BooksScreen() {
                       >
                         <Ionicons name="open-outline" size={14} color={colors.text} />
                         <Text style={styles.secondaryBookBtnText}>
-                          {Platform.OS === 'web' ? 'Nova Aba' : 'Abrir PDF'}
+                          {Platform.OS === 'web' ? 'Nova Aba' : 'App Externo'}
                         </Text>
                       </TouchableOpacity>
 

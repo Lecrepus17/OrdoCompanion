@@ -140,6 +140,14 @@ describe('Exclusão de PDFs e Limpeza Completa (deleteDynamicPdfBook & deletePdf
 
     assert.strictEqual(repo.isBookUnlocked(bookId), false);
     assert.strictEqual(localPdfStorage.hasPdfOffline(bookId), false);
+    assert.strictEqual(repo.getBooks().length, 0);
+    assert.strictEqual(repo.getBookPage(bookId, 1), undefined);
+    assert.strictEqual(repo.getEntityById('ritual__livro_base__decadencia'), undefined);
+    assert.strictEqual(
+      repo.getAllEntities().length,
+      68,
+      'Núcleo essencial (Classes, Perícias e Condições) deve permanecer ativo mesmo após excluir o PDF do Livro Base'
+    );
   });
 
   test('3. Interface BooksScreen: deve renderizar botão "Excluir PDF" nos cards de livros liberados', async () => {

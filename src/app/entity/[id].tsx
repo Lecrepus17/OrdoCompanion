@@ -31,7 +31,6 @@ export default function EntityDetailScreen() {
   const bottomInset = Math.max(insets.bottom, 10);
   const {
     books,
-    catalogBooks,
     getBookPage,
     getEntityById,
     hasOriginalVersion,
@@ -43,6 +42,7 @@ export default function EntityDetailScreen() {
     toggleEntityInList,
     rollFormula,
     openManual,
+    openPdfAccessModal,
   } = useApp();
 
   const { colors } = useTheme();
@@ -56,9 +56,7 @@ export default function EntityDetailScreen() {
   const [nativePreviewFailed, setNativePreviewFailed] = useState<boolean>(false);
 
   const entityBook = entity
-    ? books.find((b) => b.id === entity.bookId) ||
-      catalogBooks.find((b) => b.id === entity.bookId) ||
-      null
+    ? books.find((b) => b.id === entity.bookId) || null
     : null;
 
   useEffect(() => {
@@ -128,22 +126,6 @@ export default function EntityDetailScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 60 + bottomInset }]}>
-        {/* Barra superior de retorno explícito */}
-        <TouchableOpacity
-          style={styles.topBackBar}
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace('/');
-            }
-          }}
-          accessibilityLabel="Voltar para a listagem"
-        >
-          <Ionicons name="arrow-back" size={17} color={colors.primary} />
-          <Text style={styles.topBackBarText}>Voltar para a listagem</Text>
-        </TouchableOpacity>
-
         {/* Header Card */}
         <View style={styles.headerCard}>
           <View style={styles.badgeRow}>
@@ -178,37 +160,12 @@ export default function EntityDetailScreen() {
 
           <Text style={styles.title}>{entity.name}</Text>
 
-          {entity.bookTitle && entity.pageNumber && entityBook ? (
-            <TouchableOpacity
-              style={[
-                styles.sourceRow,
-                {
-                  backgroundColor: 'rgba(255,255,255,0.06)',
-                  paddingVertical: 5,
-                  paddingHorizontal: 10,
-                  borderRadius: 8,
-                  alignSelf: 'flex-start',
-                  gap: 6,
-                },
-              ]}
-              activeOpacity={0.75}
-              onPress={() => handleOpenPageReader('pdf_scroll')}
-              accessibilityLabel={`Abrir página ${entity.pageNumber} de ${entity.bookTitle} no leitor integrado`}
-            >
-              <Ionicons name="book-outline" size={15} color={colors.primary} />
-              <Text style={[styles.sourceText, { color: colors.primary, fontWeight: '700' }]}>
-                Fonte: {entity.bookTitle} • Página {entity.pageNumber}
-              </Text>
-              <Ionicons name="open-outline" size={13} color={colors.primary} />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.sourceRow}>
-              <Ionicons name="book-outline" size={15} color={colors.textSecondary} />
-              <Text style={styles.sourceText}>
-                Fonte: {entity.bookTitle} • Página {entity.pageNumber}
-              </Text>
-            </View>
-          )}
+          <View style={styles.sourceRow}>
+            <Ionicons name="book-outline" size={15} color={colors.textSecondary} />
+            <Text style={styles.sourceText}>
+              Fonte: {entity.bookTitle} • Página {entity.pageNumber}
+            </Text>
+          </View>
 
           {/* Barra de Ações Rápidas */}
           <View style={styles.actionButtonsRow}>
@@ -499,24 +456,37 @@ export default function EntityDetailScreen() {
           </View>
         )}
 
-        {/* Botões de Rolagem Rápida de Dados */}
-        {entity.diceFormulas && entity.diceFormulas.length > 0 && (
-          <View style={styles.statsCard}>
-            <Text style={styles.sectionTitle}>Rolagens Rápidas deste Registro</Text>
-            <View style={styles.diceButtonsWrap}>
-              {entity.diceFormulas.map((formula) => (
-                <TouchableOpacity
-                  key={formula}
-                  style={styles.rollBigBtn}
-                  onPress={() => rollFormula(formula, `${entity.name} (${formula})`)}
-                >
-                  <Ionicons name="dice" size={18} color="#FFF" />
-                  <Text style={styles.rollBigBtnText}>Rolar {formula}</Text>
-                </TouchableOpacity>
-              ))}
+        {/* Botões de Rolagem Rápida de Dados (exclui fórmulas já cobertas em Ataques Estruturados) */}
+        {(() => {
+          const attackFormulasSet = new Set<string>();
+          if (entity.category === 'creature' && entity.structuredAttacks) {
+            entity.structuredAttacks.forEach((atk) => {
+              if (atk.testFormula) attackFormulasSet.add(atk.testFormula);
+              if (atk.damageFormula) attackFormulasSet.add(atk.damageFormula);
+            });
+          }
+          const extraDiceFormulas = (entity.diceFormulas || []).filter(
+            (f) => !attackFormulasSet.has(f)
+          );
+          if (extraDiceFormulas.length === 0) return null;
+          return (
+            <View style={styles.statsCard}>
+              <Text style={styles.sectionTitle}>Rolagens Rápidas deste Registro</Text>
+              <View style={styles.diceButtonsWrap}>
+                {extraDiceFormulas.map((formula) => (
+                  <TouchableOpacity
+                    key={formula}
+                    style={styles.rollBigBtn}
+                    onPress={() => rollFormula(formula, `${entity.name} (${formula})`)}
+                  >
+                    <Ionicons name="dice" size={18} color="#FFF" />
+                    <Text style={styles.rollBigBtnText}>Rolar {formula}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
-        )}
+          );
+        })()}
 
         {/* Descrição Principal */}
         <View style={styles.descCard}>
@@ -550,13 +520,6 @@ export default function EntityDetailScreen() {
                 </Text>
               </View>
               <View style={styles.contextButtonsRow}>
-                <TouchableOpacity
-                  style={styles.openFullPageBtn}
-                  onPress={() => handleOpenPageReader('pdf_scroll')}
-                >
-                  <Ionicons name="expand-outline" size={16} color="#FFF" />
-                  <Text style={styles.openFullPageBtnText}>Abrir PDF na Pág. {entity.pageNumber}</Text>
-                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.openTextModeBtn}
                   onPress={() => handleOpenPageReader('text')}
@@ -626,6 +589,30 @@ export default function EntityDetailScreen() {
                 </Text>
               </View>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {entity.bookId !== 'custom' && !entityBook && (
+          <View style={styles.bookContextCard} testID="entity-locked-pdf-card">
+            <View style={styles.bookContextHeader}>
+              <View style={{ flex: 1, minWidth: 180, gap: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="lock-closed-outline" size={16} color={colors.primary} />
+                  <Text style={styles.sectionTitle}>Livro PDF Não Enviado</Text>
+                </View>
+                <Text style={styles.bookContextSub}>
+                  Apenas os dados essenciais de {entity.bookTitle || 'Livro Base'} estão ativos por padrão. Envie o arquivo PDF ou use a Senha do Mestre para liberar o leitor e abrir a página {entity.pageNumber}.
+                </Text>
+              </View>
+              <TouchableOpacity
+                testID="btn-entity-upload-missing-pdf"
+                style={styles.openFullPageBtn}
+                onPress={openPdfAccessModal}
+              >
+                <Ionicons name="cloud-upload-outline" size={16} color="#FFF" />
+                <Text style={styles.openFullPageBtnText}>Enviar PDF</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 

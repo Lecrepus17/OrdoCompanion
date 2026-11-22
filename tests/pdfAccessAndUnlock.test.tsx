@@ -22,11 +22,13 @@ import {
 import { SmartMergeEngine } from '../src/services/sync/SmartMergeEngine';
 import BooksScreen from '../src/app/(tabs)/books';
 import CompendiumScreen from '../src/app/(tabs)/index';
+import EntityDetailScreen from '../src/app/entity/[id]';
 import {
   renderWithProviders,
   cleanup,
   fireClick,
   changeInputText,
+  mockRouter,
 } from './frontendTestUtils';
 import {
   clearUnlockedBooksForTest,
@@ -44,7 +46,7 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     resetMockStorage();
   });
 
-  test('1. Por padrão (novo usuário), todos os 10 livros oficiais começam bloqueados e apenas itens custom aparecem', async () => {
+  test('1. Por padrão (novo usuário), todos os 10 livros começam bloqueados no leitor e apenas o núcleo essencial do Livro Base (Classes, Perícias e Condições) + itens custom aparecem', async () => {
     clearUnlockedBooksForTest();
     const repo = new OfflineDataRepository();
     await repo.initialize();
@@ -52,19 +54,44 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     assert.strictEqual(
       repo.getBooks().length,
       0,
-      'Nenhum livro oficial deve vir liberado por padrão para novos usuários'
+      'Nenhum livro oficial deve vir liberado no leitor por padrão para novos usuários'
     );
-    assert.strictEqual(
-      repo.getAllEntities().length,
-      0,
-      'Nenhuma entidade oficial deve ser listada antes de liberar o respectivo PDF'
-    );
+    assert.strictEqual(repo.isBookUnlocked('livro_base'), false);
+    assert.strictEqual(repo.getBookPage('livro_base', 1), undefined);
+    assert.strictEqual(repo.searchInBookPages('all', 'combatente').length, 0);
 
-    // O catálogo completo ainda conhece os 10 livros registrados como bloqueados
+    const defaultEntities = repo.getAllEntities();
+    assert.strictEqual(
+      defaultEntities.length,
+      68,
+      'Apenas as 68 entidades essenciais do Livro Base (3 classes + 28 perícias + 37 condições) devem vir liberadas por padrão'
+    );
+    const allowedDefaultCategories = new Set(['class', 'skill', 'condition']);
+    assert.ok(
+      defaultEntities.every(
+        (e) => e.bookId === 'livro_base' && allowedDefaultCategories.has(e.category)
+      ),
+      'Nenhuma entidade fora do núcleo essencial do Livro Base ou de outros 9 livros deve ser listada por padrão'
+    );
+    assert.strictEqual(defaultEntities.filter((e) => e.category === 'class').length, 3);
+    assert.strictEqual(defaultEntities.filter((e) => e.category === 'skill').length, 28);
+    assert.strictEqual(defaultEntities.filter((e) => e.category === 'condition').length, 37);
+    assert.strictEqual(repo.getEntityById('ritual__livro_base__decadencia'), undefined);
+    assert.ok(repo.getEntityById('class__livro_base__combatente'));
+
+    // O catálogo completo ainda conhece os 10 livros registrados como bloqueados no leitor
     const catalog = repo.getAllCatalogBooks();
     assert.strictEqual(catalog.length, 10);
     assert.ok(catalog.every((b) => b.isUnlocked === false));
     assert.ok(catalog.every((b) => b.entityCount > 0));
+    const livroBaseCatalog = catalog.find((b) => b.id === 'livro_base')!;
+    assert.strictEqual(livroBaseCatalog.unlockedEntityCount, 68);
+    assert.strictEqual(livroBaseCatalog.hasDefaultUnlockedEntities, true);
+    assert.ok(
+      catalog
+        .filter((b) => b.id !== 'livro_base')
+        .every((b) => b.unlockedEntityCount === 0 && b.hasDefaultUnlockedEntities === false)
+    );
 
     // Criar um item homebrew (custom) deve funcionar e aparecer normalmente
     const customEnt = await repo.createEntity({
@@ -79,8 +106,8 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
       description: 'Descrição homebrew',
       tags: ['Homebrew'],
     });
-    assert.strictEqual(repo.getAllEntities().length, 1);
-    assert.strictEqual(repo.getAllEntities()[0].id, customEnt.id);
+    assert.strictEqual(repo.getAllEntities().length, 69);
+    assert.ok(repo.getAllEntities().some((e) => e.id === customEnt.id));
   });
 
   test('2. Ao fazer upload de PDFs específicos (ex: Arquivos Secretos 1 e 3), deve liberar apenas os dados e leitor desses livros e salvar offline', async () => {
@@ -140,14 +167,18 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     );
     assert.ok(unlockedBooks.every((b) => b.localPdfAvailable === true));
 
-    // Verifica que TODAS as entidades listadas pertencem exclusivamente a arquivos_secretos_01 ou arquivos_secretos_03
-    // e possuem sua origem (sourcePdf) preenchida
+    // Verifica que TODAS as entidades listadas pertencem a arquivos_secretos_01, arquivos_secretos_03
+    // ou ao núcleo essencial padrão do Livro Base (Classes, Perícias e Condições)
     const entities = repo.getAllEntities();
-    assert.ok(entities.length > 0, 'Deve listar as entidades de Arquivos Secretos 01 e 03');
+    assert.ok(entities.length > 68, 'Deve listar as entidades de Arquivos Secretos 01 e 03 além do núcleo base');
+    const coreCategories = new Set(['class', 'skill', 'condition']);
     for (const ent of entities) {
+      const isUploadedBook =
+        ent.bookId === 'arquivos_secretos_01' || ent.bookId === 'arquivos_secretos_03';
+      const isDefaultCore = ent.bookId === 'livro_base' && coreCategories.has(ent.category);
       assert.ok(
-        ent.bookId === 'arquivos_secretos_01' || ent.bookId === 'arquivos_secretos_03',
-        `Entidade ${ent.id} tinha bookId inesperado: ${ent.bookId}`
+        isUploadedBook || isDefaultCore,
+        `Entidade ${ent.id} tinha bookId/categoria inesperados: ${ent.bookId} (${ent.category})`
       );
       assert.ok(
         ent.sourcePdf && ent.sourcePdf.toLowerCase().endsWith('.pdf'),
@@ -219,10 +250,18 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     assert.strictEqual(books[0].localPdfAvailable, true);
 
     const allEnts = repo.getAllEntities();
-    assert.ok(allEnts.some((e) => e.name.toUpperCase().includes('ECO DO ABISMO')));
-    assert.ok(allEnts.some((e) => e.name.toUpperCase().includes('ESPECTRO DA CRIPTA')));
-    assert.ok(allEnts.every((e) => e.bookId === 'suplemento_cripta_2026'));
-    assert.ok(allEnts.every((e) => e.sourcePdf === 'Suplemento-Cripta-2026.pdf'));
+    const dynEnts = allEnts.filter((e) => e.bookId === 'suplemento_cripta_2026');
+    assert.ok(dynEnts.some((e) => e.name.toUpperCase().includes('ECO DO ABISMO')));
+    assert.ok(dynEnts.some((e) => e.name.toUpperCase().includes('ESPECTRO DA CRIPTA')));
+    assert.ok(dynEnts.every((e) => e.sourcePdf === 'Suplemento-Cripta-2026.pdf'));
+    const coreCategories = new Set(['class', 'skill', 'condition']);
+    assert.ok(
+      allEnts.every(
+        (e) =>
+          e.bookId === 'suplemento_cripta_2026' ||
+          (e.bookId === 'livro_base' && coreCategories.has(e.category))
+      )
+    );
   });
 
   test('4. Senha Mestre Segura com Hash SHA-256 deve validar e desbloquear todos os livros atuais offline e no SmartMerge do Google Drive', async () => {
@@ -284,9 +323,11 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
     const openBtn = getByTestId('btn-open-pdf-access-modal');
     await fireClick(openBtn);
 
-    // Verifica elementos do modal
+    // Verifica elementos do modal antes da Senha Mestre (núcleo essencial do Livro Base ativo)
     assert.ok(getByText(/Gerenciar Acesso aos Livros & PDFs/i));
     assert.ok(getByText(/Liberação por Senha do Mestre/i));
+    assert.ok(getByText(/0 de 10 livros liberados • 68 entidades ativas/i));
+    assert.ok(getByText(/Núcleo Essencial Ativo • PDF Bloqueado/i));
 
     // Insere senha do Mestre e clica em Liberar Tudo
     const codeInput = getByPlaceholder(/Digite a Senha Mestre/i);
@@ -394,5 +435,46 @@ describe('Controle de Acesso por Origem de PDF, Upload, Extração .py e Código
       g.TextEncoder = origEncoder;
       g.TextDecoder = origDecoder;
     }
+  });
+
+  test('8. Interface Compêndio & Detalhe sem PDF do Livro Base: exibe núcleo essencial, bloqueia leitor de PDF e evita empty state incorreto', async () => {
+    clearUnlockedBooksForTest();
+
+    const { getByText, queryByText, getByPlaceholder } = await renderWithProviders(
+      <CompendiumScreen />,
+      { mobile: false }
+    );
+
+    // Classe Combatente deve aparecer no Compêndio por padrão
+    assert.ok(getByText('Combatente'), 'Classe Combatente deve aparecer sem upload de PDF');
+
+    // Clicar no selo de origem de Combatente NÃO deve abrir o PdfViewerModal enquanto Livro Base estiver sem PDF
+    const sourceBadge = queryByText(/Livro Base • pág\./i);
+    if (sourceBadge) {
+      await fireClick(sourceBadge);
+      assert.strictEqual(
+        Boolean(queryByText(/Modo Texto|Fechar Leitor|Abrir no App/i)),
+        false,
+        'Não deve abrir leitor de PDF para livro bloqueado'
+      );
+    }
+
+    // Buscar termo bloqueado (Decadência) não encontra o ritual e deve exibir empty state contextual
+    const searchInput = getByPlaceholder(/Buscar ritual, criatura, origem, arma, regra/i);
+    await changeInputText(searchInput, 'Decadência');
+    assert.strictEqual(Boolean(queryByText('Decadência')), false);
+    assert.ok(getByText('Nenhum registro encontrado'));
+
+    await cleanup();
+    clearUnlockedBooksForTest();
+
+    // Na tela de detalhe de Combatente sem upload de PDF, oculta botões/preview de PDF e mostra card de PDF bloqueado
+    mockRouter.params = { id: 'class__livro_base__combatente' };
+    const detail = await renderWithProviders(<EntityDetailScreen />, { mobile: 'android' });
+    assert.ok(detail.getByText('Combatente'));
+    assert.strictEqual(Boolean(detail.queryByText(/Ver no PDF/i)), false);
+    assert.strictEqual(Boolean(detail.queryByText(/Página Original do PDF/i)), false);
+    assert.ok(detail.getByTestId('entity-locked-pdf-card'));
+    assert.ok(detail.getByTestId('btn-entity-upload-missing-pdf'));
   });
 });
