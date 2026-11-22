@@ -12,6 +12,7 @@ import {
   SupportCategory,
   SupportContactConfig,
   SupportRequestGroup,
+  SupportRoutedChannel,
   SupportSeverity,
   SupportSubmitResult,
   SupportTicketPayload,
@@ -213,6 +214,64 @@ export class SupportService {
     this.lastSubmissionTimestamp = 0;
   }
 
+  private async fetchWithTimeout(
+    url: string,
+    init: RequestInit,
+    timeoutMs = 15000
+  ): Promise<Response> {
+    if (typeof AbortController !== 'undefined') {
+      const controller = new AbortController();
+      const timer = setTimeout(() => {
+        try {
+          controller.abort();
+        } catch {}
+      }, timeoutMs);
+      try {
+        return await fetch(url, { ...init, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    return fetch(url, init);
+  }
+
+  private async safeReadJson(response: Response): Promise<Record<string, any> | null> {
+    try {
+      if (typeof (response as any)?.json !== 'function') return null;
+      const parsed = await (response as any).json();
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private inferRoutedChannelFromCategory(category: SupportCategory): SupportRoutedChannel {
+    if (category === 'bug' || category === 'rule_error') return 'errors';
+    if (category === 'suggestion') return 'improvements';
+    return 'default';
+  }
+
+  private formatProxyError(status: number, json: Record<string, any> | null): string {
+    const serverMsg =
+      typeof json?.error === 'string' && json.error.trim().length > 0 ? json.error.trim() : '';
+    if (status === 429) {
+      return (
+        serverMsg ||
+        'Limite temporário de envios atingido no servidor. Aguarde alguns minutos e toque em Reenviar.'
+      );
+    }
+    if (status === 403) {
+      return serverMsg || 'Falha na verificação de assinatura do chamado (HTTP 403).';
+    }
+    if (status === 502 || status === 503) {
+      return (
+        serverMsg ||
+        'O servidor de suporte está temporariamente indisponível para encaminhar ao Discord.'
+      );
+    }
+    return serverMsg || `O servidor de suporte recusou o envio (HTTP ${status}).`;
+  }
+
   /**
    * Envia uma mensagem de teste para verificar se o Webhook do Discord está ativo e funcionando.
    */
@@ -254,7 +313,7 @@ export class SupportService {
         ],
       };
 
-      const response = await fetch(targetUrl, {
+      const response = await this.fetchWithTimeout(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(testBody),
@@ -376,15 +435,20 @@ export class SupportService {
    * Envia o chamado diretamente de dentro do aplicativo (via Proxy Seguro Supabase, Discord Webhook ou Endpoint HTTP)
    * com proteção anti-spam, sanitização contra @everyone/@here e assinatura de integridade.
    */
-  public async submitTicketInApp(payload: SupportTicketPayload): Promise<SupportSubmitResult> {
+  public async submitTicketInApp(
+    payload: SupportTicketPayload,
+    options?: { existingTicketId?: string; existingProtocol?: string }
+  ): Promise<SupportSubmitResult> {
     const rateCheck = this.checkRateLimit();
-    const protocol = this.generateProtocol();
+    const protocol = options?.existingProtocol || this.generateProtocol();
+    const ticketId =
+      options?.existingTicketId || `ticket_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const nowIso = new Date().toISOString();
 
     if (!rateCheck.allowed) {
       const blockedTicket: SupportTicketRecord = {
         ...payload,
-        id: `ticket_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        id: ticketId,
         protocol,
         status: 'saved_local',
         deliveryChannel: 'local',
@@ -405,6 +469,9 @@ export class SupportService {
 
     let deliveredRemotely = false;
     let channelUsed: 'supabase_proxy' | 'discord_webhook' | 'custom_endpoint' | 'local_fallback' = 'local_fallback';
+    let lastRemoteStatus: number | undefined;
+    let lastRemoteError: string | undefined;
+    let routedChannel: SupportRoutedChannel | undefined;
 
     const requestGroup = payload.requestGroup || this.getRequestGroup(payload.category);
     const supabaseProxy = deobfuscateSecret((this._config.supabaseProxyUrl || '').trim());
@@ -435,7 +502,7 @@ export class SupportService {
           proxyHeaders['Authorization'] = `Bearer ${supabaseAnonKey}`;
         }
 
-        const response = await fetch(supabaseProxy, {
+        const response = await this.fetchWithTimeout(supabaseProxy, {
           method: 'POST',
           headers: proxyHeaders,
           body: JSON.stringify({
@@ -454,15 +521,41 @@ export class SupportService {
         if (response.ok || response.status === 204) {
           deliveredRemotely = true;
           channelUsed = 'supabase_proxy';
+          const okJson = await this.safeReadJson(response);
+          const rawRouted = okJson?.routedChannel;
+          routedChannel =
+            rawRouted === 'errors' || rawRouted === 'improvements' || rawRouted === 'default'
+              ? rawRouted
+              : this.inferRoutedChannelFromCategory(payload.category);
+        } else {
+          const errJson = await this.safeReadJson(response);
+          lastRemoteStatus = response.status;
+          lastRemoteError = this.formatProxyError(response.status, errJson);
         }
-      } catch {
-        // Prossegue para o próximo canal configurado
+      } catch (err: any) {
+        lastRemoteError =
+          err?.name === 'AbortError'
+            ? 'Tempo esgotado ao conectar ao servidor de suporte.'
+            : err?.message || 'Sem conexão com a internet ou falha de rede.';
       }
     }
 
     // 2. Envio via Discord Webhook (quando configurado, com bloqueio estrito de allowed_mentions)
     if (!deliveredRemotely && webhookUrl) {
       try {
+        let directRouted: SupportRoutedChannel = 'default';
+        if (payload.category === 'bug' || payload.category === 'rule_error') {
+          const dedicatedErrors = await this.getCustomCategoryWebhookUrl('errors');
+          if (dedicatedErrors && dedicatedErrors === webhookUrl) {
+            directRouted = 'errors';
+          }
+        } else if (payload.category === 'suggestion') {
+          const dedicatedSuggestions = await this.getCustomCategoryWebhookUrl('improvements');
+          if (dedicatedSuggestions && dedicatedSuggestions === webhookUrl) {
+            directRouted = 'improvements';
+          }
+        }
+
         const catInfo = CATEGORY_LABELS[payload.category] || CATEGORY_LABELS.bug;
         const fields: Array<{ name: string; value: string; inline?: boolean }> = [
           {
@@ -545,7 +638,7 @@ export class SupportService {
           ],
         };
 
-        const response = await fetch(webhookUrl, {
+        const response = await this.fetchWithTimeout(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(discordBody),
@@ -554,16 +647,30 @@ export class SupportService {
         if (response.ok || response.status === 204) {
           deliveredRemotely = true;
           channelUsed = 'discord_webhook';
+          routedChannel = directRouted;
+        } else {
+          if (lastRemoteStatus === undefined) lastRemoteStatus = response.status;
+          if (!lastRemoteError) {
+            const errJson = await this.safeReadJson(response);
+            lastRemoteError =
+              (typeof errJson?.message === 'string' && errJson.message.trim()) ||
+              `O Discord recusou o envio via Webhook (HTTP ${response.status}).`;
+          }
         }
-      } catch {
-        // Falha silenciosa de rede, tenta próximo canal ou fallback local
+      } catch (err: any) {
+        if (!lastRemoteError) {
+          lastRemoteError =
+            err?.name === 'AbortError'
+              ? 'Tempo esgotado ao conectar ao Discord.'
+              : err?.message || 'Sem conexão com a internet ou falha de rede.';
+        }
       }
     }
 
     // 3. Se não enviou por Proxy/Discord e houver Endpoint HTTP customizado (ex: Formspree / Supabase / API)
     if (!deliveredRemotely && customEndpoint) {
       try {
-        const response = await fetch(customEndpoint, {
+        const response = await this.fetchWithTimeout(customEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -585,30 +692,57 @@ export class SupportService {
           }),
         });
 
-        if (response.ok) {
+        if (response.ok || response.status === 204) {
           deliveredRemotely = true;
           channelUsed = 'custom_endpoint';
+          routedChannel = this.inferRoutedChannelFromCategory(payload.category);
+        } else {
+          if (lastRemoteStatus === undefined) lastRemoteStatus = response.status;
+          if (!lastRemoteError) {
+            lastRemoteError = `O endpoint de suporte recusou o envio (HTTP ${response.status}).`;
+          }
         }
-      } catch {
-        // Continua para registro local resiliente
+      } catch (err: any) {
+        if (!lastRemoteError) {
+          lastRemoteError =
+            err?.name === 'AbortError'
+              ? 'Tempo esgotado ao conectar ao endpoint de suporte.'
+              : err?.message || 'Sem conexão com a internet ou falha de rede.';
+        }
       }
+    }
+
+    if (!deliveredRemotely && !supabaseProxy && !webhookUrl && !customEndpoint && !lastRemoteError) {
+      lastRemoteError = 'Nenhum canal de envio remoto configurado neste dispositivo.';
     }
 
     const ticketRecord: SupportTicketRecord = {
       ...payload,
-      id: `ticket_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: ticketId,
       protocol,
       status: deliveredRemotely ? 'sent_remote' : 'saved_local',
       deliveryChannel: deliveredRemotely && channelUsed !== 'local_fallback' ? channelUsed : 'local',
+      routedChannel: deliveredRemotely ? routedChannel : undefined,
+      lastError: deliveredRemotely ? undefined : lastRemoteError,
+      lastStatusCode: deliveredRemotely ? undefined : lastRemoteStatus,
       createdAt: nowIso,
     };
     (ticketRecord as any).payload = { ...payload };
 
     await this.saveTicketToHistory(ticketRecord);
 
+    const targetChannelLabel =
+      payload.category === 'bug' || payload.category === 'rule_error'
+        ? '#erros'
+        : payload.category === 'suggestion'
+        ? '#melhorias'
+        : 'canal oficial';
+
     const message = deliveredRemotely
-      ? `Seu relato foi transmitido diretamente para o desenvolvedor com sucesso! Protocolo: #${protocol}. O chamado já foi entregue no canal oficial.`
-      : `Relato registrado localmente com o protocolo #${protocol}! Como o envio automático não pôde ser completado no momento, use "Copiar Relatório" ou "Abrir no GitHub" para encaminhar.`;
+      ? `Seu relato foi transmitido diretamente para o desenvolvedor com sucesso (${targetChannelLabel})! Protocolo: #${protocol}. O chamado já foi entregue no canal oficial.`
+      : `Relato salvo localmente com o protocolo #${protocol}, mas não pôde ser entregue agora${
+          lastRemoteError ? ` (${lastRemoteError})` : ''
+        }. Use "Reenviar", "Copiar Relatório", "Abrir Issue no GitHub" ou "Enviar por E-mail".`;
 
     return {
       success: true,
@@ -617,10 +751,46 @@ export class SupportService {
       protocol,
       channelUsed,
       channel: channelUsed,
+      routedChannel: deliveredRemotely ? routedChannel : undefined,
+      remoteStatusCode: deliveredRemotely ? undefined : lastRemoteStatus,
+      remoteError: deliveredRemotely ? undefined : lastRemoteError,
       timestamp: nowIso,
       message,
       ticket: ticketRecord,
     } as any;
+  }
+
+  /**
+   * Reenvia um chamado que havia ficado salvo apenas localmente (`saved_local`),
+   * mantendo o mesmo ID e protocolo no histórico sem duplicar registros.
+   */
+  public async resubmitLocalTicket(ticketIdOrProtocol: string): Promise<SupportSubmitResult> {
+    const history = await this.getTicketHistory();
+    const existing = history.find(
+      (t) => t.id === ticketIdOrProtocol || t.protocol === ticketIdOrProtocol
+    );
+    if (!existing) {
+      throw new Error('Relato não encontrado no histórico local.');
+    }
+
+    const storedPayload = (existing as any).payload as Partial<SupportTicketPayload> | undefined;
+    const payload: SupportTicketPayload = {
+      category: storedPayload?.category || existing.category,
+      requestGroup: storedPayload?.requestGroup || existing.requestGroup,
+      severity: storedPayload?.severity ?? existing.severity,
+      title: storedPayload?.title || existing.title,
+      description: storedPayload?.description ?? existing.description,
+      stepsToReproduce: storedPayload?.stepsToReproduce ?? existing.stepsToReproduce,
+      senderName: storedPayload?.senderName ?? existing.senderName,
+      contactReturn: storedPayload?.contactReturn ?? existing.contactReturn,
+      includeDiagnostics: storedPayload?.includeDiagnostics ?? existing.includeDiagnostics,
+      diagnostics: storedPayload?.diagnostics ?? existing.diagnostics,
+    };
+
+    return this.submitTicketInApp(payload, {
+      existingTicketId: existing.id,
+      existingProtocol: existing.protocol,
+    });
   }
 
   /**
@@ -630,7 +800,9 @@ export class SupportService {
     const catInfo = CATEGORY_LABELS[payload.category] || CATEGORY_LABELS.bug;
     const prefix = `[${catInfo.label}]`;
     const fullTitle = `${prefix} ${payload.title.trim() || 'Relato via Ordo Companion'}`;
-    const body = this.buildFormattedReport(payload, protocol);
+    const rawBody = this.buildFormattedReport(payload, protocol);
+    const body =
+      rawBody.length > 3500 ? `${rawBody.slice(0, 3480)}\n\n...[truncado]` : rawBody;
 
     const params = new URLSearchParams({
       title: fullTitle,

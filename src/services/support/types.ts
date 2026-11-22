@@ -2,6 +2,8 @@ export type SupportCategory = 'bug' | 'rule_error' | 'suggestion' | 'contact';
 
 export type SupportRequestGroup = 'errors' | 'improvements';
 
+export type SupportRoutedChannel = 'errors' | 'improvements' | 'default';
+
 export type SupportSeverity = 'low' | 'medium' | 'high';
 
 export interface SystemDiagnostics {
@@ -44,6 +46,9 @@ export interface SupportTicketRecord extends SupportTicketPayload {
     | 'github_issue'
     | 'email'
     | 'local';
+  routedChannel?: SupportRoutedChannel;
+  lastError?: string;
+  lastStatusCode?: number;
   createdAt: string;
 }
 
@@ -52,6 +57,9 @@ export interface SupportSubmitResult {
   deliveredRemotely: boolean;
   protocol: string;
   channelUsed: 'supabase_proxy' | 'discord_webhook' | 'custom_endpoint' | 'local_fallback';
+  routedChannel?: SupportRoutedChannel;
+  remoteStatusCode?: number;
+  remoteError?: string;
   message: string;
   ticket: SupportTicketRecord;
   rateLimited?: boolean;

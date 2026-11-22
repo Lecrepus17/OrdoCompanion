@@ -103,35 +103,11 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   const [showDiagnosticsPreview, setShowDiagnosticsPreview] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [retryingTicketId, setRetryingTicketId] = useState<string | null>(null);
   const [lastSubmittedTicket, setLastSubmittedTicket] = useState<SupportTicketRecord | null>(null);
   const [ticketHistory, setTicketHistory] = useState<SupportTicketRecord[]>([]);
 
-  const [showDevSettings, setShowDevSettings] = useState(false);
-  const [webhookInput, setWebhookInput] = useState('');
-  const [activeWebhookUrl, setActiveWebhookUrl] = useState('');
-  const [bugsWebhookInput, setBugsWebhookInput] = useState('');
-  const [activeBugsWebhookUrl, setActiveBugsWebhookUrl] = useState('');
-  const [suggestionsWebhookInput, setSuggestionsWebhookInput] = useState('');
-  const [activeSuggestionsWebhookUrl, setActiveSuggestionsWebhookUrl] = useState('');
-  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
-  const [isSavingWebhook, setIsSavingWebhook] = useState(false);
-
   const contactConfig = useMemo(() => supportService.getConfig(), []);
-
-  useEffect(() => {
-    Promise.all([
-      supportService.getEffectiveWebhookUrl(),
-      supportService.getCustomCategoryWebhookUrl('errors'),
-      supportService.getCustomCategoryWebhookUrl('improvements'),
-    ]).then(([generalUrl, bugsUrl, suggestionsUrl]) => {
-      setActiveWebhookUrl(generalUrl);
-      setWebhookInput(generalUrl);
-      setActiveBugsWebhookUrl(bugsUrl);
-      setBugsWebhookInput(bugsUrl);
-      setActiveSuggestionsWebhookUrl(suggestionsUrl);
-      setSuggestionsWebhookInput(suggestionsUrl);
-    });
-  }, []);
 
   // Preenche nome e contato a partir do perfil do jogador
   useEffect(() => {
@@ -231,6 +207,23 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
     }
   };
 
+  const openExternalWithFeedback = async (
+    url: string,
+    channelLabel: string,
+    fallbackCopyValue?: string
+  ): Promise<boolean> => {
+    const opened = await supportService.openExternalUrl(url);
+    if (!opened) {
+      showAlert(
+        `Não foi possível abrir ${channelLabel}`,
+        fallbackCopyValue
+          ? `Nenhum aplicativo compatível respondeu neste aparelho. Use o botão de copiar para acessar: ${fallbackCopyValue}`
+          : 'Nenhum aplicativo compatível respondeu neste aparelho. Tente usar o botão Copiar Relatório.'
+      );
+    }
+    return opened;
+  };
+
   const handleSubmitDirect = async () => {
     Keyboard.dismiss();
     if (!validateForm()) return;
@@ -240,19 +233,24 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
       const payload = buildCurrentPayload();
       const result = await supportService.submitTicketInApp(payload);
 
+      if (result.rateLimited) {
+        showAlert('Aguarde um Instante', result.message);
+        return;
+      }
+
       setLastSubmittedTicket(result.ticket);
       const updatedHistory = await supportService.getTicketHistory();
       setTicketHistory(updatedHistory);
 
-      // Limpa os campos de texto do relato mantendo identificação
-      setTitle('');
-      setDescription('');
-      setStepsToReproduce('');
-
-      showAlert(
-        result.deliveredRemotely ? 'Relato Entregue ao Desenvolvedor!' : 'Protocolo Salvo no Aparelho',
-        result.message
-      );
+      if (result.deliveredRemotely) {
+        // Limpa os campos apenas quando a entrega remota foi confirmada
+        setTitle('');
+        setDescription('');
+        setStepsToReproduce('');
+        showAlert('Relato Entregue ao Desenvolvedor!', result.message);
+      } else {
+        showAlert('Salvo no Aparelho (Envio Pendente)', result.message);
+      }
     } catch (err: any) {
       showAlert(
         'Erro ao Processar Relato',
@@ -260,6 +258,30 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
       );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRetryTicket = async (ticket: SupportTicketRecord) => {
+    setRetryingTicketId(ticket.id);
+    try {
+      const result = await supportService.resubmitLocalTicket(ticket.id);
+      if (result.rateLimited) {
+        showAlert('Aguarde um Instante', result.message);
+        return;
+      }
+      const updatedHistory = await supportService.getTicketHistory();
+      setTicketHistory(updatedHistory);
+      if (lastSubmittedTicket?.id === ticket.id || result.deliveredRemotely) {
+        setLastSubmittedTicket(result.ticket);
+      }
+      showAlert(
+        result.deliveredRemotely ? 'Relato Reenviado com Sucesso!' : 'Ainda Não Foi Possível Enviar',
+        result.message
+      );
+    } catch (err: any) {
+      showAlert('Erro ao Reenviar', err?.message || 'Não foi possível reenviar o relato no momento.');
+    } finally {
+      setRetryingTicketId(null);
     }
   };
 
@@ -282,7 +304,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
     const updatedHistory = await supportService.getTicketHistory();
     setTicketHistory(updatedHistory);
 
-    await supportService.openExternalUrl(issueUrl);
+    await openExternalWithFeedback(issueUrl, 'o GitHub', contactConfig.githubIssuesUrl);
   };
 
   const handleSendViaEmail = async () => {
@@ -303,7 +325,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
     const updatedHistory = await supportService.getTicketHistory();
     setTicketHistory(updatedHistory);
 
-    await supportService.openExternalUrl(mailtoUrl);
+    await openExternalWithFeedback(mailtoUrl, 'o aplicativo de E-mail', contactConfig.supportEmail);
   };
 
   const handleCopyFullReport = async () => {
@@ -330,14 +352,29 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
   const handleOpenDiscord = async () => {
     const raw = contactConfig.discordHandle || 'lecrepus17';
     const handleToCopy = raw.startsWith('@') ? raw : `@${raw}`;
-    await copyTextToClipboard(
-      handleToCopy,
-      'Discord Copiado & Abrindo!',
-      `O usuário "${handleToCopy}" foi copiado para a área de transferência! Abrindo o Discord para você conversar ou adicionar o desenvolvedor.`
-    );
-    const opened = await supportService.openExternalUrl(contactConfig.discordInviteUrl);
+
+    if (
+      Platform.OS === 'web' &&
+      typeof navigator !== 'undefined' &&
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === 'function'
+    ) {
+      try {
+        await navigator.clipboard.writeText(handleToCopy);
+      } catch {
+        // Ignora falha silenciosa de permissão do navegador antes de abrir o convite
+      }
+    }
+
+    let opened = await supportService.openExternalUrl(contactConfig.discordInviteUrl);
     if (!opened) {
-      await supportService.openExternalUrl('https://discord.com');
+      opened = await supportService.openExternalUrl('https://discord.com');
+    }
+    if (!opened) {
+      showAlert(
+        'Não foi possível abrir o Discord',
+        `Convite oficial: ${contactConfig.discordInviteUrl}\nUsuário do dev: ${handleToCopy}`
+      );
     }
   };
 
@@ -349,67 +386,6 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
       'Discord Copiado!',
       `O usuário "${handleToCopy}" foi copiado. Basta adicionar ou enviar mensagem no Discord!`
     );
-  };
-
-  const handleSaveWebhook = async () => {
-    setIsSavingWebhook(true);
-    try {
-      await Promise.all([
-        supportService.setCustomWebhookUrl(webhookInput.trim()),
-        supportService.setCustomCategoryWebhookUrl('errors', bugsWebhookInput.trim()),
-        supportService.setCustomCategoryWebhookUrl('improvements', suggestionsWebhookInput.trim()),
-      ]);
-      const [effGeneral, effBugs, effSuggestions] = await Promise.all([
-        supportService.getEffectiveWebhookUrl(),
-        supportService.getCustomCategoryWebhookUrl('errors'),
-        supportService.getCustomCategoryWebhookUrl('improvements'),
-      ]);
-      setActiveWebhookUrl(effGeneral);
-      setActiveBugsWebhookUrl(effBugs);
-      setActiveSuggestionsWebhookUrl(effSuggestions);
-      const hasAnyWebhook = Boolean(effGeneral || effBugs || effSuggestions);
-      showAlert(
-        'Configuração Salva',
-        hasAnyWebhook
-          ? 'URL(s) de Discord Webhook salva(s) com sucesso! Os relatos serão roteados automaticamente para os canais configurados (Erros vs. Melhorias).'
-          : 'Webhooks personalizados removidos. O aplicativo agora opera no modo local.'
-      );
-    } catch (err: any) {
-      showAlert('Erro ao Salvar', err?.message || 'Falha ao salvar a URL do Webhook.');
-    } finally {
-      setIsSavingWebhook(false);
-    }
-  };
-
-  const handleTestWebhook = async (targetUrl?: string) => {
-    setIsTestingWebhook(true);
-    try {
-      const urlToTest = (targetUrl ?? webhookInput).trim();
-      const result = await supportService.testWebhook(urlToTest);
-      showAlert(
-        result.success ? 'Teste de Webhook com Sucesso!' : 'Falha no Teste do Webhook',
-        result.message
-      );
-    } catch (err: any) {
-      showAlert('Erro no Teste', err?.message || 'Falha de conexão.');
-    } finally {
-      setIsTestingWebhook(false);
-    }
-  };
-
-  const handleClearWebhook = async () => {
-    setWebhookInput('');
-    setBugsWebhookInput('');
-    setSuggestionsWebhookInput('');
-    await Promise.all([
-      supportService.setCustomWebhookUrl(''),
-      supportService.setCustomCategoryWebhookUrl('errors', ''),
-      supportService.setCustomCategoryWebhookUrl('improvements', ''),
-    ]);
-    setActiveWebhookUrl('');
-    setActiveBugsWebhookUrl('');
-    setActiveSuggestionsWebhookUrl('');
-    showAlert('Webhooks Removidos', 'As URLs dos Webhooks foram desvinculadas.');
   };
 
   const handleExportAllTicketsJson = async () => {
@@ -514,16 +490,18 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
                   testID="contact-email-open-btn"
                   style={[styles.channelBtnPrimary, { backgroundColor: colors.primary }]}
                   onPress={() =>
-                    supportService.openExternalUrl(
+                    openExternalWithFeedback(
                       `mailto:${contactConfig.supportEmail}?subject=${encodeURIComponent(
                         '[Ordo Companion] Contato / Suporte'
-                      )}`
+                      )}`,
+                      'o aplicativo de E-mail',
+                      contactConfig.supportEmail
                     )
                   }
                   activeOpacity={0.8}
                 >
                   <Ionicons name="send-outline" size={14} color="#FFF" />
-                  <Text style={styles.channelBtnPrimaryText}>Enviar E-mail</Text>
+                  <Text style={styles.channelBtnPrimaryText}>E-mail Direto</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -562,7 +540,13 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
                 <TouchableOpacity
                   testID="contact-github-issues-btn"
                   style={[styles.channelBtnPrimary, { backgroundColor: '#10B981' }]}
-                  onPress={() => supportService.openExternalUrl(contactConfig.githubIssuesUrl)}
+                  onPress={() =>
+                    openExternalWithFeedback(
+                      contactConfig.githubIssuesUrl,
+                      'o GitHub Issues',
+                      contactConfig.githubIssuesUrl
+                    )
+                  }
                   activeOpacity={0.8}
                 >
                   <Ionicons name="bug-outline" size={14} color="#FFF" />
@@ -572,7 +556,13 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
                 <TouchableOpacity
                   testID="contact-github-repo-btn"
                   style={styles.channelBtnSecondary}
-                  onPress={() => supportService.openExternalUrl(contactConfig.githubRepoUrl)}
+                  onPress={() =>
+                    openExternalWithFeedback(
+                      contactConfig.githubRepoUrl,
+                      'o Repositório GitHub',
+                      contactConfig.githubRepoUrl
+                    )
+                  }
                   activeOpacity={0.8}
                 >
                   <Ionicons name="code-slash-outline" size={14} color={colors.text} />
@@ -603,26 +593,43 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
             <Text style={styles.destinationTitle}>Para onde vai a minha mensagem?</Text>
           </View>
           <Text style={styles.destinationText}>
-            • <Text style={{ fontWeight: '800', color: colors.text }}>Canal Oficial no Discord:</Text> Ao enviar pelo app, seu relato chega diretamente ao canal <Text style={{ color: colors.primary, fontWeight: '700' }}>#suporte</Text> do servidor oficial da Ordem, gerando um chamado com protocolo rastreável (<Text style={{ fontWeight: '800' }}>#ORD-XXXXX</Text>) e diagnóstico técnico para o desenvolvedor.
+            • <Text style={{ fontWeight: '800', color: colors.text }}>Envio Automático ao Discord Oficial:</Text> Sem precisar configurar nada no aparelho, seu relato é transmitido com segurança ao servidor da Ordem — roteando bugs e erros de regra para <Text style={{ color: colors.primary, fontWeight: '700' }}>#erros</Text> e sugestões/ideias para <Text style={{ color: colors.primary, fontWeight: '700' }}>#melhorias</Text>, com protocolo rastreável (<Text style={{ fontWeight: '800' }}>#ORD-XXXXX</Text>) e diagnóstico técnico.
           </Text>
           <Text style={styles.destinationText}>
-            • <Text style={{ fontWeight: '800', color: colors.text }}>Histórico Local:</Text> Uma cópia completa é mantida na memória deste aparelho. Se você estiver sem internet, o relato é salvo com segurança e pode ser consultado ou reencaminhado a qualquer momento na seção &quot;Meus Relatos&quot;.
+            • <Text style={{ fontWeight: '800', color: colors.text }}>Histórico Local, Reenvio &amp; Exportação:</Text> Uma cópia completa fica salva na memória deste dispositivo. Se estiver sem internet ou atingir o limite temporário, seu rascunho é preservado e você pode reenviar com 1 toque ou exportar seus chamados em JSON na seção &quot;Meus Relatos Enviados&quot;.
           </Text>
         </View>
 
         {/* Confirmação do último protocolo enviado */}
         {lastSubmittedTicket && (
-          <View style={styles.successProtocolBanner} testID="support-protocol-banner">
+          <View
+            style={[
+              styles.successProtocolBanner,
+              lastSubmittedTicket.status !== 'sent_remote' && styles.pendingProtocolBanner,
+            ]}
+            testID="support-protocol-banner"
+          >
             <View style={styles.successProtocolHeader}>
-              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-              <Text style={styles.successProtocolTitle}>
+              <Ionicons
+                name={lastSubmittedTicket.status === 'sent_remote' ? 'checkmark-circle' : 'time-outline'}
+                size={20}
+                color={lastSubmittedTicket.status === 'sent_remote' ? '#10B981' : '#F59E0B'}
+              />
+              <Text
+                style={[
+                  styles.successProtocolTitle,
+                  lastSubmittedTicket.status !== 'sent_remote' && { color: '#F59E0B' },
+                ]}
+              >
                 Relato Registrado • Protocolo #{lastSubmittedTicket.protocol}
               </Text>
             </View>
             <Text style={styles.successProtocolSub}>
               {lastSubmittedTicket.status === 'sent_remote'
                 ? 'Entregue diretamente ao desenvolvedor! Guarde o código do protocolo caso queira acompanhar.'
-                : 'Protocolo salvo no seu aparelho! Você pode copiar o relatório ou enviar com 1 clique via GitHub ou E-mail abaixo.'}
+                : `Protocolo salvo no seu aparelho!${
+                    lastSubmittedTicket.lastError ? ` Motivo: ${lastSubmittedTicket.lastError}.` : ''
+                  } Use "Reenviar" em Meus Relatos ou encaminhe via GitHub, E-mail ou Copiar Relatório.`}
             </Text>
           </View>
         )}
@@ -869,7 +876,13 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
           ) : (
             <>
               <Ionicons name="paper-plane" size={18} color="#FFF" />
-              <Text style={styles.submitDirectButtonText}>Enviar Relato Direto pelo App</Text>
+              <Text style={styles.submitDirectButtonText}>
+                {category === 'suggestion'
+                  ? 'Enviar Melhoria para o Discord'
+                  : category === 'contact'
+                  ? 'Enviar Mensagem para o Discord'
+                  : 'Enviar Erro para o Discord'}
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -896,7 +909,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
             activeOpacity={0.8}
           >
             <Ionicons name="mail-outline" size={16} color={colors.primary} />
-            <Text style={styles.altActionButtonText}>Enviar por E-mail</Text>
+            <Text style={styles.altActionButtonText}>Enviar Relato por E-mail</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -914,16 +927,31 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
       {/* Bloco 3: Histórico Local de Chamados & Protocolos */}
       <View style={styles.sectionCard} testID="support-history-section">
         <View style={styles.sectionHeaderRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
             <Ionicons name="time-outline" size={16} color={colors.primary} />
             <Text style={styles.sectionHeaderTitle}>
               MEUS RELATOS ENVIADOS ({ticketHistory.length})
             </Text>
           </View>
           {ticketHistory.length > 0 && (
-            <TouchableOpacity onPress={handleClearHistory} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.clearHistoryText}>Limpar</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TouchableOpacity
+                testID="support-export-history-json-btn"
+                style={styles.devExportBtn}
+                onPress={handleExportAllTicketsJson}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="code-download-outline" size={13} color={colors.primary} />
+                <Text style={[styles.devExportBtnText, { color: colors.primary }]}>Exportar JSON</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="support-clear-history-btn"
+                onPress={handleClearHistory}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.clearHistoryText}>Limpar</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -954,7 +982,7 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
 
               return (
                 <View key={item.id} style={styles.historyItemCard}>
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={styles.historyTopRow}>
                       <View style={[styles.protocolBadge, { backgroundColor: colors.primarySoft }]}>
                         <Text style={[styles.protocolBadgeText, { color: colors.primary }]}>
@@ -997,291 +1025,62 @@ export const SupportCenterView: React.FC<SupportCenterViewProps> = ({
                     <Text style={styles.historyDescText} numberOfLines={2}>
                       {item.description}
                     </Text>
+                    {!isRemote && item.lastError ? (
+                      <Text style={styles.historyErrorText} numberOfLines={2}>
+                        Motivo: {item.lastError}
+                      </Text>
+                    ) : null}
                   </View>
 
-                  <TouchableOpacity
-                    style={styles.historyCopyBtn}
-                    onPress={() => {
-                      const rep = supportService.buildFormattedReport(item, item.protocol);
-                      copyTextToClipboard(
-                        rep,
-                        `Protocolo #${item.protocol}`,
-                        'O relatório deste chamado foi copiado para a área de transferência!'
-                      );
-                    }}
-                    accessibilityLabel={`Copiar protocolo ${item.protocol}`}
-                  >
-                    <Ionicons name="copy-outline" size={16} color={colors.primary} />
-                  </TouchableOpacity>
+                  <View style={styles.historyActionsCol}>
+                    {!isRemote && (
+                      <TouchableOpacity
+                        testID={`support-retry-ticket-${item.protocol}`}
+                        style={[
+                          styles.historyRetryBtn,
+                          {
+                            borderColor: colors.primary,
+                            backgroundColor: colors.primarySoft,
+                          },
+                        ]}
+                        onPress={() => handleRetryTicket(item)}
+                        disabled={retryingTicketId === item.id}
+                        accessibilityLabel={`Reenviar protocolo ${item.protocol}`}
+                      >
+                        {retryingTicketId === item.id ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                        ) : (
+                          <>
+                            <Ionicons name="refresh-outline" size={14} color={colors.primary} />
+                            <Text style={[styles.historyRetryBtnText, { color: colors.primary }]}>
+                              Reenviar
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                      style={styles.historyCopyBtn}
+                      onPress={() => {
+                        const rep = supportService.buildFormattedReport(item, item.protocol);
+                        copyTextToClipboard(
+                          rep,
+                          `Protocolo #${item.protocol}`,
+                          'O relatório deste chamado foi copiado para a área de transferência!'
+                        );
+                      }}
+                      accessibilityLabel={`Copiar protocolo ${item.protocol}`}
+                    >
+                      <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               );
             })}
           </View>
         )}
       </View>
-
-      {/* Bloco 4: Configurações do Desenvolvedor / Mestre (Recebimento de Chamados) */}
-      {/* Visível apenas em desenvolvimento (__DEV__); em APKs de release o webhook vem de EXPO_PUBLIC_SUPPORT_DISCORD_WEBHOOK_URL (eas.json) */}
-      {__DEV__ && (
-      <View style={styles.sectionCard} testID="dev-settings-card">
-        <TouchableOpacity
-          style={styles.devSettingsToggleHeader}
-          onPress={() => setShowDevSettings((prev) => !prev)}
-          activeOpacity={0.8}
-          testID="dev-settings-toggle-btn"
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-            <View style={[styles.devIconBadge, { backgroundColor: colors.primarySoft }]}>
-              <Ionicons name="construct-outline" size={16} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.sectionHeaderTitle}>PAINEL DO DESENVOLVEDOR / MESTRE</Text>
-              <Text style={styles.devHeaderSubtitle}>
-                Onde encontrar os relatos e configurar recebimento via Discord Webhook
-              </Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {activeWebhookUrl || activeBugsWebhookUrl || activeSuggestionsWebhookUrl ? (
-              <View style={styles.onlinePill}>
-                <View style={styles.onlineDot} />
-                <Text style={styles.onlinePillText}>Webhook Ativo</Text>
-              </View>
-            ) : (
-              <View style={[styles.onlinePill, { borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.14)' }]}>
-                <View style={[styles.onlineDot, { backgroundColor: '#F59E0B' }]} />
-                <Text style={[styles.onlinePillText, { color: '#F59E0B' }]}>Modo Local</Text>
-              </View>
-            )}
-            <Ionicons
-              name={showDevSettings ? 'chevron-up' : 'chevron-down'}
-              size={18}
-              color={colors.primary}
-            />
-          </View>
-        </TouchableOpacity>
-
-        {showDevSettings && (
-          <View style={styles.devSettingsBody}>
-            {/* Guia explicativo claro para o dono */}
-            <View style={styles.devGuideCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="information-circle" size={18} color={colors.primary} />
-                <Text style={styles.devGuideTitle}>Como dono e desenvolvedor, onde encontro os relatos?</Text>
-              </View>
-              <Text style={styles.devGuideText}>
-                • <Text style={{ fontWeight: '800', color: colors.text }}>1. Modo Padrão (Sem Webhook):</Text> Quando um usuário envia um relato pelo app, o protocolo é gravado no <Text style={{ fontWeight: '800' }}>armazenamento local do próprio aparelho dele</Text> (na seção &quot;Meus Relatos&quot;). Para receber imediatamente, o usuário pode tocar em &quot;Abrir Issue no GitHub&quot; ou &quot;Enviar por E-mail&quot;.
-              </Text>
-              <Text style={styles.devGuideText}>
-                • <Text style={{ fontWeight: '800', color: colors.text }}>2. Modo Tempo Real (Discord Webhook Recomendado):</Text> Para que todos os relatos cheguem instantaneamente no seu Discord particular ou da equipe:
-              </Text>
-              <View style={styles.devStepsList}>
-                <Text style={styles.devStepItem}>① No seu Discord, clique na engrenagem do servidor ➔ <Text style={{ fontWeight: '800' }}>Integrações</Text> ➔ <Text style={{ fontWeight: '800' }}>Webhooks</Text>.</Text>
-                <Text style={styles.devStepItem}>② Crie um webhook no canal desejado (ex: #relatos-bugs) e clique em <Text style={{ fontWeight: '800' }}>Copiar URL do Webhook</Text>.</Text>
-                <Text style={styles.devStepItem}>③ Cole a URL abaixo e toque em <Text style={{ fontWeight: '800' }}>Salvar Webhook</Text>.</Text>
-                <Text style={styles.devStepItem}>④ Pronto! Qualquer chamado enviado pelo app chegará automaticamente no seu canal com protocolo, categoria e diagnóstico completo!</Text>
-              </View>
-            </View>
-
-            {/* Configuração do Webhook Geral + Canais Separados */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.fieldLabel}>URL do Discord Webhook Geral (Fallback / Contato)</Text>
-              <TextInput
-                testID="dev-settings-webhook-input"
-                style={styles.input}
-                placeholder="https://discord.com/api/webhooks/..."
-                placeholderTextColor={colors.textMuted}
-                value={webhookInput}
-                onChangeText={setWebhookInput}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <Text style={styles.fieldHint}>
-                {activeWebhookUrl
-                  ? `Webhook geral ativo: ${activeWebhookUrl.slice(0, 45)}...`
-                  : 'Usado para dúvidas ou quando os canais específicos de Erros/Melhorias não estiverem preenchidos.'}
-              </Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.fieldLabel}>URL Webhook de Erros (#erros • Opcional)</Text>
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <TextInput
-                  testID="dev-settings-bugs-webhook-input"
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="https://discord.com/api/webhooks/... (Bugs e Regras)"
-                  placeholderTextColor={colors.textMuted}
-                  value={bugsWebhookInput}
-                  onChangeText={setBugsWebhookInput}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity
-                  testID="dev-settings-test-bugs-webhook-btn"
-                  style={[styles.smallConfigBtn, { backgroundColor: '#EF4444' }]}
-                  onPress={() => handleTestWebhook(bugsWebhookInput)}
-                  disabled={isTestingWebhook || !bugsWebhookInput.trim()}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="bug-outline" size={14} color="#FFF" />
-                  <Text style={styles.smallConfigBtnText}>Testar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.fieldLabel}>URL Webhook de Melhorias (#melhorias • Opcional)</Text>
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <TextInput
-                  testID="dev-settings-suggestions-webhook-input"
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="https://discord.com/api/webhooks/... (Sugestões)"
-                  placeholderTextColor={colors.textMuted}
-                  value={suggestionsWebhookInput}
-                  onChangeText={setSuggestionsWebhookInput}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity
-                  testID="dev-settings-test-suggestions-webhook-btn"
-                  style={[styles.smallConfigBtn, { backgroundColor: '#3B82F6' }]}
-                  onPress={() => handleTestWebhook(suggestionsWebhookInput)}
-                  disabled={isTestingWebhook || !suggestionsWebhookInput.trim()}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="bulb-outline" size={14} color="#FFF" />
-                  <Text style={styles.smallConfigBtnText}>Testar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Botões de Ação do Webhook */}
-            <View style={styles.devActionsRow}>
-              <TouchableOpacity
-                testID="dev-settings-save-webhook-btn"
-                style={[styles.smallConfigBtn, { backgroundColor: colors.primary }]}
-                onPress={handleSaveWebhook}
-                disabled={isSavingWebhook}
-                activeOpacity={0.8}
-              >
-                {isSavingWebhook ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <>
-                    <Ionicons name="save-outline" size={15} color="#FFF" />
-                    <Text style={styles.smallConfigBtnText}>Salvar Webhooks</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                testID="dev-settings-test-webhook-btn"
-                style={[styles.smallConfigBtn, { backgroundColor: '#10B981' }]}
-                onPress={() => handleTestWebhook(webhookInput)}
-                disabled={isTestingWebhook || !webhookInput.trim()}
-                activeOpacity={0.8}
-              >
-                {isTestingWebhook ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <>
-                    <Ionicons name="paper-plane-outline" size={15} color="#FFF" />
-                    <Text style={styles.smallConfigBtnText}>Testar Geral</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {activeWebhookUrl || activeBugsWebhookUrl || activeSuggestionsWebhookUrl ? (
-                <TouchableOpacity
-                  testID="dev-settings-clear-webhook-btn"
-                  style={[styles.smallConfigBtn, { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border }]}
-                  onPress={handleClearWebhook}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="trash-outline" size={15} color={colors.textMuted} />
-                  <Text style={[styles.smallConfigBtnText, { color: colors.text }]}>Remover</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            {/* Visualização do Histórico e Diagnóstico Geral */}
-            <View style={styles.devHistoryBox}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="file-tray-full-outline" size={16} color={colors.primary} />
-                  <Text style={styles.devHistoryTitle}>Chamados Armazenados Localmente ({ticketHistory.length})</Text>
-                </View>
-                {ticketHistory.length > 0 && (
-                  <TouchableOpacity
-                    testID="dev-settings-export-json-btn"
-                    style={styles.devExportBtn}
-                    onPress={handleExportAllTicketsJson}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="code-download-outline" size={14} color={colors.primary} />
-                    <Text style={[styles.devExportBtnText, { color: colors.primary }]}>Exportar JSON</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {ticketHistory.length === 0 ? (
-                <Text style={styles.devEmptyHistoryText}>
-                  Nenhum chamado registrado neste dispositivo até o momento.
-                </Text>
-              ) : (
-                <View style={{ gap: 6, marginTop: 4 }}>
-                  {ticketHistory.map((t) => (
-                    <View key={t.id} style={styles.devTicketRow}>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={styles.devTicketProtocol}>#{t.protocol}</Text>
-                          <View
-                            style={[
-                              styles.deliveryBadge,
-                              {
-                                backgroundColor:
-                                  t.status === 'sent_remote'
-                                    ? 'rgba(16, 185, 129, 0.15)'
-                                    : 'rgba(245, 158, 11, 0.15)',
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.deliveryBadgeText,
-                                {
-                                  color: t.status === 'sent_remote' ? '#10B981' : '#F59E0B',
-                                },
-                              ]}
-                            >
-                              {t.status === 'sent_remote' ? 'Entregue Remoto' : 'Salvo Local'}
-                            </Text>
-                          </View>
-                          <Text style={styles.devTicketChannel}>via {t.deliveryChannel || 'local'}</Text>
-                        </View>
-                        <Text style={styles.devTicketTitle} numberOfLines={1}>
-                          {t.title}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.devCopySingleBtn}
-                        onPress={() => {
-                          const rep = supportService.buildFormattedReport(t, t.protocol);
-                          copyTextToClipboard(rep, `Protocolo #${t.protocol}`, 'Relato copiado!');
-                        }}
-                      >
-                        <Ionicons name="copy-outline" size={14} color={colors.textSecondary} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          </View>
-        )}
-      </View>
-      )}
-
     </View>
   );
 
@@ -1490,6 +1289,10 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: '#10B981',
       gap: 4,
+    },
+    pendingProtocolBanner: {
+      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+      borderColor: '#F59E0B',
     },
     successProtocolHeader: {
       flexDirection: 'row',
@@ -1761,6 +1564,31 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textSecondary,
       marginTop: 1,
     },
+    historyErrorText: {
+      fontSize: 10.5,
+      color: '#F59E0B',
+      marginTop: 3,
+      fontWeight: '600',
+    },
+    historyActionsCol: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 0,
+    },
+    historyRetryBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      height: 34,
+      paddingHorizontal: 9,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    historyRetryBtnText: {
+      fontSize: 11,
+      fontWeight: '800',
+    },
     historyCopyBtn: {
       width: 34,
       height: 34,
@@ -1814,111 +1642,6 @@ const createStyles = (colors: ThemeColors) =>
       gap: 6,
       marginVertical: 2,
     },
-    advancedToggleHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    advancedToggleTitle: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: colors.textSecondary,
-    },
-    advancedBody: {
-      marginTop: 6,
-      paddingTop: 8,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    smallConfigBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-    },
-    smallConfigBtnText: {
-      color: '#FFFFFF',
-      fontSize: 12,
-      fontWeight: '800',
-    },
-    devSettingsToggleHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 2,
-    },
-    devIconBadge: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: colors.primary,
-    },
-    devHeaderSubtitle: {
-      fontSize: 11,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-    devSettingsBody: {
-      marginTop: 8,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      gap: 12,
-    },
-    devGuideCard: {
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: 10,
-      padding: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      gap: 8,
-    },
-    devGuideTitle: {
-      fontSize: 12.5,
-      fontWeight: '800',
-      color: colors.primary,
-    },
-    devGuideText: {
-      fontSize: 11.5,
-      color: colors.textSecondary,
-      lineHeight: 16,
-    },
-    devStepsList: {
-      backgroundColor: colors.surface,
-      borderRadius: 8,
-      padding: 10,
-      gap: 6,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    devStepItem: {
-      fontSize: 11,
-      color: colors.text,
-      lineHeight: 15,
-    },
-    devActionsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-    },
-    devHistoryBox: {
-      backgroundColor: colors.surfaceElevated,
-      borderRadius: 10,
-      padding: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      gap: 8,
-    },
-    devHistoryTitle: {
-      fontSize: 12,
-      fontWeight: '800',
-      color: colors.text,
-    },
     devExportBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1933,56 +1656,5 @@ const createStyles = (colors: ThemeColors) =>
     devExportBtnText: {
       fontSize: 11,
       fontWeight: '800',
-    },
-    devEmptyHistoryText: {
-      fontSize: 11.5,
-      color: colors.textMuted,
-      fontStyle: 'italic',
-      paddingVertical: 6,
-    },
-    devTicketRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-      padding: 8,
-      borderRadius: 8,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    devTicketProtocol: {
-      fontSize: 11,
-      fontWeight: '900',
-      color: colors.primary,
-    },
-    deliveryBadge: {
-      paddingHorizontal: 5,
-      paddingVertical: 1,
-      borderRadius: 4,
-    },
-    deliveryBadgeText: {
-      fontSize: 9.5,
-      fontWeight: '800',
-    },
-    devTicketChannel: {
-      fontSize: 10,
-      color: colors.textMuted,
-    },
-    devTicketTitle: {
-      fontSize: 11.5,
-      fontWeight: '700',
-      color: colors.text,
-      marginTop: 2,
-    },
-    devCopySingleBtn: {
-      width: 28,
-      height: 28,
-      borderRadius: 6,
-      backgroundColor: colors.surfaceElevated,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
     },
   });

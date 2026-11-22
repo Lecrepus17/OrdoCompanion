@@ -1479,15 +1479,15 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     features: [
       {
         id: 'sup-direct-form',
-        title: 'Envio Direto pelo Aplicativo & Geração de Protocolo (#ORD)',
+        title: 'Envio Automático ao Discord Oficial & Geração de Protocolo (#ORD)',
         badge: 'In-App',
         description:
-          'Formulário integrado que envia seu relato diretamente para a central do desenvolvedor (via Webhook/Endpoint) e registra um código de protocolo local.',
+          'Formulário integrado que envia seu relato diretamente ao servidor oficial da Ordem no Discord (roteando erros para #erros e ideias para #melhorias sem precisar configurar nada no aparelho) e mantém histórico local com opção de reenvio em 1 toque.',
         howToUse: [
           'Acesse a tela "Suporte" pelo menu "+ Mais" da barra inferior ou pela aba "Suporte" dentro do Modal de Perfil do Jogador.',
-          'Escolha a categoria: Bug / Erro Técnico, Erro de Regra / Compêndio, Sugestão ou Contato Direto.',
+          'Escolha a categoria: Bug / Erro Técnico, Erro de Regra / Compêndio, Sugestão / Melhoria ou Contato Direto.',
           'Preencha o título, a descrição e informe seu Discord, E-mail ou WhatsApp caso queira receber retorno direto.',
-          'Toque em "Enviar Relato Direto pelo App" para enviar imediatamente e gerar seu protocolo #ORD-XXXX.',
+          'Toque em "Enviar Erro / Melhoria / Mensagem para o Discord" para transmitir imediatamente e gerar seu protocolo #ORD-XXXX (ou use "Reenviar" em Meus Relatos caso esteja sem internet no momento).',
         ],
       },
       {

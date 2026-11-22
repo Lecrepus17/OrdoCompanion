@@ -481,7 +481,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                 <TouchableOpacity
                   onPress={() => {
                     onClose();
-                    openManual('cloud_sync');
+                    openManual(
+                      activeTab === 'suporte'
+                        ? 'support'
+                        : activeTab === 'navegacao'
+                        ? 'overview'
+                        : 'cloud_sync'
+                    );
                   }}
                   style={styles.closeBtn}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -490,6 +496,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                   <Ionicons name="help-circle-outline" size={20} color={colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
+                  testID="profile-header-close-btn"
                   onPress={onClose}
                   style={styles.closeBtn}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -997,25 +1004,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                               </Text>
                             </>
                           )}
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          testID="profile-open-support-shortcut"
-                          style={[
-                            styles.checkUpdateButton,
-                            {
-                              borderColor: colors.border,
-                              backgroundColor: colors.surfaceElevated,
-                              marginTop: 6,
-                            },
-                          ]}
-                          onPress={() => setActiveTab('suporte')}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons name="bug-outline" size={17} color={colors.primary} />
-                          <Text style={[styles.checkUpdateButtonText, { color: colors.text }]}>
-                            Reportar Erro ou Falar com o Suporte
-                          </Text>
                         </TouchableOpacity>
 
                         {isWeb ? (
@@ -1687,7 +1675,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                             activeOpacity={0.8}
                           >
                             <Ionicons name="copy-outline" size={16} color={colors.primary} />
-                            <Text style={styles.exportQuickBtnText}>Copiar JSON</Text>
+                            <Text style={styles.exportQuickBtnText}>
+                              {isWeb ? 'Copiar Texto JSON' : 'Copiar JSON'}
+                            </Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -1695,8 +1685,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                             onPress={handleImportBackup}
                             activeOpacity={0.8}
                           >
-                            <Ionicons name="download-outline" size={16} color="#10B981" />
-                            <Text style={styles.importQuickBtnText}>Restaurar JSON</Text>
+                            <Ionicons
+                              name={isWeb ? 'clipboard-outline' : 'download-outline'}
+                              size={16}
+                              color="#10B981"
+                            />
+                            <Text style={styles.importQuickBtnText}>
+                              {isWeb ? 'Colar Texto JSON' : 'Restaurar JSON'}
+                            </Text>
                           </TouchableOpacity>
                         </View>
                         {isWeb && (
@@ -1733,26 +1729,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                 ) : null}
               </ScrollView>
 
-            {/* Rodapé de Ações */}
-            <View style={styles.footer}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-                <Text style={styles.cancelBtnText}>Fechar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.saveBtn, saveSuccess && styles.saveBtnSuccess]}
-                onPress={handleSave}
-              >
-                <Ionicons
-                  name={saveSuccess ? 'checkmark-circle' : 'save'}
-                  size={16}
-                  color="#FFF"
-                />
-                <Text style={styles.saveBtnText}>
-                  {saveSuccess ? 'Salvo com Sucesso!' : 'Salvar Informações'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {/* Rodapé de Ações (oculto na aba Suporte, onde o envio tem CTA próprio e o X do cabeçalho fecha) */}
+            {activeTab !== 'suporte' && (
+              <View style={styles.footer}>
+                <TouchableOpacity
+                  testID="profile-save-btn"
+                  style={[styles.saveBtn, { flex: 1 }, saveSuccess && styles.saveBtnSuccess]}
+                  onPress={handleSave}
+                >
+                  <Ionicons
+                    name={saveSuccess ? 'checkmark-circle' : 'save'}
+                    size={16}
+                    color="#FFF"
+                  />
+                  <Text style={styles.saveBtnText}>
+                    {saveSuccess ? 'Salvo com Sucesso!' : 'Salvar Informações'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </KeyboardAvoidingView>
 
