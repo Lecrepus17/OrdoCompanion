@@ -46,7 +46,11 @@ export default function Root({ children }: { children: React.ReactNode }) {
                   (window.location.protocol === 'http:' || window.location.protocol === 'https:')
                 ) {
                   window.addEventListener('load', function () {
-                    navigator.serviceWorker.register('/sw.js').catch(function () {});
+                    navigator.serviceWorker.register('/sw.js').then(function (reg) {
+                      if (reg && typeof reg.update === 'function') {
+                        reg.update().catch(function () {});
+                      }
+                    }).catch(function () {});
                   });
                 }
               })();

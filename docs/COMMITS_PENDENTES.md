@@ -6,11 +6,15 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente nesta fila — todos os commits do ciclo `v1.7.0-beta.2` foram executados.)*
+*(Nenhum commit pendente nesta fila — alterações commitadas.)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ Supressão de Modal de Atualização na Web, Deploy Automatizado & Links no README (`SOL-ERR-001` / `SOL-MEL-001` / `SOL-MEL-002`) (2026-11-23):
+- **Título**: `fix(web,docs): desativa modal de atualizacao na web, adiciona deploy:web e links no README`
+- **Resumo**: Suprime o modal de atualização manual e a checagem estilo APK na Web (`Platform.OS === 'web'`) preservando o fluxo no Android, atualiza Service Worker para `ordo-companion-pwa-v2`, adiciona script `npm run deploy:web` (`eas deploy --prod`), atualiza `README.md` com links oficiais Web/PC/Android APK e amplia testes automatizados.
 
 ### ✅ 1. Preparação da Release v1.7.0-beta.2 (versionCode 14):
 ```bash

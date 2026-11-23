@@ -212,15 +212,20 @@ describe('Desktop PC & PWA Support (SOL-MEL-001)', () => {
     assert.equal(deletedCacheKey, 'ordo-companion-pwa-v1');
   });
 
-  it('UpdateNotificationModal deve exibir botão "Atualizar Aplicativo no PC" na Web preservando Android', async () => {
+  it('UpdateNotificationModal deve ser suprimido na Web (Platform.OS === "web") e exibido normalmente no Android', async () => {
+    const checker = new UpdateCheckerService();
+    assert.equal(checker.shouldAutoPromptForUpdates('web'), false);
+    assert.equal(checker.shouldAutoPromptForUpdates('android'), true);
+    assert.equal(checker.shouldAutoPromptForUpdates('ios'), true);
+
     const mockInfo = {
       hasUpdate: true,
-      currentVersion: '1.6.0-beta.1',
-      latestVersion: '1.6.0-beta.2',
-      releaseName: 'Ordo Companion v1.6.0-beta.2',
+      currentVersion: '1.7.0-beta.1',
+      latestVersion: '1.7.0-beta.2',
+      releaseName: 'Ordo Companion v1.7.0-beta.2',
       changelog: ['Suporte oficial a aplicativo para PC (PWA)'],
       downloadUrl: 'https://github.com/Lecrepus17/OrdoCompanion/releases/latest',
-      apkUrl: 'https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.6.0-beta.2/OrdoCompanion.apk',
+      apkUrl: 'https://github.com/Lecrepus17/OrdoCompanion/releases/download/v1.7.0-beta.2/OrdoCompanion.apk',
       isMandatory: false,
       isDismissed: false,
     };
@@ -232,8 +237,7 @@ describe('Desktop PC & PWA Support (SOL-MEL-001)', () => {
         onDismiss: () => {},
       })
     );
-    assert.ok(webRender.getByTestId('update-pc-app-button'));
-    assert.ok(webRender.getByText(/Atualizar Aplicativo no PC/i));
+    assert.equal(webRender.queryByText(/NOVA VERSÃO DISPONÍVEL/i), null);
 
     await cleanup();
 
@@ -245,7 +249,7 @@ describe('Desktop PC & PWA Support (SOL-MEL-001)', () => {
       }),
       { mobile: 'android' }
     );
-    assert.equal(androidRender.queryByTestId('update-pc-app-button'), null);
+    assert.ok(androidRender.getByText(/NOVA VERSÃO DISPONÍVEL/i));
     assert.ok(androidRender.getByText(/Baixar Nova Versão \(APK\)/i));
   });
 

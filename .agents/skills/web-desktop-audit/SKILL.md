@@ -19,7 +19,7 @@ Utilize este guia e checklist tático para garantir que qualquer alteração no 
 * `app.json` (`expo.web`): Configuração Metro single-output e metadados PWA standalone (`name`, `shortName`, `lang`, `scope`, `themeColor`, `backgroundColor`, `display`).
 * `src/utils/desktopPwa.ts`: Utilitário Web/Desktop 100% blindado (`isDesktopWebEnvironment`, `isRunningAsStandalonePwa`, `canTriggerNativePwaInstall`, `triggerPwaInstallPrompt`, `downloadTextFileOnWeb`, `pickJsonFileOnWeb`).
 * `src/services/updates/types.ts` e `src/services/updates/UpdateCheckerService.ts`: Suporte a `webUrl` e `applyWebOrDesktopUpdate()` (envio de `SKIP_WAITING` ao SW, limpeza de cache PWA e recarregamento).
-* `src/components/UpdateNotificationModal.tsx`: Botão dedicado `Atualizar Aplicativo no PC` (`testID="update-pc-app-button"`) quando `Platform.OS === 'web'`.
+* `src/components/UpdateNotificationModal.tsx`: Suprimido na Web (`Platform.OS === 'web'`), exibindo popup de atualização manual exclusivamente no aplicativo nativo (Android/iOS).
 * `src/components/UserProfileModal.tsx`: Instalação PWA no PC (`profile-install-pc-pwa-btn`) e exportação/importação direta de backup `.json` no computador (`backup-download-json-pc-btn`, `backup-upload-json-pc-btn`).
 * `src/components/PdfViewerModal.tsx` e `src/services/pdf/PdfAccessService.ts`: Renderização de PDFs via `PDF.js` (`<canvas>`) e persistência offline de PDFs grandes em IndexedDB (`ordo_companion_pdfs_db_v1`).
 * `src/components/pdf/NativePdfReader.web.tsx`: Stub Web seguro para evitar importação de módulo nativo `react-native-pdf` no bundle Metro Web.

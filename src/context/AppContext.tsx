@@ -349,6 +349,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [updateModalVisible, setUpdateModalVisible] = useState(false);
 
   const checkForUpdates = useCallback(async (forceCheck = false) => {
+    if (!updateCheckerService.shouldAutoPromptForUpdates()) {
+      setUpdateModalVisible(false);
+      return null;
+    }
     try {
       const result = await updateCheckerService.checkForAppUpdate(forceCheck);
       if (result) {
@@ -463,9 +467,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Verificação automática de atualizações em segundo plano após inicialização
+  // Verificação automática de atualizações em segundo plano após inicialização (apenas nativo Android/iOS)
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !updateCheckerService.shouldAutoPromptForUpdates()) return;
     const timer = setTimeout(() => {
       checkForUpdates(false);
     }, 2500);
