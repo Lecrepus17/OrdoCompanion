@@ -469,6 +469,11 @@ export interface CharacterSheet {
   peTemp?: number;
   sanCurrent: number;
   sanMax: number;
+  /** Regra opcional de Sobrevivendo ao Horror (p. 105): unifica PE e SAN em Pontos de Determinação (PD) */
+  useDeterminationPoints?: boolean;
+  pdCurrent?: number;
+  pdMax?: number;
+  pdTemp?: number;
   
   // Defesa, Proteção e Resistências
   defenseBonus: number;

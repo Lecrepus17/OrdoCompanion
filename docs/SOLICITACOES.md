@@ -95,6 +95,7 @@ npm run requests:questions
 | `SOL-MEL-HIST-06` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Modo Roleplay Livre vs. Compromisso com a Realidade (desativado por padrão) e base de lore expandida para Personagens e Relíquias na IA G.L.I.T.C.H. | `2026-11-22` / `v1.7.0-beta.2` |
 | `SOL-MEL-HIST-07` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Núcleo essencial do Livro Base (3 Classes, 28 Perícias e 37 Condições) liberado por padrão mantendo o PDF, leitor e demais 734 registros/9 livros bloqueados até o upload | `2026-11-22` / `v1.7.0-beta.2` |
 | `SOL-MEL-HIST-08` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Varredura geral e eliminação de botões/controles duplicados em todas as 48 telas e modais do aplicativo (Lotes 1 a 5), centralizando Suporte/Temas/Backup no Perfil do Usuário | `2026-11-22` / `v1.7.0-beta.2` |
+| `SOL-MEL-HIST-09` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Modo opcional de Pontos de Determinação (PD) de *Sobrevivendo ao Horror* (p. 105–106) unificando PE e Sanidade na criação, avanço de NEX, ficha ativa, combate/rituais, Mestre, Mesa Virtual, impressão PDF SH, compartilhamento e IA G.L.I.T.C.H. | `2026-11-23` / `v1.7.0-beta.3` |
 
 ---
 

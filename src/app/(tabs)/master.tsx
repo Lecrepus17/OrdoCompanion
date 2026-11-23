@@ -581,12 +581,19 @@ export default function MasterScreen() {
 
   const handleAdjustAgentVital = async (
     link: CampaignAgentLink,
-    field: 'pvCurrent' | 'peCurrent' | 'sanCurrent',
+    field: 'pvCurrent' | 'peCurrent' | 'sanCurrent' | 'pdCurrent',
     delta: number
   ) => {
     if (!activeCampaign) return;
     const current = link.characterSheet[field] || 0;
-    const maxField = field === 'pvCurrent' ? 'pvMax' : field === 'peCurrent' ? 'peMax' : 'sanMax';
+    const maxField =
+      field === 'pvCurrent'
+        ? 'pvMax'
+        : field === 'peCurrent'
+        ? 'peMax'
+        : field === 'pdCurrent'
+        ? 'pdMax'
+        : 'sanMax';
     const max = link.characterSheet[maxField] || 999;
     const nextVal = Math.max(0, Math.min(max, current + delta));
 
@@ -1294,45 +1301,70 @@ export default function MasterScreen() {
                           </View>
                         </View>
 
-                        {/* PE */}
-                        <View style={[styles.vitalBox, { borderColor: '#F59E0B' }]}>
-                          <Text style={[styles.vitalLabel, { color: '#F59E0B' }]}>PE</Text>
-                          <Text style={styles.vitalValue}>{sheet.peCurrent}/{sheet.peMax}</Text>
-                          <View style={styles.vitalBtnsRow}>
-                            <TouchableOpacity
-                              style={styles.vitalBtn}
-                              onPress={() => handleAdjustAgentVital(link, 'peCurrent', -1)}
-                            >
-                              <Text style={styles.vitalBtnText}>-1</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.vitalBtn}
-                              onPress={() => handleAdjustAgentVital(link, 'peCurrent', +1)}
-                            >
-                              <Text style={styles.vitalBtnText}>+1</Text>
-                            </TouchableOpacity>
+                        {sheet.useDeterminationPoints ? (
+                          <View style={[styles.vitalBox, { borderColor: '#A855F7' }]}>
+                            <Text style={[styles.vitalLabel, { color: '#A855F7' }]}>PD</Text>
+                            <Text style={styles.vitalValue}>
+                              {sheet.pdCurrent ?? 0}/{sheet.pdMax ?? 1}
+                            </Text>
+                            <View style={styles.vitalBtnsRow}>
+                              <TouchableOpacity
+                                style={styles.vitalBtn}
+                                onPress={() => handleAdjustAgentVital(link, 'pdCurrent', -1)}
+                              >
+                                <Text style={styles.vitalBtnText}>-1</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.vitalBtn}
+                                onPress={() => handleAdjustAgentVital(link, 'pdCurrent', +1)}
+                              >
+                                <Text style={styles.vitalBtnText}>+1</Text>
+                              </TouchableOpacity>
+                            </View>
                           </View>
-                        </View>
+                        ) : (
+                          <>
+                            {/* PE */}
+                            <View style={[styles.vitalBox, { borderColor: '#F59E0B' }]}>
+                              <Text style={[styles.vitalLabel, { color: '#F59E0B' }]}>PE</Text>
+                              <Text style={styles.vitalValue}>{sheet.peCurrent}/{sheet.peMax}</Text>
+                              <View style={styles.vitalBtnsRow}>
+                                <TouchableOpacity
+                                  style={styles.vitalBtn}
+                                  onPress={() => handleAdjustAgentVital(link, 'peCurrent', -1)}
+                                >
+                                  <Text style={styles.vitalBtnText}>-1</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.vitalBtn}
+                                  onPress={() => handleAdjustAgentVital(link, 'peCurrent', +1)}
+                                >
+                                  <Text style={styles.vitalBtnText}>+1</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
 
-                        {/* SAN */}
-                        <View style={[styles.vitalBox, { borderColor: '#38BDF8' }]}>
-                          <Text style={[styles.vitalLabel, { color: '#38BDF8' }]}>SAN</Text>
-                          <Text style={styles.vitalValue}>{sheet.sanCurrent}/{sheet.sanMax}</Text>
-                          <View style={styles.vitalBtnsRow}>
-                            <TouchableOpacity
-                              style={styles.vitalBtn}
-                              onPress={() => handleAdjustAgentVital(link, 'sanCurrent', -1)}
-                            >
-                              <Text style={styles.vitalBtnText}>-1</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.vitalBtn}
-                              onPress={() => handleAdjustAgentVital(link, 'sanCurrent', +1)}
-                            >
-                              <Text style={styles.vitalBtnText}>+1</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
+                            {/* SAN */}
+                            <View style={[styles.vitalBox, { borderColor: '#38BDF8' }]}>
+                              <Text style={[styles.vitalLabel, { color: '#38BDF8' }]}>SAN</Text>
+                              <Text style={styles.vitalValue}>{sheet.sanCurrent}/{sheet.sanMax}</Text>
+                              <View style={styles.vitalBtnsRow}>
+                                <TouchableOpacity
+                                  style={styles.vitalBtn}
+                                  onPress={() => handleAdjustAgentVital(link, 'sanCurrent', -1)}
+                                >
+                                  <Text style={styles.vitalBtnText}>-1</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.vitalBtn}
+                                  onPress={() => handleAdjustAgentVital(link, 'sanCurrent', +1)}
+                                >
+                                  <Text style={styles.vitalBtnText}>+1</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          </>
+                        )}
                       </View>
 
                       {/* Atributos Rápidos */}

@@ -77,6 +77,9 @@ export interface TableSessionLogExport {
       peMax: number;
       sanCurrent: number;
       sanMax: number;
+      useDeterminationPoints?: boolean;
+      pdCurrent?: number;
+      pdMax?: number;
       defense: number;
       conditions: string[];
     };
@@ -192,6 +195,9 @@ export function buildTableSessionExportData(
         peMax: ag.peMax,
         sanCurrent: ag.sanCurrent,
         sanMax: ag.sanMax,
+        useDeterminationPoints: Boolean(ag.useDeterminationPoints),
+        pdCurrent: ag.pdCurrent,
+        pdMax: ag.pdMax,
         defense: ag.defense,
         conditions: ag.conditions || [],
       },
@@ -324,8 +330,8 @@ export function generateTacticalPdfHtml(data: TableSessionLogExport): string {
             <span class="pv-val">${ag.pvCurrent}/${ag.pvMax}</span>
             ${ag.damageSuffered > 0 ? `<div class="subtext text-danger">-${ag.damageSuffered} sofridos</div>` : ''}
           </td>
-          <td class="center font-mono text-pe">${ag.peCurrent}/${ag.peMax}</td>
-          <td class="center font-mono text-san">${ag.sanCurrent}/${ag.sanMax}</td>
+          <td class="center font-mono text-pe">${ag.useDeterminationPoints ? `PD ${ag.pdCurrent ?? 0}/${ag.pdMax ?? 1}` : `${ag.peCurrent}/${ag.peMax}`}</td>
+          <td class="center font-mono text-san">${ag.useDeterminationPoints ? '— (PD)' : `${ag.sanCurrent}/${ag.sanMax}`}</td>
           <td class="center font-mono text-def">${ag.defense}</td>
           <td>${conditionsStr}</td>
         </tr>

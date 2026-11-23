@@ -557,8 +557,12 @@ export default function TableScreen() {
                           subtitle: `Jogador: ${participant.userName} • ${ag.classTitle} (NEX ${ag.nex}%)`,
                           stats: [
                             { label: 'PV', value: `${ag.pvCurrent}/${ag.pvMax}` },
-                            { label: 'PE', value: `${ag.peCurrent}/${ag.peMax}` },
-                            { label: 'SAN', value: `${ag.sanCurrent}/${ag.sanMax}` },
+                            ...(ag.useDeterminationPoints
+                              ? [{ label: 'PD', value: `${ag.pdCurrent ?? 0}/${ag.pdMax ?? 1}` }]
+                              : [
+                                  { label: 'PE', value: `${ag.peCurrent}/${ag.peMax}` },
+                                  { label: 'SAN', value: `${ag.sanCurrent}/${ag.sanMax}` },
+                                ]),
                             { label: 'DEF', value: String(ag.defense), highlight: true },
                           ],
                           description:
@@ -657,43 +661,68 @@ export default function TableScreen() {
                               </Text>
                             </View>
 
-                            {/* PE */}
-                            <View style={styles.barRow}>
-                              <Text style={[styles.barLabel, { color: '#F59E0B' }]}>PE</Text>
-                              <View style={styles.barTrack}>
-                                <View
-                                  style={[
-                                    styles.barFill,
-                                    {
-                                      backgroundColor: '#F59E0B',
-                                      width: `${Math.min(100, Math.max(0, (ag.peCurrent / ag.peMax) * 100))}%`,
-                                    },
-                                  ]}
-                                />
+                            {ag.useDeterminationPoints ? (
+                              <View style={styles.barRow}>
+                                <Text style={[styles.barLabel, { color: '#A855F7' }]}>PD</Text>
+                                <View style={styles.barTrack}>
+                                  <View
+                                    style={[
+                                      styles.barFill,
+                                      {
+                                        backgroundColor: '#A855F7',
+                                        width: `${Math.min(
+                                          100,
+                                          Math.max(0, ((ag.pdCurrent ?? 0) / Math.max(1, ag.pdMax ?? 1)) * 100)
+                                        )}%`,
+                                      },
+                                    ]}
+                                  />
+                                </View>
+                                <Text style={styles.barNum}>
+                                  {ag.pdCurrent ?? 0}/{ag.pdMax ?? 1}
+                                </Text>
                               </View>
-                              <Text style={styles.barNum}>
-                                {ag.peCurrent}/{ag.peMax}
-                              </Text>
-                            </View>
+                            ) : (
+                              <>
+                                {/* PE */}
+                                <View style={styles.barRow}>
+                                  <Text style={[styles.barLabel, { color: '#F59E0B' }]}>PE</Text>
+                                  <View style={styles.barTrack}>
+                                    <View
+                                      style={[
+                                        styles.barFill,
+                                        {
+                                          backgroundColor: '#F59E0B',
+                                          width: `${Math.min(100, Math.max(0, (ag.peCurrent / ag.peMax) * 100))}%`,
+                                        },
+                                      ]}
+                                    />
+                                  </View>
+                                  <Text style={styles.barNum}>
+                                    {ag.peCurrent}/{ag.peMax}
+                                  </Text>
+                                </View>
 
-                            {/* SAN */}
-                            <View style={styles.barRow}>
-                              <Text style={[styles.barLabel, { color: '#38BDF8' }]}>SAN</Text>
-                              <View style={styles.barTrack}>
-                                <View
-                                  style={[
-                                    styles.barFill,
-                                    {
-                                      backgroundColor: '#38BDF8',
-                                      width: `${Math.min(100, Math.max(0, (ag.sanCurrent / ag.sanMax) * 100))}%`,
-                                    },
-                                  ]}
-                                />
-                              </View>
-                              <Text style={styles.barNum}>
-                                {ag.sanCurrent}/{ag.sanMax}
-                              </Text>
-                            </View>
+                                {/* SAN */}
+                                <View style={styles.barRow}>
+                                  <Text style={[styles.barLabel, { color: '#38BDF8' }]}>SAN</Text>
+                                  <View style={styles.barTrack}>
+                                    <View
+                                      style={[
+                                        styles.barFill,
+                                        {
+                                          backgroundColor: '#38BDF8',
+                                          width: `${Math.min(100, Math.max(0, (ag.sanCurrent / ag.sanMax) * 100))}%`,
+                                        },
+                                      ]}
+                                    />
+                                  </View>
+                                  <Text style={styles.barNum}>
+                                    {ag.sanCurrent}/{ag.sanMax}
+                                  </Text>
+                                </View>
+                              </>
+                            )}
                           </View>
 
                           {/* Condições Ativas */}

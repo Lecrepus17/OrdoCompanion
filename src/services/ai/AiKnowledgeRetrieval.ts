@@ -315,8 +315,12 @@ export function retrieveAiKnowledge(
 - Classe / Trilha: ${activeAgent.classId || 'Nenhuma'} (${activeAgent.trackId || 'Sem trilha'})
 - NEX: ${activeAgent.nex || 5}% | Origem: ${activeAgent.originId || 'Não informada'} | Patente: ${activeAgent.rank || 'Recruta'}
 - Atributos: AGI ${activeAgent.attributes?.AGI ?? 1}, FOR ${activeAgent.attributes?.FOR ?? 1}, INT ${activeAgent.attributes?.INT ?? 1}, PRE ${activeAgent.attributes?.PRE ?? 1}, VIG ${activeAgent.attributes?.VIG ?? 1}
-- Status: PV ${activeAgent.pvCurrent ?? 0}/${activeAgent.pvMax ?? 0}, SAN ${activeAgent.sanCurrent ?? 0}/${activeAgent.sanMax ?? 0}, PE ${activeAgent.peCurrent ?? 0}/${activeAgent.peMax ?? 0}, Defesa Bônus ${activeAgent.defenseBonus ?? 0}
-- Limite de PE por Turno: ${Math.max(1, Math.floor((activeAgent.nex || 5) / 5))}
+- Status: PV ${activeAgent.pvCurrent ?? 0}/${activeAgent.pvMax ?? 0}, ${
+      activeAgent.useDeterminationPoints
+        ? `PD ${activeAgent.pdCurrent ?? 0}/${activeAgent.pdMax ?? 0} (Regra Opcional: Pontos de Determinação — Sobrevivendo ao Horror)`
+        : `SAN ${activeAgent.sanCurrent ?? 0}/${activeAgent.sanMax ?? 0}, PE ${activeAgent.peCurrent ?? 0}/${activeAgent.peMax ?? 0}`
+    }, Defesa Bônus ${activeAgent.defenseBonus ?? 0}
+- Limite de ${activeAgent.useDeterminationPoints ? 'PD' : 'PE'} por Turno: ${Math.max(1, Math.floor((activeAgent.nex || 5) / 5))}
 - Perícias Treinadas: ${Object.entries(activeAgent.skills || {})
       .filter(([_, v]) => v?.degree && v.degree > 0)
       .map(([k, v]) => `${k} (+${v.bonus || v.degree})`)

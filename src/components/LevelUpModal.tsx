@@ -557,8 +557,10 @@ export default function LevelUpModal({
     return calculateCharacterVitals(hypotheticalChar, getEntityById);
   }, [character, targetNex, effectiveAttrs, selectedAffinity, chosenPowerIds, doNotIncreaseNex, currentVitals, getEntityById]);
 
+  const isPdMode = Boolean(character?.useDeterminationPoints);
   const pvDelta = doNotIncreaseNex ? 0 : Math.max(0, targetVitals.pvMax - currentVitals.pvMax);
   const peDelta = doNotIncreaseNex ? 0 : Math.max(0, targetVitals.peMax - currentVitals.peMax);
+  const pdDelta = doNotIncreaseNex ? 0 : Math.max(0, targetVitals.pdMax - currentVitals.pdMax);
   const sanDelta = doNotIncreaseNex || isSelectedPowerParanormal
     ? 0
     : Math.max(0, targetVitals.sanMax - currentVitals.sanMax);
@@ -578,6 +580,9 @@ export default function LevelUpModal({
     const nextPvMax = character.pvMax + pvDelta;
     const nextPeMax = character.peMax + peDelta;
     const nextSanMax = character.sanMax + sanDelta;
+    const basePdMax = character.pdMax ?? currentVitals.pdMax;
+    const basePdCurrent = character.pdCurrent ?? basePdMax;
+    const nextPdMax = basePdMax + pdDelta;
 
     const nextPvCurrent = applyToCurrent
       ? Math.min(nextPvMax, character.pvCurrent + pvDelta)
@@ -588,6 +593,9 @@ export default function LevelUpModal({
     const nextSanCurrent = applyToCurrent
       ? Math.min(nextSanMax, character.sanCurrent + sanDelta)
       : character.sanCurrent;
+    const nextPdCurrent = applyToCurrent
+      ? Math.min(nextPdMax, basePdCurrent + pdDelta)
+      : basePdCurrent;
 
     // Perícias atualizadas (apenas quando o patamar concede grau de treinamento e o NEX avança)
     const updatedSkills = { ...character.skills };
@@ -717,6 +725,7 @@ export default function LevelUpModal({
       peCurrent: nextPeCurrent,
       sanMax: nextSanMax,
       sanCurrent: nextSanCurrent,
+      ...(isPdMode ? { pdMax: nextPdMax, pdCurrent: nextPdCurrent } : {}),
       skills: updatedSkills,
       entityIds: nextEntityIds,
       abilities: nextAbilities,
@@ -847,27 +856,45 @@ export default function LevelUpModal({
                 </Text>
               </View>
 
-              <View style={[styles.statGainCard, { borderColor: '#F59E0B' }]}>
-                <Text style={[styles.statGainLabel, { color: '#F59E0B' }]}>Pontos de Esforço</Text>
-                <Text style={styles.statGainVal}>+{peDelta} PE</Text>
-                <Text style={styles.statGainFormula}>
-                  +{statIncreases.basePe} base + {effectiveAttrs.PRE} Presença{retroactivePe > 0 ? ` (+${retroactivePe} retroativo)` : ''}{targetVitals.breakdown.peBonuses.length > 0 ? ` (+${targetVitals.breakdown.peBonuses.map(b => b.name).join(', ')})` : ''}
-                </Text>
-              </View>
+              {isPdMode ? (
+                <View style={[styles.statGainCard, { borderColor: '#A855F7' }]}>
+                  <Text style={[styles.statGainLabel, { color: '#A855F7' }]}>Pontos de Determinação</Text>
+                  <Text style={styles.statGainVal}>+{pdDelta} PD</Text>
+                  <Text style={styles.statGainFormula}>
+                    {(classEntity?.name || '').toLowerCase().includes('sobrevivente')
+                      ? `+${statIncreases.basePd} fixo por estágio`
+                      : `+${statIncreases.basePd} base + ${effectiveAttrs.PRE} Presença`}
+                    {retroactivePe > 0 ? ` (+${retroactivePe} retroativo)` : ''}
+                    {targetVitals.breakdown.pdBonuses.length > 0
+                      ? ` (+${targetVitals.breakdown.pdBonuses.map((b) => b.name).join(', ')})`
+                      : ''}
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <View style={[styles.statGainCard, { borderColor: '#F59E0B' }]}>
+                    <Text style={[styles.statGainLabel, { color: '#F59E0B' }]}>Pontos de Esforço</Text>
+                    <Text style={styles.statGainVal}>+{peDelta} PE</Text>
+                    <Text style={styles.statGainFormula}>
+                      +{statIncreases.basePe} base + {effectiveAttrs.PRE} Presença{retroactivePe > 0 ? ` (+${retroactivePe} retroativo)` : ''}{targetVitals.breakdown.peBonuses.length > 0 ? ` (+${targetVitals.breakdown.peBonuses.map(b => b.name).join(', ')})` : ''}
+                    </Text>
+                  </View>
 
-              <View style={[styles.statGainCard, { borderColor: isSelectedPowerParanormal ? '#8B5CF6' : '#38BDF8' }]}>
-                <Text style={[styles.statGainLabel, { color: isSelectedPowerParanormal ? '#8B5CF6' : '#38BDF8' }]}>Sanidade</Text>
-                <Text style={[styles.statGainVal, isSelectedPowerParanormal && !doNotIncreaseNex && { color: '#8B5CF6' }]}>
-                  {doNotIncreaseNex ? '+0 SAN' : isSelectedPowerParanormal ? '+0 SAN' : `+${sanDelta} SAN`}
-                </Text>
-                <Text style={styles.statGainFormula}>
-                  {doNotIncreaseNex
-                    ? 'NEX mantido'
-                    : isSelectedPowerParanormal
-                    ? 'Transcendeu (sem ganho SAN)'
-                    : `+${statIncreases.baseSan} base${targetVitals.breakdown.sanBonuses.some(b => b.value > 0) ? ' (+1 Vítima)' : ''}`}
-                </Text>
-              </View>
+                  <View style={[styles.statGainCard, { borderColor: isSelectedPowerParanormal ? '#8B5CF6' : '#38BDF8' }]}>
+                    <Text style={[styles.statGainLabel, { color: isSelectedPowerParanormal ? '#8B5CF6' : '#38BDF8' }]}>Sanidade</Text>
+                    <Text style={[styles.statGainVal, isSelectedPowerParanormal && !doNotIncreaseNex && { color: '#8B5CF6' }]}>
+                      {doNotIncreaseNex ? '+0 SAN' : isSelectedPowerParanormal ? '+0 SAN' : `+${sanDelta} SAN`}
+                    </Text>
+                    <Text style={styles.statGainFormula}>
+                      {doNotIncreaseNex
+                        ? 'NEX mantido'
+                        : isSelectedPowerParanormal
+                        ? 'Transcendeu (sem ganho SAN)'
+                        : `+${statIncreases.baseSan} base${targetVitals.breakdown.sanBonuses.some(b => b.value > 0) ? ' (+1 Vítima)' : ''}`}
+                    </Text>
+                  </View>
+                </>
+              )}
             </View>
 
             {/* Limites de combate */}

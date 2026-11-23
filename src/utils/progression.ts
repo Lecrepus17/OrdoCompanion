@@ -13,9 +13,11 @@ export interface StatIncreases {
   pvGain: number;
   peGain: number;
   sanGain: number;
+  pdGain: number;
   basePv: number;
   basePe: number;
   baseSan: number;
+  basePd: number;
 }
 
 export interface VitalsModifierBreakdown {
@@ -28,6 +30,7 @@ export interface CharacterVitalsOptions {
   nex?: number;
   attributes?: CharacterAttributes;
   origin?: string;
+  useDeterminationPoints?: boolean;
   hasVitalidadeReforcada?: boolean;
   hasSangueDeFerro?: boolean;
   hasSangueDeFerroAffinity?: boolean;
@@ -59,6 +62,7 @@ export interface CharacterVitalsResult {
   pvMax: number;
   peMax: number;
   sanMax: number;
+  pdMax: number;
   peRound: number;
   dtRituals: number;
   defense: number;
@@ -68,14 +72,50 @@ export interface CharacterVitalsResult {
     basePv: number;
     basePe: number;
     baseSan: number;
+    basePd: number;
     pvFromNex: number;
     peFromNex: number;
     sanFromNex: number;
+    pdFromNex: number;
     pvBonuses: VitalsModifierBreakdown[];
     peBonuses: VitalsModifierBreakdown[];
     sanBonuses: VitalsModifierBreakdown[];
+    pdBonuses: VitalsModifierBreakdown[];
     skillBonusesList: Array<{ skill: string; bonus: number; source: string }>;
   };
+}
+
+export function isUsingDeterminationPoints(
+  char?: Pick<CharacterSheet, 'useDeterminationPoints'> | null
+): boolean {
+  return Boolean(char?.useDeterminationPoints);
+}
+
+export function getEffortResourceLabel(
+  char?: Pick<CharacterSheet, 'useDeterminationPoints'> | null
+): 'PD' | 'PE' {
+  return char?.useDeterminationPoints ? 'PD' : 'PE';
+}
+
+export function getEffortCurrent(
+  char?: Pick<CharacterSheet, 'useDeterminationPoints' | 'peCurrent' | 'pdCurrent'> | null
+): number {
+  if (!char) return 0;
+  return char.useDeterminationPoints ? (char.pdCurrent ?? 0) : (char.peCurrent ?? 0);
+}
+
+export function getEffortMax(
+  char?: Pick<CharacterSheet, 'useDeterminationPoints' | 'peMax' | 'pdMax'> | null
+): number {
+  if (!char) return 1;
+  return char.useDeterminationPoints ? (char.pdMax ?? 1) : (char.peMax ?? 1);
+}
+
+export function getEffortTemp(
+  char?: Pick<CharacterSheet, 'useDeterminationPoints' | 'peTemp' | 'pdTemp'> | null
+): number {
+  if (!char) return 0;
+  return char.useDeterminationPoints ? (char.pdTemp ?? 0) : (char.peTemp ?? 0);
 }
 
 export type AgentRank =
@@ -181,31 +221,39 @@ export function calculateStatIncreases(
   let basePv = 3;
   let basePe = 3;
   let baseSan = 4;
+  let basePd = 4;
   let pvGain = Math.max(1, 3 + attrs.VIG);
   let peGain = Math.max(1, 3 + attrs.PRE);
   let sanGain = 4;
+  let pdGain = Math.max(1, 4 + attrs.PRE);
 
   if (norm.includes('combatente')) {
     basePv = 4;
     basePe = 2;
     baseSan = 3;
+    basePd = 3;
     pvGain = Math.max(1, 4 + attrs.VIG);
     peGain = Math.max(1, 2 + attrs.PRE);
     sanGain = 3;
+    pdGain = Math.max(1, 3 + attrs.PRE);
   } else if (norm.includes('ocultista')) {
     basePv = 2;
     basePe = 4;
     baseSan = 5;
+    basePd = 5;
     pvGain = Math.max(1, 2 + attrs.VIG);
     peGain = Math.max(1, 4 + attrs.PRE);
     sanGain = 5;
+    pdGain = Math.max(1, 5 + attrs.PRE);
   } else if (norm.includes('sobrevivente')) {
     basePv = 2;
     basePe = 1;
     baseSan = 2;
+    basePd = 2;
     pvGain = 2;
     peGain = 1;
     sanGain = 2;
+    pdGain = 2;
   }
 
   if (options) {
@@ -213,9 +261,19 @@ export function calculateStatIncreases(
     if (options.hasCascaGrossa) pvGain += 1;
     if (options.hasVitalidadeReforcada) pvGain += 1;
     if (options.hasSangueDeFerro) pvGain += options.hasSangueDeFerroAffinity ? 3 : 2;
-    if (options.hasUniversitario) peGain += 1;
-    if (options.hasCombatenteEsforcado) peGain += 1;
-    if (options.hasPotencialAprimorado) peGain += options.hasPotencialAprimoradoAffinity ? 2 : 1;
+    if (options.hasUniversitario) {
+      peGain += 1;
+      pdGain += 1;
+    }
+    if (options.hasCombatenteEsforcado) {
+      peGain += 1;
+      pdGain += 1;
+    }
+    if (options.hasPotencialAprimorado) {
+      const potBonus = options.hasPotencialAprimoradoAffinity ? 2 : 1;
+      peGain += potBonus;
+      pdGain += potBonus;
+    }
     if (options.hasVitima) sanGain += 1;
   }
 
@@ -223,9 +281,11 @@ export function calculateStatIncreases(
     pvGain,
     peGain,
     sanGain,
+    pdGain,
     basePv,
     basePe,
     baseSan,
+    basePd,
   };
 }
 
@@ -266,6 +326,8 @@ export function calculateMaxStats(
   let pePerLevel = Math.max(1, 3 + attrs.PRE);
   let baseSan = 16;
   let sanPerLevel = 4;
+  let basePd = 8 + attrs.PRE;
+  let pdPerLevel = Math.max(1, 4 + attrs.PRE);
 
   if (isCombatente) {
     basePv = 20 + attrs.VIG;
@@ -274,6 +336,8 @@ export function calculateMaxStats(
     pePerLevel = Math.max(1, 2 + attrs.PRE);
     baseSan = 12;
     sanPerLevel = 3;
+    basePd = 6 + attrs.PRE;
+    pdPerLevel = Math.max(1, 3 + attrs.PRE);
   } else if (isOcultista) {
     basePv = 12 + attrs.VIG;
     pvPerLevel = Math.max(1, 2 + attrs.VIG);
@@ -281,6 +345,8 @@ export function calculateMaxStats(
     pePerLevel = Math.max(1, 4 + attrs.PRE);
     baseSan = 20;
     sanPerLevel = 5;
+    basePd = 10 + attrs.PRE;
+    pdPerLevel = Math.max(1, 5 + attrs.PRE);
   } else if (isSobrevivente) {
     const stage = nex <= 0 ? 1 : Math.min(5, Math.max(1, Math.floor(nex / 5)));
     basePv = 8 + attrs.VIG;
@@ -289,6 +355,8 @@ export function calculateMaxStats(
     pePerLevel = 1;
     baseSan = 8;
     sanPerLevel = 2;
+    basePd = 4 + attrs.PRE;
+    pdPerLevel = 2;
   }
 
   const actualExtraAdvances = isSobrevivente && nex <= 0 ? 0 : extraAdvances;
@@ -296,6 +364,7 @@ export function calculateMaxStats(
   const pvFromNex = actualExtraAdvances * pvPerLevel;
   const peFromNex = actualExtraAdvances * pePerLevel;
   let sanFromNex = actualExtraAdvances * sanPerLevel;
+  const pdFromNex = actualExtraAdvances * pdPerLevel;
 
   // Desconto de Sanidade de avanços em que o agente Transcendeu
   if (options?.transcendedCount && options.transcendedCount > 0) {
@@ -505,10 +574,15 @@ export function calculateMaxStats(
   const totalPvBonuses = pvBonuses.reduce((acc, b) => acc + b.value, 0);
   const totalPeBonuses = peBonuses.reduce((acc, b) => acc + b.value, 0);
   const totalSanBonuses = sanBonuses.reduce((acc, b) => acc + b.value, 0);
+  // Sobrevivendo ao Horror p. 105: todos os efeitos relacionados a PE aplicam-se diretamente a PD
+  // (Vítima/Cicatrizes Psicológicas deixa de dar bônus numérico e passa a conceder +1d20 em Vontade contra medo)
+  const pdBonuses: VitalsModifierBreakdown[] = peBonuses.map((b) => ({ ...b }));
+  const totalPdBonuses = pdBonuses.reduce((acc, b) => acc + b.value, 0);
 
   const pvMax = Math.max(1, basePv + pvFromNex + totalPvBonuses);
   const peMax = Math.max(1, basePe + peFromNex + totalPeBonuses);
   const sanMax = Math.max(1, baseSan + sanFromNex + totalSanBonuses);
+  const pdMax = Math.max(1, basePd + pdFromNex + totalPdBonuses);
 
   let peRound = getPeRoundLimit(nex);
   if (hasUniversitario) {
@@ -521,6 +595,7 @@ export function calculateMaxStats(
     pvMax,
     peMax,
     sanMax,
+    pdMax,
     peRound,
     dtRituals,
     defense,
@@ -530,12 +605,15 @@ export function calculateMaxStats(
       basePv,
       basePe,
       baseSan,
+      basePd,
       pvFromNex,
       peFromNex,
       sanFromNex,
+      pdFromNex,
       pvBonuses,
       peBonuses,
       sanBonuses,
+      pdBonuses,
       skillBonusesList,
     },
   };
@@ -757,6 +835,7 @@ export function calculateCharacterVitals(
   const detected = detectVitalsModifiers(character, getEntityById);
   const mergedOptions: CharacterVitalsOptions = {
     ...detected,
+    useDeterminationPoints: Boolean(character.useDeterminationPoints),
     ...optionsOverride,
   };
 

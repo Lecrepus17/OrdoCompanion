@@ -366,18 +366,29 @@ export default function PrintSheetModal({
                         {character.pvCurrent ?? resolvedPrintData?.effectivePvMax ?? character.pvMax}/{resolvedPrintData?.effectivePvMax ?? character.pvMax}
                       </Text>
                     </View>
-                    <View style={[styles.sheetVitalBox, { borderColor: '#38BDF8' }]}>
-                      <Text style={[styles.sheetVitalLabel, { color: '#38BDF8' }]}>SANIDADE (SAN)</Text>
-                      <Text style={styles.sheetVitalValue}>
-                        {character.sanCurrent ?? resolvedPrintData?.effectiveSanMax ?? character.sanMax}/{resolvedPrintData?.effectiveSanMax ?? character.sanMax}
-                      </Text>
-                    </View>
-                    <View style={[styles.sheetVitalBox, { borderColor: '#A855F7' }]}>
-                      <Text style={[styles.sheetVitalLabel, { color: '#A855F7' }]}>ESFORÇO (PE)</Text>
-                      <Text style={styles.sheetVitalValue}>
-                        {character.peCurrent ?? resolvedPrintData?.effectivePeMax ?? character.peMax}/{resolvedPrintData?.effectivePeMax ?? character.peMax}
-                      </Text>
-                    </View>
+                    {character.useDeterminationPoints ? (
+                      <View style={[styles.sheetVitalBox, { borderColor: '#A855F7' }]}>
+                        <Text style={[styles.sheetVitalLabel, { color: '#A855F7' }]}>DETERMINAÇÃO (PD)</Text>
+                        <Text style={styles.sheetVitalValue}>
+                          {character.pdCurrent ?? resolvedPrintData?.effectivePdMax ?? character.pdMax ?? 0}/{resolvedPrintData?.effectivePdMax ?? character.pdMax ?? 1}
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={[styles.sheetVitalBox, { borderColor: '#38BDF8' }]}>
+                          <Text style={[styles.sheetVitalLabel, { color: '#38BDF8' }]}>SANIDADE (SAN)</Text>
+                          <Text style={styles.sheetVitalValue}>
+                            {character.sanCurrent ?? resolvedPrintData?.effectiveSanMax ?? character.sanMax}/{resolvedPrintData?.effectiveSanMax ?? character.sanMax}
+                          </Text>
+                        </View>
+                        <View style={[styles.sheetVitalBox, { borderColor: '#A855F7' }]}>
+                          <Text style={[styles.sheetVitalLabel, { color: '#A855F7' }]}>ESFORÇO (PE)</Text>
+                          <Text style={styles.sheetVitalValue}>
+                            {character.peCurrent ?? resolvedPrintData?.effectivePeMax ?? character.peMax}/{resolvedPrintData?.effectivePeMax ?? character.peMax}
+                          </Text>
+                        </View>
+                      </>
+                    )}
                     <View style={[styles.sheetVitalBox, { borderColor: '#10B981' }]}>
                       <Text style={[styles.sheetVitalLabel, { color: '#10B981' }]}>DEFESA</Text>
                       <Text style={styles.sheetVitalValue}>

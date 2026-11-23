@@ -1016,8 +1016,14 @@ export const RecordPreviewModal: React.FC<RecordPreviewModalProps> = ({
                       <Text style={styles.sectionTitle}>Status Vitais & Atributos</Text>
                       <View style={styles.gridStats}>
                         <PreviewStat label="PV" value={`${c.pvCurrent} / ${c.pvMax}`} highlight />
-                        <PreviewStat label="PE" value={`${c.peCurrent} / ${c.peMax}`} highlight />
-                        <PreviewStat label="SAN" value={`${c.sanCurrent} / ${c.sanMax}`} highlight />
+                        {c.useDeterminationPoints ? (
+                          <PreviewStat label="PD" value={`${c.pdCurrent ?? 0} / ${c.pdMax ?? 1}`} highlight />
+                        ) : (
+                          <>
+                            <PreviewStat label="PE" value={`${c.peCurrent} / ${c.peMax}`} highlight />
+                            <PreviewStat label="SAN" value={`${c.sanCurrent} / ${c.sanMax}`} highlight />
+                          </>
+                        )}
                         <PreviewStat label="Defesa" value={String(totalDef)} />
                         <PreviewStat label="Origem" value={orig?.name || c.originId || '—'} />
                         <PreviewStat

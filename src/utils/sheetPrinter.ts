@@ -244,6 +244,7 @@ export interface ResolvedSheetPrintData {
   effectivePvMax: number;
   effectivePeMax: number;
   effectiveSanMax: number;
+  effectivePdMax: number;
   effectiveDefenseEquip: number;
   effectiveDefenseOther: number;
   totalDef: number;
@@ -352,6 +353,15 @@ export function resolveSheetPrintSkillsAndStats(
     (char.sanMax || 0) +
       ((char.sanMax || 0) === baseClassSan ? sanPowersTotal : 0) +
       invSummary.totalSanBonusFromItems
+  );
+  const baseClassPd = vitalsBase.breakdown.basePd + vitalsBase.breakdown.pdFromNex;
+  const pdPowersTotal = vitalsBase.breakdown.pdBonuses.reduce((acc, b) => acc + b.value, 0);
+  const rawPdMax = char.pdMax ?? vitalsBase.pdMax;
+  const effectivePdMax = Math.max(
+    1,
+    rawPdMax +
+      (rawPdMax === baseClassPd ? pdPowersTotal : 0) +
+      invSummary.totalPeBonusFromItems
   );
 
   const protInventoryItems = (char.inventory || []).filter((it) => {
@@ -487,6 +497,7 @@ export function resolveSheetPrintSkillsAndStats(
     effectivePvMax,
     effectivePeMax,
     effectiveSanMax,
+    effectivePdMax,
     effectiveDefenseEquip,
     effectiveDefenseOther,
     totalDef,
@@ -549,6 +560,7 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
     effectivePvMax,
     effectivePeMax,
     effectiveSanMax,
+    effectivePdMax,
     effectiveProtectionText,
     effectiveResistancesText,
     effectiveDisplacement,
@@ -647,11 +659,11 @@ export function generateSheetHtml(options: GenerateSheetOptions): string {
           <!-- Status Vitais Sobrevivendo ao Horror (Totais/Máximos preenchidos nos quadrados, Atuais vazios para anotação a lápis) -->
           <!-- Linha 1: PV e PD -->
           <div class="stat-box" style="left: 12.5%; top: 52.5%; width: 7.4%; height: 4.4%; color: #dc2626;">${effectivePvMax}</div>
-          <div class="stat-box" style="left: 35.4%; top: 52.5%; width: 6.9%; height: 4.4%; color: #9333ea;">${effectivePeMax}</div>
+          <div class="stat-box" style="left: 35.4%; top: 52.5%; width: 6.9%; height: 4.4%; color: #9333ea;">${char.useDeterminationPoints ? effectivePdMax : ''}</div>
 
           <!-- Linha 2: PE e SAN -->
-          <div class="stat-box" style="left: 12.5%; top: 60.5%; width: 7.3%; height: 4.4%; color: #d97706;">${effectivePeMax}</div>
-          <div class="stat-box" style="left: 37.8%; top: 60.5%; width: 7.1%; height: 4.4%; color: #0284c7;">${effectiveSanMax}</div>
+          <div class="stat-box" style="left: 12.5%; top: 60.5%; width: 7.3%; height: 4.4%; color: #d97706;">${char.useDeterminationPoints ? '' : effectivePeMax}</div>
+          <div class="stat-box" style="left: 37.8%; top: 60.5%; width: 7.1%; height: 4.4%; color: #0284c7;">${char.useDeterminationPoints ? '' : effectiveSanMax}</div>
 
           <!-- Defesa (no escudo) e Decomposição (alinhado com as linhas) -->
           <div class="field center" style="left: 12.5%; top: 68.5%; width: 7.2%; height: 4.8%; font-weight: bold; font-size: 19px;">

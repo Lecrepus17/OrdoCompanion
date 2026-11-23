@@ -1043,8 +1043,11 @@ export function resolveAgentAttackDamage(options: {
   }
 
   const peRound = character.peRound || getPeRoundLimit(character.nex ?? 5);
+  const currentEffort = character.useDeterminationPoints
+    ? (character.pdCurrent ?? 0) + (character.pdTemp ?? 0)
+    : (character.peCurrent ?? 0) + (character.peTemp ?? 0);
   const peCostExceedsLimit = totalPeCost > peRound;
-  const peCostExceedsCurrent = totalPeCost > (character.peCurrent ?? 0);
+  const peCostExceedsCurrent = totalPeCost > currentEffort;
 
   return {
     displayDamage,
@@ -1157,8 +1160,11 @@ export function resolveAgentRitualDamage(options: {
     ? extractRitualDiceFormula(ritual, 'padrao').peCost
     : extractedPeCost;
   const totalPeCost = peCost + (toggles.parareligiosidadeActive ? 2 : 0);
+  const currentEffort = character.useDeterminationPoints
+    ? (character.pdCurrent ?? 0) + (character.pdTemp ?? 0)
+    : (character.peCurrent ?? 0) + (character.peTemp ?? 0);
   const peCostExceedsLimit = totalPeCost > peRound;
-  const peCostExceedsCurrent = totalPeCost > (character.peCurrent ?? 0);
+  const peCostExceedsCurrent = totalPeCost > currentEffort;
 
   if (!baseFormula) {
     return {

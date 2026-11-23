@@ -5,6 +5,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -88,6 +89,7 @@ export default function CreateAgentModal({
   });
 
   // Etapa 4: Atributos
+  const [useDeterminationPoints, setUseDeterminationPoints] = useState(false);
   const [freeMode, setFreeMode] = useState(false);
   const [attrs, setAttrs] = useState<CharacterAttributes>({
     AGI: 1,
@@ -163,6 +165,7 @@ export default function CreateAgentModal({
       setStep(1);
       setName('Novo Agente');
       setPlayer(userProfile?.playerName || '');
+      setUseDeterminationPoints(false);
       setOriginSearch('');
       setSelectedOriginId(originsList[0]?.id || '');
       if (userProfile?.preferredClass) {
@@ -461,6 +464,7 @@ export default function CreateAgentModal({
       attrs,
       {
         origin: selectedOrigin?.name || selectedOrigin?.id,
+        useDeterminationPoints,
       }
     );
 
@@ -468,12 +472,13 @@ export default function CreateAgentModal({
       pv: calc.pvMax,
       pe: calc.peMax,
       san: calc.sanMax,
+      pd: calc.pdMax,
       peRound: calc.peRound,
       dtRitual: calc.dtRituals,
       defense: calc.defense,
       skillBonuses: calc.skillBonuses,
     };
-  }, [selectedClass, attrs, selectedOrigin]);
+  }, [selectedClass, attrs, selectedOrigin, useDeterminationPoints]);
 
   // Atualizar atributo
   const handleAttrChange = (key: keyof CharacterAttributes, delta: number) => {
@@ -802,6 +807,9 @@ export default function CreateAgentModal({
       peMax: stats.pe,
       sanCurrent: stats.san,
       sanMax: stats.san,
+      useDeterminationPoints,
+      pdCurrent: stats.pd,
+      pdMax: stats.pd,
       defenseBonus: 0,
       defenseEquip: 0,
       defenseOther: 0,
@@ -901,6 +909,41 @@ export default function CreateAgentModal({
                 placeholder="Ex: Seu Nome"
                 placeholderTextColor={colors.textMuted}
               />
+
+              {/* Regra Opcional: Pontos de Determinação (Sobrevivendo ao Horror p. 105) */}
+              <View
+                style={{
+                  marginTop: 14,
+                  padding: 12,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: useDeterminationPoints ? '#A855F7' : colors.border,
+                  backgroundColor: useDeterminationPoints ? 'rgba(168, 85, 247, 0.08)' : colors.surface,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="shield-half-outline" size={16} color="#A855F7" />
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                      Pontos de Determinação (PD)
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 3, lineHeight: 15 }}>
+                    Regra opcional de Sobrevivendo ao Horror (p. 105): unifica PE e Sanidade em uma única barra de PD (PV continua separado).
+                  </Text>
+                </View>
+                <Switch
+                  value={useDeterminationPoints}
+                  onValueChange={setUseDeterminationPoints}
+                  trackColor={{ false: colors.border, true: '#A855F7' }}
+                  thumbColor={useDeterminationPoints ? '#FFF' : colors.textSecondary}
+                  testID="switch-create-agent-pd"
+                />
+              </View>
             </View>
           )}
 
@@ -1109,30 +1152,47 @@ export default function CreateAgentModal({
                               : '16 + Vig'}
                           </Text>
                         </View>
-                        <View style={[styles.statBadge, { borderColor: '#F59E0B' }]}>
-                          <Text style={[styles.statBadgeLabel, { color: '#F59E0B' }]}>PE Inicial</Text>
-                          <Text style={styles.statBadgeVal}>
-                            {cname.includes('combatente')
-                              ? '2 + Pre'
-                              : cname.includes('ocultista')
-                              ? '4 + Pre'
-                              : cname.includes('sobrevivente')
-                              ? '2 + Pre'
-                              : '3 + Pre'}
-                          </Text>
-                        </View>
-                        <View style={[styles.statBadge, { borderColor: '#38BDF8' }]}>
-                          <Text style={[styles.statBadgeLabel, { color: '#38BDF8' }]}>SAN Inicial</Text>
-                          <Text style={styles.statBadgeVal}>
-                            {cname.includes('combatente')
-                              ? '12'
-                              : cname.includes('ocultista')
-                              ? '20'
-                              : cname.includes('sobrevivente')
-                              ? '8'
-                              : '16'}
-                          </Text>
-                        </View>
+                        {useDeterminationPoints ? (
+                          <View style={[styles.statBadge, { borderColor: '#A855F7' }]}>
+                            <Text style={[styles.statBadgeLabel, { color: '#A855F7' }]}>PD Inicial</Text>
+                            <Text style={styles.statBadgeVal}>
+                              {cname.includes('combatente')
+                                ? '6 + Pre'
+                                : cname.includes('ocultista')
+                                ? '10 + Pre'
+                                : cname.includes('sobrevivente')
+                                ? '4 + Pre'
+                                : '8 + Pre'}
+                            </Text>
+                          </View>
+                        ) : (
+                          <>
+                            <View style={[styles.statBadge, { borderColor: '#F59E0B' }]}>
+                              <Text style={[styles.statBadgeLabel, { color: '#F59E0B' }]}>PE Inicial</Text>
+                              <Text style={styles.statBadgeVal}>
+                                {cname.includes('combatente')
+                                  ? '2 + Pre'
+                                  : cname.includes('ocultista')
+                                  ? '4 + Pre'
+                                  : cname.includes('sobrevivente')
+                                  ? '2 + Pre'
+                                  : '3 + Pre'}
+                              </Text>
+                            </View>
+                            <View style={[styles.statBadge, { borderColor: '#38BDF8' }]}>
+                              <Text style={[styles.statBadgeLabel, { color: '#38BDF8' }]}>SAN Inicial</Text>
+                              <Text style={styles.statBadgeVal}>
+                                {cname.includes('combatente')
+                                  ? '12'
+                                  : cname.includes('ocultista')
+                                  ? '20'
+                                  : cname.includes('sobrevivente')
+                                  ? '8'
+                                  : '16'}
+                              </Text>
+                            </View>
+                          </>
+                        )}
                       </View>
 
                       {!!cls.trainedSkills && (
@@ -1264,8 +1324,14 @@ export default function CreateAgentModal({
                 <Text style={styles.vitalsTitle}>Status Vitais Calculados:</Text>
                 <View style={styles.vitalsRow}>
                   <Text style={{ color: '#EF4444', fontWeight: '700' }}>PV: {stats.pv}</Text>
-                  <Text style={{ color: '#F59E0B', fontWeight: '700' }}>PE: {stats.pe}</Text>
-                  <Text style={{ color: '#38BDF8', fontWeight: '700' }}>SAN: {stats.san}</Text>
+                  {useDeterminationPoints ? (
+                    <Text style={{ color: '#A855F7', fontWeight: '700' }}>PD: {stats.pd}</Text>
+                  ) : (
+                    <>
+                      <Text style={{ color: '#F59E0B', fontWeight: '700' }}>PE: {stats.pe}</Text>
+                      <Text style={{ color: '#38BDF8', fontWeight: '700' }}>SAN: {stats.san}</Text>
+                    </>
+                  )}
                   <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>Defesa: {stats.defense}</Text>
                 </View>
               </View>
@@ -1904,13 +1970,19 @@ export default function CreateAgentModal({
                 </Text>
                 <View style={[styles.vitalsRow, { marginTop: 8 }]}>
                   <Text style={{ color: '#EF4444', fontWeight: '700' }}>PV: {stats.pv}</Text>
-                  <Text style={{ color: '#F59E0B', fontWeight: '700' }}>PE: {stats.pe}</Text>
-                  <Text style={{ color: '#38BDF8', fontWeight: '700' }}>SAN: {stats.san}</Text>
+                  {useDeterminationPoints ? (
+                    <Text style={{ color: '#A855F7', fontWeight: '700' }}>PD: {stats.pd}</Text>
+                  ) : (
+                    <>
+                      <Text style={{ color: '#F59E0B', fontWeight: '700' }}>PE: {stats.pe}</Text>
+                      <Text style={{ color: '#38BDF8', fontWeight: '700' }}>SAN: {stats.san}</Text>
+                    </>
+                  )}
                   <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>
                     Defesa: {stats.defense}
                   </Text>
                   <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>
-                    PE/Rod: {isSobrevivente ? 1 : stats.peRound}
+                    {useDeterminationPoints ? 'PD/Rod' : 'PE/Rod'}: {isSobrevivente ? 1 : stats.peRound}
                   </Text>
                   <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>
                     DT: {stats.dtRitual}

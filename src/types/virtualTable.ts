@@ -16,6 +16,9 @@ export interface TableAgentSnapshot {
   peMax: number;
   sanCurrent: number;
   sanMax: number;
+  useDeterminationPoints?: boolean;
+  pdCurrent?: number;
+  pdMax?: number;
   defense: number;
   conditions: string[]; // ex: "Sangrando", "Inconsciente", "Abalado", "Perturbado"
   displacement?: string;
@@ -136,7 +139,15 @@ export function snapshotFromSheet(sheet: CharacterSheet): TableAgentSnapshot {
   } else if (sheet.pvCurrent < sheet.pvMax / 2) {
     conditions.push('Machucado');
   }
-  if (sheet.sanCurrent <= 0) {
+  if (sheet.useDeterminationPoints) {
+    const pdCur = sheet.pdCurrent ?? 0;
+    const pdMax = sheet.pdMax ?? 1;
+    if (pdCur <= 0) {
+      conditions.push('Sem Determinação');
+    } else if (pdCur < pdMax / 2) {
+      conditions.push('Determinação Baixa');
+    }
+  } else if (sheet.sanCurrent <= 0) {
     conditions.push('Enlouquecendo');
   }
 
@@ -153,6 +164,9 @@ export function snapshotFromSheet(sheet: CharacterSheet): TableAgentSnapshot {
     peMax: sheet.peMax,
     sanCurrent: sheet.sanCurrent,
     sanMax: sheet.sanMax,
+    useDeterminationPoints: Boolean(sheet.useDeterminationPoints),
+    pdCurrent: sheet.pdCurrent,
+    pdMax: sheet.pdMax,
     defense: 10 + (sheet.attributes?.AGI || 0) + (sheet.defenseBonus || 0),
     conditions,
     displacement: sheet.displacement || '9m',

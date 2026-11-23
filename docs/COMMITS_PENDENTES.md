@@ -6,11 +6,15 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## ⏳ Fila de Commits Pendentes
 
-*(Nenhum commit pendente nesta fila — todos os commits do ciclo `v1.7.0-beta.2` foram executados.)*
+*(Nenhum commit pendente nesta fila — todos os commits recentes foram executados.)*
 
 ---
 
 ## 📜 Histórico de Commits Recentes
+
+### ✅ Modo Opcional de Pontos de Determinação (PD — *Sobrevivendo ao Horror*, `SOL-MEL-001`) (2026-11-23):
+- **Título**: `feat(rules,characters): adiciona modo opcional de Pontos de Determinacao (PD) de Sobrevivendo ao Horror`
+- **Resumo**: Adiciona campos opcionais `useDeterminationPoints`/`pdCurrent`/`pdMax`/`pdTemp`, fórmulas canônicas (SH p. 105–106) em `progression.ts`, fluxo completo em `CreateAgentModal`, `LevelUpModal`, `AttackPreparationModal`, `characters.tsx`, `master.tsx`, `table.tsx`, `tableSessionExportService.ts`, `sheetPrinter.ts` (SH), `PrintSheetModal`, `RecordPreviewModal`, `agentSharing.ts` e `AiKnowledgeRetrieval.ts`, com cobertura em `tests/determinationPoints.test.ts`.
 
 ### ✅ 1. Preparação da Release v1.7.0-beta.2 (versionCode 14):
 ```bash

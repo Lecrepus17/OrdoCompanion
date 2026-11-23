@@ -99,7 +99,10 @@ export const AttackPreparationModal: React.FC<AttackPreparationModalProps> = ({
   }
 
   const peRound = character.peRound || getPeRoundLimit(character.nex ?? 5);
-  const peCurrent = character.peCurrent ?? 0;
+  const effortLabel = character.useDeterminationPoints ? 'PD' : 'PE';
+  const peCurrent = character.useDeterminationPoints
+    ? (character.pdCurrent ?? 0) + (character.pdTemp ?? 0)
+    : (character.peCurrent ?? 0) + (character.peTemp ?? 0);
   const peBlocked =
     resolved.totalPeCost > 0 && (resolved.peCostExceedsLimit || resolved.peCostExceedsCurrent);
 
@@ -482,10 +485,10 @@ export const AttackPreparationModal: React.FC<AttackPreparationModalProps> = ({
               <Text style={styles.sectionHeader}>3. PROJEÇÃO EM TEMPO REAL</Text>
               <View style={styles.peSummaryRow}>
                 <Text style={styles.peSummaryText}>
-                  Custo de PE: <Text style={styles.peHighlight}>{resolved.totalPeCost} PE</Text>
+                  Custo de {effortLabel}: <Text style={styles.peHighlight}>{resolved.totalPeCost} {effortLabel}</Text>
                 </Text>
                 <Text style={styles.peSummaryText}>
-                  Limite/Turno: {peRound} PE • Atual: {peCurrent} PE
+                  Limite/Turno: {peRound} {effortLabel} • Atual: {peCurrent} {effortLabel}
                 </Text>
               </View>
 
@@ -502,7 +505,7 @@ export const AttackPreparationModal: React.FC<AttackPreparationModalProps> = ({
                 <View style={styles.warningBanner}>
                   <Ionicons name="alert-circle" size={15} color="#F59E0B" />
                   <Text style={styles.warningText} testID="prep-pe-current-warning">
-                    PE Insuficiente (atual: {peCurrent})
+                    {effortLabel} Insuficiente (atual: {peCurrent})
                   </Text>
                 </View>
               )}

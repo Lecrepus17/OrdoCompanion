@@ -563,6 +563,9 @@ export default function CharactersScreen() {
       peMax: stats.peMax,
       sanCurrent: stats.sanMax,
       sanMax: stats.sanMax,
+      useDeterminationPoints: false,
+      pdCurrent: stats.pdMax,
+      pdMax: stats.pdMax,
       defenseBonus: 0,
       defenseEquip: 0,
       defenseOther: 0,
@@ -626,9 +629,43 @@ export default function CharactersScreen() {
       peCurrent: calc.peMax + maskPe,
       sanMax: calc.sanMax,
       sanCurrent: calc.sanMax,
+      pdMax: calc.pdMax + maskPe,
+      pdCurrent: calc.pdMax + maskPe,
       peRound: calc.peRound,
       dtRituals: calc.dtRituals,
       skills: updatedSkills,
+    });
+  };
+
+  const handleToggleDeterminationMode = () => {
+    if (!activeChar) return;
+    const nextUsePd = !activeChar.useDeterminationPoints;
+    const calc = calculateCharacterVitals(
+      { ...activeChar, useDeterminationPoints: nextUsePd },
+      getEntityById
+    );
+    const hasActiveMask = Boolean(activeChar.maskConfig?.enabled && activeChar.maskConfig?.isActive);
+    const maskBonus = hasActiveMask ? 10 : 0;
+    const targetPdMax = calc.pdMax + maskBonus;
+
+    confirmAction({
+      title: nextUsePd ? 'Ativar Pontos de Determinação (PD)?' : 'Voltar para PE e Sanidade?',
+      message: nextUsePd
+        ? `Regra opcional de Sobrevivendo ao Horror (p. 105): unifica PE e Sanidade em PD (Máx calculado: ${targetPdMax} PD). PV permanece separado.`
+        : `Restaura as barras separadas de PE (${activeChar.peCurrent}/${activeChar.peMax}) e Sanidade (${activeChar.sanCurrent}/${activeChar.sanMax}).`,
+      confirmText: nextUsePd ? 'Ativar Modo PD' : 'Voltar ao Padrão',
+      cancelText: 'Cancelar',
+      onConfirm: () => {
+        if (nextUsePd) {
+          updateActiveChar({
+            useDeterminationPoints: true,
+            pdMax: targetPdMax,
+            pdCurrent: activeChar.pdCurrent !== undefined ? Math.min(targetPdMax, activeChar.pdCurrent) : targetPdMax,
+          });
+        } else {
+          updateActiveChar({ useDeterminationPoints: false });
+        }
+      },
     });
   };
 
@@ -897,8 +934,8 @@ export default function CharactersScreen() {
     setPrepModalAttack(null);
 
     if (resolved.totalPeCost > 0) {
-      const nextPe = Math.max(0, (activeChar.peCurrent || 0) - resolved.totalPeCost);
-      await updateActiveChar({ peCurrent: nextPe });
+      const spendPatch = spendPeWithTempFirst(resolved.totalPeCost);
+      await updateActiveChar(spendPatch);
     }
 
     if (mode === 'attack') {
@@ -940,9 +977,13 @@ export default function CharactersScreen() {
     if (!activeChar) return;
     const match = costText.match(/(\d+)/);
     const peCost = match ? parseInt(match[1], 10) : 1;
-    const nextPE = Math.max(0, activeChar.peCurrent - peCost);
-    await updateActiveChar({ peCurrent: nextPE });
-    showAlert('PE Gasto', `-${peCost} PE usado em "${abilityName}". PE restante: ${nextPE}/${activeChar.peMax}`);
+    const isPd = Boolean(activeChar.useDeterminationPoints);
+    const label = isPd ? 'PD' : 'PE';
+    const spendPatch = spendPeWithTempFirst(peCost);
+    await updateActiveChar(spendPatch);
+    const remaining = isPd ? (spendPatch.pdCurrent ?? 0) : (spendPatch.peCurrent ?? 0);
+    const maxVal = isPd ? (activeChar.pdMax ?? 1) : activeChar.peMax;
+    showAlert(`${label} Gasto`, `-${peCost} ${label} usado em "${abilityName}". ${label} restante: ${remaining}/${maxVal}`);
   };
 
   // Inventory actions
@@ -1111,9 +1152,20 @@ export default function CharactersScreen() {
     await updateActiveChar({ inventory: nextInv });
   };
 
-  const spendPeWithTempFirst = (peCost: number) => {
+  const spendPeWithTempFirst = (peCost: number): Partial<CharacterSheet> => {
     if (!activeChar || peCost <= 0) {
-      return { peCurrent: activeChar?.peCurrent || 0, peTemp: activeChar?.peTemp || 0 };
+      return activeChar?.useDeterminationPoints
+        ? { pdCurrent: activeChar?.pdCurrent || 0, pdTemp: activeChar?.pdTemp || 0 }
+        : { peCurrent: activeChar?.peCurrent || 0, peTemp: activeChar?.peTemp || 0 };
+    }
+    if (activeChar.useDeterminationPoints) {
+      const curTemp = activeChar.pdTemp || 0;
+      const fromTemp = Math.min(curTemp, peCost);
+      const remCost = peCost - fromTemp;
+      return {
+        pdTemp: curTemp - fromTemp,
+        pdCurrent: Math.max(0, (activeChar.pdCurrent || 0) - remCost),
+      };
     }
     const curTemp = activeChar.peTemp || 0;
     const fromTemp = Math.min(curTemp, peCost);
@@ -1135,10 +1187,14 @@ export default function CharactersScreen() {
       return;
     }
 
+    const isPd = Boolean(activeChar.useDeterminationPoints);
+    const effortLabel = isPd ? 'PD' : 'PE';
     const peCost = mechanic.peCost || 0;
-    const totalAvailablePe = (activeChar.peCurrent || 0) + (activeChar.peTemp || 0);
+    const totalAvailablePe = isPd
+      ? (activeChar.pdCurrent || 0) + (activeChar.pdTemp || 0)
+      : (activeChar.peCurrent || 0) + (activeChar.peTemp || 0);
     if (peCost > 0 && totalAvailablePe < peCost) {
-      showAlert('PE Insuficiente', `São necessários ${peCost} PE para ativar "${item.name}".`);
+      showAlert(`${effortLabel} Insuficiente`, `São necessários ${peCost} ${effortLabel} para ativar "${item.name}".`);
       return;
     }
 
@@ -1167,27 +1223,43 @@ export default function CharactersScreen() {
 
     const patch: Partial<CharacterSheet> = {};
     if (peCost > 0) {
-      const peSpend = spendPeWithTempFirst(peCost);
-      patch.peCurrent = peSpend.peCurrent;
-      patch.peTemp = peSpend.peTemp;
+      Object.assign(patch, spendPeWithTempFirst(peCost));
     }
 
     if (targetMode === 'self' && rolledTotal > 0) {
       const basePeAfterCost = patch.peCurrent ?? activeChar.peCurrent;
+      const basePdAfterCost = patch.pdCurrent ?? (activeChar.pdCurrent || 0);
+      const pdMaxVal = activeChar.pdMax || 1;
       if (mechanic.type === 'heal_pv') {
         patch.pvCurrent = Math.min(activeChar.pvMax, activeChar.pvCurrent + rolledTotal);
       } else if (mechanic.type === 'heal_pe') {
-        patch.peCurrent = Math.min(activeChar.peMax, basePeAfterCost + rolledTotal);
+        if (isPd) {
+          patch.pdCurrent = Math.min(pdMaxVal, basePdAfterCost + rolledTotal);
+        } else {
+          patch.peCurrent = Math.min(activeChar.peMax, basePeAfterCost + rolledTotal);
+        }
       } else if (mechanic.type === 'heal_san') {
-        patch.sanCurrent = Math.min(activeChar.sanMax, activeChar.sanCurrent + rolledTotal);
+        if (isPd) {
+          patch.pdCurrent = Math.min(pdMaxVal, basePdAfterCost + rolledTotal);
+        } else {
+          patch.sanCurrent = Math.min(activeChar.sanMax, activeChar.sanCurrent + rolledTotal);
+        }
       } else if (mechanic.type === 'heal_all') {
         patch.pvCurrent = Math.min(activeChar.pvMax, activeChar.pvCurrent + rolledTotal);
-        patch.peCurrent = Math.min(activeChar.peMax, basePeAfterCost + rolledTotal);
-        patch.sanCurrent = Math.min(activeChar.sanMax, activeChar.sanCurrent + rolledTotal);
+        if (isPd) {
+          patch.pdCurrent = Math.min(pdMaxVal, basePdAfterCost + rolledTotal);
+        } else {
+          patch.peCurrent = Math.min(activeChar.peMax, basePeAfterCost + rolledTotal);
+          patch.sanCurrent = Math.min(activeChar.sanMax, activeChar.sanCurrent + rolledTotal);
+        }
       } else if (mechanic.type === 'temp_pv') {
         patch.pvTemp = (activeChar.pvTemp || 0) + rolledTotal;
       } else if (mechanic.type === 'temp_pe') {
-        patch.peTemp = (patch.peTemp ?? activeChar.peTemp ?? 0) + rolledTotal;
+        if (isPd) {
+          patch.pdTemp = (patch.pdTemp ?? activeChar.pdTemp ?? 0) + rolledTotal;
+        } else {
+          patch.peTemp = (patch.peTemp ?? activeChar.peTemp ?? 0) + rolledTotal;
+        }
       }
     }
 
@@ -1301,11 +1373,18 @@ export default function CharactersScreen() {
     const nextEnabled = !prev?.enabled;
     if (!nextEnabled && prev?.isActive) {
       const nextDefenseOther = (activeChar.defenseOther || 0) - 10;
+      const isPd = Boolean(activeChar.useDeterminationPoints);
       await updateActiveChar({
         pvMax: Math.max(1, (activeChar.pvMax || 20) - 20),
         pvCurrent: Math.max(0, (activeChar.pvCurrent || 0) - 20),
         peMax: Math.max(1, (activeChar.peMax || 10) - 10),
         peCurrent: Math.max(0, (activeChar.peCurrent || 0) - 10),
+        ...(isPd
+          ? {
+              pdMax: Math.max(1, (activeChar.pdMax || 10) - 10),
+              pdCurrent: Math.max(0, (activeChar.pdCurrent || 0) - 10),
+            }
+          : {}),
         defenseOther: nextDefenseOther,
         defenseBonus: (activeChar.defenseEquip || 0) + nextDefenseOther,
         maskConfig: buildFullMaskConfig(prev, {
@@ -1340,14 +1419,23 @@ export default function CharactersScreen() {
   const handleActivateSupremeMask = async () => {
     if (!activeChar) return;
     if (activeChar.maskConfig?.isActive) return;
+    const isPd = Boolean(activeChar.useDeterminationPoints);
     const nextSan = Math.max(0, (activeChar.sanCurrent || 0) - 6);
+    const nextPdAfterCost = Math.max(0, (activeChar.pdCurrent || 0) - 6);
     const nextDefenseOther = (activeChar.defenseOther || 0) + 10;
     await updateActiveChar({
-      sanCurrent: nextSan,
+      ...(isPd
+        ? {
+            pdMax: (activeChar.pdMax || 0) + 10,
+            pdCurrent: nextPdAfterCost + 10,
+          }
+        : {
+            sanCurrent: nextSan,
+            peMax: (activeChar.peMax || 0) + 10,
+            peCurrent: (activeChar.peCurrent || 0) + 10,
+          }),
       pvMax: (activeChar.pvMax || 0) + 20,
       pvCurrent: (activeChar.pvCurrent || 0) + 20,
-      peMax: (activeChar.peMax || 0) + 10,
-      peCurrent: (activeChar.peCurrent || 0) + 10,
       defenseOther: nextDefenseOther,
       defenseBonus: (activeChar.defenseEquip || 0) + nextDefenseOther,
       maskConfig: buildFullMaskConfig(activeChar.maskConfig, {
@@ -1356,13 +1444,27 @@ export default function CharactersScreen() {
         activeRounds: 1,
       }),
     });
-    if (nextSan === 0) {
+    if (!isPd && nextSan === 0) {
       showAlert('Sanidade Zerada!', 'Ativar a Forma Suprema (-6 SAN) reduziu a Sanidade para 0.');
     }
   };
 
   const handleMaskRoundUpkeep = async () => {
     if (!activeChar || !activeChar.maskConfig?.isActive) return;
+    const isPd = Boolean(activeChar.useDeterminationPoints);
+    if (isPd) {
+      const nextPd = Math.max(0, (activeChar.pdCurrent || 0) - 2);
+      await updateActiveChar({
+        pdCurrent: nextPd,
+        maskConfig: buildFullMaskConfig(activeChar.maskConfig, {
+          activeRounds: (activeChar.maskConfig.activeRounds || 0) + 1,
+        }),
+      });
+      if (nextPd === 0) {
+        showAlert('Determinação Zerada!', 'O custo de -2 PD por rodada da Máscara reduziu seus PD para 0.');
+      }
+      return;
+    }
     const nextSan = Math.max(0, (activeChar.sanCurrent || 0) - 2);
     await updateActiveChar({
       sanCurrent: nextSan,
@@ -1377,14 +1479,22 @@ export default function CharactersScreen() {
 
   const handleDeactivateSupremeMask = async () => {
     if (!activeChar || !activeChar.maskConfig?.isActive) return;
+    const isPd = Boolean(activeChar.useDeterminationPoints);
     const nextPvCurrentRaw = (activeChar.pvCurrent || 0) - 20;
     const nextPvCurrent = Math.max(0, nextPvCurrentRaw);
     const nextDefenseOther = (activeChar.defenseOther || 0) - 10;
     await updateActiveChar({
       pvMax: Math.max(1, (activeChar.pvMax || 20) - 20),
       pvCurrent: nextPvCurrent,
-      peMax: Math.max(1, (activeChar.peMax || 10) - 10),
-      peCurrent: Math.max(0, (activeChar.peCurrent || 0) - 10),
+      ...(isPd
+        ? {
+            pdMax: Math.max(1, (activeChar.pdMax || 10) - 10),
+            pdCurrent: Math.max(0, (activeChar.pdCurrent || 0) - 10),
+          }
+        : {
+            peMax: Math.max(1, (activeChar.peMax || 10) - 10),
+            peCurrent: Math.max(0, (activeChar.peCurrent || 0) - 10),
+          }),
       defenseOther: nextDefenseOther,
       defenseBonus: (activeChar.defenseEquip || 0) + nextDefenseOther,
       maskConfig: buildFullMaskConfig(activeChar.maskConfig, {
@@ -1667,16 +1777,26 @@ export default function CharactersScreen() {
                         PV: {char.pvCurrent}/{char.pvMax}
                       </Text>
                     </View>
-                    <View style={[styles.barPill, { borderColor: '#F59E0B' }]}>
-                      <Text style={styles.barPillText}>
-                        PE: {char.peCurrent}/{char.peMax}
-                      </Text>
-                    </View>
-                    <View style={[styles.barPill, { borderColor: '#38BDF8' }]}>
-                      <Text style={styles.barPillText}>
-                        SAN: {char.sanCurrent}/{char.sanMax}
-                      </Text>
-                    </View>
+                    {char.useDeterminationPoints ? (
+                      <View style={[styles.barPill, { borderColor: '#A855F7' }]}>
+                        <Text style={styles.barPillText}>
+                          PD: {char.pdCurrent ?? 0}/{char.pdMax ?? 1}
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={[styles.barPill, { borderColor: '#F59E0B' }]}>
+                          <Text style={styles.barPillText}>
+                            PE: {char.peCurrent}/{char.peMax}
+                          </Text>
+                        </View>
+                        <View style={[styles.barPill, { borderColor: '#38BDF8' }]}>
+                          <Text style={styles.barPillText}>
+                            SAN: {char.sanCurrent}/{char.sanMax}
+                          </Text>
+                        </View>
+                      </>
+                    )}
                     <View style={[styles.barPill, { borderColor: '#10B981' }]}>
                       <Text style={styles.barPillText}>DEF: {def}</Text>
                     </View>
@@ -2240,13 +2360,44 @@ export default function CharactersScreen() {
               </View>
             </View>
 
-            {/* Status Vital: PV, PE, SAN */}
+            {/* Status Vital: PV, PE, SAN (ou PV & PD no modo Sobrevivendo ao Horror) */}
             <View style={styles.sectionCard}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <Text style={styles.sectionTitle}>Status Vital (PV, PE & Sanidade)</Text>
-                <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                  Toque em "Editar Máx" para alterar máximos
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
+                <Text style={styles.sectionTitle}>
+                  {activeChar.useDeterminationPoints ? 'Status Vital (PV & PD)' : 'Status Vital (PV, PE & Sanidade)'}
                 </Text>
+                <TouchableOpacity
+                  onPress={handleToggleDeterminationMode}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    borderColor: activeChar.useDeterminationPoints ? '#A855F7' : colors.border,
+                    backgroundColor: activeChar.useDeterminationPoints
+                      ? 'rgba(168, 85, 247, 0.14)'
+                      : colors.surface,
+                  }}
+                  testID="btn-toggle-pd-mode"
+                >
+                  <Ionicons
+                    name="shield-half-outline"
+                    size={12}
+                    color={activeChar.useDeterminationPoints ? '#A855F7' : colors.textSecondary}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '700',
+                      color: activeChar.useDeterminationPoints ? '#C084FC' : colors.textSecondary,
+                    }}
+                  >
+                    {activeChar.useDeterminationPoints ? 'Modo PD (SH)' : 'Usar PD (SH)'}
+                  </Text>
+                </TouchableOpacity>
               </View>
               <StatCounterRow
                 label="PV (Vida)"
@@ -2270,36 +2421,64 @@ export default function CharactersScreen() {
                 }}
                 onChangeMax={(v) => updateActiveChar({ pvMax: Math.max(1, v) })}
               />
-              <StatCounterRow
-                label="PE (Esforço)"
-                color="#F59E0B"
-                current={activeChar.peCurrent}
-                max={activeChar.peMax}
-                onChangeCurrent={(v) => {
-                  const delta = v - activeChar.peCurrent;
-                  if (delta < 0 && (activeChar.peTemp || 0) > 0) {
-                    const spent = -delta;
-                    const curTemp = activeChar.peTemp || 0;
-                    const fromTemp = Math.min(curTemp, spent);
-                    const remSpent = spent - fromTemp;
-                    updateActiveChar({
-                      peTemp: curTemp - fromTemp,
-                      peCurrent: Math.max(0, activeChar.peCurrent - remSpent),
-                    });
-                    return;
-                  }
-                  updateActiveChar({ peCurrent: Math.max(0, v) });
-                }}
-                onChangeMax={(v) => updateActiveChar({ peMax: Math.max(1, v) })}
-              />
-              <StatCounterRow
-                label="SAN (Sanidade)"
-                color="#38BDF8"
-                current={activeChar.sanCurrent}
-                max={activeChar.sanMax}
-                onChangeCurrent={(v) => updateActiveChar({ sanCurrent: Math.max(0, v) })}
-                onChangeMax={(v) => updateActiveChar({ sanMax: Math.max(1, v) })}
-              />
+              {activeChar.useDeterminationPoints ? (
+                <StatCounterRow
+                  label="PD (Determinação)"
+                  color="#A855F7"
+                  current={activeChar.pdCurrent ?? 0}
+                  max={activeChar.pdMax ?? 1}
+                  onChangeCurrent={(v) => {
+                    const curPd = activeChar.pdCurrent ?? 0;
+                    const delta = v - curPd;
+                    if (delta < 0 && (activeChar.pdTemp || 0) > 0) {
+                      const spent = -delta;
+                      const curTemp = activeChar.pdTemp || 0;
+                      const fromTemp = Math.min(curTemp, spent);
+                      const remSpent = spent - fromTemp;
+                      updateActiveChar({
+                        pdTemp: curTemp - fromTemp,
+                        pdCurrent: Math.max(0, curPd - remSpent),
+                      });
+                      return;
+                    }
+                    updateActiveChar({ pdCurrent: Math.max(0, v) });
+                  }}
+                  onChangeMax={(v) => updateActiveChar({ pdMax: Math.max(1, v) })}
+                />
+              ) : (
+                <>
+                  <StatCounterRow
+                    label="PE (Esforço)"
+                    color="#F59E0B"
+                    current={activeChar.peCurrent}
+                    max={activeChar.peMax}
+                    onChangeCurrent={(v) => {
+                      const delta = v - activeChar.peCurrent;
+                      if (delta < 0 && (activeChar.peTemp || 0) > 0) {
+                        const spent = -delta;
+                        const curTemp = activeChar.peTemp || 0;
+                        const fromTemp = Math.min(curTemp, spent);
+                        const remSpent = spent - fromTemp;
+                        updateActiveChar({
+                          peTemp: curTemp - fromTemp,
+                          peCurrent: Math.max(0, activeChar.peCurrent - remSpent),
+                        });
+                        return;
+                      }
+                      updateActiveChar({ peCurrent: Math.max(0, v) });
+                    }}
+                    onChangeMax={(v) => updateActiveChar({ peMax: Math.max(1, v) })}
+                  />
+                  <StatCounterRow
+                    label="SAN (Sanidade)"
+                    color="#38BDF8"
+                    current={activeChar.sanCurrent}
+                    max={activeChar.sanMax}
+                    onChangeCurrent={(v) => updateActiveChar({ sanCurrent: Math.max(0, v) })}
+                    onChangeMax={(v) => updateActiveChar({ sanMax: Math.max(1, v) })}
+                  />
+                </>
+              )}
 
               {/* Badges & Controles de PV / PE Temporários */}
               <View style={styles.tempStatsRow} testID="status-vital-temp-badges">
@@ -2332,34 +2511,65 @@ export default function CharactersScreen() {
                   ) : null}
                 </View>
 
-                <View style={[styles.tempStatBadge, { borderColor: 'rgba(245, 158, 11, 0.45)', backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.tempStatLabel, { color: '#FBBF24' }]}>PE TEMPORÁRIOS</Text>
-                    <Text style={styles.tempStatVal} testID="pe-temp-value">
-                      +{activeChar.peTemp || 0} PE Temp
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.tempMiniBtn}
-                    onPress={() => updateActiveChar({ peTemp: Math.max(0, (activeChar.peTemp || 0) - 1) })}
-                  >
-                    <Text style={styles.tempMiniBtnText}>-1</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.tempMiniBtn}
-                    onPress={() => updateActiveChar({ peTemp: (activeChar.peTemp || 0) + 1 })}
-                  >
-                    <Text style={styles.tempMiniBtnText}>+1</Text>
-                  </TouchableOpacity>
-                  {(activeChar.peTemp || 0) > 0 ? (
+                {activeChar.useDeterminationPoints ? (
+                  <View style={[styles.tempStatBadge, { borderColor: 'rgba(168, 85, 247, 0.45)', backgroundColor: 'rgba(168, 85, 247, 0.1)' }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.tempStatLabel, { color: '#C084FC' }]}>PD TEMPORÁRIOS</Text>
+                      <Text style={styles.tempStatVal} testID="pd-temp-value">
+                        +{activeChar.pdTemp || 0} PD Temp
+                      </Text>
+                    </View>
                     <TouchableOpacity
-                      style={[styles.tempMiniBtn, { borderColor: '#EF4444' }]}
-                      onPress={() => updateActiveChar({ peTemp: 0 })}
+                      style={styles.tempMiniBtn}
+                      onPress={() => updateActiveChar({ pdTemp: Math.max(0, (activeChar.pdTemp || 0) - 1) })}
                     >
-                      <Ionicons name="close" size={12} color="#EF4444" />
+                      <Text style={styles.tempMiniBtnText}>-1</Text>
                     </TouchableOpacity>
-                  ) : null}
-                </View>
+                    <TouchableOpacity
+                      style={styles.tempMiniBtn}
+                      onPress={() => updateActiveChar({ pdTemp: (activeChar.pdTemp || 0) + 1 })}
+                    >
+                      <Text style={styles.tempMiniBtnText}>+1</Text>
+                    </TouchableOpacity>
+                    {(activeChar.pdTemp || 0) > 0 ? (
+                      <TouchableOpacity
+                        style={[styles.tempMiniBtn, { borderColor: '#EF4444' }]}
+                        onPress={() => updateActiveChar({ pdTemp: 0 })}
+                      >
+                        <Ionicons name="close" size={12} color="#EF4444" />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                ) : (
+                  <View style={[styles.tempStatBadge, { borderColor: 'rgba(245, 158, 11, 0.45)', backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.tempStatLabel, { color: '#FBBF24' }]}>PE TEMPORÁRIOS</Text>
+                      <Text style={styles.tempStatVal} testID="pe-temp-value">
+                        +{activeChar.peTemp || 0} PE Temp
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.tempMiniBtn}
+                      onPress={() => updateActiveChar({ peTemp: Math.max(0, (activeChar.peTemp || 0) - 1) })}
+                    >
+                      <Text style={styles.tempMiniBtnText}>-1</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.tempMiniBtn}
+                      onPress={() => updateActiveChar({ peTemp: (activeChar.peTemp || 0) + 1 })}
+                    >
+                      <Text style={styles.tempMiniBtnText}>+1</Text>
+                    </TouchableOpacity>
+                    {(activeChar.peTemp || 0) > 0 ? (
+                      <TouchableOpacity
+                        style={[styles.tempMiniBtn, { borderColor: '#EF4444' }]}
+                        onPress={() => updateActiveChar({ peTemp: 0 })}
+                      >
+                        <Ionicons name="close" size={12} color="#EF4444" />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                )}
               </View>
 
               {/* Avisos de Condições Vitais de Ordem Paranormal */}
@@ -2449,7 +2659,31 @@ export default function CharactersScreen() {
                   </View>
                 )}
 
-              {activeChar.sanCurrent <= 0 && (
+              {activeChar.useDeterminationPoints && (activeChar.pdCurrent ?? 0) < (activeChar.pdMax ?? 1) / 2 && (
+                <View
+                  style={{
+                    backgroundColor: 'rgba(168, 85, 247, 0.14)',
+                    borderWidth: 1,
+                    borderColor: '#A855F7',
+                    borderRadius: 8,
+                    padding: 8,
+                    marginTop: 8,
+                  }}
+                >
+                  <Text style={{ color: '#C084FC', fontWeight: '800', fontSize: 12 }}>
+                    {(activeChar.pdCurrent ?? 0) <= 0
+                      ? '🧠 DETERMINAÇÃO ZERADA (0 PD)'
+                      : `🧠 DETERMINAÇÃO BAIXA (PD < ${Math.ceil((activeChar.pdMax ?? 1) / 2)})`}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }}>
+                    {(activeChar.pdCurrent ?? 0) <= 0
+                      ? 'Se causada por dano mental, o agente fica Enlouquecendo (ou sofre Efeito de Medo). Gastar PD em habilidades não causa loucura.'
+                      : 'Se causada por dano mental, o agente fica Perturbado. Gastar PD para pagar custos não causa Perturbado.'}
+                  </Text>
+                </View>
+              )}
+
+              {!activeChar.useDeterminationPoints && activeChar.sanCurrent <= 0 && (
                 <View
                   style={{
                     backgroundColor: 'rgba(56, 189, 248, 0.15)',
@@ -3703,11 +3937,14 @@ export default function CharactersScreen() {
                                 : selectedTier === 'discente'
                                 ? 'Discente'
                                 : 'Verdadeiro';
-                            const nextPe = Math.max(
-                              0,
-                              (activeChar.peCurrent || 0) - resolvedRitual.totalPeCost
-                            );
-                            await updateActiveChar({ peCurrent: nextPe });
+                            const isPd = Boolean(activeChar.useDeterminationPoints);
+                            const effortLabel = isPd ? 'PD' : 'PE';
+                            const spendPatch = spendPeWithTempFirst(resolvedRitual.totalPeCost);
+                            await updateActiveChar(spendPatch);
+                            const remainingEffort = isPd
+                              ? (spendPatch.pdCurrent ?? 0)
+                              : (spendPatch.peCurrent ?? 0);
+                            const maxEffort = isPd ? (activeChar.pdMax ?? 1) : activeChar.peMax;
                             if (resolvedRitual.hasDamageFormula && resolvedRitual.rollFormula) {
                               rollFormula(
                                 resolvedRitual.rollFormula,
@@ -3716,7 +3953,7 @@ export default function CharactersScreen() {
                             } else {
                               showAlert(
                                 'Ritual Conjurado',
-                                `"${item.name}" (${tierLabel}) conjurado! -${resolvedRitual.totalPeCost} PE (DT ${resolvedRitual.dtResistance}). PE restante: ${nextPe}/${activeChar.peMax}`
+                                `"${item.name}" (${tierLabel}) conjurado! -${resolvedRitual.totalPeCost} ${effortLabel} (DT ${resolvedRitual.dtResistance}). ${effortLabel} restante: ${remainingEffort}/${maxEffort}`
                               );
                             }
                           }}
@@ -3726,7 +3963,7 @@ export default function CharactersScreen() {
                           <Text style={styles.ritualRollBtnText}>
                             {resolvedRitual.hasDamageFormula
                               ? `Conjurar & Rolar (${resolvedRitual.displayDamage})`
-                              : `Conjurar Ritual (${resolvedRitual.totalPeCost} PE)`}
+                              : `Conjurar Ritual (${resolvedRitual.totalPeCost} ${activeChar.useDeterminationPoints ? 'PD' : 'PE'})`}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -5323,10 +5560,13 @@ export default function CharactersScreen() {
                         const pvDelta = nextVitals.pvMax - prevVitals.pvMax;
                         const peDelta = nextVitals.peMax - prevVitals.peMax;
                         const sanDelta = nextVitals.sanMax - prevVitals.sanMax;
+                        const pdDelta = nextVitals.pdMax - prevVitals.pdMax;
 
                         const nextPvMax = Math.max(1, (activeChar.pvMax || 1) + pvDelta);
                         const nextPeMax = Math.max(1, (activeChar.peMax || 1) + peDelta);
                         const nextSanMax = Math.max(1, (activeChar.sanMax || 1) + sanDelta);
+                        const basePdMax = activeChar.pdMax ?? prevVitals.pdMax;
+                        const nextPdMax = Math.max(1, basePdMax + pdDelta);
 
                         let updatedSkills = { ...(activeChar.skills || {}) };
                         const adjustedPassiveSkills = new Set<string>();
@@ -5376,6 +5616,15 @@ export default function CharactersScreen() {
                           peCurrent: Math.max(0, Math.min(nextPeMax, (activeChar.peCurrent || 0) + peDelta)),
                           sanMax: nextSanMax,
                           sanCurrent: Math.max(0, Math.min(nextSanMax, (activeChar.sanCurrent || 0) + sanDelta)),
+                          ...(activeChar.useDeterminationPoints
+                            ? {
+                                pdMax: nextPdMax,
+                                pdCurrent: Math.max(
+                                  0,
+                                  Math.min(nextPdMax, (activeChar.pdCurrent ?? basePdMax) + pdDelta)
+                                ),
+                              }
+                            : {}),
                           peRound: nextVitals.peRound,
                           dtRituals: nextVitals.dtRituals,
                           skills: updatedSkills,

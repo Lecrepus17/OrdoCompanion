@@ -364,5 +364,8 @@ export function parseAgentShareCode(rawInput: string): CharacterSheet | null {
  */
 export function formatAgentSummary(sheet: CharacterSheet): string {
   const playerName = sheet.player ? ` (Jogador: ${sheet.player})` : '';
-  return `🕵️ ${sheet.name}${playerName} | NEX ${sheet.nex}% • ${sheet.rank} | PV ${sheet.pvCurrent}/${sheet.pvMax} • SAN ${sheet.sanCurrent}/${sheet.sanMax} • PE ${sheet.peCurrent}/${sheet.peMax}`;
+  const effortSanText = sheet.useDeterminationPoints
+    ? `PD ${sheet.pdCurrent ?? 0}/${sheet.pdMax ?? 1}`
+    : `SAN ${sheet.sanCurrent}/${sheet.sanMax} • PE ${sheet.peCurrent}/${sheet.peMax}`;
+  return `🕵️ ${sheet.name}${playerName} | NEX ${sheet.nex}% • ${sheet.rank} | PV ${sheet.pvCurrent}/${sheet.pvMax} • ${effortSanText}`;
 }
