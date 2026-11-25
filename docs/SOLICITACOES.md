@@ -106,3 +106,4 @@ npm run requests:questions
 | ID | Tipo | Origem / Protocolo | Título | Motivo Técnico / Crítico da Rejeição | Data |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `SOL-ERR-HIST-00` | 🐛 Ruído / Teste | Discord `#erros` (`#ORD-3923R0`, `#ORD-5686TZ`, `#ORD-8340DT`, `#ORD-6484JQ`) | Mensagens de teste de formulário e verificação de Proxy | Registros históricos de teste de fumaça / integração sem defeito real associado | `2026-11-07` |
+| `SOL-TEST-HIST-01` | 🧪 Ruído / Teste | Discord `#erros` (`#ORD-656020`, `#ORD-4657H6`, `#ORD-17995W`, `#ORD-3981TI`) e `#melhorias` (`#ORD-7104SS`) | Mensagens de teste da Central de Suporte (`v1.7.0-beta.1`) | Testes manuais enviados pelo desenvolvedor (`teste` / `teste melhoria`) marcados como prontos (`done`) sem defeito ou melhoria real | `2026-11-23` |

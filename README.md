@@ -9,6 +9,7 @@
   [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
   [![Web App](https://img.shields.io/badge/Web_App-ordo--companion.expo.app-DC2626?logo=googlechrome&logoColor=white)](https://ordo-companion.expo.app/)
   [![Android APK](https://img.shields.io/badge/Android-Baixar_APK-3DDC84?logo=android&logoColor=white)](https://github.com/Lecrepus17/OrdoCompanion/releases/latest/download/OrdoCompanion.apk)
+  [![Discord](https://img.shields.io/badge/Discord-Comunidade-5865F2?logo=discord&logoColor=white)](https://discord.gg/vPCZzr2wFR)
   [![GitHub Release](https://img.shields.io/github/v/release/Lecrepus17/OrdoCompanion?include_prereleases&label=Vers%C3%A3o&color=7C3AED)](https://github.com/Lecrepus17/OrdoCompanion/releases/latest)
   [![Expo](https://img.shields.io/badge/Expo-~58-black.svg?logo=expo)](https://expo.dev)
   [![React Native](https://img.shields.io/badge/React_Native-0.88-61DAFB.svg?logo=react)](https://reactnative.dev)
@@ -17,13 +18,14 @@
 
   <p align="center">
     Um aplicativo multiplataforma de código aberto (Open Source) feito para mestres e investigadores de <b>Ordem Paranormal RPG</b>.<br />
-    Reúne compêndio completo dos 10 suplementos oficiais, construtor de agentes com cálculo automático de regras, rolador oficial de dados, arsenal tático, central do mestre, mesa virtual multiplayer (VTT) e assistente de IA paranormal.
+    Reúne compêndio completo dos 10 suplementos oficiais (Livro Base v1.3 + Sobrevivendo ao Horror + Arquivos Secretos), construtor de agentes com suporte a <b>Pontos de Determinação (PD)</b>, rolador oficial de dados, arsenal tático, central do mestre, criador de ameaças, mesa virtual multiplayer (VTT) e assistente de IA paranormal.
   </p>
 
   <p align="center">
     <a href="https://ordo-companion.expo.app/"><b>🌐 Abrir na Web / PC</b></a> •
     <a href="https://github.com/Lecrepus17/OrdoCompanion/releases/latest/download/OrdoCompanion.apk"><b>📲 Baixar APK (Android)</b></a> •
-    <a href="https://github.com/Lecrepus17/OrdoCompanion/releases/latest"><b>📦 Releases no GitHub</b></a>
+    <a href="https://github.com/Lecrepus17/OrdoCompanion/releases/latest"><b>📦 Releases no GitHub</b></a> •
+    <a href="https://discord.gg/vPCZzr2wFR"><b>💬 Comunidade Discord</b></a>
   </p>
 
   <p align="center">
@@ -56,10 +58,11 @@ Você pode usar o **Ordo Companion** imediatamente no navegador, instalá-lo com
 
 | Plataforma | Link Oficial | Modo de Uso |
 | :--- | :--- | :--- |
-| 🌐 **Navegador Web (Online)** | [**https://ordo-companion.expo.app/**](https://ordo-companion.expo.app/) | Acesso instantâneo no PC, tablet ou celular sem precisar instalar nada |
+| 🌐 **Navegador Web (Online)** | [**https://ordo-companion.expo.app/**](https://ordo-companion.expo.app/) | Acesso instantâneo no PC, tablet ou celular com atualização automática pelo servidor |
 | 💻 **Aplicativo para PC (Windows, macOS e Linux)** | [**https://ordo-companion.expo.app/**](https://ordo-companion.expo.app/) *(Instalar PWA)* | Janela dedicada na Área de Trabalho / Menu Iniciar com suporte **Offline** |
-| 📲 **Android (Download Direto `.apk`)** | [**Baixar `OrdoCompanion.apk` (Última Versão)**](https://github.com/Lecrepus17/OrdoCompanion/releases/latest/download/OrdoCompanion.apk) | Aplicativo nativo standalone com leitura e armazenamento 100% offline |
+| 📲 **Android (Download Direto `.apk`)** | [**Baixar `OrdoCompanion.apk` (Última Versão)**](https://github.com/Lecrepus17/OrdoCompanion/releases/latest/download/OrdoCompanion.apk) | Aplicativo nativo standalone com leitor de PDF nativo e armazenamento 100% offline |
 | 📦 **Todas as Versões & Notas** | [**GitHub Releases**](https://github.com/Lecrepus17/OrdoCompanion/releases) | Histórico de versões, changelogs detalhados e arquivos de instalação |
+| 💬 **Suporte & Comunidade** | [**Servidor Oficial no Discord**](https://discord.gg/vPCZzr2wFR) | Relato de erros (`#erros`), sugestões de melhorias (`#melhorias`) e novidades |
 
 ### 📲 Passo a Passo — Instalar no Celular ou Tablet Android (`.apk`)
 1. Baixe o arquivo [**`OrdoCompanion.apk`**](https://github.com/Lecrepus17/OrdoCompanion/releases/latest/download/OrdoCompanion.apk) (ou acesse a [página da última Release](https://github.com/Lecrepus17/OrdoCompanion/releases/latest) e toque em `OrdoCompanion.apk` na seção **Assets**).
@@ -79,10 +82,12 @@ Você pode usar o **Ordo Companion** imediatamente no navegador, instalá-lo com
 
 Toda a documentação técnica, manuais e guias do projeto estão padronizados e organizados na pasta [`docs/`](docs/README.md):
 
-* 📖 [**Manual do Usuário**](docs/MANUAL_DO_USUARIO.md): Guia completo das 9 telas, criação assistida de fichas, combate, VTT e regras canônicas.
+* 📖 [**Manual do Usuário**](docs/MANUAL_DO_USUARIO.md): Guia completo das telas, criação assistida de fichas, combate, VTT e regras canônicas.
 * 🛠️ [**Manual de Desenvolvimento**](docs/MANUAL_DE_DESENVOLVIMENTO.md): Governança de código, operação dos agentes de IA e rotinas de teste.
-* 🚀 [**Guia de Distribuição e Atualizações**](docs/GUIA_ATUALIZACOES.md): Instruções para geração de `.apk`, builds no EAS e publicação de releases.
+* 🚀 [**Guia de Distribuição e Atualizações**](docs/GUIA_ATUALIZACOES.md): Instruções para geração de `.apk`, deploy Web (`npm run deploy:web`) e publicação de releases.
 * 📋 [**Atualizações Pendentes**](docs/ATUALIZACOES_PENDENTES.md): Changelog em tempo real e cálculo SemVer da próxima versão.
+* 📜 [**Histórico de Releases**](docs/HISTORICO_RELEASES.md): Registro completo de todas as versões já publicadas.
+* 🗂️ [**Central de Solicitações**](docs/SOLICITACOES.md): Backlog triado de erros e melhorias vindos do Discord e do desenvolvimento.
 * 🎯 [**Commits Pendentes**](docs/COMMITS_PENDENTES.md): Fila padronizada de commits (Conventional Commits) pronta para terminal.
 * 📑 [**Central de Documentos**](docs/README.md): Hub com índice unificado de todos os arquivos markdown do repositório.
 
@@ -123,7 +128,7 @@ Toda a documentação técnica, manuais e guias do projeto estão padronizados e
 
 | 🎲 Rolador de Dados Canônico | 📚 Visualizador de Livros & PDFs |
 | :---: | :---: |
-| <img src="docs/screenshots/07-rolador-dados.png" alt="Rolador de Dados Oficial" width="420" /><br /><sub><b>`07-rolador-dados.png`</b> — Maior/menor dado, fórmulas e detecção de crítico</sub> | <img src="docs/screenshots/08-acervo-livros.png" alt="Visualizador de Livros & PDFs" width="420" /><br /><sub><b>`08-acervo-livros.png`</b> — 1.261 páginas oficiais navegáveis em alta nitidez</sub> |
+| <img src="docs/screenshots/07-rolador-dados.png" alt="Rolador de Dados Oficial" width="420" /><br /><sub><b>`07-rolador-dados.png`</b> — Maior/menor dado, fórmulas e detecção de crítico</sub> | <img src="docs/screenshots/08-acervo-livros.png" alt="Visualizador de Livros & PDFs" width="420" /><br /><sub><b>`08-acervo-livros.png`</b> — 1.271 páginas oficiais navegáveis em alta nitidez</sub> |
 
 | 🎨 Os 7 Temas Paranormais | 📄 Exportação de Fichas em PDF |
 | :---: | :---: |
@@ -135,82 +140,82 @@ Toda a documentação técnica, manuais e guias do projeto estão padronizados e
 
 ## ✨ Principais Funcionalidades
 
-### 📖 Compêndio Unificado & Pesquisa nos Livros
-- **10 Livros Oficiais Integrados**: Dados extraídos do *Livro Base*, *Sobrevivendo ao Horror* e suplementos dos *Arquivos Secretos (01 a 07 e 09)*.
-- **1.367 Entidades Estruturadas**: Rituais com cálculos de dano e aprimoramentos, origens, trilhas, poderes de classe e gerais, armas, itens amaldiçoados, equipamentos, condições e ameaças com enigmas de medo.
-- **Busca Fonética Sem Acentos**: Digite livremente sem se preocupar com cedilha ou acentos (ex: `odio incontrolavel`, `cicatrizacao`, `degolificada`).
-- **Leitor "Ver no Livro"**: Um toque no card abre diretamente a página original correspondente entre as 1.261 páginas oficiais indexadas.
+### 📖 Compêndio Unificado & Leitor de Livros Offline
+- **10 Livros Oficiais Integrados**: Dados estruturados do *Livro Base v1.3* (com erratas oficiais), *Sobrevivendo ao Horror* e suplementos dos *Arquivos Secretos (01 a 07 e 09)*.
+- **1.708 Entidades Estruturadas**: Rituais com cálculos de dano e aprimoramentos, 59 origens, 35 trilhas, poderes de classe/gerais/paranormais, 28 Itens Amaldiçoados Especiais, Mascarados, armas, proteções, equipamentos, condições e ameaças com enigmas de medo.
+- **Núcleo Essencial Liberado por Padrão**: 3 Classes, 28 Perícias e 37 Condições do Livro Base vêm ativos imediatamente para jogar com qualquer suplemento, mantendo os arquivos PDF e demais conteúdos protegidos até o envio do PDF local.
+- **Busca Fonética & Leitor "Ver no Livro"**: Pesquisa sem acentos com ranqueamento por relevância, leitor de PDF nativo offline no Android (`react-native-pdf`) e `PDF.js` + `IndexedDB` no PC/Web cobrindo **1.271 páginas indexadas**, além de **anotações desenhadas na página** (caneta, marca-texto e borracha para tablets/stylus).
 
-### 📋 Fichas Interativas de Agentes & Criação Assistida
+### 📋 Fichas Interativas de Agentes, Pontos de Determinação (PD) & Criação Assistida
 - **Criação Assistida em 5 Etapas**: Guia passo a passo com escolha de Identidade, Origem, Classe, Atributos equilibrados e Perícias/Rituais de acordo com as regras canônicas.
-- **Cálculo Automático**: Atualização em tempo real de PV, PE, Sanidade, Defesas (Passiva, Esquiva, Bloqueio), Capacidade de Carga e Limite de PE por rodada.
-- **Progressão de NEX**: Subida de nível assistida com escolha de poderes, aumento de atributos e avanço nos graus de treinamento das perícias.
-- **Rolagem em 1 Toque**: Toque em qualquer perícia, atributo ou ataque da ficha para rolar instantaneamente com as fórmulas oficiais.
+- **Modo Opcional de Pontos de Determinação (PD — *Sobrevivendo ao Horror*)**: Ative por ficha a regra oficial *"Jogando sem Sanidade"* (p. 105–106), unificando PE e Sanidade em uma única barra de **PD** (com PD Temporários e aviso de Determinação Baixa/Zerada) na criação, subida de NEX, combates/rituais, tela do Mestre, Mesa Virtual, impressão PDF SH, compartilhamento e IA G.L.I.T.C.H.
+- **Cálculo Automático Completo**: Atualização em tempo real de PV, PE, Sanidade/PD, Defesas (Passiva, Esquiva, Bloqueio com RD), Capacidade de Carga, Limite de PE por rodada, **Assistente de Proteções Multi-Armadura** (alternância *Ativa na Defesa* vs. *Na Mochila*), vestimentas com duas perícias (*Função Adicional* / *Amuleto Sagrado*), maldições de acessórios/proteções e **Forma Suprema dos Mascarados**.
+- **Progressão de NEX, Depósito & Compartilhamento**: Subida de nível assistida, **Depósito Compartilhado de Itens** com importação direta do compêndio, rolagem em 1 toque e compartilhamento instantâneo de agentes (`ORDO-AG-v1:`).
 
-### 📄 Exportação de Fichas Oficiais em PDF
-- **Alta Fidelidade Visual**: Renderização fiel das fichas oficiais do *Livro Base* (págs. 321–322) e *Sobrevivendo ao Horror* (págs. 222–223).
-- **Pronto para Imprimir e Salvar**: Gera arquivos vetoriais nítidos via `expo-print` para impressão direta ou compartilhamento em PDF.
+### 📄 Exportação de Fichas Oficiais em PDF & Cards PNG
+- **Alta Fidelidade Visual**: Renderização fiel das fichas oficiais do *Livro Base* (págs. 321–322) e *Sobrevivendo ao Horror* (págs. 222–223), somando automaticamente bônus de vestimentas duplas, poderes, origens, trilhas, maldições e campo condicional de **PD**.
+- **Exportação de Cards em PNG (1080×1350)**: Gere e compartilhe imagens táticas prontas de agentes, rituais, armas, itens e criaturas diretamente pelo celular ou PC.
 
-### 🛡️ Central do Mestre & Gestor de Campanhas
-- **Rastreador de Iniciativa**: Controle tático da ordem de turnos com contador de rodadas e marcadores de condições ativas.
-- **Controle Rápido de Monstros**: Gestão de PV, Presença Perturbadora e Enigmas de Medo com botões rápidos de dano e cura.
+### 🛡️ Central do Mestre, Criador de Ameaças & Gestor de Campanhas
+- **Rastreador de Iniciativa**: Controle tático da ordem de turnos com contador de rodadas, marcadores de condições ativas e suporte a agentes em Modo PD.
+- **Criador de Ameaças estilo C.R.I.S. (VD 20–400)**: Monte criaturas e ameaças personalizadas com cálculo assistido de atributos, PV, Defesa, Presença Perturbadora, ataques e Enigmas de Medo.
 - **Cenas & Pistas Investigativas**: Estruture suas investigações com gerenciamento de cenas, pistas ocultas e revelação progressiva.
 
-### ⚔️ Armaria & Construtor de Armas
-- **Cálculo de Combate Preciso**: Suporte completo a armas corpo a corpo, de disparo e de fogo.
-- **Passos de Dano Oficiais**: Escala canônica do sistema (`1d6` $\to$ `1d8` $\to$ `1d10` $\to$ `1d12` $\to$ `2d8` $\to$ `3d6`...).
-- **Modificações & Maldições**: Aplicação de melhorias (*Mira Laser*, *Alongada*, *Calibre Grosso*, *Compensador*...) e maldições elementais (*Carniceira*, *Hemofágica*, *Lancinante*...).
+### ⚔️ Armaria, Combate Tático & Modificadores Dinâmicos
+- **Cálculo de Combate Preciso**: Suporte completo a armas corpo a corpo, de disparo e de fogo, além de proteções, vestimentas e itens amaldiçoados.
+- **Passos de Dano, Crítico Flexível & Preparação de Golpe**: Escala canônica do sistema (`1d6` $\to$ `1d8` $\to$ `1d10` $\to$ `1d12` $\to$ `2d8` $\to$ `3d6`...), escolha entre multiplicar dados ou dano no crítico, botão **Crítico Máximo** e motor de modificadores dinâmicos por agente.
+- **Modificações & Maldições**: Aplicação de melhorias (*Mira Laser*, *Alongada*, *Calibre Grosso*, *Compensador*...) e maldições elementais em armas, proteções, escudos e acessórios (*Carniceira*, *Hemofágica*, *Lancinante*, *Sombria*, *Lépida*, *Vitalidade*...).
 
 ### 🎮 Mesa Virtual (VTT) Multiplayer em Tempo Real
 - **Salas Conectadas (ORD-XXXX)**: Crie ou entre em salas de jogo com sincronização em tempo real via Supabase ou simulação local.
-- **Monitor da Equipe**: Acompanhe o status vital (PV, PE, SAN e Condições) de todos os membros do esquadrão durante a missão.
-- **Feed de Rolagens Compartilhado**: Rolagens de dados de todos os jogadores aparecem instantaneamente na mesa.
+- **Monitor da Equipe**: Acompanhe o status vital (PV, PE, SAN ou PD e Condições) de todos os membros do esquadrão durante a missão.
+- **Feed de Rolagens & Exportação de Sessão**: Rolagens de dados de todos os jogadores em tempo real e exportação completa do resumo da sessão.
 
 ### 🔮 G.L.I.T.C.H. — Inteligência Artificial Paranormal
-- **RAG com Consulta Profunda**: Responde dúvidas de regras e mecânicas consultando diretamente os 10 livros e as 1.367 entidades cadastradas.
-- **Múltiplos Provedores**: Suporte a Google Gemini, Groq, Ollama (execução 100% local no seu PC) e Modo Offline heurístico.
-- **Personas das 4 Relíquias**: Alterne a personalidade da IA entre Magistrada (Conhecimento), Deus da Morte (Morte), Anfitrião (Energia) e Diabo (Sangue).
-- **Vínculo com o Agente**: A IA lê a ficha do seu personagem para dar respostas táticas personalizadas à sua build.
+- **RAG com Consulta Profunda**: Responde dúvidas de regras e mecânicas consultando diretamente os 10 livros e as **1.708 entidades** cadastradas, com vínculo direto à ficha do agente ativo (incluindo Modo PD).
+- **Modo Roleplay Livre vs. Compromisso com a Realidade**: Alternador rápido para escolher entre seguir o livro de regras à risca ou liberar diálogos situacionais imersivos com as **4 Relíquias** (*Magistrada*, *Deus da Morte*, *Anfitrião*, *Diabo*) e **Personagens Canônicos** (*Senhor Veríssimo*, *Arthur Cervero*, *Kian*).
+- **Voz Nativa (STT/TTS) & Múltiplos Provedores**: Suporte a ditado por microfone, leitura em voz alta e provedores **Google Gemini**, **Groq**, **OpenRouter**, **Ollama** (execução local) e **Modo Offline** heurístico/roleplay.
 
 ### 🎲 Rolador de Dados Canônico
 - **Regras Oficiais de Atributos**: Rola $N$ dados pegando o maior para atributos positivos ($\ge 1$) e penalidade canônica (pega o pior entre $2 + |\text{atributo}|$ dados) para atributos $\le 0$.
-- **Parser de Fórmulas Livres**: Suporte completo a expressões complexas (ex: `4d6+10`, `2d8+1d6+4`, `5d20+15`).
-- **Notificação Global (`DiceToast`)**: Alerta sonoro/visual no topo de qualquer tela com destaque para Sucesso Crítico (20 natural) ou Desastre (1).
+- **Parser de Fórmulas Livres & Presets**: Suporte a expressões complexas (ex: `4d6+10`, `2d8+1d6+4`, `5d20+15`) e presets customizados salvos localmente.
+- **Notificação Global (`DiceToast`)**: Alerta sonoro/visual no topo de qualquer tela com destaque para Sucesso Crítico (20 natural) ou Desastre (1) e atalho rápido para rolar dano.
 
 ### 🎨 7 Temas Paranormais Imersivos
-- Alternância rápida com um clique entre paletas temáticas com elementos visuais do Outro Lado:
+- Alternância rápida entre paletas temáticas (Tema Escuro e Tema Claro) centralizadas no **Perfil do Usuário**:
   - 🩸 **Sangue** (*Sentimento, Dor & Rubro*)
   - ⏳ **Morte** (*Lodo, Espirais & Cinza Fúnebre*)
   - 📜 **Conhecimento** (*Sigilos Dourados & Razão*)
   - ⚡ **Energia** (*Caos, Chamas & Violeta Neon*)
   - 👁️ **Medo** (*O Insondável & Névoa Cósmica*)
   - 🌑 **Escuridão** (*Tema Tático Noturno Padrão*)
-  - 📄 **Dossiê Branco** (*Arquivo Investigativo de Alta Legibilidade*)
+  - 📄 **Dossiê Branco** (*Arquivo Investigativo Claro de Alta Legibilidade*)
 
-### ☁️ Sincronização Google Drive & 100% Offline
-- **Google Drive `appDataFolder`**: Sincronização automática na pasta privada do jogador (privacidade absoluta, sem necessidade de servidores pagos).
-- **Smart Merge com Resolução de Conflitos**: Fusão inteligente de fichas baseada em timestamps individuais (`updatedAt`).
-- **Modo 100% Offline**: Todos os dados funcionam localmente via `AsyncStorage` com backup e restauração manual em JSON.
-- **Notificador Automático de Atualizações**: Notifica usuários sobre novas versões no GitHub Releases com download direto do `.apk`.
+### ☁️ Sincronização Google Drive, 100% Offline & Central de Suporte
+- **Google Drive `appDataFolder`**: Sincronização automática na pasta privada do jogador com login OAuth para Android e Web/PC e diagnóstico integrado.
+- **Smart Merge com Resolução de Conflitos**: Fusão inteligente baseada em timestamps individuais (`updatedAt`) e tombstones de exclusão.
+- **Modo 100% Offline & Backup `.json`**: Todos os dados funcionam localmente via `AsyncStorage` com exportação e importação direta de arquivos `.json` no celular e no PC.
+- **Atualizações Inteligentes & Suporte Integrado**: Atualização transparente via servidor/Service Worker na Web/PC, notificador automático de novas versões `.apk` no Android e **Central de Suporte** integrada com envio direto ao Discord (`#erros` e `#melhorias`).
 
 ---
 
 ## 📊 Estatísticas da Base de Dados
 
-Toda a base de dados do aplicativo é indexada a partir dos 10 suplementos oficiais de Ordem Paranormal RPG:
+Toda a base de dados do aplicativo é indexada a partir dos 10 suplementos oficiais de Ordem Paranormal RPG (incluindo o *Livro Base v1.3*):
 
 | Categoria | Quantidade | Detalhes Mecânicos |
 | :--- | :---: | :--- |
-| **Rituais** | **106** | 1º ao 4º Círculo, fórmulas, elementos, execuções e aprimoramentos |
+| **Rituais** | **107** | 1º ao 4º Círculo, fórmulas, elementos, execuções e aprimoramentos |
 | **Origens** | **59** | Todas as origens oficiais com perícias e poderes concedidos |
 | **Classes & Trilhas** | **4 / 35** | Combatente, Especialista, Ocultista e Sobrevivente + 35 Trilhas oficiais |
-| **Poderes** | **207** | Poderes de classe, gerais e poderes paranormais com afinidade |
-| **Armas & Modificações** | **58** | Dano, crítico, alcance, categoria e espaços de inventário |
-| **Equipamentos & Itens** | **274** | Itens paranormais, amaldiçoados, máscaras, venenos, veículos e aliados |
-| **Perícias & Condições** | **28 / 37** | Graus de treinamento e efeitos mecânicos oficiais |
+| **Poderes** | **239** | Poderes de classe, gerais, paranormais com afinidade e Mascarados |
+| **Armas & Modificações** | **59** | Dano, crítico, alcance, categoria, espaços e modificações táticas |
+| **Equipamentos & Itens** | **346** | Itens paranormais, 28 Itens Amaldiçoados Especiais, máscaras, proteções, venenos e aliados |
+| **Perícias & Condições** | **28 / 39** | Graus de treinamento e efeitos mecânicos oficiais (incl. *Enlouquecendo* e *Perturbado*) |
 | **Ameaças & Criaturas** | **186** | Fichas com VD, PV, Defesa, Presença Perturbadora e Enigmas de Medo |
-| **Capítulos & Regras** | **373** | Dossiês, sumários e regras dos suplementos oficiais |
-| **Páginas Indexadas** | **1.261** | Páginas integrais dos 10 livros para consulta imediata no app |
+| **Capítulos & Regras** | **606** | Dossiês, sumários, erratas v1.3 e regras dos suplementos oficiais |
+| **Páginas Indexadas** | **1.271** | Páginas integrais dos 10 livros para consulta imediata no app |
+| **Total de Entidades** | **1.708** | Registros únicos validados por suíte de integridade referencial |
 
 ---
 
@@ -297,30 +302,30 @@ OrdoCompanion/
 
 ## 🧪 Testes Automatizados
 
-O projeto conta com uma robusta suíte de **296 testes automatizados** distribuídos em 68 arquivos com **TypeScript + `node:test`**, garantindo a confiabilidade de todas as fórmulas matemáticas, combate, persistência e mecânicas:
+O projeto conta com uma suíte abrangente com **mais de 1.000 testes automatizados** distribuídos em **78 arquivos de teste** com **TypeScript + `node:test`** e **Smart Testing Gates**, garantindo a confiabilidade das fórmulas matemáticas, combate, Modo PD, UI multiplataforma, PWA, Android Hermes, sincronização e IA:
 
 ```bash
-# Executa todos os testes unitários (execução em ~2 segundos)
-npm test
+# ⚡ Smart Testing Gates (Execução Rápida por Escopo):
+npm run typecheck     # Validação estrita TypeScript (0 erros)
+npm run test:rules    # Fórmulas de RPG, fichas, PD e progressão de NEX
+npm run test:front    # Telas e componentes React (Mobile + PC)
+npm run test:sync     # Sincronização, SmartMerge e repositórios offline
+npm run test:db       # Integridade referencial dos JSONs do compêndio (Python)
 
-# Valida tipagem estática TypeScript (sem erros)
-npm run typecheck
-
-# Executa bateria completa (Tipagem + Testes Unitários + Integridade da Base)
+# 🛡️ Bateria Completa (Tipagem + Todos os Testes + Integridade da Base):
 npm run test:all
 ```
 
 <details>
-<summary><b>Visualizar Cobertura dos Módulos Testados (296 Testes em 68 Suítes)</b></summary>
+<summary><b>Visualizar Principais Módulos Testados (78 Arquivos de Teste)</b></summary>
 
-- **Sistema de Rolagem de Dados** (`tests/dice.test.ts`): Regra de atributo positivo/negativo, detecção de crítico/desastre e parser livre de fórmulas.
-- **Armas & Modificações** (`tests/weapons.test.ts`): Parser de margem de ameaça, escala oficial de passos de dano, modificações e maldições.
-- **Sincronização & Smart Merge** (`tests/smartMerge.test.ts`): Resolução de conflitos por timestamp individual e união de dados.
-- **Repositório Offline** (`tests/repository.test.ts`): Busca normalizada, filtros, entidades Homebrew, restauração para o padrão e persistência.
-- **Sistema de Temas** (`tests/themes.test.ts`): Integridade dos 7 temas oficiais e paleta de elementos paranormais.
-- **Impressão de Fichas** (`tests/sheetPrinter.test.ts`): Validação das 28 perícias, algarismos romanos (`I`, `II`, `III`) e sanitização HTML contra XSS.
-- **Integridade da Base** (`tests/databaseIntegrity.test.ts`): Unicidade de IDs e referências dos 10 livros.
-- **Utilitários Web** (`tests/alert.test.ts` / `tests/pdfUrl.test.ts`): Diálogos e compatibilidade multiplataforma.
+- **Regras, Progressão & Pontos de Determinação (PD)** (`tests/determinationPoints.test.ts`, `tests/rulesInventorySkills.test.ts`, `tests/defenseProtections.test.ts`): Fórmulas canônicas das 4 classes, Modo PD de *Sobrevivendo ao Horror*, multi-armaduras, vestimentas duplas, maldições e Forma Suprema.
+- **Sistema de Rolagem de Dados & Combate** (`tests/dice.test.ts`, `tests/weapons.test.ts`, `tests/criticalDamageRules.test.ts`): Regra de atributo positivo/negativo, passos de dano, modos de crítico e modificadores dinâmicos.
+- **Sincronização, OAuth & Offline-First** (`tests/smartMerge.test.ts`, `tests/repository.test.ts`, `tests/googleDriveService.test.ts`): Resolução de conflitos por timestamp, tombstones de deleção e diagnóstico Google OAuth.
+- **Web / Desktop PWA & Atualizações** (`tests/desktopPwaSupport.test.ts`, `tests/updateChecker.test.ts`, `tests/frontendUpdateNotification.test.tsx`): Manifesto PWA, Service Worker offline, higienização de `dist/pdfs/` e supressão do modal na Web.
+- **Compatibilidade Android APK & Leitor PDF** (`tests/backHandlerNavigation.test.tsx`, `tests/clipboard.test.ts`, `tests/nativePdfReader.test.tsx`, `tests/pdfAccessAndUnlock.test.tsx`): Runtime Hermes, `BackHandler`, núcleo essencial do Livro Base e anotações em PDF.
+- **IA G.L.I.T.C.H. & Suporte** (`tests/ai.test.ts`, `tests/frontendOracle.test.tsx`, `tests/supportService.test.ts`, `tests/discordRequests.test.ts`): RAG, Modo Roleplay Livre, motor offline, voz e envio seguro de relatos ao Discord.
+- **Impressão PDF & Integridade da Base** (`tests/sheetPrinter.test.ts`, `tests/databaseIntegrity.test.ts`): Fichas *Livro Base* e *Sobrevivendo ao Horror* (com PD), sanitização HTML e integridade das 1.708 entidades / 10 livros.
 </details>
 
 ---
@@ -364,24 +369,13 @@ Contribuições da comunidade são muito bem-vindas! Você pode ajudar das segui
 
 ## 🔍 Diagnóstico e Auditoria do Sistema
 
-Realizamos uma varredura geral na base de código, tipagem, segurança e pipeline de CI/CD:
-
 | Área | Status | Detalhes |
 |---|---|---|
-| **Compilação & Tipagem** | ✅ Aprovado | `tsc --noEmit` executado com **0 erros** no TypeScript. |
-| **Suíte de Testes** | ✅ Aprovado | **306 testes automatizados passando (70 suítes)** cobrindo regras, compêndio, combate, IA e VTT. |
-| **Integridade da Base** | ✅ Aprovado | 10 suplementos indexados, 1.340+ entidades catalogadas e páginas validadas. |
-| **Segurança & Credenciais** | ⚠️ Requer Atenção | Necessidade de rotação de chave de API nos arquivos de ambiente e uso de segredos no EAS. |
-| **Pipeline de Build & Releases** | ⚠️ Requer Atenção | Adição de build nativo do APK antes do upload de assets em tags de release. |
-
-<details>
-<summary><b>📋 Próximas Melhorias Técnicas Mapeadas</b></summary>
-
-- **Segurança**: Isolamento de chaves de API exclusivamente por variáveis seguras em tempo de build (`eas env:create`) ou backend proxy.
-- **Tamanho do Repositório**: Exclusão de arquivos pesados locais (`pdfs/`) do índice Git para otimizar clones.
-- **Automação de Release**: Configuração do passo de build do APK no GitHub Actions e auto-incremento do `android.versionCode`.
-- **Arquitetura de Telas**: Decomposição dos modais assistentes (`CreateAgentModal`, `LevelUpModal`) em subcomponentes memoizados menores.
-</details>
+| **Compilação & Tipagem** | ✅ Aprovado | `tsc --noEmit` executado com **0 erros** no TypeScript estrito. |
+| **Suíte de Testes** | ✅ Aprovado | **1.000+ testes automatizados em 78 arquivos** cobrindo regras, Modo PD, compêndio, combate, UI, PWA, Android APK, IA e VTT. |
+| **Integridade da Base** | ✅ Aprovado | 10 suplementos indexados (*Livro Base v1.3* + 9 suplementos), **1.708 entidades** catalogadas e **1.271 páginas** validadas. |
+| **Segurança & Credenciais** | ✅ Blindado | Proxy seguro em Supabase Edge Function (`support-webhook`) com assinatura HMAC e rate limit, segredos ofuscados (`obf:v1:`) e `pdfs/` excluídos do Git e do bundle Web. |
+| **Pipeline de Build & Releases** | ✅ Automatizado | Scripts `npm run release`, `npm run build:pc`, `npm run deploy:web` (EAS Hosting) e `npm run build:apk` (EAS Build + GitHub Releases). |
 
 ---
 
