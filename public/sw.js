@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-globals */
-const CACHE_NAME = 'ordo-companion-pwa-v1';
+const CACHE_NAME = 'ordo-companion-pwa-v2';
 const SHELL_ASSETS = ['/', '/manifest.json', '/favicon.png', '/icon-512.png', '/icon.png'];
 
 self.addEventListener('install', (event) => {

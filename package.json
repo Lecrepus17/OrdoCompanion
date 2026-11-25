@@ -25,6 +25,7 @@
     "build:apk": "node scripts/build_and_upload_apk.js",
     "build:web": "node scripts/build_web_pc.js",
     "build:pc": "node scripts/build_web_pc.js",
+    "deploy:web": "node scripts/build_web_pc.js --deploy",
     "requests:fetch": "node scripts/discord_requests.js fetch",
     "requests:ack": "node scripts/discord_requests.js ack",
     "requests:test": "node scripts/discord_requests.js test",

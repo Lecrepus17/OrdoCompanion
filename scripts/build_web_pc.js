@@ -118,32 +118,61 @@ function readEnvKeysFromDotEnv(envPath) {
   return keys;
 }
 
-function warnMissingPublicEnvVars() {
+/**
+ * Carrega variáveis `EXPO_PUBLIC_*` de fallback definidas em `eas.json` (`build.production.env`)
+ * para garantir que o bundle Web publicado em produção tenha paridade de serviços (Supabase VTT,
+ * Support Proxy, OAuth Web) mesmo quando `.env` local estiver incompleto.
+ */
+function buildExportEnv() {
+  const mergedEnv = { ...process.env };
   const dotEnvKeys = readEnvKeysFromDotEnv(path.join(rootDir, '.env'));
+  const easPath = path.join(rootDir, 'eas.json');
+
+  if (fs.existsSync(easPath)) {
+    try {
+      const easJson = JSON.parse(fs.readFileSync(easPath, 'utf8'));
+      const prodEnv = easJson?.build?.production?.env || {};
+      for (const [key, value] of Object.entries(prodEnv)) {
+        if (
+          key.startsWith('EXPO_PUBLIC_') &&
+          typeof value === 'string' &&
+          value.trim() &&
+          !mergedEnv[key] &&
+          !dotEnvKeys.has(key)
+        ) {
+          mergedEnv[key] = value;
+        }
+      }
+    } catch {}
+  }
+
   const requiredPublicVars = [
     'EXPO_PUBLIC_SUPABASE_URL',
     'EXPO_PUBLIC_SUPPORT_PROXY_URL',
   ];
 
   const missing = requiredPublicVars.filter(
-    (key) => !process.env[key] && !dotEnvKeys.has(key)
+    (key) => !mergedEnv[key] && !dotEnvKeys.has(key)
   );
 
   if (missing.length > 0) {
     console.warn(
-      `\n⚠️ [Web/PC Build] Variável(is) pública(s) ausente(s) no ambiente/.env: ${missing.join(', ')}.\n` +
-        '   Configure-as no provedor de hospedagem (Vercel, Netlify, Cloudflare Pages, etc.) caso faça deploy em nuvem.'
+      `\n⚠️ [Web/PC Build] Variável(is) pública(s) ausente(s) no ambiente/.env/eas.json: ${missing.join(', ')}.\n` +
+        '   Configure-as no provedor de hospedagem caso faça deploy em nuvem.'
     );
   }
+
+  return mergedEnv;
 }
 
 function runCli() {
   const rawArgs = process.argv.slice(2);
   const includeLocalPdfs = rawArgs.includes('--include-local-pdfs');
-  const exportArgs = rawArgs.filter((a) => a !== '--include-local-pdfs');
+  const shouldDeploy = rawArgs.includes('--deploy');
+  const exportArgs = rawArgs.filter((a) => a !== '--include-local-pdfs' && a !== '--deploy');
   const distDir = resolveOutputDir(exportArgs);
 
-  warnMissingPublicEnvVars();
+  const exportEnv = buildExportEnv();
 
   console.log('\n⏳ [Web/PC Build] Exportando bundle estático Expo Web...');
   let exportRes;
@@ -154,12 +183,14 @@ function runCli() {
       [expoCliPath, 'export', '-p', 'web', ...exportArgs],
       {
         cwd: rootDir,
+        env: exportEnv,
         stdio: 'inherit',
       }
     );
   } catch {
     exportRes = spawnSync('npx', ['expo', 'export', '-p', 'web', ...exportArgs], {
       cwd: rootDir,
+      env: exportEnv,
       stdio: 'inherit',
       shell: process.platform === 'win32',
     });
@@ -189,6 +220,20 @@ function runCli() {
   }
 
   console.log('✔ [Web/PC Build] Todos os artefatos PWA Desktop e /oauthredirect validados com sucesso!');
+
+  if (shouldDeploy) {
+    console.log('\n⏳ [EAS Hosting] Publicando bundle Web em produção (https://ordo-companion.expo.app/)...');
+    const deployRes = spawnSync('npx', ['eas', 'deploy', '--prod', '--non-interactive'], {
+      cwd: rootDir,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+    });
+    if (deployRes.status !== 0) {
+      console.error('❌ [EAS Hosting] Falha ao publicar no EAS Hosting (`npx eas deploy --prod`).');
+      process.exit(deployRes.status || 1);
+    }
+    console.log('✔ [EAS Hosting] Versão Web publicada com sucesso em https://ordo-companion.expo.app/!');
+  }
 }
 
 if (require.main === module) {

@@ -970,10 +970,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                           <View style={{ flex: 1 }}>
                             <Text style={styles.updateAppName}>Ordo Companion</Text>
                             <Text style={styles.updateVersionText}>
-                              Versão instalada: <Text style={{ fontWeight: '800', color: colors.text }}>v{Constants.expoConfig?.version || '1.0.0'}</Text>
+                              {isWeb ? 'Versão Web ativa: ' : 'Versão instalada: '}
+                              <Text style={{ fontWeight: '800', color: colors.text }}>v{Constants.expoConfig?.version || '1.0.0'}</Text>
                             </Text>
                           </View>
-                          {updateInfo?.hasUpdate && (
+                          {!isWeb && updateInfo?.hasUpdate && (
                             <View style={styles.updateAvailablePill}>
                               <Text style={styles.updateAvailablePillText}>Nova v{updateInfo.latestVersion}</Text>
                             </View>
@@ -981,30 +982,34 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ visible, onC
                         </View>
 
                         <Text style={styles.fieldHint}>
-                          Mantenha seu grimório digital sincronizado e atualizado com as últimas regras, suplementos e melhorias da Ordem.
+                          {isWeb
+                            ? 'Na Web, o aplicativo recebe novas versões automaticamente pelo servidor. Você também pode instalá-lo no PC para usar em janela dedicada e offline.'
+                            : 'Mantenha seu grimório digital sincronizado e atualizado com as últimas regras, suplementos e melhorias da Ordem.'}
                         </Text>
 
-                        <TouchableOpacity
-                          style={[styles.checkUpdateButton, { borderColor: colors.primary }]}
-                          onPress={handleCheckUpdatesManually}
-                          disabled={isCheckingUpdate}
-                          activeOpacity={0.8}
-                        >
-                          {isCheckingUpdate ? (
-                            <ActivityIndicator size="small" color={colors.primary} />
-                          ) : (
-                            <>
-                              <Ionicons
-                                name={updateInfo?.hasUpdate ? 'cloud-download-outline' : 'refresh-outline'}
-                                size={18}
-                                color={colors.primary}
-                              />
-                              <Text style={[styles.checkUpdateButtonText, { color: colors.primary }]}>
-                                {updateInfo?.hasUpdate ? 'Ver Nova Atualização' : 'Verificar Atualizações'}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
+                        {!isWeb && (
+                          <TouchableOpacity
+                            style={[styles.checkUpdateButton, { borderColor: colors.primary }]}
+                            onPress={handleCheckUpdatesManually}
+                            disabled={isCheckingUpdate}
+                            activeOpacity={0.8}
+                          >
+                            {isCheckingUpdate ? (
+                              <ActivityIndicator size="small" color={colors.primary} />
+                            ) : (
+                              <>
+                                <Ionicons
+                                  name={updateInfo?.hasUpdate ? 'cloud-download-outline' : 'refresh-outline'}
+                                  size={18}
+                                  color={colors.primary}
+                                />
+                                <Text style={[styles.checkUpdateButtonText, { color: colors.primary }]}>
+                                  {updateInfo?.hasUpdate ? 'Ver Nova Atualização' : 'Verificar Atualizações'}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        )}
 
                         {isWeb ? (
                           <TouchableOpacity

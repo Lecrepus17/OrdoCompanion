@@ -32,7 +32,7 @@ describe('Frontend - Modal de Notificação de Atualização (UpdateNotification
     isDismissed: false,
   };
 
-  it('deve renderizar o modal com informações da versão e notas de lançamento', async () => {
+  it('deve renderizar o modal com informações da versão e notas de lançamento no Android', async () => {
     let dismissed = false;
     let downloaded = false;
 
@@ -46,7 +46,8 @@ describe('Frontend - Modal de Notificação de Atualização (UpdateNotification
         onDownload={() => {
           downloaded = true;
         }}
-      />
+      />,
+      { mobile: 'android' }
     );
 
     // Deve conter badge de nova versão e título do release
@@ -63,7 +64,7 @@ describe('Frontend - Modal de Notificação de Atualização (UpdateNotification
 
     // Deve exibir os botões de ação e dica para Android
     assert.ok(getByText(/No Android, toque no arquivo baixado para atualizar/i));
-    const downloadBtn = getByText(/Baixar APK para Android/i);
+    const downloadBtn = getByText(/Baixar Nova Versão \(APK\)/i);
     const githubBtn = getByText(/Ver Notas no GitHub/i);
     const dismissBtn = getByText(/Lembrar mais tarde/i);
 
@@ -80,31 +81,25 @@ describe('Frontend - Modal de Notificação de Atualização (UpdateNotification
     assert.equal(dismissed, true);
   });
 
-  it('deve exibir aviso obrigatório e ocultar botão de adiar quando isMandatory for true (Web e Android)', async () => {
+  it('não deve renderizar o modal na Web (Platform.OS === "web"), mesmo com visible=true e hasUpdate=true', async () => {
+    const webView = await renderWithProviders(
+      <UpdateNotificationModal
+        visible={true}
+        updateInfo={{ ...mockUpdateInfo, isMandatory: true }}
+        onDismiss={() => {}}
+      />
+    );
+
+    assert.equal(webView.queryByText(/NOVA VERSÃO DISPONÍVEL/i), null);
+    assert.equal(webView.queryByText(/ATUALIZAÇÃO OBRIGATÓRIA/i), null);
+  });
+
+  it('deve exibir aviso obrigatório e ocultar botão de adiar quando isMandatory for true no Android', async () => {
     const mandatoryUpdate: UpdateCheckResult = {
       ...mockUpdateInfo,
       latestVersion: '2.0.0',
       isMandatory: true,
     };
-
-    const { getByText, queryByText } = await renderWithProviders(
-      <UpdateNotificationModal
-        visible={true}
-        updateInfo={mandatoryUpdate}
-        onDismiss={() => {}}
-      />
-    );
-
-    // Deve conter badge de atualização obrigatória
-    assert.ok(getByText(/ATUALIZAÇÃO OBRIGATÓRIA/i));
-    assert.ok(getByText(/Esta atualização é necessária/i));
-
-    // Não deve conter o botão 'Lembrar mais tarde'
-    assert.equal(queryByText(/Lembrar mais tarde/i), null);
-    assert.ok(getByText(/Atualizar Aplicativo no PC/i));
-    assert.ok(getByText(/Baixar APK para Android/i));
-
-    await cleanup();
 
     const androidView = await renderWithProviders(
       <UpdateNotificationModal
@@ -114,6 +109,13 @@ describe('Frontend - Modal de Notificação de Atualização (UpdateNotification
       />,
       { mobile: 'android' }
     );
+
+    // Deve conter badge de atualização obrigatória
+    assert.ok(androidView.getByText(/ATUALIZAÇÃO OBRIGATÓRIA/i));
+    assert.ok(androidView.getByText(/Esta atualização é necessária/i));
+
+    // Não deve conter o botão 'Lembrar mais tarde'
+    assert.equal(androidView.queryByText(/Lembrar mais tarde/i), null);
     assert.ok(androidView.getByText(/Baixar Nova Versão \(APK\)/i));
   });
 

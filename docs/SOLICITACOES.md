@@ -87,6 +87,7 @@ npm run requests:questions
 | `SOL-ERR-HIST-05` | 🐛 Erro | Chat Direto (`SOL-ERR-002`) | Correção e validação ponta a ponta da Central de Suporte / Discord no Android APK, Web e Edge Function (`#erros` vs `#melhorias`, preservação de rascunho + reenvio, botão Abrir Discord no Hermes e ocultação de `Salvar Informações` na aba Suporte) | `2026-11-22` / `v1.7.0-beta.2` |
 | `SOL-ERR-HIST-06` | 🐛 Erro | Chat Direto (`SOL-ERR-001`) | Vestimentas com +2 em duas perícias (`Função Adicional` e `Amuleto Sagrado`) somadas nas colunas `Outros` e `BÔNUS` da impressão PDF (`LB` e `SH`) com seletor direto no `ItemEditorModal` | `2026-11-22` / `v1.7.0-beta.2` |
 | `SOL-ERR-HIST-07` | 🐛 Erro | Chat Direto (`SOL-ERR-002`) | Bônus extras passivos de Sanidade/Enlouquecer (`Vontade` + itens), Defesa, Poderes, Origens, Trilhas (`Iniciativa Aprimorada`, `Gatuno`, `O Sorriso`, `Ser Escarificado`), Maldições de Acessórios/Proteções (`Sombria`/`Lépida`) e Forma Suprema na ficha ativa e impressão PDF | `2026-11-22` / `v1.7.0-beta.2` |
+| `SOL-ERR-HIST-08` | 🐛 Erro | Chat Direto (`SOL-ERR-001`) | Supressão do modal de atualização manual e da verificação remota estilo APK na Web (`Platform.OS === 'web'`), mantendo atualização automática transparente via servidor/Service Worker e preservando o modal no Android | `2026-11-23` / `v1.7.0-beta.3` |
 | `SOL-MEL-HIST-01` | 💡 Melhoria | Discord `#erros` (`#ORD-33762V`) | Mecânica dos Mascarados & Forma Suprema | `2026-11-13` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-02` | 💡 Melhoria | Discord `#erros` (`#ORD-4662K3`) | Importar itens do Compêndio na aba Inventário do Agente | `2026-11-14` / `v1.6.0-beta.1` |
 | `SOL-MEL-HIST-03` | 💡 Melhoria | Discord `#erros` (`#ORD-4017YV`) | Armaria para proteções, vestimentas e itens com maldições | `2026-11-18` / `v1.6.0-beta.1` |
@@ -96,6 +97,7 @@ npm run requests:questions
 | `SOL-MEL-HIST-07` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Núcleo essencial do Livro Base (3 Classes, 28 Perícias e 37 Condições) liberado por padrão mantendo o PDF, leitor e demais 734 registros/9 livros bloqueados até o upload | `2026-11-22` / `v1.7.0-beta.2` |
 | `SOL-MEL-HIST-08` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Varredura geral e eliminação de botões/controles duplicados em todas as 48 telas e modais do aplicativo (Lotes 1 a 5), centralizando Suporte/Temas/Backup no Perfil do Usuário | `2026-11-22` / `v1.7.0-beta.2` |
 | `SOL-MEL-HIST-09` | 💡 Melhoria | Chat Direto (`SOL-MEL-001`) | Modo opcional de Pontos de Determinação (PD) de *Sobrevivendo ao Horror* (p. 105–106) unificando PE e Sanidade na criação, avanço de NEX, ficha ativa, combate/rituais, Mestre, Mesa Virtual, impressão PDF SH, compartilhamento e IA G.L.I.T.C.H. | `2026-11-23` / `v1.7.0-beta.3` |
+| `SOL-MEL-HIST-10` | 💡 Melhoria | Chat Direto (`SOL-MEL-001` / `SOL-MEL-002`) | Script automatizado `npm run deploy:web` (`eas deploy --prod`) e atualização do `README.md` com links oficiais de acesso Web (`ordo-companion.expo.app`), instalação PC PWA e download direto do APK Android | `2026-11-23` / `v1.7.0-beta.3` |
 
 ---
 

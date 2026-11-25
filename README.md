@@ -5,13 +5,15 @@
   # Ordo Companion
   ### O Grimório Tático Definitivo, Compêndio e Ficha Interativa para Ordem Paranormal RPG
 
-  [![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://github.com/)
+  [![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://github.com/Lecrepus17/OrdoCompanion)
   [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+  [![Web App](https://img.shields.io/badge/Web_App-ordo--companion.expo.app-DC2626?logo=googlechrome&logoColor=white)](https://ordo-companion.expo.app/)
+  [![Android APK](https://img.shields.io/badge/Android-Baixar_APK-3DDC84?logo=android&logoColor=white)](https://github.com/Lecrepus17/OrdoCompanion/releases/latest/download/OrdoCompanion.apk)
+  [![GitHub Release](https://img.shields.io/github/v/release/Lecrepus17/OrdoCompanion?include_prereleases&label=Vers%C3%A3o&color=7C3AED)](https://github.com/Lecrepus17/OrdoCompanion/releases/latest)
   [![Expo](https://img.shields.io/badge/Expo-~58-black.svg?logo=expo)](https://expo.dev)
   [![React Native](https://img.shields.io/badge/React_Native-0.88-61DAFB.svg?logo=react)](https://reactnative.dev)
   [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6.svg?logo=typescript)](https://www.typescriptlang.org/)
-  [![Tests](https://img.shields.io/badge/Tests-296%20Passing-brightgreen.svg)](tests/)
-  [![Platform](https://img.shields.io/badge/Plataforma-Android%20%7C%20iOS%20%7C%20Web-lightgrey.svg)]()
+  [![Platform](https://img.shields.io/badge/Plataforma-Android%20%7C%20PC%20(PWA)%20%7C%20Web-lightgrey.svg)](https://ordo-companion.expo.app/)
 
   <p align="center">
     Um aplicativo multiplataforma de código aberto (Open Source) feito para mestres e investigadores de <b>Ordem Paranormal RPG</b>.<br />
@@ -19,11 +21,17 @@
   </p>
 
   <p align="center">
+    <a href="https://ordo-companion.expo.app/"><b>🌐 Abrir na Web / PC</b></a> •
+    <a href="https://github.com/Lecrepus17/OrdoCompanion/releases/latest/download/OrdoCompanion.apk"><b>📲 Baixar APK (Android)</b></a> •
+    <a href="https://github.com/Lecrepus17/OrdoCompanion/releases/latest"><b>📦 Releases no GitHub</b></a>
+  </p>
+
+  <p align="center">
+    <a href="#-como-acessar-e-baixar">Acessar & Baixar</a> •
     <a href="#-demonstração-visual">Demonstração Visual</a> •
     <a href="#-principais-funcionalidades">Funcionalidades</a> •
     <a href="#-documentação">Documentação</a> •
     <a href="#-estatísticas-da-base-de-dados">Base de Dados</a> •
-    <a href="#-como-rodar-no-celular">Rodar no Celular</a> •
     <a href="#-desenvolvimento">Desenvolvimento</a> •
     <a href="#-testes-automatizados">Testes</a> •
     <a href="#-contribuindo">Contribuir</a> •
@@ -36,9 +44,34 @@
 
 ## 👁️ Sobre o Projeto
 
-O **Ordo Companion** nasceu para eliminar a lentidão de manusear PDFs pesados ou consultar múltiplos livros físicos durante as sessões de RPG. O aplicativo unifica regras, fichas, combate e utilitários em uma interface moderna, ultra-rápida e otimizada para smartphones (Android e iOS) e navegadores (Web).
+O **Ordo Companion** nasceu para eliminar a lentidão de manusear PDFs pesados ou consultar múltiplos livros físicos durante as sessões de RPG. O aplicativo unifica regras, fichas, combate e utilitários em uma interface moderna, ultra-rápida e otimizada para smartphones (Android), navegadores (Web) e computadores Desktop (Windows, macOS e Linux via PWA).
 
 O projeto é **100% Livre e de Código Aberto (GPL-3.0)**, construído com arquitetura modular, persistência offline robusta e sincronização em nuvem sem intermediários.
+
+---
+
+## 🌐 Como Acessar e Baixar
+
+Você pode usar o **Ordo Companion** imediatamente no navegador, instalá-lo como aplicativo no computador ou baixar o `.apk` oficial no celular Android:
+
+| Plataforma | Link Oficial | Modo de Uso |
+| :--- | :--- | :--- |
+| 🌐 **Navegador Web (Online)** | [**https://ordo-companion.expo.app/**](https://ordo-companion.expo.app/) | Acesso instantâneo no PC, tablet ou celular sem precisar instalar nada |
+| 💻 **Aplicativo para PC (Windows, macOS e Linux)** | [**https://ordo-companion.expo.app/**](https://ordo-companion.expo.app/) *(Instalar PWA)* | Janela dedicada na Área de Trabalho / Menu Iniciar com suporte **Offline** |
+| 📲 **Android (Download Direto `.apk`)** | [**Baixar `OrdoCompanion.apk` (Última Versão)**](https://github.com/Lecrepus17/OrdoCompanion/releases/latest/download/OrdoCompanion.apk) | Aplicativo nativo standalone com leitura e armazenamento 100% offline |
+| 📦 **Todas as Versões & Notas** | [**GitHub Releases**](https://github.com/Lecrepus17/OrdoCompanion/releases) | Histórico de versões, changelogs detalhados e arquivos de instalação |
+
+### 📲 Passo a Passo — Instalar no Celular ou Tablet Android (`.apk`)
+1. Baixe o arquivo [**`OrdoCompanion.apk`**](https://github.com/Lecrepus17/OrdoCompanion/releases/latest/download/OrdoCompanion.apk) (ou acesse a [página da última Release](https://github.com/Lecrepus17/OrdoCompanion/releases/latest) e toque em `OrdoCompanion.apk` na seção **Assets**).
+2. Abra o arquivo baixado nas notificações ou no gerenciador de arquivos do aparelho e confirme em **Instalar** *(caso seja a primeira vez, permita a instalação da fonte do navegador)*.
+3. **Para atualizar versões futuras**: basta baixar e instalar o novo `.apk` por cima — todas as suas fichas, campanhas, armas e configurações locais são preservadas!
+
+### 💻 Passo a Passo — Usar na Web ou Instalar no PC (Windows, macOS e Linux)
+1. Acesse [**https://ordo-companion.expo.app/**](https://ordo-companion.expo.app/) pelo **Google Chrome**, **Microsoft Edge** ou outro navegador moderno para usar direto na Web.
+2. Para instalar como **Aplicativo de Desktop (PWA Offline)**:
+   - Clique no ícone de **Instalar aplicativo** (computador com seta) no canto direito da barra de endereços do navegador; **ou**
+   - Dentro do app, abra o **Perfil do Usuário** (canto superior direito) ➔ aba **Identidade** ➔ clique em **Instalar Aplicativo no PC**.
+3. Para levar suas fichas e campanhas entre o celular e o PC, conecte sua conta na aba **Nuvem (Google Drive)** do Perfil ou utilize os botões de **Exportar / Importar Backup `.json`**.
 
 ---
 
@@ -181,28 +214,20 @@ Toda a base de dados do aplicativo é indexada a partir dos 10 suplementos ofici
 
 ---
 
-## 📱 Como Rodar no Celular
+## 🛠️ Build de Produção (APK & Web/PC)
 
-### Opção 1: Instantâneo via Expo Go (Sem compilar)
-1. Instale o app **Expo Go** no seu aparelho (em desenvolvimento, não está feito):
-   - [Google Play Store (Android)](https://play.google.com/store/apps/details?id=host.exp.exponent)
-   - [Apple App Store (iOS)](https://apps.apple.com/app/expo-go/id982107779)
-2. No seu computador, inicie o servidor:
-   ```bash
-   npm start
-   # ou com tunnel se celular e PC estiverem em redes Wi-Fi diferentes:
-   npm run start-ngrok
-   ```
-3. Abra o Expo Go no celular e aponte a câmera para o QR Code exibido no terminal.
+O repositório já possui scripts automatizados para gerar o bundle Web/PC e compilar o `.apk` Android via [`eas.json`](eas.json):
 
-### Opção 2: Gerar APK Standalone (Android)
-O repositório já possui configuração completa pronta no [`eas.json`](eas.json):
 ```bash
-npm install -g eas-cli
-eas login
-eas build -p android --profile preview
+# Gerar bundle estático Web / Desktop PWA (pasta dist/)
+npm run build:pc
+
+# Exportar e publicar versão Web em https://ordo-companion.expo.app/
+npm run deploy:web
+
+# Compilar APK Android de produção no EAS Cloud e anexar na Release do GitHub
+npm run build:apk
 ```
-Ao final do build na nuvem, você receberá um link e QR Code para baixar o arquivo `.apk` diretamente no seu celular.
 
 ---
 
@@ -217,7 +242,7 @@ Ao final do build na nuvem, você receberá um link e QR Code para baixar o arqu
 
 1. **Clone o repositório:**
    ```bash
-   git clone https://github.com/SEU-USUARIO/OrdoCompanion.git
+   git clone https://github.com/Lecrepus17/OrdoCompanion.git
    cd OrdoCompanion
    ```
 
@@ -324,7 +349,7 @@ Caso você queira adicionar novos suplementos ou reprocessar os livros existente
 
 Contribuições da comunidade são muito bem-vindas! Você pode ajudar das seguintes maneiras:
 
-- 🐛 **Reportar Problemas**: Abra uma [Issue](https://github.com/SEU-USUARIO/OrdoCompanion/issues) descrevendo o bug e os passos para reproduzi-lo.
+- 🐛 **Reportar Problemas**: Abra uma [Issue](https://github.com/Lecrepus17/OrdoCompanion/issues) ou envie direto pela **Central de Suporte / Discord** dentro do aplicativo.
 - 💡 **Sugerir Melhorias**: Envie ideias para novas funcionalidades ou refinamento das regras.
 - 📸 **Enviar Screenshots**: Envie capturas de tela bonitas das suas sessões para enriquecer a galeria visual do projeto.
 - 🛠️ **Enviar Pull Requests**:

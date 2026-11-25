@@ -12,6 +12,10 @@ Registro das alterações prontas para commit com título e descrição detalhad
 
 ## 📜 Histórico de Commits Recentes
 
+### ✅ Supressão de Modal de Atualização na Web, Deploy Automatizado & Links no README (`SOL-ERR-001` / `SOL-MEL-001` / `SOL-MEL-002`) (2026-11-23):
+- **Título**: `fix(web,docs): desativa modal de atualizacao na web, adiciona deploy:web e links no README`
+- **Resumo**: Suprime o modal de atualização manual e a checagem estilo APK na Web (`Platform.OS === 'web'`) preservando o fluxo no Android, atualiza Service Worker para `ordo-companion-pwa-v2`, adiciona script `npm run deploy:web` (`eas deploy --prod`), atualiza `README.md` com links oficiais Web/PC/Android APK e amplia testes automatizados.
+
 ### ✅ Modo Opcional de Pontos de Determinação (PD — *Sobrevivendo ao Horror*, `SOL-MEL-001`) (2026-11-23):
 - **Título**: `feat(rules,characters): adiciona modo opcional de Pontos de Determinacao (PD) de Sobrevivendo ao Horror`
 - **Resumo**: Adiciona campos opcionais `useDeterminationPoints`/`pdCurrent`/`pdMax`/`pdTemp`, fórmulas canônicas (SH p. 105–106) em `progression.ts`, fluxo completo em `CreateAgentModal`, `LevelUpModal`, `AttackPreparationModal`, `characters.tsx`, `master.tsx`, `table.tsx`, `tableSessionExportService.ts`, `sheetPrinter.ts` (SH), `PrintSheetModal`, `RecordPreviewModal`, `agentSharing.ts` e `AiKnowledgeRetrieval.ts`, com cobertura em `tests/determinationPoints.test.ts`.

@@ -112,6 +112,15 @@ export class UpdateCheckerService {
   }
 
   /**
+   * Indica se a plataforma atual deve exibir avisos/modais de atualização remota (APK/Nativo).
+   * Na Web (`Platform.OS === 'web'`), atualizações são entregues automaticamente pelo servidor/SW,
+   * não fazendo sentido pedir atualização manual ao usuário.
+   */
+  public shouldAutoPromptForUpdates(platformOs: string = Platform.OS): boolean {
+    return platformOs !== 'web';
+  }
+
+  /**
    * Obtém a versão instalada atualmente no aplicativo.
    */
   public getCurrentVersion(): string {
